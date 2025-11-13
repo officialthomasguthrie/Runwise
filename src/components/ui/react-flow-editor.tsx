@@ -138,7 +138,7 @@ export const ReactFlowEditor = ({
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null); // Start as null, will be set after load
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
-  const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
+  const reactFlowInstance = useRef<ReactFlowInstance<any, any> | null>(null);
   const [reactFlowKey, setReactFlowKey] = useState(0); // Force re-render key
   const [layoutDirection, setLayoutDirection] = useState<'LR' | 'TB'>('LR');
   
