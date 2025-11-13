@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase-client';
 import { Loader2, Trash2 } from 'lucide-react';
+import type { Database } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -68,6 +69,11 @@ export function SettingsView({ workflowId }: SettingsViewProps) {
     };
   }, [workflowName, workflowDescription, workflowStatus]);
 
+  type WorkflowSettingsRow = Pick<
+    Database['public']['Tables']['workflows']['Row'],
+    'name' | 'description' | 'status'
+  >;
+
   const loadWorkflowSettings = async () => {
     if (!workflowId || !user) return;
     
@@ -78,7 +84,7 @@ export function SettingsView({ workflowId }: SettingsViewProps) {
       const supabase = createClient();
       const { data, error: err } = await supabase
         .from('workflows')
-        .select('name, description, status')
+        .select<WorkflowSettingsRow>('name, description, status')
         .eq('id', workflowId)
         .eq('user_id', user.id)
         .single();
