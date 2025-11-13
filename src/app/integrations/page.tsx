@@ -242,47 +242,55 @@ export default function IntegrationsPage() {
                   </div>
                 ) : configuredIntegrations.length === 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {demoIntegrations.map((integration) => (
-                      <div
-                        key={integration.id}
-                        className="group relative rounded-lg border border-border bg-card p-6 transition-colors hover:border-pink-400/50 hover:shadow-lg"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-3`}>{integration.icon}</div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="inline-flex h-2 w-2 rounded-full bg-green-500" aria-hidden />
-                            Active
+                    {demoIntegrations.map((integration) => {
+                      const Icon = integration.icon;
+                      return (
+                        <div
+                          key={integration.id}
+                          className="group relative rounded-lg border border-border bg-card p-6 transition-colors hover:border-pink-400/50 hover:shadow-lg"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-3`}>
+                              <Icon className={`h-6 w-6 ${integration.iconColor}`} />
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className="inline-flex h-2 w-2 rounded-full bg-green-500" aria-hidden />
+                              Active
+                            </div>
+                          </div>
+                          <div className="mt-6 space-y-2">
+                            <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
+                            <p className="text-xs text-muted-foreground">{integration.description}</p>
                           </div>
                         </div>
-                        <div className="mt-6 space-y-2">
-                          <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
-                          <p className="text-xs text-muted-foreground">{integration.description}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {configuredIntegrations.map((integration) => (
-                      <div
-                        key={integration.id}
-                        className="group relative rounded-lg border border-border bg-card p-6 transition-colors hover:border-pink-400/50 hover:shadow-lg"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-3`}>
-                            {integration.icon}
+                    {configuredIntegrations.map((integration) => {
+                      const Icon = integration.icon;
+                      return (
+                        <div
+                          key={integration.id}
+                          className="group relative rounded-lg border border-border bg-card p-6 transition-colors hover:border-pink-400/50 hover:shadow-lg"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-3`}>
+                              <Icon className={`h-6 w-6 ${integration.iconColor}`} />
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className="inline-flex h-2 w-2 rounded-full bg-green-500" aria-hidden />
+                              Active
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="inline-flex h-2 w-2 rounded-full bg-green-500" aria-hidden />
-                            Active
+                          <div className="mt-6 space-y-2">
+                            <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
+                            <p className="text-xs text-muted-foreground">{integration.description}</p>
                           </div>
                         </div>
-                        <div className="mt-6 space-y-2">
-                          <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
-                          <p className="text-xs text-muted-foreground">{integration.description}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -305,32 +313,35 @@ export default function IntegrationsPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredIntegrations.map((integration) => (
-                  <div
-                    key={integration.id}
-                    className="group relative rounded-lg border border-border bg-card p-6 transition-colors hover:border-pink-400/50 hover:shadow-lg"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-3`}>
-                        {integration.icon}
+                {filteredIntegrations.map((integration) => {
+                  const Icon = integration.icon;
+                  return (
+                    <div
+                      key={integration.id}
+                      className="group relative rounded-lg border border-border bg-card p-6 transition-colors hover:border-pink-400/50 hover:shadow-lg"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-3`}>
+                          <Icon className={`h-6 w-6 ${integration.iconColor}`} />
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="inline-flex h-2 w-2 rounded-full bg-blue-500" aria-hidden />
+                          {integration.category}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="inline-flex h-2 w-2 rounded-full bg-blue-500" aria-hidden />
-                        {integration.category}
+                      <div className="mt-6 space-y-2">
+                        <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
+                        <p className="text-xs text-muted-foreground">{integration.description}</p>
+                      </div>
+                      <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Updated recently</span>
+                        <button className="text-pink-400 hover:text-pink-300 transition-colors">
+                          Connect
+                        </button>
                       </div>
                     </div>
-                    <div className="mt-6 space-y-2">
-                      <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
-                      <p className="text-xs text-muted-foreground">{integration.description}</p>
-                    </div>
-                    <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Updated recently</span>
-                      <button className="text-pink-400 hover:text-pink-300 transition-colors">
-                        Connect
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           </div>

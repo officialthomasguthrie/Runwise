@@ -36,7 +36,7 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
     });
     
     // Add new edge from source to placeholder
-    addEdges({
+    const newEdge = {
       id: newEdgeId,
       source: props.source,
       target: newNodeId,
@@ -45,7 +45,8 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
       style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
       sourcePosition: layoutDirection === 'TB' ? Position.Bottom : Position.Right,
       targetPosition: layoutDirection === 'TB' ? Position.Top : Position.Left,
-    });
+    } as any;
+    addEdges(newEdge);
   }, [props.source, addNodes, addEdges, getNode]);
  
   return (

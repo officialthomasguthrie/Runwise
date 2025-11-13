@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Create workflow - always set status to 'draft' for newly created workflows
-    const { data: workflow, error } = await supabase
+    const { data: workflow, error } = await (supabase as any)
       .from('workflows')
       .insert({
         user_id: user.id,

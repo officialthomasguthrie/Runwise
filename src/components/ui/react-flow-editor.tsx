@@ -153,17 +153,19 @@ export const ReactFlowEditor = ({
       const sourcePosition = isVertical ? Position.Bottom : Position.Right;
       const targetPosition = isVertical ? Position.Top : Position.Left;
 
-      return edgeList.map((edge) => ({
-        ...edge,
-        sourcePosition,
-        targetPosition,
-        type: edge.type || 'buttonedge',
-        style: {
-          stroke: 'hsl(var(--primary))',
-          strokeWidth: 2,
-          ...(edge.style || {}),
-        },
-      }));
+      return edgeList.map((edge) =>
+        ({
+          ...edge,
+          sourcePosition,
+          targetPosition,
+          type: edge.type || 'buttonedge',
+          style: {
+            stroke: 'hsl(var(--primary))',
+            strokeWidth: 2,
+            ...(edge.style || {}),
+          },
+        } as any)
+      ) as Edge[];
     },
     []
   );
@@ -446,7 +448,7 @@ export const ReactFlowEditor = ({
 
   const onConnect = useCallback(
     (params: Connection) => {
-      const orientedEdge: Edge = {
+      const orientedEdge = {
         ...params,
         id: `${params.source}-${params.target}`,
         type: 'buttonedge',
@@ -454,7 +456,7 @@ export const ReactFlowEditor = ({
         style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
         sourcePosition: layoutDirection === 'TB' ? Position.Bottom : Position.Right,
         targetPosition: layoutDirection === 'TB' ? Position.Top : Position.Left,
-      };
+      } as any;
       setEdges((eds) => {
         const newEdges = addEdge(orientedEdge, eds);
         // Save to history

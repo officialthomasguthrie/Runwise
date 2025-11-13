@@ -16,13 +16,15 @@ interface NodeConfigPanelProps {
 }
 
 export function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigPanelProps) {
-  const nodeDefinition = getNodeById(node.data.nodeId);
-  const [config, setConfig] = useState(node.data.config || {});
+  const nodeData = (node.data ?? {}) as any;
+  const nodeDefinition = getNodeById(nodeData.nodeId ?? "");
+  const [config, setConfig] = useState(nodeData.config || {});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
-    setConfig(node.data.config || {});
+    const latestData = (node.data ?? {}) as any;
+    setConfig(latestData.config || {});
     setHasChanges(false);
   }, [node]);
 
@@ -94,7 +96,7 @@ export function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigPanelProp
       <div className="sticky top-0 bg-background border-b border-border p-4 z-10">
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-foreground">{node.data.label}</h2>
+            <h2 className="text-xl font-bold text-foreground">{nodeData.label}</h2>
             <p className="text-sm text-muted-foreground mt-1">{nodeDefinition.description}</p>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
