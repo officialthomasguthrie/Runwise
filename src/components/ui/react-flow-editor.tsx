@@ -672,7 +672,8 @@ export const ReactFlowEditor = ({
 
   // Configuration helpers
   const isNodeConfigured = (node: Node): boolean => {
-    const nodeDefinition = getNodeById(node.data?.nodeId);
+    const nodeData = (node.data ?? {}) as any;
+    const nodeDefinition = getNodeById(nodeData.nodeId ?? "");
     if (!nodeDefinition || !nodeDefinition.configSchema) return true; // No config needed
     
     const schema = nodeDefinition.configSchema;
@@ -681,7 +682,7 @@ export const ReactFlowEditor = ({
     const hasRequiredFields = Object.values(schema).some((field: any) => field.required);
     if (!hasRequiredFields) return true;
     
-    const config = node.data?.config || {};
+    const config = nodeData.config || {};
     
     // Check if all required fields are filled with actual values
     for (const [key, fieldSchema] of Object.entries(schema)) {
@@ -842,7 +843,6 @@ export const ReactFlowEditor = ({
           duration: 0,
           nodeResults: [],
           finalOutput: null,
-          message: data.message || 'Scheduled execution enabled',
         });
         return;
       }
