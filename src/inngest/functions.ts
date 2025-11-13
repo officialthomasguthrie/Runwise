@@ -1,6 +1,7 @@
 import { inngest } from "./client";
 import { executeWorkflow } from "@/lib/workflow-execution/executor";
 import { createAdminClient } from "@/lib/supabase-admin";
+import type { Database } from "@/types/database";
 import type { Node, Edge } from "@xyflow/react";
 
 // ============================================================================
@@ -92,8 +93,8 @@ export const workflowExecutor = inngest.createFunction(
       const supabase = createAdminClient();
       const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      const { error } = await supabase
-        .from('workflow_executions')
+      const { error } = await (supabase
+        .from('workflow_executions') as any)
         .insert({
           id: executionId,
           workflow_id: workflowId,
@@ -129,8 +130,8 @@ export const workflowExecutor = inngest.createFunction(
       } catch (error: any) {
         // Update execution record with error
         const supabase = createAdminClient();
-        await supabase
-          .from('workflow_executions')
+        await (supabase
+          .from('workflow_executions') as any)
           .update({
             status: 'failed',
             error: error.message || 'Unknown error',
@@ -147,8 +148,8 @@ export const workflowExecutor = inngest.createFunction(
       const supabase = createAdminClient();
 
       // Update execution record
-      const { error: executionError } = await supabase
-        .from('workflow_executions')
+      const { error: executionError } = await (supabase
+        .from('workflow_executions') as any)
         .update({
           id: executionResult.executionId,
           status: executionResult.status,
@@ -176,8 +177,8 @@ export const workflowExecutor = inngest.createFunction(
           duration_ms: nodeResult.duration,
         }));
 
-        const { error: nodeResultsError } = await supabase
-          .from('node_execution_results')
+        const { error: nodeResultsError } = await (supabase
+          .from('node_execution_results') as any)
           .insert(nodeResultsData);
 
         if (nodeResultsError) {
@@ -189,7 +190,7 @@ export const workflowExecutor = inngest.createFunction(
           if (!nodeResult.logs || nodeResult.logs.length === 0) return [];
           return nodeResult.logs.map((log) => ({
             execution_id: executionResult.executionId,
-            node_result_id: nodeResultsData.find((nr) => nr.node_id === nodeResult.nodeId)?.id || null,
+            node_result_id: null,
             level: log.level,
             message: log.message,
             data: log.data || null,
@@ -198,8 +199,8 @@ export const workflowExecutor = inngest.createFunction(
         });
 
         if (allLogs.length > 0) {
-          const { error: logsError } = await supabase
-            .from('execution_logs')
+          const { error: logsError } = await (supabase
+            .from('execution_logs') as any)
             .insert(allLogs);
 
           if (logsError) {
@@ -239,6 +240,11 @@ export const scheduledWorkflowExecutor = inngest.createFunction(
   },
   async ({ step }) => {
     // Step 1: Find all active workflows with scheduled triggers
+    type ScheduledWorkflowRow = Pick<
+      Database['public']['Tables']['workflows']['Row'],
+      'id' | 'workflow_data' | 'user_id' | 'status'
+    >;
+
     const activeScheduledWorkflows = await step.run("find-scheduled-workflows", async () => {
       const supabase = createAdminClient();
       
@@ -255,8 +261,10 @@ export const scheduledWorkflowExecutor = inngest.createFunction(
 
       if (!workflows) return [];
 
+      const typedWorkflows = workflows as ScheduledWorkflowRow[];
+
       // Filter workflows that have scheduled triggers
-      const scheduledWorkflows = workflows.filter((workflow) => {
+      const scheduledWorkflows = typedWorkflows.filter((workflow) => {
         if (!workflow.workflow_data?.nodes) return false;
         
         return workflow.workflow_data.nodes.some(

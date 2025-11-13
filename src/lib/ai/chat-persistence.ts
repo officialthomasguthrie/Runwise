@@ -41,8 +41,8 @@ export async function saveConversation(
       user_id = user.id;
     }
     
-    const { error } = await supabase
-      .from('ai_chat_conversations')
+    const { error } = await (supabase
+      .from('ai_chat_conversations') as any)
       .upsert({
         id: conversationId,
         user_id: user_id,
@@ -78,8 +78,8 @@ export async function saveMessage(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = getSupabaseClient();
-    const { error } = await supabase
-      .from('ai_chat_messages')
+    const { error } = await (supabase
+      .from('ai_chat_messages') as any)
       .insert({
         id: message.id,
         conversation_id: conversationId,
@@ -227,8 +227,8 @@ export async function updateConversationTitle(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = getSupabaseClient();
-    const { error } = await supabase
-      .from('ai_chat_conversations')
+    const { error } = await (supabase
+      .from('ai_chat_conversations') as any)
       .update({ title, updated_at: new Date().toISOString() })
       .eq('id', conversationId);
 

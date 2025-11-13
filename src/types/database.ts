@@ -63,6 +63,7 @@ export interface Database {
           name: string
           description: string | null
           status: 'draft' | 'active' | 'paused' | 'archived'
+          workflow_data: Record<string, any> | null
           is_public: boolean
           is_template: boolean
           template_category: string | null
@@ -81,6 +82,7 @@ export interface Database {
           name: string
           description?: string | null
           status?: 'draft' | 'active' | 'paused' | 'archived'
+          workflow_data?: Record<string, any> | null
           is_public?: boolean
           is_template?: boolean
           template_category?: string | null
@@ -99,6 +101,7 @@ export interface Database {
           name?: string
           description?: string | null
           status?: 'draft' | 'active' | 'paused' | 'archived'
+          workflow_data?: Record<string, any> | null
           is_public?: boolean
           is_template?: boolean
           template_category?: string | null

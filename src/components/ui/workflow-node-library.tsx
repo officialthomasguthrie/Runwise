@@ -17,6 +17,8 @@ import { Trash2, Zap } from "lucide-react";
 import { getNodeById } from "@/lib/nodes/registry";
 import type { NodeDefinition } from "@/lib/nodes/types";
 
+type WorkflowNodeType = 'trigger' | 'action' | 'transform' | 'end';
+
 interface WorkflowNodeProps {
   data: {
     nodeId?: string; // ID from node registry
@@ -85,7 +87,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
   console.log('🟦 Node definition:', nodeDefinition ? nodeDefinition.name : 'NOT FOUND');
 
   // Fallback to generic node if not found in registry
-  const nodeType = nodeDefinition?.type || 'action';
+  const nodeType = (nodeDefinition?.type ?? data.type ?? 'action') as WorkflowNodeType;
   const nodeName = nodeDefinition?.name || data.label || 'Unknown Node';
   // Check for AI-generated description first, then library description
   const nodeDescription = data.description || data.metadata?.description || nodeDefinition?.description || 'No description available';

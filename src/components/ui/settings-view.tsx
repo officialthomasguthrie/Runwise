@@ -73,6 +73,10 @@ export function SettingsView({ workflowId }: SettingsViewProps) {
     Database['public']['Tables']['workflows']['Row'],
     'name' | 'description' | 'status'
   >;
+type WorkflowSettingsUpdate = Pick<
+  Database['public']['Tables']['workflows']['Update'],
+  'name' | 'description' | 'status' | 'updated_at'
+>;
 
   const loadWorkflowSettings = async () => {
     if (!workflowId || !user) return;
@@ -112,14 +116,16 @@ export function SettingsView({ workflowId }: SettingsViewProps) {
 
     try {
       const supabase = createClient();
-      const { error: err } = await supabase
-        .from('workflows')
-        .update({
-          name: workflowName,
-          description: workflowDescription,
-          status: workflowStatus,
-          updated_at: new Date().toISOString(),
-        })
+      const updatePayload: WorkflowSettingsUpdate = {
+        name: workflowName,
+        description: workflowDescription,
+        status: workflowStatus,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: err } = await (supabase
+        .from('workflows') as any)
+        .update(updatePayload)
         .eq('id', workflowId)
         .eq('user_id', user.id);
 
