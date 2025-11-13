@@ -3,7 +3,7 @@
  * Helper functions for workflow serialization and management
  */
 
-import type { WorkflowData, Node, Edge } from './types';
+import type { WorkflowData } from './types';
 import type { Node as ReactFlowNode, Edge as ReactFlowEdge } from '@xyflow/react';
 
 /**

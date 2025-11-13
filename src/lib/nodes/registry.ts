@@ -3,7 +3,7 @@
  * Contains all 30 nodes with their definitions and execution code
  */
 
-import type { NodeRegistry, ExecutionContext } from './types';
+import type { NodeRegistry, ExecutionContext, NodeDefinition } from './types';
 
 // Helper function to get auth token
 const getAuthToken = (context: ExecutionContext, service: string): string => {
@@ -194,7 +194,7 @@ const updateAirtableRecordExecute = async (inputData: any, config: any, context:
     }
   }
   
-  const response = await context.http.patch(
+  const response = await context.http.put(
     `https://api.airtable.com/v0/${baseId}/${tableId}/${recordId}`,
     { fields: parsedFields },
     {

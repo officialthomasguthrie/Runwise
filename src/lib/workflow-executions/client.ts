@@ -3,6 +3,7 @@
  */
 
 import { createClient } from '@/lib/supabase-client';
+import type { Database } from '@/types/database';
 
 export interface WorkflowExecution {
   id: string;
@@ -59,11 +60,12 @@ export async function loadWorkflowExecutions(
     // Load workflow name separately
     let workflowName = 'Untitled Workflow';
     if (workflowId) {
+      type WorkflowNameRow = Pick<Database['public']['Tables']['workflows']['Row'], 'name'>;
       const { data: workflow } = await supabase
         .from('workflows')
         .select('name')
         .eq('id', workflowId)
-        .single();
+        .single<WorkflowNameRow>();
       
       if (workflow) {
         workflowName = workflow.name;
@@ -127,13 +129,14 @@ export async function loadUserExecutions(): Promise<{
     const workflowNames: Record<string, string> = {};
     
     if (workflowIds.length > 0) {
+      type WorkflowNameWithIdRow = Pick<Database['public']['Tables']['workflows']['Row'], 'id' | 'name'>;
       const { data: workflows } = await supabase
         .from('workflows')
         .select('id, name')
         .in('id', workflowIds);
       
       if (workflows) {
-        workflows.forEach((wf: any) => {
+        (workflows as WorkflowNameWithIdRow[]).forEach((wf) => {
           workflowNames[wf.id] = wf.name;
         });
       }

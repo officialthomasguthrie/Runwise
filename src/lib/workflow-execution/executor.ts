@@ -46,11 +46,13 @@ export async function executeWorkflow(
     for (const node of sortedNodes) {
       const nodeStartTime = Date.now();
       const nodeLogs: LogEntry[] = [];
+      const nodeData = (node.data ?? {}) as Record<string, any>;
+      const nodeLabel = typeof nodeData.label === 'string' ? nodeData.label : node.id;
 
       try {
         logs.push({
           level: 'info',
-          message: `Executing node: ${node.data?.label || node.id}`,
+          message: `Executing node: ${nodeLabel}`,
           timestamp: new Date().toISOString(),
         });
 
@@ -62,7 +64,7 @@ export async function executeWorkflow(
         // Record successful execution
         nodeResults.push({
           nodeId: node.id,
-          nodeName: node.data?.label || node.id,
+          nodeName: nodeLabel,
           status: 'success',
           outputData: nodeOutput,
           duration,
@@ -74,7 +76,7 @@ export async function executeWorkflow(
 
         logs.push({
           level: 'info',
-          message: `Node completed successfully: ${node.data?.label || node.id}`,
+          message: `Node completed successfully: ${nodeLabel}`,
           data: { duration, outputKeys: Object.keys(nodeOutput || {}) },
           timestamp: new Date().toISOString(),
         });
@@ -84,7 +86,7 @@ export async function executeWorkflow(
         // Record failed execution
         nodeResults.push({
           nodeId: node.id,
-          nodeName: node.data?.label || node.id,
+          nodeName: nodeLabel,
           status: 'failed',
           outputData: null,
           error: error.message || 'Unknown error',
@@ -94,13 +96,13 @@ export async function executeWorkflow(
 
         logs.push({
           level: 'error',
-          message: `Node failed: ${node.data?.label || node.id}`,
+          message: `Node failed: ${nodeLabel}`,
           data: { error: error.message },
           timestamp: new Date().toISOString(),
         });
 
         // Throw to stop execution
-        throw new Error(`Node "${node.data?.label || node.id}" failed: ${error.message}`);
+        throw new Error(`Node "${nodeLabel}" failed: ${error.message}`);
       }
     }
 
@@ -149,7 +151,7 @@ async function executeNode(
   inputData: any,
   context: ExecutionContext
 ): Promise<any> {
-  const nodeData = node.data;
+  const nodeData = (node.data ?? {}) as Record<string, any>;
 
   // Check if it's a custom node
   if (nodeData.nodeId === 'CUSTOM_GENERATED' || nodeData.customCode) {
@@ -168,11 +170,11 @@ async function executeCustomNode(
   inputData: any,
   context: ExecutionContext
 ): Promise<any> {
-  const nodeData = node.data;
+  const nodeData = (node.data ?? {}) as Record<string, any>;
   const customCode = nodeData.customCode;
   const config = nodeData.config || {};
 
-  if (!customCode) {
+  if (typeof customCode !== 'string' || customCode.trim().length === 0) {
     throw new Error('Custom node has no code');
   }
 
@@ -203,8 +205,8 @@ async function executeLibraryNode(
   inputData: any,
   context: ExecutionContext
 ): Promise<any> {
-  const nodeData = node.data;
-  const nodeId = nodeData.nodeId;
+  const nodeData = (node.data ?? {}) as Record<string, any>;
+  const nodeId = typeof nodeData.nodeId === 'string' ? nodeData.nodeId : node.id;
   const config = nodeData.config || {};
 
   // Get node definition from registry
@@ -277,28 +279,29 @@ function createExecutionContext(userId: string, logs: LogEntry[]): ExecutionCont
 
         // Handle FormData and URL-encoded data separately
         let body: any;
-        let headers: HeadersInit = {
-          ...options?.headers,
-        };
+        const { headers: optionHeaders, ...fetchOptions } = options ?? {};
+        const headers = new Headers(optionHeaders as HeadersInit);
 
         if (data instanceof FormData) {
           body = data;
           // Don't set Content-Type for FormData - browser will set it with boundary
-          delete headers['Content-Type'];
-        } else if (typeof data === 'string' && headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+          headers.delete('Content-Type');
+        } else if (typeof data === 'string' && headers.get('Content-Type') === 'application/x-www-form-urlencoded') {
           // URL-encoded form data (e.g., Twilio)
           body = data;
           // Keep the Content-Type header as is
         } else {
           body = JSON.stringify(data);
-          headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+          if (!headers.has('Content-Type')) {
+            headers.set('Content-Type', 'application/json');
+          }
         }
 
         const response = await fetch(url, {
           method: 'POST',
           headers,
           body,
-          ...options,
+          ...fetchOptions,
         });
 
         if (!response.ok) {

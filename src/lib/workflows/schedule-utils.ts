@@ -22,13 +22,13 @@ export function hasScheduledTrigger(nodes: Node[]): boolean {
 export function getScheduleConfig(nodes: Node[]): ScheduleConfig | null {
   const scheduledTriggerNode = nodes.find(node => node.type === 'scheduled-time-trigger');
   
-  if (!scheduledTriggerNode || !scheduledTriggerNode.data?.config) {
+  if (!scheduledTriggerNode) {
     return null;
   }
 
-  const config = scheduledTriggerNode.data.config;
-  const schedule = config.schedule;
-  const timezone = config.timezone || 'UTC';
+  const config = (scheduledTriggerNode.data?.config ?? {}) as Record<string, any>;
+  const schedule = config.schedule as string | undefined;
+  const timezone = (config.timezone as string | undefined) || 'UTC';
 
   if (!schedule) {
     return null;
