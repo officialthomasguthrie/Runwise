@@ -84,10 +84,10 @@ export function SettingsView({ workflowId }: SettingsViewProps) {
       const supabase = createClient();
       const { data, error: err } = await supabase
         .from('workflows')
-        .select<WorkflowSettingsRow>('name, description, status')
+        .select('name, description, status')
         .eq('id', workflowId)
         .eq('user_id', user.id)
-        .single();
+        .single<WorkflowSettingsRow>();
 
       if (err) {
         setError(err.message || 'Failed to load settings');
