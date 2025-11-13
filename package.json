@@ -31,6 +31,7 @@
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "coffee-script": "^1.12.7",
     "dagre": "^0.8.5",
     "framer-motion": "^12.23.24",
     "google-auth-library": "^10.4.2",

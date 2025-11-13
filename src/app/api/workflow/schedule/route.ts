@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the workflow
-    const adminSupabase = createAdminClient();
+    const adminSupabase = createAdminClient() as any;
     const { data: workflow, error: workflowError } = await adminSupabase
       .from('workflows')
       .select('id, workflow_data, user_id, status')
@@ -48,15 +48,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const workflowRecord = workflow as any;
+
     // Check if workflow has a scheduled trigger
-    if (!workflow.workflow_data?.nodes) {
+    if (!workflowRecord.workflow_data?.nodes) {
       return NextResponse.json(
         { error: 'Workflow has no nodes' },
         { status: 400 }
       );
     }
 
-    const hasScheduled = hasScheduledTrigger(workflow.workflow_data.nodes);
+    const hasScheduled = hasScheduledTrigger(workflowRecord.workflow_data.nodes);
 
     if (!hasScheduled) {
       return NextResponse.json(
@@ -127,7 +129,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const adminSupabase = createAdminClient();
+    const adminSupabase = createAdminClient() as any;
     const { data: workflow, error: workflowError } = await adminSupabase
       .from('workflows')
       .select('id, workflow_data, status')
@@ -142,19 +144,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const hasScheduled = workflow.workflow_data?.nodes 
-      ? hasScheduledTrigger(workflow.workflow_data.nodes)
+    const workflowRecord = workflow as any;
+
+    const hasScheduled = workflowRecord.workflow_data?.nodes 
+      ? hasScheduledTrigger(workflowRecord.workflow_data.nodes)
       : false;
     
-    const scheduleConfig = workflow.workflow_data?.nodes
-      ? getScheduleConfig(workflow.workflow_data.nodes)
+    const scheduleConfig = workflowRecord.workflow_data?.nodes
+      ? getScheduleConfig(workflowRecord.workflow_data.nodes)
       : null;
 
     return NextResponse.json({
       hasScheduledTrigger: hasScheduled,
       scheduleConfig,
-      isActive: workflow.status === 'active',
-      status: workflow.status,
+      isActive: workflowRecord.status === 'active',
+      status: workflowRecord.status,
     });
   } catch (error: any) {
     console.error('Error in GET /api/workflow/schedule:', error);

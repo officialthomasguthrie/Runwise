@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase-server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -23,7 +23,7 @@ export async function GET(
       );
     }
 
-    const workflowId = params.id;
+    const { id: workflowId } = await context.params;
 
     // Get most recent execution for this workflow
     const { data: executions, error: executionsError } = await supabase

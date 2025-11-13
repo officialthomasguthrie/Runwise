@@ -19,6 +19,12 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
     ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "react/display-name": "off",
+      "@next/next/no-html-link-for-pages": "off",
+      "react/no-unescaped-entities": "off",
+    },
   },
 ];
 

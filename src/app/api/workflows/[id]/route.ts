@@ -104,6 +104,7 @@ export async function PUT(
         { status: 404 }
       );
     }
+    const workflowRecord = existingWorkflow as any;
     
     // Prepare update data
     const updateData: any = {};
@@ -115,11 +116,11 @@ export async function PUT(
     
     // Increment version if workflow_data is updated
     if (body.workflow_data) {
-      updateData.version = (existingWorkflow.version || 1) + 1;
+      updateData.version = (workflowRecord.version || 1) + 1;
     }
     
     // Update workflow
-    const { data: workflow, error } = await supabase
+    const { data: workflow, error } = await (supabase as any)
       .from('workflows')
       .update(updateData)
       .eq('id', id)

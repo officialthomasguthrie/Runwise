@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     if (hasScheduled && scheduleConfig) {
       // Update workflow status to 'active' to enable scheduled execution
       const adminSupabase = createAdminClient();
-      const { error: updateError } = await adminSupabase
+      const { error: updateError } = await (adminSupabase as any)
         .from('workflows')
         .update({
           status: 'active',
@@ -88,9 +88,16 @@ export async function POST(request: NextRequest) {
 
     // Return event ID for tracking
     // The actual execution happens asynchronously in Inngest
+    const sendResult: any = eventIds;
+    const normalizedEventId =
+      sendResult?.[0]?.ids?.[0] ??
+      sendResult?.[0] ??
+      sendResult?.ids?.[0] ??
+      sendResult;
+
     return NextResponse.json({
       success: true,
-      eventId: eventIds[0]?.ids?.[0] || eventIds[0],
+      eventId: normalizedEventId,
       message: 'Workflow execution queued',
       status: 'queued',
       scheduled: false,

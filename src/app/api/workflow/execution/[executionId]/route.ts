@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase-server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { executionId: string } }
+  context: { params: Promise<{ executionId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -23,7 +23,7 @@ export async function GET(
       );
     }
 
-    const executionId = params.executionId;
+    const { executionId } = await context.params;
 
     // Get execution record
     const { data: execution, error: executionError } = await supabase
@@ -55,31 +55,35 @@ export async function GET(
       .order('timestamp', { ascending: true });
 
     // Transform to match WorkflowExecutionResult format
+    const executionRecord = execution as any;
+    const nodeResultsList = (nodeResults || []) as any[];
+    const logsList = (logs || []) as any[];
+
     const result = {
-      executionId: execution.id,
-      workflowId: execution.workflow_id,
-      status: execution.status,
-      startedAt: execution.started_at,
-      completedAt: execution.completed_at,
-      duration: execution.duration_ms || 0,
-      nodeResults: (nodeResults || []).map((nr) => ({
+      executionId: executionRecord.id,
+      workflowId: executionRecord.workflow_id,
+      status: executionRecord.status,
+      startedAt: executionRecord.started_at,
+      completedAt: executionRecord.completed_at,
+      duration: executionRecord.duration_ms || 0,
+      nodeResults: nodeResultsList.map((nr) => ({
         nodeId: nr.node_id,
         nodeName: nr.node_name,
         status: nr.status,
         outputData: nr.output_data,
         error: nr.error,
         duration: nr.duration_ms || 0,
-        logs: (logs || []).filter(log => 
-          log.node_result_id === nr.id
-        ).map(log => ({
+        logs: logsList
+          .filter((log) => log.node_result_id === nr.id)
+          .map((log) => ({
           level: log.level,
           message: log.message,
           data: log.data,
           timestamp: log.timestamp,
         })),
       })),
-      finalOutput: execution.final_output,
-      error: execution.error,
+      finalOutput: executionRecord.final_output,
+      error: executionRecord.error,
     };
 
     return NextResponse.json(result);
