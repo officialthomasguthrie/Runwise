@@ -1,0 +1,27 @@
+/* Minimal spotlight card effect */
+.card-spotlight {
+	relative: relative;
+	position: relative;
+	background: var(--card-bg, transparent);
+	border: 1px solid var(--border, hsl(240 3.7% 15.9%));
+	border-radius: 0.5rem;
+	overflow: hidden;
+}
+
+.card-spotlight::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+	background: radial-gradient(
+		closest-side,
+		var(--spotlight-color, rgba(255, 255, 255, 0.25)) 0%,
+		transparent 60%
+	);
+	transform: translate(calc(var(--mouse-x, -1000px) - 50%), calc(var(--mouse-y, -1000px) - 50%));
+	transition: background 150ms ease;
+	opacity: 0.08;
+}
