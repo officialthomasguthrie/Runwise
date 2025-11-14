@@ -17,9 +17,12 @@ export interface Database {
           subscription_tier: 'free' | 'pro' | 'enterprise'
           subscription_status: 'active' | 'cancelled' | 'past_due'
           subscription_expires_at: string | null
+          subscription_started_at: string | null
           usage_limit: number
           usage_count: number
           usage_reset_at: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           created_at: string
           updated_at: string
         }
@@ -33,9 +36,12 @@ export interface Database {
           subscription_tier?: 'free' | 'pro' | 'enterprise'
           subscription_status?: 'active' | 'cancelled' | 'past_due'
           subscription_expires_at?: string | null
+          subscription_started_at?: string | null
           usage_limit?: number
           usage_count?: number
           usage_reset_at?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -49,9 +55,12 @@ export interface Database {
           subscription_tier?: 'free' | 'pro' | 'enterprise'
           subscription_status?: 'active' | 'cancelled' | 'past_due'
           subscription_expires_at?: string | null
+          subscription_started_at?: string | null
           usage_limit?: number
           usage_count?: number
           usage_reset_at?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -233,6 +242,53 @@ export interface Database {
           started_at?: string
           completed_at?: string | null
           created_at?: string
+        }
+      }
+      billing_onboarding_sessions: {
+        Row: {
+          id: string
+          stripe_checkout_session_id: string
+          stripe_customer_id: string
+          stripe_subscription_id: string | null
+          stripe_price_id: string | null
+          email: string | null
+          status: 'pending' | 'completed'
+          onboarding_token: string | null
+          onboarding_token_expires_at: string | null
+          user_id: string | null
+          metadata: Record<string, any> | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          stripe_checkout_session_id: string
+          stripe_customer_id: string
+          stripe_subscription_id?: string | null
+          stripe_price_id?: string | null
+          email?: string | null
+          status?: 'pending' | 'completed'
+          onboarding_token?: string | null
+          onboarding_token_expires_at?: string | null
+          user_id?: string | null
+          metadata?: Record<string, any> | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          stripe_checkout_session_id?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string | null
+          stripe_price_id?: string | null
+          email?: string | null
+          status?: 'pending' | 'completed'
+          onboarding_token?: string | null
+          onboarding_token_expires_at?: string | null
+          user_id?: string | null
+          metadata?: Record<string, any> | null
+          created_at?: string
+          updated_at?: string
         }
       }
       node_executions: {

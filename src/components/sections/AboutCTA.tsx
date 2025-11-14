@@ -6,6 +6,7 @@ import { MoveRight, PhoneCall, ArrowRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import FadeContent from "@/components/ui/FadeContent"
+import { ProCheckoutButton } from "@/components/billing/pro-checkout-button"
 
 interface AboutCTAProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string
@@ -55,13 +56,13 @@ const AboutCTA = React.forwardRef<HTMLDivElement, AboutCTAProps>(
 
                        {/* CTA Buttons */}
                        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                         <Button 
-                           variant="outline" 
+                         <ProCheckoutButton
+                           variant="outline"
                            className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-geist"
                          >
-                           Start free trial <MoveRight className="w-4 h-4" />
-                         </Button>
-                         
+                           Buy Runwise Pro <MoveRight className="w-4 h-4" />
+                         </ProCheckoutButton>
+
                          <Button 
                            variant="outline" 
                            className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-geist"

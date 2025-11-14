@@ -1,3 +1,5 @@
+'use client';
+
 import { Check, MoveRight, PhoneCall } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -8,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ProCheckoutButton } from "@/components/billing/pro-checkout-button";
 
 function Pricing() {
   return (
@@ -127,9 +130,11 @@ function Pricing() {
                       </div>
                     </div>
                   </div>
-                      <Button variant="outline" className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-geist">
-                    Start free trial <MoveRight className="w-4 h-4" />
-                  </Button>
+                  <ProCheckoutButton
+                    variant="outline"
+                    className="w-full gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-geist justify-center"
+                    buttonText="Buy Runwise Pro"
+                  />
                 </div>
               </CardContent>
             </Card>

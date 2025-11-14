@@ -30,7 +30,7 @@ export default function PricingFAQ() {
         {
             id: 'item-3',
             question: 'Do you offer refunds?',
-            answer: 'We offer a 14-day free trial for all paid plans. If you&apos;re not satisfied within the first 14 days of a paid subscription, we&apos;ll provide a full refund.',
+            answer: 'If Runwise Pro isn&apos;t the right fit, contact us within 14 days of purchase and we&apos;ll issue a full refund—no questions asked.',
         },
         {
             id: 'item-4',
@@ -50,7 +50,7 @@ export default function PricingFAQ() {
         {
             id: 'item-7',
             question: 'How does the free trial work?',
-            answer: 'The 14-day free trial gives you full access to Professional features. No credit card required to start. You can upgrade to a paid plan anytime during or after the trial.',
+            answer: 'We no longer offer a free trial. Instead, you get immediate access to all Professional features, and our 14-day refund guarantee ensures you can buy with confidence.',
         },
         {
             id: 'item-8',

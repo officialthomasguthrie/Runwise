@@ -1,6 +1,9 @@
+'use client';
+
 import { MoveRight, PhoneCall } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ProCheckoutButton } from "@/components/billing/pro-checkout-button";
 
 function CTA() {
   return (
@@ -23,9 +26,12 @@ function CTA() {
             <Button className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground" variant="outline">
               Contact Sales <PhoneCall className="w-4 h-4" />
             </Button>
-            <Button className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground" variant="outline">
-              Start free trial <MoveRight className="w-4 h-4" />
-            </Button>
+            <ProCheckoutButton
+              variant="outline"
+              className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground"
+            >
+              Buy Runwise Pro <MoveRight className="w-4 h-4" />
+            </ProCheckoutButton>
           </div>
         </div>
       </div>
