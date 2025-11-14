@@ -27,7 +27,7 @@ function Pricing() {
           </div>
           
           <div className="flex text-center justify-center items-center gap-4 flex-col" suppressHydrationWarning={true}>
-            <div className="grid text-left grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-6 sm:gap-8" suppressHydrationWarning={true}>
+            <div className="grid text-left grid-cols-1 md:grid-cols-2 lg:grid-cols-4 max-w-6xl mx-auto gap-6 sm:gap-8" suppressHydrationWarning={true}>
             <Card className="w-full rounded-md bg-card border-border" suppressHydrationWarning={true}>
               <CardHeader suppressHydrationWarning={true}>
                 <CardTitle className="text-card-foreground font-geist">
@@ -78,6 +78,60 @@ function Pricing() {
                   </div>
                       <Button variant="outline" className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-geist">
                     Get started <MoveRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="w-full rounded-md bg-card border-border" suppressHydrationWarning={true}>
+              <CardHeader suppressHydrationWarning={true}>
+                <CardTitle className="text-card-foreground font-geist">
+                  <span className="flex flex-row gap-4 items-center font-normal">
+                    Starter
+                  </span>
+                </CardTitle>
+                <CardDescription className="text-muted-foreground font-geist">
+                  For solo builders who need more capacity and automation headroom.
+                </CardDescription>
+              </CardHeader>
+              <CardContent suppressHydrationWarning={true}>
+                <div className="flex flex-col gap-8 justify-start">
+                  <p className="flex flex-row items-center gap-2 text-xl text-card-foreground">
+                    <span className="text-4xl font-geist">$9</span>
+                    <span className="text-sm text-muted-foreground font-geist">
+                      / month
+                    </span>
+                  </p>
+                  <div className="flex flex-col gap-4 justify-start">
+                    <div className="flex flex-row gap-4">
+                      <Check className="w-4 h-4 mt-2 text-purple-400" />
+                      <div className="flex flex-col">
+                        <p className="text-card-foreground font-geist">25 workflows</p>
+                        <p className="text-muted-foreground text-sm font-geist">
+                          Expand your automation library with extra capacity
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-row gap-4">
+                      <Check className="w-4 h-4 mt-2 text-purple-400" />
+                      <div className="flex flex-col">
+                        <p className="text-card-foreground font-geist">Webhook triggers</p>
+                        <p className="text-muted-foreground text-sm font-geist">
+                          Kick off workflows from any external system
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-row gap-4">
+                      <Check className="w-4 h-4 mt-2 text-purple-400" />
+                      <div className="flex flex-col">
+                        <p className="text-card-foreground font-geist">Email support</p>
+                        <p className="text-muted-foreground text-sm font-geist">
+                          Standard response times from our success team
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <Button variant="outline" className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-geist">
+                    Upgrade now <MoveRight className="w-4 h-4" />
                   </Button>
                 </div>
               </CardContent>
