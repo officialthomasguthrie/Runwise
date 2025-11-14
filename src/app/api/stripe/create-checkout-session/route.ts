@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripePricePro = process.env.STRIPE_PRICE_PRO;
+const stripePricePersonal = process.env.STRIPE_PRICE_PERSONAL;
 
 const stripe = stripeSecretKey != null ? new Stripe(stripeSecretKey) : null;
 
@@ -29,16 +30,28 @@ export async function POST(request: NextRequest) {
     body = {};
   }
 
-  const selectedPlan = (body?.plan as string | undefined) ?? 'pro-monthly';
+  const requestedPlan = (body?.plan as string | undefined) ?? 'pro-monthly';
   const explicitPriceId = typeof body?.priceId === 'string' ? body.priceId : null;
 
-  const priceId = explicitPriceId ?? stripePricePro;
+  const planPriceMap: Record<string, string | undefined> = {
+    'pro-monthly': stripePricePro,
+    'personal-monthly': stripePricePersonal,
+  };
+
+  const selectedPlan =
+    requestedPlan in planPriceMap ? requestedPlan : 'pro-monthly';
+
+  const priceId = explicitPriceId ?? planPriceMap[selectedPlan];
 
   if (!priceId) {
+    const envName =
+      selectedPlan === 'personal-monthly'
+        ? 'STRIPE_PRICE_PERSONAL'
+        : 'STRIPE_PRICE_PRO';
+
     return NextResponse.json(
       {
-        error:
-          'Stripe price ID is not configured. Please set STRIPE_PRICE_PRO.',
+        error: `Stripe price ID is not configured for ${selectedPlan}. Please set ${envName}.`,
       },
       { status: 500 },
     );

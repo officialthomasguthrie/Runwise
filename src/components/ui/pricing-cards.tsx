@@ -86,7 +86,7 @@ function Pricing() {
               <CardHeader suppressHydrationWarning={true}>
                 <CardTitle className="text-card-foreground font-geist">
                   <span className="flex flex-row gap-4 items-center font-normal">
-                    Starter
+                    Personal
                   </span>
                 </CardTitle>
                 <CardDescription className="text-muted-foreground font-geist">
@@ -130,9 +130,13 @@ function Pricing() {
                       </div>
                     </div>
                   </div>
-                  <Button variant="outline" className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-geist">
+                  <ProCheckoutButton
+                    plan="personal-monthly"
+                    variant="outline"
+                    className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-geist"
+                  >
                     Upgrade now <MoveRight className="w-4 h-4" />
-                  </Button>
+                  </ProCheckoutButton>
                 </div>
               </CardContent>
             </Card>

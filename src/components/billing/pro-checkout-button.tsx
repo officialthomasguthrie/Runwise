@@ -5,12 +5,14 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 
 interface ProCheckoutButtonProps extends ButtonProps {
   buttonText?: string;
+  plan?: 'pro-monthly' | 'personal-monthly';
 }
 
 export function ProCheckoutButton({
   buttonText,
   children,
   disabled,
+  plan = 'pro-monthly',
   ...props
 }: ProCheckoutButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +31,7 @@ export function ProCheckoutButton({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          plan: 'pro-monthly',
+          plan,
         }),
       });
 
