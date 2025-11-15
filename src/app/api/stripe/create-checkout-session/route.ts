@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
         initiatedByUserId: user?.id ?? '',
       },
       subscription_data: {
+        trial_period_days: 7,
         metadata: {
           plan: selectedPlan,
           initiatedByUserId: user?.id ?? '',

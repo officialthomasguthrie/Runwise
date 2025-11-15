@@ -8,6 +8,9 @@ module.exports = {
   ],
   theme: {
   	extend: {
+  		maskImage: {
+  			'radial-gradient': 'radial-gradient(var(--tw-gradient-stops))',
+  		},
   		fontFamily: {
   			sans: [
   				'var(--font-inter)',
