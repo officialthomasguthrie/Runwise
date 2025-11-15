@@ -156,13 +156,18 @@ const LightRays = ({
       rendererRef.current = renderer;
 
       const gl = renderer.gl;
-      gl.canvas.style.width = '100%';
-      gl.canvas.style.height = '100%';
+      const canvas = gl.canvas;
+      if (canvas instanceof HTMLCanvasElement) {
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+      }
 
       while (containerRef.current.firstChild) {
         containerRef.current.removeChild(containerRef.current.firstChild);
       }
-      containerRef.current.appendChild(gl.canvas);
+      if (canvas instanceof HTMLCanvasElement) {
+        containerRef.current.appendChild(canvas);
+      }
 
       const vert = `
 attribute vec2 position;
@@ -361,14 +366,14 @@ void main() {
 
         if (renderer) {
           try {
-            const canvas = renderer.gl.canvas;
+            const canvasNode = renderer.gl.canvas;
             const loseContextExt = renderer.gl.getExtension('WEBGL_lose_context');
             if (loseContextExt) {
               loseContextExt.loseContext();
             }
 
-            if (canvas && canvas.parentNode) {
-              canvas.parentNode.removeChild(canvas);
+            if (canvasNode instanceof HTMLCanvasElement && canvasNode.parentNode) {
+              canvasNode.parentNode.removeChild(canvasNode);
             }
           } catch (error) {
             console.warn('Error during WebGL cleanup:', error);
