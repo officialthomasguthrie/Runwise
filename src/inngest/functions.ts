@@ -75,7 +75,7 @@ export const workflowExecutor = inngest.createFunction(
     id: "workflow-executor",
     retries: 3, // Automatic retries on failure
     concurrency: {
-      limit: 10, // Max 10 concurrent workflows per user
+      limit: 5, // Match current plan limit
       key: "event.data.userId",
     },
   },

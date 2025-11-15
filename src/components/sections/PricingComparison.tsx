@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Check, X } from "lucide-react"
 import FadeContent from "@/components/ui/FadeContent"
 
 interface PricingComparisonProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -11,39 +10,186 @@ interface PricingComparisonProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const PricingComparison = React.forwardRef<HTMLDivElement, PricingComparisonProps>(
   ({ className, ...props }, ref) => {
-    const features = [
+    const planColumns = [
       {
-        category: "Workflows",
+        id: "personal",
+        name: "Personal",
+        price: "$9 / month",
+        caption: "Solo builders",
+      },
+      {
+        id: "professional",
+        name: "Professional",
+        price: "$29 / month",
+        caption: "Growing teams",
+      },
+      {
+        id: "advanced",
+        name: "Advanced",
+        price: "$99 / month",
+        caption: "Ops-heavy orgs",
+      },
+      {
+        id: "custom",
+        name: "Custom",
+        price: "Contact sales",
+        caption: "Enterprise scale",
+      },
+    ] as const
+
+    type PlanId = (typeof planColumns)[number]["id"]
+
+    const features: {
+      category: string
+      items: {
+        name: string
+        values: Record<PlanId, string>
+      }[]
+    }[] = [
+      {
+        category: "Automation capacity",
         items: [
-          { name: "Number of workflows", free: "Up to 10", professional: "Unlimited", enterprise: "Unlimited" },
-          { name: "Workflow complexity", free: "Basic", professional: "Advanced", enterprise: "Enterprise" },
-          { name: "Custom templates", free: "No", professional: "Yes", enterprise: "Yes" },
+          {
+            name: "Workflow executions",
+            values: {
+              personal: "2.5k / month",
+              professional: "10k / month",
+              advanced: "40k / month",
+              custom: "Custom limits",
+            },
+          },
+          {
+            name: "Credits",
+            values: {
+              personal: "100",
+              professional: "300",
+              advanced: "Unlimited",
+              custom: "Unlimited",
+            },
+          },
+          {
+            name: "Live workflows",
+            values: {
+              personal: "5",
+              professional: "20",
+              advanced: "Unlimited",
+              custom: "Unlimited",
+            },
+          },
         ]
       },
       {
-        category: "Integrations",
+        category: "Platform",
         items: [
-          { name: "Available integrations", free: "10+", professional: "100+", enterprise: "100+" },
-          { name: "Custom integrations", free: "No", professional: "Limited", enterprise: "Full support" },
-          { name: "API access", free: "No", professional: "Basic", enterprise: "Full" },
+          {
+            name: "Integrations",
+            values: {
+              personal: "100+",
+              professional: "100+",
+              advanced: "100+",
+              custom: "Custom library",
+            },
+          },
+          {
+            name: "Webhook + API triggers",
+            values: {
+              personal: "Included",
+              professional: "Included",
+              advanced: "Included",
+              custom: "Advanced",
+            },
+          },
+          {
+            name: "Workflow templates",
+            values: {
+              personal: "Core templates",
+              professional: "Full library",
+              advanced: "Full library",
+              custom: "Custom playbooks",
+            },
+          },
+          {
+            name: "Analytics",
+            values: {
+              personal: "Basic",
+              professional: "Advanced",
+              advanced: "Advanced",
+              custom: "Custom dashboards",
+            },
+          },
+          {
+            name: "Execution logs",
+            values: {
+              personal: "Yes",
+              professional: "Yes",
+              advanced: "Yes",
+              custom: "Full export",
+            },
+          },
         ]
       },
       {
-        category: "Support & Security",
+        category: "Support & success",
         items: [
-          { name: "Support level", free: "Community", professional: "Priority", enterprise: "Dedicated" },
-          { name: "Response time", free: "Community", professional: "< 24 hours", enterprise: "< 4 hours" },
-          { name: "SLA guarantee", free: "No", professional: "No", enterprise: "99.9%" },
-          { name: "Data encryption", free: "Basic", professional: "Advanced", enterprise: "Enterprise" },
+          {
+            name: "Support level",
+            values: {
+              personal: "Email support",
+              professional: "Semi-priority chat",
+              advanced: "Priority chat",
+              custom: "Dedicated partner",
+            },
+          },
+          {
+            name: "Dedicated solution engineer",
+            values: {
+              personal: "—",
+              professional: "Add-on",
+              advanced: "Included",
+              custom: "Embedded team",
+            },
+          },
+          {
+            name: "Customization",
+            values: {
+              personal: "Pre-built",
+              professional: "Guided setup",
+              advanced: "White-glove",
+              custom: "You choose",
+            },
+          },
         ]
       },
       {
-        category: "Analytics & Monitoring",
+        category: "Reliability & monitoring",
         items: [
-          { name: "Basic analytics", free: "Yes", professional: "Yes", enterprise: "Yes" },
-          { name: "Advanced analytics", free: "No", professional: "Yes", enterprise: "Yes" },
-          { name: "Real-time monitoring", free: "No", professional: "Yes", enterprise: "Yes" },
-          { name: "Custom dashboards", free: "No", professional: "No", enterprise: "Yes" },
+          {
+            name: "Observability suite",
+            values: {
+              personal: "Basic",
+              professional: "Advanced",
+              advanced: "Advanced",
+              custom: "Custom stack",
+            },
+          },
+          {
+            name: "Real-time monitoring",
+            values: {
+              personal: "Limited",
+              professional: "Full",
+              advanced: "Full",
+              custom: "Org-wide",
+            },
+          },
+          {
+            name: "Audit + compliance",
+            values: {
+              personal: "Logs only",
+              professional: "Data retention",
+              advanced: "SOC2-ready",
+              custom: "Enterprise controls",
+            },
+          },
         ]
       }
     ]
@@ -66,7 +212,6 @@ const PricingComparison = React.forwardRef<HTMLDivElement, PricingComparisonProp
                 <p className="text-lg text-muted-foreground font-geist max-w-2xl mx-auto">
                   See exactly what's included in each plan to make the right choice for your needs
                 </p>
-                <div className="w-24 h-1 bg-gradient-to-r from-purple-400 to-pink-400 mx-auto rounded-full mt-6"></div>
               </div>
             </FadeContent>
 
@@ -75,28 +220,19 @@ const PricingComparison = React.forwardRef<HTMLDivElement, PricingComparisonProp
               <div className="overflow-x-auto">
               <div className="min-w-full">
                 {/* Header Row */}
-                <div className="grid grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-5 gap-4 mb-8">
                   <div className="text-left">
                     <h3 className="text-lg font-semibold text-foreground font-geist">Features</h3>
                   </div>
-                  <div className="text-center">
-                    <div className="bg-muted/50 rounded-lg p-4">
-                      <h4 className="font-semibold text-foreground font-geist">Free</h4>
-                      <p className="text-sm text-muted-foreground font-geist">$0/month</p>
+                  {planColumns.map((plan) => (
+                    <div key={plan.id} className="text-center">
+                      <div className="bg-muted/50 rounded-lg p-4">
+                        <h4 className="font-semibold text-foreground font-geist">{plan.name}</h4>
+                        <p className="text-sm text-muted-foreground font-geist">{plan.price}</p>
+                        <p className="text-xs text-muted-foreground font-geist mt-1">{plan.caption}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="bg-muted/50 rounded-lg p-4">
-                      <h4 className="font-semibold text-foreground font-geist">Professional</h4>
-                      <p className="text-sm text-muted-foreground font-geist">$29/month</p>
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="bg-muted/50 rounded-lg p-4">
-                      <h4 className="font-semibold text-foreground font-geist">Enterprise</h4>
-                      <p className="text-sm text-muted-foreground font-geist">Custom</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 {/* Feature Categories */}
@@ -107,19 +243,17 @@ const PricingComparison = React.forwardRef<HTMLDivElement, PricingComparisonProp
                     </h4>
                     
                     {category.items.map((item, itemIndex) => (
-                      <div key={item.name} className="grid grid-cols-4 gap-4 py-3 border-b border-border/50">
+                      <div key={item.name} className="grid grid-cols-5 gap-4 py-3 border-b border-border/50">
                         <div className="text-sm text-muted-foreground font-geist">
                           {item.name}
                         </div>
-                        <div className="text-center">
-                          <span className="text-sm text-foreground font-geist">{item.free}</span>
-                        </div>
-                        <div className="text-center">
-                          <span className="text-sm text-foreground font-geist">{item.professional}</span>
-                        </div>
-                        <div className="text-center">
-                          <span className="text-sm text-foreground font-geist">{item.enterprise}</span>
-                        </div>
+                        {planColumns.map((plan) => (
+                          <div key={plan.id} className="text-center">
+                            <span className="text-sm text-foreground font-geist">
+                              {item.values[plan.id]}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
