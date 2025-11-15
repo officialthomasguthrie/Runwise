@@ -30,7 +30,7 @@ function CTA() {
               variant="outline"
               className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground"
             >
-              Buy Runwise Pro <MoveRight className="w-4 h-4" />
+              Start Free Trial <MoveRight className="w-4 h-4" />
             </ProCheckoutButton>
           </div>
         </div>

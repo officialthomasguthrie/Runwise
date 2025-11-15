@@ -44,7 +44,7 @@ export function Tab({
             selected && "bg-muted"
           )}
         >
-          Save 35%
+          Save 20%
         </Badge>
       )}
     </button>

@@ -30,7 +30,7 @@ export function PricingSection({
   );
 
   return (
-    <section className="flex flex-col items-center gap-10 py-10">
+    <section className="flex flex-col items-center gap-10 py-6">
       <div
         className={cn(
           "space-y-7 text-center max-w-4xl mx-auto",

@@ -7,47 +7,27 @@ import { PricingSection as PricingSectionBlock } from "@/components/ui/pricing-s
 import { Button } from "@/components/ui/button"
 
 const PAYMENT_FREQUENCIES = ["monthly", "yearly"]
+const YEARLY_DISCOUNT_MULTIPLIER = 0.8
+
+const discountMonthlyPrice = (price: number) =>
+  Number((price * YEARLY_DISCOUNT_MULTIPLIER).toFixed(2))
 
 const PRICING_TIERS: PricingTier[] = [
-  {
-    id: "free",
-    name: "Free",
-    price: {
-      monthly: "Free",
-      yearly: "Free",
-    },
-    description: "Prototype workflows and explore Runwise Studio at your pace.",
-    features: [
-      "Up to 5 live workflows",
-      "Core triggers & actions",
-      "Community + docs support",
-      "Workflow version history",
-      "Basic AI prompt builder",
-    ],
-    cta: "Get started",
-    ctaSlot: (
-      <Button
-        asChild
-        variant="outline"
-        className="w-full gap-2 border-border text-foreground font-geist"
-      >
-        <Link href="/signup">Get started</Link>
-      </Button>
-    ),
-  },
   {
     id: "personal",
     name: "Personal",
     price: {
       monthly: 9,
-      yearly: 96,
+      yearly: discountMonthlyPrice(9),
     },
     description: "Solo builders automating personal stacks with AI copilots.",
     features: [
-      "25 live workflows",
+      "2.5k workflow executions",
+      "100 credits",
+      "5 live workflows",
+      "100+ integrations",
       "Webhook + API triggers",
-      "AI prompt templates",
-      "Runwise desktop alerts",
+      "Workflow templates",
       "Email support",
     ],
     cta: "Start Free Trial",
@@ -66,15 +46,16 @@ const PRICING_TIERS: PricingTier[] = [
     name: "Professional",
     price: {
       monthly: 29,
-      yearly: 300,
+      yearly: discountMonthlyPrice(29),
     },
     description: "Scaling teams orchestrating GTM, ops, and product workflows.",
     features: [
-      "Unlimited workflows",
-      "100+ integrations + APIs",
-      "Parallel execution engine",
-      "Priority chat support",
-      "Workspace roles & audit log",
+      "Everything in Personal",
+      "10k workflow executions",
+      "300 credits",
+      "20 live workflows",
+      "Analytics",
+      "Semi-priority chat support",
     ],
     cta: "Start Free Trial",
     popular: true,
@@ -82,6 +63,33 @@ const PRICING_TIERS: PricingTier[] = [
       <ProCheckoutButton
         plan="pro-monthly"
         className="w-full gap-2 justify-center font-geist"
+      >
+        Start Free Trial
+      </ProCheckoutButton>
+    ),
+  },
+  {
+    id: "advanced",
+    name: "Advanced",
+    price: {
+      monthly: 99,
+      yearly: discountMonthlyPrice(99),
+    },
+    description: "Ops-heavy teams orchestrating advanced AI workflows at scale.",
+    features: [
+      "Everything in Professional",
+      "40k workflow executions",
+      "Unlimited credits",
+      "Unlimited live workflows",
+      "Priority chat support",
+      "Dedicated solution engineer",
+    ],
+    cta: "Start Free Trial",
+    ctaSlot: (
+      <ProCheckoutButton
+        plan="pro-monthly"
+        variant="outline"
+        className="w-full gap-2 border-border text-foreground font-geist justify-center"
       >
         Start Free Trial
       </ProCheckoutButton>
@@ -96,13 +104,10 @@ const PRICING_TIERS: PricingTier[] = [
     },
     description: "Security, SLAs, and white-glove onboarding for your org.",
     features: [
-      "Everything in Professional",
-      "Private deployment option",
-      "Managed onboarding sprints",
-      "Dedicated success partner",
-      "Compliance & SSO support",
+      "Everything in Advanced",
+      "You choose what features to add here",
     ],
-    cta: "Talk to sales",
+    cta: "Contact sales",
     highlighted: true,
     ctaSlot: (
       <Button
@@ -110,7 +115,7 @@ const PRICING_TIERS: PricingTier[] = [
         variant="secondary"
         className="w-full gap-2 justify-center font-geist"
       >
-        <Link href="/contact">Talk to sales</Link>
+        <Link href="/contact">Contact sales</Link>
       </Button>
     ),
   },
@@ -119,10 +124,10 @@ const PRICING_TIERS: PricingTier[] = [
 export default function PricingSection() {
   return (
     <FadeContent delay={200} duration={1000}>
-      <div
-        className="w-full py-8 sm:py-12 bg-background"
-        suppressHydrationWarning={true}
-      >
+          <div
+            className="w-full py-4 sm:py-6 bg-background"
+            suppressHydrationWarning={true}
+          >
         <div
           className="container mx-auto px-4 sm:px-6 lg:px-8"
           suppressHydrationWarning={true}
