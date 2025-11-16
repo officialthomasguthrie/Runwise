@@ -34,9 +34,9 @@ export async function getOrCreateActivePeriod(userId: string, nowIso?: string) {
     period_end: end.toISOString(),
     status: "active",
   };
-  const { data: created, error: insertErr } = await supabase
+  const { data: created, error: insertErr } = await (supabase as any)
     .from("billing_periods")
-    .insert(insert)
+    .insert(insert as any)
     .select("*")
     .single();
   if (insertErr) throw insertErr;
@@ -46,7 +46,7 @@ export async function getOrCreateActivePeriod(userId: string, nowIso?: string) {
 export async function getUsageValue(userId: string, metric: Metric) {
   const supabase = createAdminClient();
   const period = await getOrCreateActivePeriod(userId);
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("usage_counters")
     .select("value")
     .eq("user_id", userId)
@@ -70,7 +70,7 @@ export async function incrementUsage(
   const period = await getOrCreateActivePeriod(userId);
 
   // Upsert counter
-  const { data: existing, error: selErr } = await supabase
+  const { data: existing, error: selErr } = await (supabase as any)
     .from("usage_counters")
     .select("id,value")
     .eq("user_id", userId)
@@ -80,24 +80,24 @@ export async function incrementUsage(
   if (selErr && selErr.code !== "PGRST116") throw selErr;
 
   const newValue = (existing?.value ?? 0) + amount;
-  if (existing?.id) {
-    const { error: updErr } = await supabase
+  if ((existing as any)?.id) {
+    const { error: updErr } = await (supabase as any)
       .from("usage_counters")
-      .update({ value: newValue })
-      .eq("id", existing.id);
+      .update({ value: newValue } as any)
+      .eq("id", (existing as any).id);
     if (updErr) throw updErr;
   } else {
-    const { error: insErr } = await supabase.from("usage_counters").insert({
+    const { error: insErr } = await (supabase as any).from("usage_counters").insert({
       user_id: userId,
       period_id: period.id,
       metric,
       value: newValue,
-    });
+    } as any);
     if (insErr) throw insErr;
   }
 
   // Append event
-  await supabase.from("usage_events").insert({
+  await (supabase as any).from("usage_events").insert({
     user_id: userId,
     period_id: period.id,
     event_type:
@@ -106,7 +106,7 @@ export async function incrementUsage(
     amount,
     ts: new Date().toISOString(),
     metadata: opts?.executionId ? { executionId: opts.executionId } : null,
-  });
+  } as any);
 }
 
 export async function assertWithinLimit(
