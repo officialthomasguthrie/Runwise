@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { validateWorkflowData } from '@/lib/workflows/utils';
 import type { UpdateWorkflowInput } from '@/lib/workflows/types';
+import { getPlanLimits } from '@/lib/plans/config';
 
 // GET /api/workflows/[id] - Get a single workflow
 export async function GET(
@@ -113,6 +114,39 @@ export async function PUT(
     if (body.workflow_data !== undefined) updateData.workflow_data = body.workflow_data;
     if (body.ai_prompt !== undefined) updateData.ai_prompt = body.ai_prompt;
     if (body.status !== undefined) updateData.status = body.status;
+    
+    // If activating, enforce active workflow cap based on plan
+    if (body.status === 'active') {
+      // Fetch user's plan
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('plan_id')
+        .eq('id', user.id)
+        .single();
+      const planId = (userRow as any)?.plan_id ?? 'personal';
+      const limits = getPlanLimits(planId);
+      
+      if (limits.maxActiveWorkflows != null) {
+        const { data: countRows, error: countErr } = await supabase
+          .from('workflows')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('status', 'active');
+        if (countErr) {
+          return NextResponse.json(
+            { error: 'Failed to validate active workflows limit', details: countErr.message },
+            { status: 500 }
+          );
+        }
+        const activeCount = (countRows as any)?.length ?? (countRows as any)?.count ?? 0;
+        if (activeCount >= limits.maxActiveWorkflows) {
+          return NextResponse.json(
+            { error: `Plan limit reached: Up to ${limits.maxActiveWorkflows} active workflows on your plan.` },
+            { status: 403 }
+          );
+        }
+      }
+    }
     
     // Increment version if workflow_data is updated
     if (body.workflow_data) {

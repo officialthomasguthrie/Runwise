@@ -3,6 +3,8 @@ import { executeWorkflow } from "@/lib/workflow-execution/executor";
 import { createAdminClient } from "@/lib/supabase-admin";
 import type { Database } from "@/types/database";
 import type { Node, Edge } from "@xyflow/react";
+import { assertStepsLimit, assertWithinLimit, incrementUsage } from "@/lib/usage";
+import { getPlanLimits } from "@/lib/plans/config";
 
 // ============================================================================
 // TEST FUNCTIONS
@@ -87,6 +89,21 @@ export const workflowExecutor = inngest.createFunction(
     if (!workflowId || !nodes || !Array.isArray(nodes) || !edges || !Array.isArray(edges)) {
       throw new Error("Invalid workflow execution request: missing required fields");
     }
+
+    // Fetch user's plan
+    const supabaseForPlan = createAdminClient();
+    const { data: userRow } = await supabaseForPlan
+      .from("users")
+      .select("id, plan_id")
+      .eq("id", userId)
+      .single();
+    const planId = (userRow as any)?.plan_id ?? "personal";
+
+    // Enforce steps limit
+    assertStepsLimit(planId, Array.isArray(nodes) ? nodes.length : 0);
+
+    // Enforce executions limit (pre-check)
+    await assertWithinLimit(userId, planId, "executions");
 
     // Step 1: Create initial execution record in database
     const executionRecord = await step.run("create-execution-record", async () => {
@@ -210,6 +227,14 @@ export const workflowExecutor = inngest.createFunction(
       }
 
       return { saved: true };
+    });
+
+    // Step 4: Increment usage counter for executions
+    await step.run("increment-usage", async () => {
+      await incrementUsage(userId, "executions", 1, {
+        workflowId,
+        executionId: executionResult.executionId,
+      });
     });
 
     return {
