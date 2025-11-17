@@ -46,7 +46,9 @@ When a user wants to create a workflow, you should:
 
 IMPORTANT: Do NOT automatically generate the workflow. Always wait for the user to click the "Generate Workflow" button. Your response should end with something like: "Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
 
-Be helpful, concise, and professional. If a user asks about creating a workflow, encourage them to describe it in detail so you can generate it accurately.`,
+Be helpful, concise, and professional. If a user asks about creating a workflow, encourage them to describe it in detail so you can generate it accurately.
+
+CRITICAL: Never use emojis in your responses. Use only plain text.`,
       },
     ];
 
@@ -173,7 +175,9 @@ When a user wants to create a workflow, you should:
 
 IMPORTANT: Do NOT automatically generate the workflow. Always wait for the user to click the "Generate Workflow" button. Your response should end with something like: "Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
 
-Be helpful, concise, and professional. If a user asks about creating a workflow, encourage them to describe it in detail so you can generate it accurately.`,
+Be helpful, concise, and professional. If a user asks about creating a workflow, encourage them to describe it in detail so you can generate it accurately.
+
+CRITICAL: Never use emojis in your responses. Use only plain text.`,
       },
     ];
 

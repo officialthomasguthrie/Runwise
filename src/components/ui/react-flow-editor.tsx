@@ -808,14 +808,55 @@ export const ReactFlowEditor = ({
       pollingIntervalRef.current = null;
     }
 
+    // Ensure workflow is saved before executing
+    // Declare workflowIdToExecute outside try block so it's accessible in catch
+    let workflowIdToExecute: string | null = currentWorkflowId;
+    if (!workflowIdToExecute) {
+      try {
+        // Save workflow first if it hasn't been saved
+        console.log('💾 Saving workflow before execution...');
+        const savedWorkflow = await saveWorkflowFromEditor(
+          null,
+          workflowName,
+          nodes,
+          edges,
+          {
+            description: `Test execution of workflow: ${workflowName}`,
+            status: 'draft',
+          }
+        );
+        workflowIdToExecute = savedWorkflow.id;
+        setCurrentWorkflowId(savedWorkflow.id);
+        console.log('✅ Workflow saved with ID:', workflowIdToExecute);
+      } catch (saveError: any) {
+        console.error('❌ Failed to save workflow before execution:', saveError);
+        setIsExecuting(false);
+        setExecutionStatus('failed');
+        setExecutionResult({
+          executionId: 'error',
+          workflowId: 'unknown',
+          status: 'failed',
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          duration: 0,
+          nodeResults: [],
+          finalOutput: null,
+          error: `Failed to save workflow: ${saveError.message || 'Unknown error'}`,
+        });
+        return;
+      }
+    }
+
     try {
+
+      // Send workflow execution request to Inngest
       const response = await fetch('/api/workflow/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          workflowId: currentWorkflowId || 'temp-workflow',
+          workflowId: workflowIdToExecute,
           nodes,
           edges,
           triggerData: {},
@@ -836,7 +877,7 @@ export const ReactFlowEditor = ({
         setExecutionStatus('idle');
         setExecutionResult({
           executionId: 'scheduled',
-          workflowId: currentWorkflowId || 'unknown',
+          workflowId: workflowIdToExecute,
           status: 'success',
           startedAt: new Date().toISOString(),
           completedAt: new Date().toISOString(),
@@ -855,7 +896,7 @@ export const ReactFlowEditor = ({
         const findExecution = async (): Promise<string | null> => {
           try {
             // Get most recent execution for this workflow
-            const response = await fetch(`/api/workflows/${encodeURIComponent(currentWorkflowId || 'temp-workflow')}/executions`);
+            const response = await fetch(`/api/workflows/${encodeURIComponent(workflowIdToExecute)}/executions`);
             if (response.ok) {
               const executions = await response.json();
               if (executions && executions.length > 0) {
@@ -904,7 +945,7 @@ export const ReactFlowEditor = ({
             setIsExecuting(false);
             setExecutionResult({
               executionId: 'unknown',
-              workflowId: currentWorkflowId || 'unknown',
+              workflowId: workflowIdToExecute,
               status: 'failed',
               startedAt: new Date().toISOString(),
               completedAt: new Date().toISOString(),
@@ -929,7 +970,7 @@ export const ReactFlowEditor = ({
       console.error('Execution error:', error);
       setExecutionResult({
         executionId: 'error',
-        workflowId: currentWorkflowId || 'unknown',
+        workflowId: workflowIdToExecute || 'unknown',
         status: 'failed',
         startedAt: new Date().toISOString(),
         completedAt: new Date().toISOString(),

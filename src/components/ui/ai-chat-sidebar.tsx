@@ -7,11 +7,12 @@ import {
   MoreHorizontal, 
   Send,
   Loader2,
-  Sparkles,
   AlertCircle,
   Trash2,
   MessageSquare,
-  X
+  X,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
   const [activeConversationId, setActiveConversationId] = useState<string>(() => `chat_${Date.now()}`);
   const [workflowPrompt, setWorkflowPrompt] = useState<string | null>(null);
   const [isGeneratingWorkflow, setIsGeneratingWorkflow] = useState(false);
+  const [workflowJson, setWorkflowJson] = useState<string | null>(null);
+  const [isJsonExpanded, setIsJsonExpanded] = useState(false);
   
   // Chat history state
   const [allConversations, setAllConversations] = useState<ChatConversation[]>([]);
@@ -313,8 +316,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
 
               for (const line of lines) {
                 if (line.startsWith('data: ')) {
+                  const jsonStr = line.slice(6).trim();
+                  // Skip empty or incomplete JSON
+                  if (!jsonStr || jsonStr.length === 0) continue;
+                  
                   try {
-                    const data = JSON.parse(line.slice(6));
+                    const data = JSON.parse(jsonStr);
                     
                     if (data.type === 'chunk') {
                       fullMessage += data.content;
@@ -367,7 +374,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
                       throw new Error(data.error || 'Stream error');
                     }
                   } catch (parseError) {
-                    console.error('Error parsing stream data:', parseError);
+                    // Only log if it's not an empty/incomplete JSON error
+                    if (jsonStr.length > 0) {
+                      console.error('Error parsing stream data:', parseError, 'JSON string:', jsonStr.substring(0, 100));
+                    }
                   }
                 }
               }
@@ -597,6 +607,11 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
     const contentType = response.headers.get('content-type');
     const text = await response.text();
     
+    // If response is empty, return error
+    if (!text || text.trim().length === 0) {
+      return { error: 'Empty response from server' };
+    }
+    
     // If response is not JSON, return error object with text
     if (!contentType || !contentType.includes('application/json')) {
       return { error: text || 'Invalid response format' };
@@ -673,8 +688,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+            // Skip empty or incomplete JSON
+            if (!jsonStr || jsonStr.length === 0) continue;
+            
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(jsonStr);
               if (data.type === 'chunk') {
                 fullMessage += data.content;
               } else if (data.type === 'complete') {
@@ -684,7 +703,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
                 return null;
               }
             } catch (parseError) {
-              console.error('Error parsing stream data:', parseError);
+              // Only log if it's not an empty/incomplete JSON error
+              if (jsonStr.length > 0) {
+                console.error('Error parsing stream data:', parseError);
+              }
             }
           }
         }
@@ -824,8 +846,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+            // Skip empty or incomplete JSON
+            if (!jsonStr || jsonStr.length === 0) continue;
+            
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(jsonStr);
               
               if (data.type === 'chunk') {
                 fullMessage += data.content;
@@ -876,7 +902,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
                 throw new Error(data.error || 'Stream error');
               }
             } catch (parseError) {
-              console.error('Error parsing stream data:', parseError);
+              // Only log if it's not an empty/incomplete JSON error
+              if (jsonStr.length > 0) {
+                console.error('Error parsing stream data:', parseError, 'JSON string:', jsonStr.substring(0, 100));
+              }
             }
           }
         }
@@ -908,9 +937,20 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
 
     setIsGeneratingWorkflow(true);
     setError(null);
+    setWorkflowJson('');
+    setIsJsonExpanded(false);
+
+    // Add initial message indicating workflow generation has started
+    const generatingMessage: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      role: 'assistant',
+      content: 'Generating your workflow...',
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, generatingMessage]);
 
     try {
-      // Call workflow generation API
+      // Call workflow generation API with streaming
       const response = await fetch('/api/ai/generate-workflow', {
         method: 'POST',
         headers: {
@@ -927,42 +967,124 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
         throw new Error(errorData.error || 'Failed to generate workflow');
       }
 
-      const data = await safeParseJSON(response);
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Workflow generation failed');
+      // Read the stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulatedJson = '';
+      let finalWorkflow: any = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+            // Skip empty or incomplete JSON
+            if (!jsonStr || jsonStr.length === 0) continue;
+            
+            try {
+              const data = JSON.parse(jsonStr);
+              
+              if (data.type === 'json-chunk') {
+                // Update JSON in real-time as it streams
+                accumulatedJson = data.content;
+                const workflowData = {
+                  nodes: [],
+                  edges: [],
+                  workflowName: '',
+                };
+                
+                // Try to parse the accumulated JSON (might be incomplete)
+                try {
+                  const parsed = JSON.parse(accumulatedJson);
+                  workflowData.nodes = parsed.nodes || [];
+                  workflowData.edges = parsed.edges || [];
+                  workflowData.workflowName = parsed.workflowName || 'Untitled Workflow';
+                } catch {
+                  // JSON is incomplete, just show what we have
+                }
+                
+                // Format and display the JSON (even if incomplete)
+                setWorkflowJson(JSON.stringify(workflowData, null, 2));
+              } else if (data.type === 'complete') {
+                // Final workflow received
+                finalWorkflow = data.workflow;
+                const workflowData = {
+                  nodes: data.workflow.nodes,
+                  edges: data.workflow.edges,
+                  workflowName: data.workflow.workflowName,
+                };
+                setWorkflowJson(JSON.stringify(workflowData, null, 2));
+              } else if (data.type === 'error') {
+                throw new Error(data.error || 'Stream error');
+              }
+            } catch (parseError) {
+              // Only log if it's not an empty/incomplete JSON error
+              if (jsonStr.length > 0) {
+                console.error('Error parsing stream data:', parseError);
+              }
+            }
+          }
+        }
+      }
+
+      if (!finalWorkflow) {
+        throw new Error('Workflow generation incomplete');
       }
 
       // Notify parent component
       if (onWorkflowGenerated) {
         onWorkflowGenerated({
-          nodes: data.workflow.nodes,
-          edges: data.workflow.edges,
-          workflowName: data.workflow.workflowName,
+          nodes: finalWorkflow.nodes,
+          edges: finalWorkflow.edges,
+          workflowName: finalWorkflow.workflowName,
         });
       }
 
-      // Add success message
-      const successMessage: ChatMessage = {
-        id: `msg_${Date.now()}`,
-        role: 'assistant',
-        content: `✅ Workflow "${data.workflow.workflowName}" has been generated and added to your canvas! ${data.workflow.reasoning}`,
-        timestamp: new Date().toISOString(),
-        workflowGenerated: true,
-      };
-      setMessages((prev) => [...prev, successMessage]);
+      // Remove the "Generating..." message and add success message
+      setMessages((prev) => {
+        const filtered = prev.filter((msg) => msg.id !== generatingMessage.id);
+        return [
+          ...filtered,
+          {
+            id: `msg_${Date.now()}`,
+            role: 'assistant',
+            content: `Workflow "${finalWorkflow.workflowName}" has been generated and added to your canvas! ${finalWorkflow.reasoning || ''}`,
+            timestamp: new Date().toISOString(),
+            workflowGenerated: true,
+          },
+        ];
+      });
       setWorkflowPrompt(null);
     } catch (err: any) {
       console.error('Error generating workflow:', err);
       setError(err.message || 'Failed to generate workflow');
+      setWorkflowJson(null);
       
-      const errorMessage: ChatMessage = {
-        id: `msg_${Date.now()}`,
-        role: 'assistant',
-        content: `Sorry, I couldn't generate the workflow: ${err.message}`,
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      // Remove the "Generating..." message and add error message
+      setMessages((prev) => {
+        const filtered = prev.filter((msg) => msg.id !== generatingMessage.id);
+        return [
+          ...filtered,
+          {
+            id: `msg_${Date.now()}`,
+            role: 'assistant',
+            content: `Sorry, I couldn't generate the workflow: ${err.message}`,
+            timestamp: new Date().toISOString(),
+          },
+        ];
+      });
     } finally {
       setIsGeneratingWorkflow(false);
     }
@@ -1109,14 +1231,29 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
                       <span className="pr-8 text-sm font-medium leading-tight whitespace-pre-wrap break-words">
                         {conversation.title}
                       </span>
-                      <button
-                        type="button"
-                        onClick={(e) => handleDeleteConversation(conversation.id, e)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-red-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-red-400"
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteConversation(conversation.id, e as any);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Create a synthetic mouse event for handleDeleteConversation
+                            const syntheticEvent = {
+                              stopPropagation: () => e.stopPropagation(),
+                            } as React.MouseEvent;
+                            handleDeleteConversation(conversation.id, syntheticEvent);
+                          }
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-red-500 opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-red-400 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded"
                         title="Delete conversation"
                       >
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
-                      </button>
+                      </div>
                     </button>
                   );
                 })
@@ -1133,138 +1270,135 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
             null
           )}
 
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={message.role === 'user' ? 'w-full' : 'flex gap-3 justify-start'}
-            >
-              {message.role === 'user' ? (
-                // User message - editable textbox
-                <div className="w-full pl-0 pr-1">
-                  {editingMessageId === message.id ? (
-                    <textarea
-                      ref={editingTextareaRef}
-                      value={editingMessageContent}
-                      onChange={(e) => setEditingMessageContent(e.target.value)}
-                      onBlur={() => {
-                        // Update message content
-                        setMessages((prev) =>
-                          prev.map((msg) =>
-                            msg.id === message.id
-                              ? { ...msg, content: editingMessageContent }
-                              : msg
-                          )
-                        );
-                        setEditingMessageId(null);
-                        // TODO: Save updated message to database
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          e.currentTarget.blur();
-                        }
-                        if (e.key === 'Escape') {
-                          setEditingMessageId(null);
-                          setEditingMessageContent(message.content);
-                        }
-                      }}
-                      className="w-full bg-muted/50 border border-border rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-12 focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all scrollbar-hide overflow-y-auto"
-                      style={{
-                        minHeight: '48px',
-                        maxHeight: '85px',
-                        lineHeight: '1.5',
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none'
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    <div
-                      ref={(el) => {
-                        if (el) {
-                          messageBoxRefs.current.set(message.id, el);
-                        } else {
-                          messageBoxRefs.current.delete(message.id);
-                        }
-                      }}
-                      onClick={() => {
-                        setEditingMessageId(message.id);
-                        setEditingMessageContent(message.content);
-                      }}
-                      className="w-full bg-muted/50 border border-border rounded-lg px-4 py-3 cursor-text hover:border-primary/30 transition-colors overflow-hidden relative"
-                      style={{ 
-                        maxHeight: '85px',
-                        minHeight: '48px',
-                        height: 'auto',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        paddingTop: '12px'
-                      }}
-                    >
-                      <p 
-                        className="text-sm text-foreground whitespace-pre-wrap overflow-hidden"
-                        style={{
-                          lineHeight: '1.5',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 4,
-                          WebkitBoxOrient: 'vertical',
-                          textOverflow: 'ellipsis',
-                          width: '100%',
-                          marginTop: '0'
-                        }}
-                      >
-                        {message.content}
-                      </p>
-                      {hasOverflow.get(message.id) && (
-                        <div 
-                          className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none rounded-b-lg"
-                          style={{
-                            background: 'linear-gradient(to bottom, transparent 0%, hsl(var(--muted) / 0.5) 70%, hsl(var(--muted) / 0.5) 100%)'
+          {messages.map((message, messageIndex) => {
+            return (
+              <React.Fragment key={message.id}>
+                <div
+                  className={message.role === 'user' ? 'w-full' : 'flex gap-3 justify-start'}
+                >
+                  {message.role === 'user' ? (
+                    // User message - editable textbox
+                    <div className="w-full pl-0 pr-1">
+                      {editingMessageId === message.id ? (
+                        <textarea
+                          ref={editingTextareaRef}
+                          value={editingMessageContent}
+                          onChange={(e) => setEditingMessageContent(e.target.value)}
+                          onBlur={() => {
+                            // Update message content
+                            setMessages((prev) =>
+                              prev.map((msg) =>
+                                msg.id === message.id
+                                  ? { ...msg, content: editingMessageContent }
+                                  : msg
+                              )
+                            );
+                            setEditingMessageId(null);
+                            // TODO: Save updated message to database
                           }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              e.currentTarget.blur();
+                            }
+                            if (e.key === 'Escape') {
+                              setEditingMessageId(null);
+                              setEditingMessageContent(message.content);
+                            }
+                          }}
+                          className="w-full bg-muted/50 border border-border rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-12 focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all scrollbar-hide overflow-y-auto"
+                          style={{
+                            minHeight: '48px',
+                            maxHeight: '85px',
+                            lineHeight: '1.5',
+                            scrollbarWidth: 'none',
+                            msOverflowStyle: 'none'
+                          }}
+                          autoFocus
                         />
+                      ) : (
+                        <div
+                          ref={(el) => {
+                            if (el) {
+                              messageBoxRefs.current.set(message.id, el);
+                            } else {
+                              messageBoxRefs.current.delete(message.id);
+                            }
+                          }}
+                          onClick={() => {
+                            setEditingMessageId(message.id);
+                            setEditingMessageContent(message.content);
+                          }}
+                          className="w-full bg-muted/50 border border-border rounded-lg px-4 py-3 cursor-text hover:border-primary/30 transition-colors overflow-hidden relative"
+                          style={{ 
+                            maxHeight: '85px',
+                            minHeight: '48px',
+                            height: 'auto',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            paddingTop: '12px'
+                          }}
+                        >
+                          <p 
+                            className="text-sm text-foreground whitespace-pre-wrap overflow-hidden"
+                            style={{
+                              lineHeight: '1.5',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 4,
+                              WebkitBoxOrient: 'vertical',
+                              textOverflow: 'ellipsis',
+                              width: '100%',
+                              marginTop: '0'
+                            }}
+                          >
+                            {message.content}
+                          </p>
+                          {hasOverflow.get(message.id) && (
+                            <div 
+                              className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none rounded-b-lg"
+                              style={{
+                                background: 'linear-gradient(to bottom, transparent 0%, hsl(var(--muted) / 0.5) 70%, hsl(var(--muted) / 0.5) 100%)'
+                              }}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // AI message - plain text with markdown bold support
+                    <div className="max-w-[95%] rounded-lg px-4 py-2 bg-transparent text-foreground">
+                      {message.content === 'Thinking...' ? (
+                        <p 
+                          className="text-sm whitespace-pre-wrap inline-block"
+                          style={{
+                            background: 'linear-gradient(90deg, hsl(var(--muted-foreground)) 0%, hsl(var(--muted-foreground) / 0.8) 25%, hsl(var(--muted-foreground) / 0.4) 50%, hsl(var(--muted-foreground) / 0.8) 75%, hsl(var(--muted-foreground)) 100%)',
+                            backgroundSize: '200% 100%',
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            animation: 'shimmer 2s ease-in-out infinite',
+                          }}
+                        >
+                          {message.content}
+                        </p>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">
+                          {message.content.split(/(\*\*.*?\*\*)/g).map((part, index) => {
+                            if (part.startsWith('**') && part.endsWith('**')) {
+                              // Remove asterisks and make bold
+                              const boldText = part.slice(2, -2);
+                              return <strong key={index}>{boldText}</strong>;
+                            }
+                            return <span key={index}>{part}</span>;
+                          })}
+                        </p>
                       )}
                     </div>
                   )}
                 </div>
-              ) : (
-                // AI message - plain text with markdown bold support
-                <div className="max-w-[95%] rounded-lg px-4 py-2 bg-transparent text-foreground">
-                  {message.content === 'Thinking...' ? (
-                    <p 
-                      className="text-sm whitespace-pre-wrap inline-block"
-                      style={{
-                        background: 'linear-gradient(90deg, hsl(var(--muted-foreground)) 0%, hsl(var(--muted-foreground) / 0.8) 25%, hsl(var(--muted-foreground) / 0.4) 50%, hsl(var(--muted-foreground) / 0.8) 75%, hsl(var(--muted-foreground)) 100%)',
-                        backgroundSize: '200% 100%',
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        animation: 'shimmer 2s ease-in-out infinite',
-                      }}
-                    >
-                      {message.content}
-                    </p>
-                  ) : (
-                    <p className="text-sm whitespace-pre-wrap">
-                      {message.content.split(/(\*\*.*?\*\*)/g).map((part, index) => {
-                        if (part.startsWith('**') && part.endsWith('**')) {
-                          // Remove asterisks and make bold
-                          const boldText = part.slice(2, -2);
-                          return <strong key={index}>{boldText}</strong>;
-                        }
-                        return <span key={index}>{part}</span>;
-                      })}
-                    </p>
-                  )}
-                  {message.workflowGenerated && (
-                    <div className="mt-2 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                      <Sparkles className="w-3 h-3" />
-                      Workflow Generated
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+              </React.Fragment>
+            );
+          })}
 
           {/* Loading state is now handled by showing the streaming message */}
 
@@ -1304,6 +1438,66 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Generating Workflow...
               </Button>
+            </div>
+          )}
+          
+          {/* JSON Preview - Show below the generating button and persist after generation */}
+          {workflowJson && (
+            <div className="flex gap-3 justify-start mt-2 px-4">
+              <div className="max-w-[95%] w-full">
+                <button
+                  onClick={() => setIsJsonExpanded(!isJsonExpanded)}
+                  className="w-full text-left bg-muted/30 border border-border rounded-lg overflow-hidden hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">Workflow JSON</span>
+                      {isGeneratingWorkflow && (
+                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {isJsonExpanded ? (
+                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className={`px-3 pb-2 overflow-hidden transition-all ${isJsonExpanded ? 'max-h-none' : 'max-h-[7.5rem]'}`}>
+                    <pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap break-words overflow-x-auto">
+                      {isJsonExpanded ? workflowJson : (() => {
+                        const lines = workflowJson.split('\n');
+                        if (lines.length <= 5) {
+                          return workflowJson;
+                        }
+                        // Show the last 5 lines
+                        const last5Lines = lines.slice(-5).join('\n');
+                        return `...\n${last5Lines}`;
+                      })()}
+                    </pre>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Show "Waiting for JSON..." placeholder when generating but no JSON yet */}
+          {isGeneratingWorkflow && !workflowJson && (
+            <div className="flex gap-3 justify-start mt-2 px-4">
+              <div className="max-w-[95%] w-full">
+                <div className="w-full text-left bg-muted/30 border border-border rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">Workflow JSON</span>
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    </div>
+                  </div>
+                  <div className="px-3 pb-2">
+                    <pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap break-words overflow-x-auto">
+                      <span className="text-muted-foreground italic">Waiting for JSON...</span>
+                    </pre>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

@@ -13,12 +13,12 @@ module.exports = {
   		},
   		fontFamily: {
   			sans: [
-  				'var(--font-inter)',
+  				'Roboto',
   				'system-ui',
   				'sans-serif'
   			],
   			mono: [
-  				'var(--font-jetbrains-mono)',
+  				'Roboto',
   				'monospace'
   			]
   		},

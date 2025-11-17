@@ -136,12 +136,12 @@ html {
   touch-action: manipulation; /* Prevent browser zoom */
   -webkit-text-size-adjust: 100%; /* Prevent iOS zoom */
   -ms-text-size-adjust: 100%; /* Prevent IE zoom */
-  font-family: var(--font-inter), system-ui, sans-serif !important;
+  font-family: 'Roboto', system-ui, sans-serif !important;
 }
 
 body {
   overflow-x: hidden; /* Prevent horizontal scroll */
-  font-family: var(--font-inter), system-ui, sans-serif !important;
+  font-family: 'Roboto', system-ui, sans-serif !important;
 }
 
 /* Allow user interaction on React Flow canvas */
@@ -446,24 +446,21 @@ html {
 @layer base {
   * {
     @apply border-border;
-    font-family: var(--font-inter), system-ui, sans-serif !important;
+    font-family: 'Roboto', system-ui, sans-serif !important;
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-inter), system-ui, sans-serif !important;
+    font-family: 'Roboto', system-ui, sans-serif !important;
   }
 }
 
-/* Force Inter font loading and override any cached fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
-
-/* Nuclear option - force Inter font everywhere with maximum specificity */
+/* Force Roboto font everywhere with maximum specificity */
 html, html *, body, body *, div, div *, span, span *, h1, h2, h3, h4, h5, h6, p, a, button, input, textarea, select, label, li, ul, ol, table, tr, td, th, .font-geist, [class*="font-"] {
-  font-family: 'Inter', var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
   font-display: swap !important;
 }
 
 /* Additional override for any remaining elements */
 *:not([class*="mono"]):not([class*="code"]) {
-  font-family: 'Inter', var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
 }
