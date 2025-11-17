@@ -788,6 +788,11 @@ export const ReactFlowEditor = ({
 
   // Execute workflow
   const executeWorkflow = async () => {
+    // DISABLED: Workflow execution temporarily removed
+    alert('Workflow execution is currently disabled. This feature has been temporarily disabled.');
+    return;
+
+    /* ORIGINAL CODE - UNCOMMENT TO RE-ENABLE:
     if (!user || isExecuting || nodes.length === 0) return;
 
     // Validate configuration first
@@ -989,6 +994,7 @@ export const ReactFlowEditor = ({
         pollingIntervalRef.current = null;
       }
     }
+    */
   };
 
   // Cleanup polling on unmount

@@ -1,16 +1,32 @@
 /**
  * API Route: /api/workflow/execute
- * Sends workflow execution request to Inngest for async processing
+ * WORKFLOW EXECUTION - TEMPORARILY DISABLED
+ * 
+ * This route has been disabled to stop infinite retry loops.
+ * To re-enable:
+ * 1. Uncomment the Inngest code below
+ * 2. Ensure Inngest is properly configured
+ * 3. Test thoroughly before enabling in production
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
-import { createAdminClient } from '@/lib/supabase-admin';
-import { inngest } from '@/inngest/client';
-import type { ExecuteWorkflowRequest } from '@/lib/workflow-execution/types';
-import { hasScheduledTrigger, getScheduleConfig } from '@/lib/workflows/schedule-utils';
+// import { createClient } from '@/lib/supabase-server';
+// import { createAdminClient } from '@/lib/supabase-admin';
+// import { inngest } from '@/inngest/client';
+// import type { ExecuteWorkflowRequest } from '@/lib/workflow-execution/types';
+// import { hasScheduledTrigger, getScheduleConfig } from '@/lib/workflows/schedule-utils';
 
 export async function POST(request: NextRequest) {
+  // DISABLED: Workflow execution temporarily removed
+  return NextResponse.json(
+    { 
+      error: 'Workflow execution is currently disabled',
+      message: 'This feature has been temporarily disabled. Please check back later.',
+    },
+    { status: 503 }
+  );
+
+  /* ORIGINAL CODE - UNCOMMENT TO RE-ENABLE:
   try {
     const supabase = await createClient();
 
@@ -112,5 +128,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+  */
 }
 
