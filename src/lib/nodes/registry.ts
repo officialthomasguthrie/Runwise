@@ -17,23 +17,132 @@ const getAuthToken = (context: ExecutionContext, service: string): string => {
 const sendEmailExecute = async (inputData: any, config: any, context: ExecutionContext) => {
   const { apiKey, to, subject, body, from } = config;
   
-  const response = await context.http.post(
-    'https://api.sendgrid.com/v3/mail/send',
-    {
-      personalizations: [{ to: [{ email: to }] }],
-      from: { email: from || 'noreply@runwise.ai' },
-      subject,
-      content: [{ type: 'text/html', value: body }],
-    },
-    {
-      headers: {
-        'Authorization': `Bearer ${apiKey || getAuthToken(context, 'sendgrid')}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
+  // Validate required fields
+  if (!apiKey) {
+    throw new Error('SendGrid API key is required');
+  }
   
-  return { success: true, messageId: response.id, ...response };
+  if (!to) {
+    throw new Error('Recipient email address (to) is required');
+  }
+  
+  if (!subject) {
+    throw new Error('Email subject is required');
+  }
+  
+  if (!body) {
+    throw new Error('Email body is required');
+  }
+  
+  // Validate API key format (SendGrid API keys start with "SG.")
+  if (!apiKey.startsWith('SG.') && !apiKey.startsWith('SG_')) {
+    console.warn('SendGrid API key format may be incorrect. Keys typically start with "SG."');
+  }
+  
+  // Use provided from email or throw error if not provided
+  // SendGrid requires the from email to be verified in your account
+  if (!from) {
+    throw new Error('From email address is required. This email must be verified in your SendGrid account.');
+  }
+  
+  // Prepare the request payload according to SendGrid v3 API spec
+  const payload = {
+    personalizations: [{ 
+      to: [{ email: to }] 
+    }],
+    from: { 
+      email: from 
+    },
+    subject: subject,
+    content: [{ 
+      type: 'text/html', 
+      value: body 
+    }],
+  };
+
+  // Log request details for debugging (without sensitive data)
+  console.log('[SendGrid] Sending email:', {
+    from,
+    to,
+    subject,
+    hasApiKey: !!apiKey,
+    apiKeyPrefix: apiKey ? apiKey.substring(0, 5) + '...' : 'missing',
+  });
+
+  try {
+    const response = await context.http.post(
+      'https://api.sendgrid.com/v3/mail/send',
+      payload,
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    
+    console.log('[SendGrid] Email sent successfully:', response);
+    return { success: true, messageId: response.id || 'sent', ...response };
+  } catch (error: any) {
+    // Extract detailed error information from SendGrid response
+    let detailedError = error.message || 'Unknown error';
+    let sendGridErrors: string[] = [];
+    
+    // Check if error has attached errorData (from HTTP client)
+    const errorData = (error as any).errorData;
+    if (errorData) {
+      // SendGrid returns errors in an 'errors' array
+      if (errorData.errors && Array.isArray(errorData.errors)) {
+        sendGridErrors = errorData.errors.map((e: any) => {
+          if (typeof e === 'string') return e;
+          return `${e.field ? `${e.field}: ` : ''}${e.message || JSON.stringify(e)}`;
+        });
+        detailedError = sendGridErrors.join('; ');
+      } else if (errorData.message) {
+        detailedError = errorData.message;
+      }
+    }
+    
+    const statusCode = (error as any).statusCode || (error.message?.match(/HTTP (\d+)/)?.[1]);
+    
+    // Provide more helpful error messages for common SendGrid errors
+    if (statusCode === 403 || error.message?.includes('403')) {
+      const errorDetails = sendGridErrors.length > 0 
+        ? `\n\nSendGrid Error Details:\n${sendGridErrors.map(e => `- ${e}`).join('\n')}`
+        : '';
+      
+      throw new Error(
+        `SendGrid API returned 403 Forbidden.${errorDetails}\n\n` +
+        'Common causes:\n' +
+        '1. The "from" email address domain is not authenticated in SendGrid\n' +
+        '   → Go to Settings → Sender Authentication → Authenticate Your Domain\n' +
+        '   → Single sender verification is NOT enough - you need domain authentication\n' +
+        '2. The API key does not have "Mail Send" permissions\n' +
+        '   → Check Settings → API Keys → Your Key → Permissions\n' +
+        '3. Domain authentication is required for API sends\n' +
+        '   → Even with verified sender, domain must be authenticated\n' +
+        '4. Account restrictions (free tier limitations)\n' +
+        '   → Check if your account has any restrictions\n\n' +
+        `From email used: ${from}\n` +
+        `To email used: ${to}\n` +
+        'Please verify domain authentication in SendGrid settings.'
+      );
+    }
+    if (statusCode === 401 || error.message?.includes('401')) {
+      throw new Error(
+        'SendGrid API returned 401 Unauthorized. The API key is invalid or expired. ' +
+        'Please check your API key in SendGrid Dashboard → Settings → API Keys.'
+      );
+    }
+    
+    // Include SendGrid error details if available
+    if (sendGridErrors.length > 0) {
+      throw new Error(`${detailedError}\n\nSendGrid Error Details:\n${sendGridErrors.map(e => `- ${e}`).join('\n')}`);
+    }
+    
+    // Re-throw the original error if it's not a common one
+    throw error;
+  }
 };
 
 const createNotionPageExecute = async (inputData: any, config: any, context: ExecutionContext) => {
@@ -653,11 +762,11 @@ export const nodeRegistry: NodeRegistry = {
       { name: 'messageId', type: 'string', description: 'Message ID from email service' },
     ],
     configSchema: {
-      apiKey: { type: 'string', label: 'SendGrid API Key', description: 'Your SendGrid API key (get it from SendGrid Dashboard → Settings → API Keys)', required: true },
+      apiKey: { type: 'string', label: 'SendGrid API Key', description: 'Your SendGrid API key (get it from SendGrid Dashboard → Settings → API Keys). Must have "Mail Send" permissions.', required: true },
       to: { type: 'string', label: 'To', description: 'Recipient email address (e.g., user@example.com)', required: true },
       subject: { type: 'string', label: 'Subject', description: 'Email subject line', required: true },
       body: { type: 'textarea', label: 'Body', description: 'Email body content (HTML supported)', required: true },
-      from: { type: 'string', label: 'From', description: 'Sender email address (optional, defaults to noreply@runwise.ai)', required: false },
+      from: { type: 'string', label: 'From', description: 'Sender email address. This email MUST be verified in your SendGrid account (Settings → Sender Authentication).', required: true },
     },
     execute: sendEmailExecute,
     code: sendEmailExecute.toString(),

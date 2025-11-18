@@ -73,6 +73,26 @@ export async function POST(request: NextRequest) {
     }
 
     // For non-scheduled workflows, execute immediately
+    // Create execution record BEFORE sending to Inngest so it exists even if Inngest fails
+    const adminSupabase = createAdminClient();
+    const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create initial execution record
+    const { error: execError } = await (adminSupabase as any)
+      .from('workflow_executions')
+      .insert({
+        id: executionId,
+        workflow_id: body.workflowId,
+        user_id: user.id,
+        status: 'queued',
+        started_at: new Date().toISOString(),
+      });
+
+    if (execError) {
+      console.error('Error creating execution record:', execError);
+      // Continue anyway - Inngest function will create it if this fails
+    }
+
     // Send workflow execution event to Inngest
     const eventIds = await inngest.send({
       name: 'workflow/execute',
@@ -84,10 +104,11 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         triggerType: body.testMode ? 'test' : 'manual',
         testMode: body.testMode ?? false,
+        executionId: executionId, // Pass the execution ID so Inngest can use it
       },
     });
 
-    // Return event ID for tracking
+    // Return event ID and execution ID for tracking
     // The actual execution happens asynchronously in Inngest
     const sendResult: any = eventIds;
     const normalizedEventId =
@@ -99,6 +120,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       eventId: normalizedEventId,
+      executionId: executionId, // Return execution ID so frontend can poll for it
       message: 'Workflow execution queued',
       status: 'queued',
       scheduled: false,

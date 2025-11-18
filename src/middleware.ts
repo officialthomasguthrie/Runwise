@@ -2,6 +2,11 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // Skip middleware for Inngest endpoints - they need to be accessible without auth
+  if (request.nextUrl.pathname.startsWith('/api/inngest') || request.nextUrl.pathname.startsWith('/api/ingest')) {
+    return NextResponse.next();
+  }
+
   // Check if Supabase environment variables are available
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     console.warn('Supabase environment variables not found, skipping middleware');
@@ -79,8 +84,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - api/inngest (Inngest endpoint - must be accessible without auth)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/inngest|api/ingest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
