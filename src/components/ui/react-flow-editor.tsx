@@ -318,8 +318,15 @@ export const ReactFlowEditor = ({
   useEffect(() => {
     if (onRegisterExecuteCallback) {
       const executeWrapper = async () => {
-        await executeWorkflow();
+        console.log('🎯 Execute wrapper called from parent');
+        try {
+          await executeWorkflow();
+        } catch (error) {
+          console.error('❌ Error in executeWorkflow:', error);
+          alert(`Failed to execute workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
       };
+      console.log('📝 Registering execute callback with parent');
       onRegisterExecuteCallback(executeWrapper);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -788,19 +795,43 @@ export const ReactFlowEditor = ({
 
   // Execute workflow
   const executeWorkflow = async () => {
-    if (!user || isExecuting || nodes.length === 0) return;
+    console.log('🚀 executeWorkflow called', { user: !!user, isExecuting, nodesCount: nodes.length });
+    
+    if (!user) {
+      console.error('❌ No user - cannot execute workflow');
+      alert('You must be logged in to execute workflows');
+      return;
+    }
+    
+    if (isExecuting) {
+      console.warn('⚠️ Workflow already executing');
+      return;
+    }
+    
+    if (nodes.length === 0) {
+      console.warn('⚠️ No nodes in workflow');
+      alert('Please add nodes to your workflow before testing');
+      return;
+    }
 
     // Validate configuration first
     const validation = validateWorkflowConfiguration();
     if (!validation.valid) {
+      console.warn('⚠️ Validation failed:', validation.message);
       alert(validation.message);
       return;
     }
+    
+    console.log('✅ Validation passed, starting execution...');
 
+    console.log('🔄 Setting execution state: queued');
     setIsExecuting(true);
     setExecutionResult(null);
     setShowLogs(false);
     setExecutionStatus('queued');
+    
+    // Force a re-render to show the status popup immediately
+    console.log('✅ Execution state set - status popup should appear');
     
     // Clear any existing polling
     if (pollingIntervalRef.current) {
@@ -848,6 +879,12 @@ export const ReactFlowEditor = ({
     }
 
     try {
+      console.log('📤 Sending workflow execution request to Inngest...', {
+        workflowId: workflowIdToExecute,
+        nodesCount: nodes.length,
+        edgesCount: edges.length,
+      });
+
       // Send workflow execution request to Inngest
       const response = await fetch('/api/workflow/execute', {
         method: 'POST',
@@ -862,12 +899,16 @@ export const ReactFlowEditor = ({
         }),
       });
 
+      console.log('📥 Response received:', { status: response.status, ok: response.ok });
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('❌ API error:', errorData);
         throw new Error(errorData.error || 'Failed to execute workflow');
       }
 
       const data = await response.json();
+      console.log('✅ Execution queued successfully:', data);
       
       // Check if workflow is scheduled (has scheduled trigger)
       if (data.scheduled && data.status === 'scheduled') {
@@ -1149,8 +1190,17 @@ export const ReactFlowEditor = ({
       )}
 
       {/* Execution Status Indicator */}
-      {(isExecuting || executionStatus === 'queued' || executionStatus === 'running') && !executionResult && (
-        <div className="absolute bottom-4 left-4 z-10 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl p-4">
+      {(() => {
+        const shouldShow = (isExecuting || executionStatus === 'queued' || executionStatus === 'running') && !executionResult;
+        if (shouldShow) {
+          console.log('📊 Status popup rendering:', { isExecuting, executionStatus, hasResult: !!executionResult });
+        }
+        return shouldShow;
+      })() && (
+        <div 
+          className="absolute bottom-4 left-4 z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl p-4"
+          style={{ pointerEvents: 'auto' }}
+        >
           <div className="flex items-center gap-3">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
             <div>

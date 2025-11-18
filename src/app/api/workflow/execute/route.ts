@@ -11,11 +11,14 @@ import type { ExecuteWorkflowRequest } from '@/lib/workflow-execution/types';
 import { hasScheduledTrigger, getScheduleConfig } from '@/lib/workflows/schedule-utils';
 
 export async function POST(request: NextRequest) {
+  console.log('📥 POST /api/workflow/execute - Request received');
+  
   try {
     const supabase = await createClient();
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('👤 User check:', { hasUser: !!user, authError: authError?.message });
 
     if (authError || !user) {
       return NextResponse.json(
@@ -74,6 +77,14 @@ export async function POST(request: NextRequest) {
 
     // For non-scheduled workflows, execute immediately
     // Send workflow execution event to Inngest
+    console.log('📤 Sending event to Inngest:', {
+      eventName: 'workflow/execute',
+      workflowId: body.workflowId,
+      nodesCount: body.nodes?.length,
+      edgesCount: body.edges?.length,
+      userId: user.id,
+    });
+    
     const eventIds = await inngest.send({
       name: 'workflow/execute',
       data: {
@@ -85,6 +96,8 @@ export async function POST(request: NextRequest) {
         triggerType: 'manual',
       },
     });
+    
+    console.log('✅ Event sent to Inngest, eventIds:', eventIds);
 
     // Return event ID for tracking
     // The actual execution happens asynchronously in Inngest

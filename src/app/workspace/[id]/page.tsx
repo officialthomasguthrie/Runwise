@@ -502,8 +502,26 @@ export default function WorkspacePage() {
                 <button
                   type="button"
                   onClick={() => {
+                    console.log('🔘 Test Workflow button clicked', {
+                      hasExecuteRef: !!executeWorkflowRef.current,
+                      hasNodes,
+                      isExecuting,
+                    });
                     if (executeWorkflowRef.current && hasNodes && !isExecuting) {
-                      executeWorkflowRef.current();
+                      console.log('✅ Calling executeWorkflowRef.current()');
+                      executeWorkflowRef.current().catch((error) => {
+                        console.error('❌ Error executing workflow:', error);
+                        alert(`Failed to execute workflow: ${error.message || 'Unknown error'}`);
+                      });
+                    } else {
+                      console.warn('⚠️ Cannot execute:', {
+                        hasExecuteRef: !!executeWorkflowRef.current,
+                        hasNodes,
+                        isExecuting,
+                      });
+                      if (!hasNodes) {
+                        alert('Please add nodes to your workflow before testing');
+                      }
                     }
                   }}
                   disabled={!hasNodes || isExecuting}
