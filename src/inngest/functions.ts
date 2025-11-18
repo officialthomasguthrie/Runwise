@@ -221,13 +221,23 @@ export const workflowExecutor = inngest.createFunction(
     await step.run("save-execution-results", async () => {
       const supabase = createAdminClient();
 
+      // Ensure status is properly set - if there's an error, status should be "failed"
+      const finalStatus = executionResult.error ? 'failed' : executionResult.status;
+      
+      console.log('💾 Saving execution results:', {
+        executionId: executionResult.executionId,
+        status: finalStatus,
+        hasError: !!executionResult.error,
+        error: executionResult.error,
+      });
+
       // Update execution record
       const { error: executionError } = await (supabase
         .from('workflow_executions') as any)
         .update({
           id: executionResult.executionId,
-          status: executionResult.status,
-          completed_at: executionResult.completedAt,
+          status: finalStatus,
+          completed_at: executionResult.completedAt || new Date().toISOString(),
           duration_ms: executionResult.duration,
           final_output: executionResult.finalOutput,
           error: executionResult.error || null,
@@ -235,8 +245,13 @@ export const workflowExecutor = inngest.createFunction(
         .eq('id', executionRecord.executionId);
 
       if (executionError) {
-        console.error('Error updating execution record:', executionError);
+        console.error('❌ Error updating execution record:', executionError);
         // Don't throw - execution completed, just couldn't save
+      } else {
+        console.log('✅ Execution record updated successfully:', {
+          executionId: executionResult.executionId,
+          status: finalStatus,
+        });
       }
 
       // Insert node results

@@ -774,9 +774,31 @@ export const ReactFlowEditor = ({
     setSelectedNodeForConfig(null);
   };
 
-  // Poll for execution status
-  const pollExecutionStatus = useCallback(async (executionId: string) => {
+  // Poll for execution status with timeout
+  const MAX_POLL_TIME = 5 * 60 * 1000; // 5 minutes
+  const pollExecutionStatus = useCallback(async (executionId: string, startTime: number = Date.now()) => {
     try {
+      const elapsed = Date.now() - startTime;
+      
+      if (elapsed > MAX_POLL_TIME) {
+        console.warn('⏰ Polling timeout reached, stopping...');
+        setExecutionStatus('failed');
+        setIsExecuting(false);
+        setExecutionResult((prev) => ({
+          ...prev!,
+          status: 'failed',
+          error: prev?.error || 'Execution timed out after 5 minutes. Check Inngest dashboard for details.',
+        }));
+        setShowLogs(true);
+        
+        // Stop polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        return;
+      }
+      
       console.log('🔄 Polling execution status:', executionId);
       const response = await fetch(`/api/workflow/execution/${executionId}`);
       
@@ -789,7 +811,30 @@ export const ReactFlowEditor = ({
       if (!response.ok) {
         if (response.status === 404) {
           console.log('⏳ Execution not found yet (404), continuing to poll...');
-          // Execution not found yet, keep polling
+          // Execution not found yet, keep polling (but with timeout)
+          if (elapsed > 30000) { // If not found after 30 seconds, assume failed
+            console.warn('⏰ Execution not found after 30 seconds, assuming failed');
+            setExecutionStatus('failed');
+            setIsExecuting(false);
+            setExecutionResult({
+              executionId,
+              workflowId: currentWorkflowId || 'unknown',
+              status: 'failed',
+              startedAt: new Date(startTime).toISOString(),
+              completedAt: new Date().toISOString(),
+              duration: elapsed,
+              nodeResults: [],
+              finalOutput: null,
+              error: 'Execution record not found. It may have failed to start or was deleted.',
+            });
+            setShowLogs(true);
+            
+            // Stop polling
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+          }
           return;
         }
         const errorText = await response.text();
@@ -810,6 +855,28 @@ export const ReactFlowEditor = ({
       });
       
       setExecutionResult(result);
+      
+      // Update status - check for error field even if status is "running" (database might not be updated yet)
+      if (result.error) {
+        // If there's an error, treat as failed regardless of status
+        console.warn('⚠️ Execution has error, treating as failed:', result.error);
+        // Update the result to have failed status
+        const failedResult = {
+          ...result,
+          status: 'failed' as const,
+        };
+        setExecutionResult(failedResult);
+        setExecutionStatus('failed');
+        setIsExecuting(false);
+        setShowLogs(true);
+        
+        // Stop polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        return;
+      }
       
       // Update status
       if (result.status === 'success' || result.status === 'failed' || result.status === 'partial') {
@@ -834,9 +901,27 @@ export const ReactFlowEditor = ({
         error: error.message,
         stack: error.stack,
       });
-      // Continue polling on error
+      // Continue polling on error (but with timeout)
+      const elapsed = Date.now() - startTime;
+      if (elapsed > MAX_POLL_TIME) {
+        console.warn('⏰ Polling timeout reached after error, stopping...');
+        setExecutionStatus('failed');
+        setIsExecuting(false);
+        setExecutionResult((prev) => ({
+          ...prev!,
+          status: 'failed',
+          error: prev?.error || `Polling error: ${error.message}`,
+        }));
+        setShowLogs(true);
+        
+        // Stop polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      }
     }
-  }, []);
+  }, [currentWorkflowId]);
 
   // Execute workflow
   const executeWorkflow = async () => {
@@ -1026,13 +1111,16 @@ export const ReactFlowEditor = ({
         const executionId = data.executionId;
         setCurrentExecutionId(executionId);
         
+        // Track start time for timeout
+        const startTime = Date.now();
+        
         // Start polling immediately
         pollingIntervalRef.current = setInterval(() => {
-          pollExecutionStatus(executionId);
+          pollExecutionStatus(executionId, startTime);
         }, 1000);
         
         // Initial poll
-        pollExecutionStatus(executionId);
+        pollExecutionStatus(executionId, startTime);
         return;
       }
       
@@ -1104,6 +1192,7 @@ export const ReactFlowEditor = ({
           let executionId: string | null = null;
           let attempts = 0;
           const maxAttempts = 10; // Try for 10 seconds
+          const startTime = Date.now(); // Track start time for timeout
           
           while (!executionId && attempts < maxAttempts) {
             executionId = await findExecution();
@@ -1112,11 +1201,11 @@ export const ReactFlowEditor = ({
               
               // Start polling every 1 second for status updates
               pollingIntervalRef.current = setInterval(() => {
-                pollExecutionStatus(executionId!);
+                pollExecutionStatus(executionId!, startTime);
               }, 1000);
               
               // Initial poll
-              pollExecutionStatus(executionId);
+              pollExecutionStatus(executionId, startTime);
               return;
             }
             attempts++;
@@ -1417,7 +1506,19 @@ export const ReactFlowEditor = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setExecutionResult(null)}
+                onClick={() => {
+                  // Stop polling if still running
+                  if (pollingIntervalRef.current) {
+                    clearInterval(pollingIntervalRef.current);
+                    pollingIntervalRef.current = null;
+                  }
+                  // Reset all execution state
+                  setExecutionResult(null);
+                  setExecutionStatus('idle');
+                  setIsExecuting(false);
+                  setShowLogs(false);
+                  setCurrentExecutionId(null);
+                }}
               >
                 Close
               </Button>
