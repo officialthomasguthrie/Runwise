@@ -132,6 +132,8 @@ export async function executeWorkflow(
         });
       } catch (error: any) {
         const duration = Date.now() - nodeStartTime;
+        const errorMessage = error.message || error.toString() || 'Unknown error';
+        const errorStack = error.stack || '';
 
         // Record failed execution
         nodeResults.push({
@@ -139,7 +141,7 @@ export async function executeWorkflow(
           nodeName: nodeLabel,
           status: 'failed',
           outputData: null,
-          error: error.message || 'Unknown error',
+          error: errorMessage,
           duration,
           logs: nodeLogs,
         });
@@ -147,12 +149,27 @@ export async function executeWorkflow(
         logs.push({
           level: 'error',
           message: `Node failed: ${nodeLabel}`,
-          data: { error: error.message },
+          data: { 
+            error: errorMessage,
+            stack: errorStack,
+            nodeId: node.id,
+            nodeType: node.type,
+            nodeData: nodeData,
+          },
           timestamp: new Date().toISOString(),
         });
 
-        // Throw to stop execution
-        throw new Error(`Node "${nodeLabel}" failed: ${error.message}`);
+        console.error(`❌ Node execution failed:`, {
+          nodeId: node.id,
+          nodeName: nodeLabel,
+          nodeType: node.type,
+          error: errorMessage,
+          stack: errorStack,
+          nodeData: nodeData,
+        });
+
+        // Throw to stop execution with detailed error
+        throw new Error(`Node "${nodeLabel}" (${node.type || 'unknown type'}) failed: ${errorMessage}`);
       }
     }
 
@@ -259,17 +276,42 @@ async function executeLibraryNode(
   const nodeId = typeof nodeData.nodeId === 'string' ? nodeData.nodeId : node.id;
   const config = nodeData.config || {};
 
+  console.log('🔧 Executing library node:', {
+    nodeId,
+    nodeType: node.type,
+    hasConfig: !!config && Object.keys(config).length > 0,
+    configKeys: Object.keys(config || {}),
+    inputDataKeys: Object.keys(inputData || {}),
+  });
+
   // Get node definition from registry
   const nodeDef = nodeRegistry[nodeId];
   if (!nodeDef) {
-    throw new Error(`Node not found in library: ${nodeId}`);
+    console.error('❌ Node not found in registry:', {
+      nodeId,
+      availableNodes: Object.keys(nodeRegistry).slice(0, 10), // Log first 10 for debugging
+      nodeData,
+    });
+    throw new Error(`Node not found in library: ${nodeId}. Available nodes: ${Object.keys(nodeRegistry).join(', ')}`);
   }
 
   // Execute the node's function
   try {
+    console.log('▶️ Calling node execute function:', nodeId);
     const output = await nodeDef.execute(inputData, config, context);
+    console.log('✅ Node execute completed:', {
+      nodeId,
+      outputKeys: Object.keys(output || {}),
+    });
     return output;
   } catch (error: any) {
+    console.error('❌ Library node execution error:', {
+      nodeId,
+      error: error.message,
+      stack: error.stack,
+      config,
+      inputDataKeys: Object.keys(inputData || {}),
+    });
     throw new Error(`Library node execution failed: ${error.message}`);
   }
 }

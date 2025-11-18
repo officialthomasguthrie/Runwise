@@ -132,6 +132,14 @@ export const workflowExecutor = inngest.createFunction(
         // Skip trigger nodes for manual/test executions (when user clicks "Test Workflow")
         const skipTriggers = triggerType === 'manual';
         
+        console.log('🚀 Starting workflow execution:', {
+          workflowId,
+          nodesCount: nodes.length,
+          edgesCount: edges.length,
+          skipTriggers,
+          triggerType,
+        });
+        
         const result = await executeWorkflow(
           workflowId,
           nodes as Node[],
@@ -141,11 +149,24 @@ export const workflowExecutor = inngest.createFunction(
           skipTriggers
         );
         
+        console.log('✅ Workflow execution completed:', {
+          executionId: result.executionId,
+          status: result.status,
+          nodeResultsCount: result.nodeResults?.length,
+        });
+        
         // Override the executionId to match our database record
         result.executionId = executionRecord.executionId;
         
         return result;
       } catch (error: any) {
+        console.error('❌ Workflow execution failed:', {
+          error: error.message,
+          stack: error.stack,
+          workflowId,
+          executionId: executionRecord.executionId,
+        });
+        
         // Update execution record with error
         const supabase = createAdminClient();
         await (supabase
@@ -157,7 +178,21 @@ export const workflowExecutor = inngest.createFunction(
           })
           .eq('id', executionRecord.executionId);
 
-        throw error;
+        // Return a failed result so the frontend can see the error
+        // Don't re-throw - let the result be saved and returned
+        const failedResult = {
+          executionId: executionRecord.executionId,
+          workflowId,
+          status: 'failed' as const,
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          duration: 0,
+          nodeResults: [],
+          finalOutput: null,
+          error: error.message || 'Unknown error',
+        };
+        
+        return failedResult;
       }
     });
 
@@ -185,15 +220,17 @@ export const workflowExecutor = inngest.createFunction(
 
       // Insert node results
       if (executionResult.nodeResults && executionResult.nodeResults.length > 0) {
-        const nodeResultsData = executionResult.nodeResults.map((nodeResult) => ({
-          execution_id: executionResult.executionId,
-          node_id: nodeResult.nodeId,
-          node_name: nodeResult.nodeName,
-          status: nodeResult.status,
-          output_data: nodeResult.outputData,
-          error: nodeResult.error || null,
-          duration_ms: nodeResult.duration,
-        }));
+        const nodeResultsData = executionResult.nodeResults
+          .filter((nodeResult) => nodeResult !== null && nodeResult !== undefined)
+          .map((nodeResult) => ({
+            execution_id: executionResult.executionId,
+            node_id: nodeResult.nodeId,
+            node_name: nodeResult.nodeName,
+            status: nodeResult.status,
+            output_data: nodeResult.outputData,
+            error: nodeResult.error || null,
+            duration_ms: nodeResult.duration,
+          }));
 
         const { error: nodeResultsError } = await (supabase
           .from('node_execution_results') as any)
@@ -204,9 +241,11 @@ export const workflowExecutor = inngest.createFunction(
         }
 
         // Insert logs
-        const allLogs = executionResult.nodeResults.flatMap((nodeResult) => {
-          if (!nodeResult.logs || nodeResult.logs.length === 0) return [];
-          return nodeResult.logs.map((log) => ({
+        const allLogs = executionResult.nodeResults
+          .filter((nodeResult) => nodeResult !== null && nodeResult !== undefined)
+          .flatMap((nodeResult) => {
+            if (!nodeResult.logs || nodeResult.logs.length === 0) return [];
+            return nodeResult.logs.map((log) => ({
             execution_id: executionResult.executionId,
             node_result_id: null,
             level: log.level,
