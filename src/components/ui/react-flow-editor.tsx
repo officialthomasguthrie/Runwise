@@ -314,31 +314,50 @@ export const ReactFlowEditor = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onRegisterConfigureCallback]);
 
-  // Register execute callback with parent
+  // Register execute callback with parent - use useCallback to ensure it has latest nodes
+  const executeWorkflowCallback = useCallback(async () => {
+    // Get the latest nodes/edges from state at call time
+    console.log('🎯 Execute callback called from parent');
+    try {
+      // Call executeWorkflow - it will use the latest nodes from closure
+      await executeWorkflow();
+    } catch (error) {
+      console.error('❌ Error in executeWorkflow:', error);
+      alert(`Failed to execute workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, []);
+  
+  // Update the callback whenever nodes/edges change to ensure it has latest state
+  const executeWorkflowRef = useRef(executeWorkflowCallback);
+  useEffect(() => {
+    executeWorkflowRef.current = async () => {
+      console.log('🎯 Execute callback called (ref version)', { nodesCount: nodes.length, nodes: nodes.map(n => n.id) });
+      try {
+        await executeWorkflow();
+      } catch (error) {
+        console.error('❌ Error in executeWorkflow:', error);
+        alert(`Failed to execute workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    };
+  }, [nodes, edges, user, isExecuting, currentWorkflowId, workflowName]);
+  
   useEffect(() => {
     if (onRegisterExecuteCallback) {
-      const executeWrapper = async () => {
-        console.log('🎯 Execute wrapper called from parent');
-        try {
-          await executeWorkflow();
-        } catch (error) {
-          console.error('❌ Error in executeWorkflow:', error);
-          alert(`Failed to execute workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-      };
-      console.log('📝 Registering execute callback with parent');
-      onRegisterExecuteCallback(executeWrapper);
+      console.log('📝 Registering execute callback with parent', { nodesCount: nodes.length });
+      // Register the ref version which always has latest state
+      onRegisterExecuteCallback(() => executeWorkflowRef.current());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onRegisterExecuteCallback]);
+  }, [onRegisterExecuteCallback, nodes.length]);
 
-  // Notify execution state changes
+  // Notify execution state changes - fires when execution state OR nodes change
   useEffect(() => {
     if (onExecutionStateChange) {
+      const hasNodes = nodes.length > 0;
+      console.log('📢 Notifying parent of state change:', { isExecuting, executionStatus, hasNodes, nodesCount: nodes.length });
       onExecutionStateChange({
         isExecuting,
         executionStatus,
-        hasNodes: nodes.length > 0,
+        hasNodes,
       });
     }
   }, [isExecuting, executionStatus, nodes.length, onExecutionStateChange]);
@@ -795,7 +814,20 @@ export const ReactFlowEditor = ({
 
   // Execute workflow
   const executeWorkflow = async () => {
-    console.log('🚀 executeWorkflow called', { user: !!user, isExecuting, nodesCount: nodes.length });
+    // Get nodes from ReactFlow instance if available, otherwise use state
+    const currentNodes = reactFlowInstance.current?.getNodes() || nodes;
+    const currentEdges = reactFlowInstance.current?.getEdges() || edges;
+    
+    console.log('🚀 executeWorkflow called', { 
+      user: !!user, 
+      isExecuting, 
+      nodesCountFromState: nodes.length,
+      nodesCountFromInstance: currentNodes.length,
+      nodesFromState: nodes.map(n => ({ id: n.id, type: n.type })),
+      nodesFromInstance: currentNodes.map(n => ({ id: n.id, type: n.type })),
+      edgesCount: currentEdges.length,
+      hasReactFlowInstance: !!reactFlowInstance.current,
+    });
     
     if (!user) {
       console.error('❌ No user - cannot execute workflow');
@@ -808,11 +840,22 @@ export const ReactFlowEditor = ({
       return;
     }
     
-    if (nodes.length === 0) {
-      console.warn('⚠️ No nodes in workflow');
+    // Check for nodes - use nodes from ReactFlow instance if available
+    if (currentNodes.length === 0) {
+      console.warn('⚠️ No nodes in workflow', { 
+        nodesFromState: nodes,
+        nodesFromInstance: currentNodes,
+        nodesArray: JSON.stringify(currentNodes, null, 2),
+      });
       alert('Please add nodes to your workflow before testing');
       return;
     }
+    
+    console.log('✅ Nodes found:', {
+      count: currentNodes.length,
+      nodeIds: currentNodes.map(n => n.id),
+      nodeTypes: currentNodes.map(n => n.type),
+    });
 
     // Validate configuration first
     const validation = validateWorkflowConfiguration();
@@ -849,8 +892,8 @@ export const ReactFlowEditor = ({
         const savedWorkflow = await saveWorkflowFromEditor(
           null,
           workflowName,
-          nodes,
-          edges,
+          currentNodes,
+          currentEdges,
           {
             description: `Test execution of workflow: ${workflowName}`,
             status: 'draft',
@@ -881,8 +924,8 @@ export const ReactFlowEditor = ({
     try {
       console.log('📤 Sending workflow execution request to Inngest...', {
         workflowId: workflowIdToExecute,
-        nodesCount: nodes.length,
-        edgesCount: edges.length,
+        nodesCount: currentNodes.length,
+        edgesCount: currentEdges.length,
       });
 
       // Send workflow execution request to Inngest
@@ -893,8 +936,8 @@ export const ReactFlowEditor = ({
         },
         body: JSON.stringify({
           workflowId: workflowIdToExecute,
-          nodes,
-          edges,
+          nodes: currentNodes,
+          edges: currentEdges,
           triggerData: {},
         }),
       });
@@ -1007,7 +1050,14 @@ export const ReactFlowEditor = ({
         setShowLogs(true);
       }
     } catch (error: any) {
-      console.error('Execution error:', error);
+      console.error('❌ Execution error:', error);
+      console.error('❌ Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+        cause: error?.cause,
+      });
+      
       setExecutionResult({
         executionId: 'error',
         workflowId: workflowIdToExecute || 'unknown',
@@ -1027,6 +1077,14 @@ export const ReactFlowEditor = ({
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
+      }
+      
+      // Show user-friendly error message
+      const errorMessage = error?.message || 'Unknown error occurred';
+      if (errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('Failed to fetch')) {
+        alert(`Connection failed. Please check your internet connection and try again.\n\nError: ${errorMessage}`);
+      } else {
+        alert(`Failed to execute workflow: ${errorMessage}`);
       }
     }
   };

@@ -504,10 +504,9 @@ export default function WorkspacePage() {
                   onClick={() => {
                     console.log('🔘 Test Workflow button clicked', {
                       hasExecuteRef: !!executeWorkflowRef.current,
-                      hasNodes,
                       isExecuting,
                     });
-                    if (executeWorkflowRef.current && hasNodes && !isExecuting) {
+                    if (executeWorkflowRef.current && !isExecuting) {
                       console.log('✅ Calling executeWorkflowRef.current()');
                       executeWorkflowRef.current().catch((error) => {
                         console.error('❌ Error executing workflow:', error);
@@ -516,20 +515,17 @@ export default function WorkspacePage() {
                     } else {
                       console.warn('⚠️ Cannot execute:', {
                         hasExecuteRef: !!executeWorkflowRef.current,
-                        hasNodes,
                         isExecuting,
                       });
-                      if (!hasNodes) {
-                        alert('Please add nodes to your workflow before testing');
+                      if (!executeWorkflowRef.current) {
+                        alert('Workflow editor is not ready. Please wait a moment and try again.');
                       }
                     }
                   }}
-                  disabled={!hasNodes || isExecuting}
+                  disabled={isExecuting}
                   className="pointer-events-auto inline-flex items-center gap-2.5 rounded-sm border border-border bg-background/95 px-5 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
                   title={
-                    !hasNodes
-                      ? 'Add nodes to test the workflow'
-                      : isExecuting
+                    isExecuting
                       ? 'Workflow is currently running'
                       : 'Run a test execution of this workflow'
                   }
