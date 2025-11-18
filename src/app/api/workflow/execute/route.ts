@@ -11,14 +11,11 @@ import type { ExecuteWorkflowRequest } from '@/lib/workflow-execution/types';
 import { hasScheduledTrigger, getScheduleConfig } from '@/lib/workflows/schedule-utils';
 
 export async function POST(request: NextRequest) {
-  console.log('📥 POST /api/workflow/execute - Request received');
-  
   try {
     const supabase = await createClient();
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    console.log('👤 User check:', { hasUser: !!user, authError: authError?.message });
 
     if (authError || !user) {
       return NextResponse.json(
@@ -49,80 +46,59 @@ export async function POST(request: NextRequest) {
     const hasScheduled = hasScheduledTrigger(body.nodes);
     const scheduleConfig = getScheduleConfig(body.nodes);
 
-    // If workflow has a scheduled trigger, return error (scheduled workflows not supported)
-    if (hasScheduled && scheduleConfig) {
-      console.warn('⚠️ Scheduled workflow detected but not supported:', {
-        workflowId: body.workflowId,
-        scheduleConfig,
-      });
-      
+    // If workflow has a scheduled trigger, enable scheduled execution instead of running immediately
+    if (hasScheduled && scheduleConfig && !body.testMode) {
+      // Update workflow status to 'active' to enable scheduled execution
+      const adminSupabase = createAdminClient();
+      const { error: updateError } = await (adminSupabase as any)
+        .from('workflows')
+        .update({
+          status: 'active',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', body.workflowId)
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        console.error('Error updating workflow status:', updateError);
+      }
+
       return NextResponse.json({
-        success: false,
-        error: 'Scheduled workflows are not currently supported',
-        message: 'The scheduled workflow executor was temporarily disabled. Please use manual execution instead.',
-        status: 'failed',
-        scheduled: true,
+        success: true,
+        message: `Scheduled execution enabled. Workflow will run according to schedule: ${scheduleConfig.cron}`,
+        status: 'scheduled',
         scheduleConfig,
-      }, { status: 400 });
+        scheduled: true,
+      });
     }
 
     // For non-scheduled workflows, execute immediately
-    // Create execution record FIRST so frontend can poll for it
-    const adminSupabase = createAdminClient();
-    const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    console.log('💾 Creating execution record:', { executionId, workflowId: body.workflowId });
-    
-    const { error: createError } = await (adminSupabase as any)
-      .from('workflow_executions')
-      .insert({
-        id: executionId,
-        workflow_id: body.workflowId,
-        user_id: user.id,
-        status: 'running',
-        started_at: new Date().toISOString(),
-      });
-
-    if (createError) {
-      console.error('❌ Failed to create execution record:', createError);
-      return NextResponse.json(
-        { error: 'Failed to create execution record', details: createError.message },
-        { status: 500 }
-      );
-    }
-
-    console.log('✅ Execution record created:', executionId);
-
-    // Send workflow execution event to Inngest with the pre-created executionId
-    console.log('📤 Sending event to Inngest:', {
-      eventName: 'workflow/execute',
-      workflowId: body.workflowId,
-      executionId,
-      nodesCount: body.nodes?.length,
-      edgesCount: body.edges?.length,
-      userId: user.id,
-    });
-    
+    // Send workflow execution event to Inngest
     const eventIds = await inngest.send({
       name: 'workflow/execute',
       data: {
         workflowId: body.workflowId,
-        executionId, // Pass the pre-created executionId
         nodes: body.nodes,
         edges: body.edges,
         triggerData: body.triggerData || {},
         userId: user.id,
-        triggerType: 'manual',
+        triggerType: body.testMode ? 'test' : 'manual',
+        testMode: body.testMode ?? false,
       },
     });
-    
-    console.log('✅ Event sent to Inngest, eventIds:', eventIds);
 
-    // Return executionId so frontend can poll immediately
+    // Return event ID for tracking
+    // The actual execution happens asynchronously in Inngest
+    const sendResult: any = eventIds;
+    const normalizedEventId =
+      sendResult?.[0]?.ids?.[0] ??
+      sendResult?.[0] ??
+      sendResult?.ids?.[0] ??
+      sendResult;
+
     return NextResponse.json({
       success: true,
-      executionId, // Return the executionId so frontend can poll
-      eventId: eventIds,
+      eventId: normalizedEventId,
       message: 'Workflow execution queued',
       status: 'queued',
       scheduled: false,

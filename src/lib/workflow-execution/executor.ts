@@ -21,8 +21,7 @@ export async function executeWorkflow(
   nodes: Node[],
   edges: Edge[],
   triggerData: any = {},
-  userId: string,
-  skipTriggers: boolean = false
+  userId: string
 ): Promise<WorkflowExecutionResult> {
   const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const startedAt = new Date().toISOString();
@@ -38,110 +37,11 @@ export async function executeWorkflow(
       throw new Error('Workflow has no nodes');
     }
 
-    let nodesToExecute = nodes;
-    let edgesToUse = edges;
-    let initialOutput = triggerData;
-
-    // If skipTriggers is true, execute trigger nodes first to get their output, then execute action nodes
-    if (skipTriggers) {
-      const triggerNodes: Node[] = [];
-      const actionNodes: Node[] = [];
-      
-      nodes.forEach((node) => {
-        const nodeData = (node.data ?? {}) as Record<string, any>;
-        const nodeId = typeof nodeData.nodeId === 'string' ? nodeData.nodeId : node.id;
-        
-        // Check if it's a trigger node by type or by checking registry
-        const isTrigger = 
-          node.type === 'trigger' || 
-          node.type === 'scheduled-time-trigger' ||
-          (typeof node.type === 'string' && node.type.includes('trigger')) ||
-          (nodeData.nodeId && nodeRegistry[nodeId]?.type === 'trigger');
-        
-        if (isTrigger) {
-          triggerNodes.push(node);
-        } else {
-          actionNodes.push(node);
-        }
-      });
-
-      // Execute trigger nodes first to get their output (for test execution)
-      if (triggerNodes.length > 0) {
-        logs.push({
-          level: 'info',
-          message: `Test execution: Executing ${triggerNodes.length} trigger node(s) to generate test data`,
-          timestamp: new Date().toISOString(),
-        });
-
-        // Execute each trigger node to get its output
-        const triggerOutputs: any[] = [];
-        for (const triggerNode of triggerNodes) {
-          const nodeData = (triggerNode.data ?? {}) as Record<string, any>;
-          const nodeLabel = typeof nodeData.label === 'string' ? nodeData.label : triggerNode.id;
-          
-          try {
-            logs.push({
-              level: 'info',
-              message: `Executing trigger node: ${nodeLabel} (test execution)`,
-              timestamp: new Date().toISOString(),
-            });
-
-            const triggerOutput = await executeNode(triggerNode, {}, context);
-            triggerOutputs.push(triggerOutput);
-            
-            logs.push({
-              level: 'info',
-              message: `Trigger node executed successfully: ${nodeLabel}`,
-              data: { outputKeys: Object.keys(triggerOutput || {}) },
-              timestamp: new Date().toISOString(),
-            });
-          } catch (error: any) {
-            logs.push({
-              level: 'warn',
-              message: `Trigger node execution failed, using empty data: ${nodeLabel}`,
-              data: { error: error.message },
-              timestamp: new Date().toISOString(),
-            });
-            // Use empty object if trigger fails
-            triggerOutputs.push({});
-          }
-        }
-
-        // Merge all trigger outputs into initial output
-        initialOutput = triggerOutputs.reduce((acc, output) => ({ ...acc, ...output }), triggerData);
-        
-        logs.push({
-          level: 'info',
-          message: `Trigger nodes executed, starting action nodes with merged output`,
-          data: { outputKeys: Object.keys(initialOutput || {}) },
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // Filter edges to only include edges between action nodes (remove trigger->action edges, keep action->action)
-      const triggerNodeIds = new Set(triggerNodes.map(n => n.id));
-      edgesToUse = edges.filter(
-        (edge) => !triggerNodeIds.has(edge.source) && !triggerNodeIds.has(edge.target)
-      );
-      nodesToExecute = actionNodes;
-
-      // If no action nodes remain, throw error
-      if (nodesToExecute.length === 0) {
-        throw new Error('Workflow has no action nodes to execute (only trigger nodes found)');
-      }
-
-      logs.push({
-        level: 'info',
-        message: `Test execution: Executed ${triggerNodes.length} trigger node(s), executing ${nodesToExecute.length} action node(s)`,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     // Sort nodes by execution order (topological sort based on edges)
-    const sortedNodes = topologicalSort(nodesToExecute, edgesToUse);
+    const sortedNodes = topologicalSort(nodes, edges);
 
-    // Execute each node in order, starting with the initial output (from triggers or triggerData)
-    let previousOutput = initialOutput;
+    // Execute each node in order
+    let previousOutput = triggerData;
 
     for (const node of sortedNodes) {
       const nodeStartTime = Date.now();
@@ -182,8 +82,6 @@ export async function executeWorkflow(
         });
       } catch (error: any) {
         const duration = Date.now() - nodeStartTime;
-        const errorMessage = error.message || error.toString() || 'Unknown error';
-        const errorStack = error.stack || '';
 
         // Record failed execution
         nodeResults.push({
@@ -191,7 +89,7 @@ export async function executeWorkflow(
           nodeName: nodeLabel,
           status: 'failed',
           outputData: null,
-          error: errorMessage,
+          error: error.message || 'Unknown error',
           duration,
           logs: nodeLogs,
         });
@@ -199,27 +97,12 @@ export async function executeWorkflow(
         logs.push({
           level: 'error',
           message: `Node failed: ${nodeLabel}`,
-          data: { 
-            error: errorMessage,
-            stack: errorStack,
-            nodeId: node.id,
-            nodeType: node.type,
-            nodeData: nodeData,
-          },
+          data: { error: error.message },
           timestamp: new Date().toISOString(),
         });
 
-        console.error(`❌ Node execution failed:`, {
-          nodeId: node.id,
-          nodeName: nodeLabel,
-          nodeType: node.type,
-          error: errorMessage,
-          stack: errorStack,
-          nodeData: nodeData,
-        });
-
-        // Throw to stop execution with detailed error
-        throw new Error(`Node "${nodeLabel}" (${node.type || 'unknown type'}) failed: ${errorMessage}`);
+        // Throw to stop execution
+        throw new Error(`Node "${nodeLabel}" failed: ${error.message}`);
       }
     }
 
@@ -326,42 +209,17 @@ async function executeLibraryNode(
   const nodeId = typeof nodeData.nodeId === 'string' ? nodeData.nodeId : node.id;
   const config = nodeData.config || {};
 
-  console.log('🔧 Executing library node:', {
-    nodeId,
-    nodeType: node.type,
-    hasConfig: !!config && Object.keys(config).length > 0,
-    configKeys: Object.keys(config || {}),
-    inputDataKeys: Object.keys(inputData || {}),
-  });
-
   // Get node definition from registry
   const nodeDef = nodeRegistry[nodeId];
   if (!nodeDef) {
-    console.error('❌ Node not found in registry:', {
-      nodeId,
-      availableNodes: Object.keys(nodeRegistry).slice(0, 10), // Log first 10 for debugging
-      nodeData,
-    });
-    throw new Error(`Node not found in library: ${nodeId}. Available nodes: ${Object.keys(nodeRegistry).join(', ')}`);
+    throw new Error(`Node not found in library: ${nodeId}`);
   }
 
   // Execute the node's function
   try {
-    console.log('▶️ Calling node execute function:', nodeId);
     const output = await nodeDef.execute(inputData, config, context);
-    console.log('✅ Node execute completed:', {
-      nodeId,
-      outputKeys: Object.keys(output || {}),
-    });
     return output;
   } catch (error: any) {
-    console.error('❌ Library node execution error:', {
-      nodeId,
-      error: error.message,
-      stack: error.stack,
-      config,
-      inputDataKeys: Object.keys(inputData || {}),
-    });
     throw new Error(`Library node execution failed: ${error.message}`);
   }
 }

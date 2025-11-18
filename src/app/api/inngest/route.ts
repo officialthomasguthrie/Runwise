@@ -5,7 +5,7 @@ import {
   testWorkflow,
   sendTestNotification,
   workflowExecutor,
-  // scheduledWorkflowExecutor, // REMOVED: Was causing infinite retry loops
+  scheduledWorkflowExecutor,
 } from "../../../inngest/functions";
 
 export const runtime = "nodejs";
@@ -17,6 +17,6 @@ export const { GET, POST, PUT } = serve({
     testWorkflow,
     sendTestNotification,
     workflowExecutor,
-    // scheduledWorkflowExecutor, // REMOVED: Was causing infinite retry loops
+    scheduledWorkflowExecutor,
   ],
 });

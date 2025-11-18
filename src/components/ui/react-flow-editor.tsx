@@ -314,50 +314,24 @@ export const ReactFlowEditor = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onRegisterConfigureCallback]);
 
-  // Register execute callback with parent - use useCallback to ensure it has latest nodes
-  const executeWorkflowCallback = useCallback(async () => {
-    // Get the latest nodes/edges from state at call time
-    console.log('🎯 Execute callback called from parent');
-    try {
-      // Call executeWorkflow - it will use the latest nodes from closure
-      await executeWorkflow();
-    } catch (error) {
-      console.error('❌ Error in executeWorkflow:', error);
-      alert(`Failed to execute workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }, []);
-  
-  // Update the callback whenever nodes/edges change to ensure it has latest state
-  const executeWorkflowRef = useRef(executeWorkflowCallback);
-  useEffect(() => {
-    executeWorkflowRef.current = async () => {
-      console.log('🎯 Execute callback called (ref version)', { nodesCount: nodes.length, nodes: nodes.map(n => n.id) });
-      try {
-        await executeWorkflow();
-      } catch (error) {
-        console.error('❌ Error in executeWorkflow:', error);
-        alert(`Failed to execute workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    };
-  }, [nodes, edges, user, isExecuting, currentWorkflowId, workflowName]);
-  
+  // Register execute callback with parent
   useEffect(() => {
     if (onRegisterExecuteCallback) {
-      console.log('📝 Registering execute callback with parent', { nodesCount: nodes.length });
-      // Register the ref version which always has latest state
-      onRegisterExecuteCallback(() => executeWorkflowRef.current());
+      const executeWrapper = async () => {
+        await executeWorkflow();
+      };
+      onRegisterExecuteCallback(executeWrapper);
     }
-  }, [onRegisterExecuteCallback, nodes.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onRegisterExecuteCallback]);
 
-  // Notify execution state changes - fires when execution state OR nodes change
+  // Notify execution state changes
   useEffect(() => {
     if (onExecutionStateChange) {
-      const hasNodes = nodes.length > 0;
-      console.log('📢 Notifying parent of state change:', { isExecuting, executionStatus, hasNodes, nodesCount: nodes.length });
       onExecutionStateChange({
         isExecuting,
         executionStatus,
-        hasNodes,
+        hasNodes: nodes.length > 0,
       });
     }
   }, [isExecuting, executionStatus, nodes.length, onExecutionStateChange]);
@@ -774,113 +748,25 @@ export const ReactFlowEditor = ({
     setSelectedNodeForConfig(null);
   };
 
-  // Poll for execution status with timeout
-  const MAX_POLL_TIME = 5 * 60 * 1000; // 5 minutes
-  const pollExecutionStatus = useCallback(async (executionId: string, startTime: number = Date.now()) => {
+  // Poll for execution status
+  const pollExecutionStatus = useCallback(async (executionId: string) => {
     try {
-      const elapsed = Date.now() - startTime;
-      
-      if (elapsed > MAX_POLL_TIME) {
-        console.warn('⏰ Polling timeout reached, stopping...');
-        setExecutionStatus('failed');
-        setIsExecuting(false);
-        setExecutionResult((prev) => ({
-          ...prev!,
-          status: 'failed',
-          error: prev?.error || 'Execution timed out after 5 minutes. Check Inngest dashboard for details.',
-        }));
-        setShowLogs(true);
-        
-        // Stop polling
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = null;
-        }
-        return;
-      }
-      
-      console.log('🔄 Polling execution status:', executionId);
       const response = await fetch(`/api/workflow/execution/${executionId}`);
-      
-      console.log('📥 Execution status response:', {
-        status: response.status,
-        ok: response.ok,
-        executionId,
-      });
       
       if (!response.ok) {
         if (response.status === 404) {
-          console.log('⏳ Execution not found yet (404), continuing to poll...');
-          // Execution not found yet, keep polling (but with timeout)
-          if (elapsed > 30000) { // If not found after 30 seconds, assume failed
-            console.warn('⏰ Execution not found after 30 seconds, assuming failed');
-            setExecutionStatus('failed');
-            setIsExecuting(false);
-            setExecutionResult({
-              executionId,
-              workflowId: currentWorkflowId || 'unknown',
-              status: 'failed',
-              startedAt: new Date(startTime).toISOString(),
-              completedAt: new Date().toISOString(),
-              duration: elapsed,
-              nodeResults: [],
-              finalOutput: null,
-              error: 'Execution record not found. It may have failed to start or was deleted.',
-            });
-            setShowLogs(true);
-            
-            // Stop polling
-            if (pollingIntervalRef.current) {
-              clearInterval(pollingIntervalRef.current);
-              pollingIntervalRef.current = null;
-            }
-          }
+          // Execution not found yet, keep polling
           return;
         }
-        const errorText = await response.text();
-        console.error('❌ Execution status API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText,
-        });
-        throw new Error(`Failed to get execution status: ${response.status} ${errorText}`);
+        throw new Error('Failed to get execution status');
       }
 
       const result: WorkflowExecutionResult = await response.json();
-      console.log('✅ Execution status received:', {
-        executionId: result.executionId,
-        status: result.status,
-        nodeResultsCount: result.nodeResults?.length,
-        error: result.error,
-      });
       
       setExecutionResult(result);
       
-      // Update status - check for error field even if status is "running" (database might not be updated yet)
-      if (result.error) {
-        // If there's an error, treat as failed regardless of status
-        console.warn('⚠️ Execution has error, treating as failed:', result.error);
-        // Update the result to have failed status
-        const failedResult = {
-          ...result,
-          status: 'failed' as const,
-        };
-        setExecutionResult(failedResult);
-        setExecutionStatus('failed');
-        setIsExecuting(false);
-        setShowLogs(true);
-        
-        // Stop polling
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = null;
-        }
-        return;
-      }
-      
       // Update status
       if (result.status === 'success' || result.status === 'failed' || result.status === 'partial') {
-        console.log('🏁 Execution completed:', result.status);
         setExecutionStatus(result.status === 'success' ? 'success' : 'failed');
         setIsExecuting(false);
         setShowLogs(true);
@@ -891,101 +777,30 @@ export const ReactFlowEditor = ({
           pollingIntervalRef.current = null;
         }
       } else if (result.status === 'running' || result.status === 'queued') {
-        console.log('⏳ Execution still running:', result.status);
         setExecutionStatus('running');
         // Continue polling
       }
     } catch (error: any) {
-      console.error('❌ Error polling execution status:', {
-        executionId,
-        error: error.message,
-        stack: error.stack,
-      });
-      // Continue polling on error (but with timeout)
-      const elapsed = Date.now() - startTime;
-      if (elapsed > MAX_POLL_TIME) {
-        console.warn('⏰ Polling timeout reached after error, stopping...');
-        setExecutionStatus('failed');
-        setIsExecuting(false);
-        setExecutionResult((prev) => ({
-          ...prev!,
-          status: 'failed',
-          error: prev?.error || `Polling error: ${error.message}`,
-        }));
-        setShowLogs(true);
-        
-        // Stop polling
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = null;
-        }
-      }
+      console.error('Error polling execution status:', error);
+      // Continue polling on error
     }
-  }, [currentWorkflowId]);
+  }, []);
 
   // Execute workflow
   const executeWorkflow = async () => {
-    // Get nodes from ReactFlow instance if available, otherwise use state
-    const currentNodes = reactFlowInstance.current?.getNodes() || nodes;
-    const currentEdges = reactFlowInstance.current?.getEdges() || edges;
-    
-    console.log('🚀 executeWorkflow called', { 
-      user: !!user, 
-      isExecuting, 
-      nodesCountFromState: nodes.length,
-      nodesCountFromInstance: currentNodes.length,
-      nodesFromState: nodes.map(n => ({ id: n.id, type: n.type })),
-      nodesFromInstance: currentNodes.map(n => ({ id: n.id, type: n.type })),
-      edgesCount: currentEdges.length,
-      hasReactFlowInstance: !!reactFlowInstance.current,
-    });
-    
-    if (!user) {
-      console.error('❌ No user - cannot execute workflow');
-      alert('You must be logged in to execute workflows');
-      return;
-    }
-    
-    if (isExecuting) {
-      console.warn('⚠️ Workflow already executing');
-      return;
-    }
-    
-    // Check for nodes - use nodes from ReactFlow instance if available
-    if (currentNodes.length === 0) {
-      console.warn('⚠️ No nodes in workflow', { 
-        nodesFromState: nodes,
-        nodesFromInstance: currentNodes,
-        nodesArray: JSON.stringify(currentNodes, null, 2),
-      });
-      alert('Please add nodes to your workflow before testing');
-      return;
-    }
-    
-    console.log('✅ Nodes found:', {
-      count: currentNodes.length,
-      nodeIds: currentNodes.map(n => n.id),
-      nodeTypes: currentNodes.map(n => n.type),
-    });
+    if (!user || isExecuting || nodes.length === 0) return;
 
     // Validate configuration first
     const validation = validateWorkflowConfiguration();
     if (!validation.valid) {
-      console.warn('⚠️ Validation failed:', validation.message);
       alert(validation.message);
       return;
     }
-    
-    console.log('✅ Validation passed, starting execution...');
 
-    console.log('🔄 Setting execution state: queued');
     setIsExecuting(true);
     setExecutionResult(null);
     setShowLogs(false);
     setExecutionStatus('queued');
-    
-    // Force a re-render to show the status popup immediately
-    console.log('✅ Execution state set - status popup should appear');
     
     // Clear any existing polling
     if (pollingIntervalRef.current) {
@@ -993,196 +808,70 @@ export const ReactFlowEditor = ({
       pollingIntervalRef.current = null;
     }
 
-    // Ensure workflow is saved before executing
-    // Declare workflowIdToExecute outside try block so it's accessible in catch
-    let workflowIdToExecute: string | null = currentWorkflowId;
-    if (!workflowIdToExecute) {
-      try {
-        // Save workflow first if it hasn't been saved
-        console.log('💾 Saving workflow before execution...');
-        const savedWorkflow = await saveWorkflowFromEditor(
-          null,
-          workflowName,
-          currentNodes,
-          currentEdges,
-          {
-            description: `Test execution of workflow: ${workflowName}`,
-            status: 'draft',
-          }
-        );
-        workflowIdToExecute = savedWorkflow.id;
-        setCurrentWorkflowId(savedWorkflow.id);
-        console.log('✅ Workflow saved with ID:', workflowIdToExecute);
-      } catch (saveError: any) {
-        console.error('❌ Failed to save workflow before execution:', saveError);
-        setIsExecuting(false);
-        setExecutionStatus('failed');
-        setExecutionResult({
-          executionId: 'error',
-          workflowId: 'unknown',
-          status: 'failed',
-          startedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-          duration: 0,
-          nodeResults: [],
-          finalOutput: null,
-          error: `Failed to save workflow: ${saveError.message || 'Unknown error'}`,
-        });
-        return;
-      }
-    }
-
     try {
-      console.log('📤 Sending workflow execution request to Inngest...', {
-        workflowId: workflowIdToExecute,
-        nodesCount: currentNodes.length,
-        edgesCount: currentEdges.length,
-      });
-
-      // Send workflow execution request to Inngest
       const response = await fetch('/api/workflow/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          workflowId: workflowIdToExecute,
-          nodes: currentNodes,
-          edges: currentEdges,
+          workflowId: currentWorkflowId || 'temp-workflow',
+          nodes,
+          edges,
           triggerData: {},
+          testMode: true,
+          triggerType: 'test',
         }),
       });
 
-      console.log('📥 Response received:', { status: response.status, ok: response.ok });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to execute workflow');
+      }
 
       const data = await response.json();
       
-      if (!response.ok) {
-        console.error('❌ API error:', data);
-        // Check if it's a scheduled workflow error
-        if (data.scheduled && data.status === 'failed') {
-          setIsExecuting(false);
-          setExecutionStatus('failed');
-          setExecutionResult({
-            executionId: 'scheduled-unsupported',
-            workflowId: workflowIdToExecute,
-            status: 'failed',
-            startedAt: new Date().toISOString(),
-            completedAt: new Date().toISOString(),
-            duration: 0,
-            nodeResults: [],
-            finalOutput: null,
-            error: data.message || data.error || 'Scheduled workflows are not currently supported.',
-          });
-          setShowLogs(true);
-          alert(data.message || 'Scheduled workflows are not currently supported. Please use manual execution instead.');
-          return;
-        }
-        throw new Error(data.error || data.message || 'Failed to execute workflow');
-      }
-
-      console.log('✅ Execution queued successfully:', data);
-      
-      // Check if workflow is scheduled (has scheduled trigger) - legacy check for old API responses
+      // Check if workflow is scheduled (has scheduled trigger)
       if (data.scheduled && data.status === 'scheduled') {
-        // Scheduled workflows are not currently supported (executor was removed)
+        // Workflow is now scheduled to run automatically
         setIsExecuting(false);
-        setExecutionStatus('failed');
+        setExecutionStatus('idle');
         setExecutionResult({
-          executionId: 'scheduled-unsupported',
-          workflowId: workflowIdToExecute,
-          status: 'failed',
+          executionId: 'scheduled',
+          workflowId: currentWorkflowId || 'unknown',
+          status: 'success',
           startedAt: new Date().toISOString(),
           completedAt: new Date().toISOString(),
           duration: 0,
           nodeResults: [],
           finalOutput: null,
-          error: 'Scheduled workflows are not currently supported. The scheduled workflow executor was removed due to stability issues. Please use manual execution or contact support for updates.',
         });
-        setShowLogs(true);
-        alert('Scheduled workflows are not currently supported. The scheduled workflow executor was temporarily disabled. Please use manual execution instead.');
         return;
       }
       
       // For async Inngest execution, we get queued status
-      // If executionId is provided in response, use it directly (new approach)
-      if (data.status === 'queued' && data.executionId) {
-        console.log('✅ Got executionId from API response:', data.executionId);
-        const executionId = data.executionId;
-        setCurrentExecutionId(executionId);
-        
-        // Track start time for timeout
-        const startTime = Date.now();
-        
-        // Start polling immediately
-        pollingIntervalRef.current = setInterval(() => {
-          pollExecutionStatus(executionId, startTime);
-        }, 1000);
-        
-        // Initial poll
-        pollExecutionStatus(executionId, startTime);
-        return;
-      }
-      
-      // Fallback: Find the execution by polling for the most recent one for this workflow (old approach)
+      // The executionId will be generated by Inngest when it creates the execution record
+      // We need to wait for the execution record to be created, then poll
       if (data.status === 'queued') {
-        console.log('⚠️ No executionId in response, falling back to polling for latest execution');
         // Find the execution by polling for the most recent one for this workflow
         const findExecution = async (): Promise<string | null> => {
           try {
-            console.log('🔍 Searching for execution for workflow:', workflowIdToExecute);
             // Get most recent execution for this workflow
-            const response = await fetch(`/api/workflows/${encodeURIComponent(workflowIdToExecute)}/executions`);
-            console.log('📥 Executions API response:', { 
-              status: response.status, 
-              ok: response.ok,
-              url: response.url,
-            });
-            
+            const response = await fetch(`/api/workflows/${encodeURIComponent(currentWorkflowId || 'temp-workflow')}/executions`);
             if (response.ok) {
               const executions = await response.json();
-              console.log('📋 Executions found:', {
-                count: executions?.length || 0,
-                executions: executions?.map((e: any) => ({
-                  id: e.id,
-                  status: e.status,
-                  started_at: e.started_at,
-                  created_at: e.created_at,
-                })),
-              });
-              
               if (executions && executions.length > 0) {
                 const latestExecution = executions[0];
-                // Make sure it's recent (within last 60 seconds - increased from 30)
-                const executionTime = new Date(latestExecution.created_at || latestExecution.started_at || latestExecution.startedAt).getTime();
+                // Make sure it's recent (within last 30 seconds)
+                const executionTime = new Date(latestExecution.created_at || latestExecution.started_at).getTime();
                 const now = Date.now();
-                const timeDiff = now - executionTime;
-                console.log('⏰ Execution time check:', {
-                  executionTime: new Date(executionTime).toISOString(),
-                  now: new Date(now).toISOString(),
-                  timeDiff,
-                  isRecent: timeDiff < 60000,
-                });
-                
-                if (timeDiff < 60000) {
-                  console.log('✅ Found recent execution:', latestExecution.id);
+                if (now - executionTime < 30000) {
                   return latestExecution.id;
-                } else {
-                  console.warn('⚠️ Execution too old:', { timeDiff, executionId: latestExecution.id });
                 }
-              } else {
-                console.warn('⚠️ No executions found in response');
               }
-            } else {
-              const errorText = await response.text();
-              console.error('❌ Executions API error:', {
-                status: response.status,
-                statusText: response.statusText,
-                error: errorText,
-              });
             }
           } catch (error) {
-            console.error('❌ Error finding execution:', error);
+            console.error('Error finding execution:', error);
           }
           return null;
         };
@@ -1192,7 +881,6 @@ export const ReactFlowEditor = ({
           let executionId: string | null = null;
           let attempts = 0;
           const maxAttempts = 10; // Try for 10 seconds
-          const startTime = Date.now(); // Track start time for timeout
           
           while (!executionId && attempts < maxAttempts) {
             executionId = await findExecution();
@@ -1201,11 +889,11 @@ export const ReactFlowEditor = ({
               
               // Start polling every 1 second for status updates
               pollingIntervalRef.current = setInterval(() => {
-                pollExecutionStatus(executionId!, startTime);
+                pollExecutionStatus(executionId!);
               }, 1000);
               
               // Initial poll
-              pollExecutionStatus(executionId, startTime);
+              pollExecutionStatus(executionId);
               return;
             }
             attempts++;
@@ -1218,7 +906,7 @@ export const ReactFlowEditor = ({
             setIsExecuting(false);
             setExecutionResult({
               executionId: 'unknown',
-              workflowId: workflowIdToExecute,
+              workflowId: currentWorkflowId || 'unknown',
               status: 'failed',
               startedAt: new Date().toISOString(),
               completedAt: new Date().toISOString(),
@@ -1240,17 +928,10 @@ export const ReactFlowEditor = ({
         setShowLogs(true);
       }
     } catch (error: any) {
-      console.error('❌ Execution error:', error);
-      console.error('❌ Error details:', {
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name,
-        cause: error?.cause,
-      });
-      
+      console.error('Execution error:', error);
       setExecutionResult({
         executionId: 'error',
-        workflowId: workflowIdToExecute || 'unknown',
+        workflowId: currentWorkflowId || 'unknown',
         status: 'failed',
         startedAt: new Date().toISOString(),
         completedAt: new Date().toISOString(),
@@ -1267,14 +948,6 @@ export const ReactFlowEditor = ({
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
-      }
-      
-      // Show user-friendly error message
-      const errorMessage = error?.message || 'Unknown error occurred';
-      if (errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('Failed to fetch')) {
-        alert(`Connection failed. Please check your internet connection and try again.\n\nError: ${errorMessage}`);
-      } else {
-        alert(`Failed to execute workflow: ${errorMessage}`);
       }
     }
   };
@@ -1438,17 +1111,8 @@ export const ReactFlowEditor = ({
       )}
 
       {/* Execution Status Indicator */}
-      {(() => {
-        const shouldShow = (isExecuting || executionStatus === 'queued' || executionStatus === 'running') && !executionResult;
-        if (shouldShow) {
-          console.log('📊 Status popup rendering:', { isExecuting, executionStatus, hasResult: !!executionResult });
-        }
-        return shouldShow;
-      })() && (
-        <div 
-          className="absolute bottom-4 left-4 z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl p-4"
-          style={{ pointerEvents: 'auto' }}
-        >
+      {(isExecuting || executionStatus === 'queued' || executionStatus === 'running') && !executionResult && (
+        <div className="absolute bottom-4 left-4 z-10 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl p-4">
           <div className="flex items-center gap-3">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
             <div>
@@ -1478,21 +1142,19 @@ export const ReactFlowEditor = ({
               )}
               <div>
                 <h3 className="font-semibold">
-                  {executionResult.status === 'success' ? 'Execution Successful' : 'Execution Failed'}
+                  {(executionResult as any)?.message ? 'Scheduled Execution Enabled' : executionResult.status === 'success' ? 'Execution Successful' : 'Execution Failed'}
                 </h3>
                 <p className="text-xs text-muted-foreground">
                   {executionResult.nodeResults && executionResult.nodeResults.length > 0 ? (
                     <>Duration: {executionResult.duration}ms | {executionResult.nodeResults.length} nodes processed</>
-                  ) : executionResult.error ? (
-                    <>{executionResult.error}</>
                   ) : (
-                    <>Execution completed</>
+                    <>Scheduled workflow will run automatically</>
                   )}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {(executionResult.nodeResults && executionResult.nodeResults.length > 0) || executionResult.error ? (
+              {executionResult.nodeResults && executionResult.nodeResults.length > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1500,44 +1162,23 @@ export const ReactFlowEditor = ({
                   className="gap-2"
                 >
                   {showLogs ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                  {showLogs ? 'Hide Details' : 'Show Details'}
+                  {showLogs ? 'Hide Logs' : 'Show Logs'}
                 </Button>
-              ) : null}
+              )}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  // Stop polling if still running
-                  if (pollingIntervalRef.current) {
-                    clearInterval(pollingIntervalRef.current);
-                    pollingIntervalRef.current = null;
-                  }
-                  // Reset all execution state
-                  setExecutionResult(null);
-                  setExecutionStatus('idle');
-                  setIsExecuting(false);
-                  setShowLogs(false);
-                  setCurrentExecutionId(null);
-                }}
+                onClick={() => setExecutionResult(null)}
               >
                 Close
               </Button>
             </div>
           </div>
 
-          {/* Logs and Error Details */}
-          {showLogs && (
+          {/* Logs */}
+          {showLogs && executionResult.nodeResults && executionResult.nodeResults.length > 0 && (
             <div className="p-4 max-h-64 overflow-y-auto space-y-2">
-              {/* Show error message if present */}
-              {executionResult.error && (
-                <div className="p-3 rounded-md border bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 mb-2">
-                  <p className="text-sm text-red-600 dark:text-red-400">
-                    <strong>Error:</strong> {executionResult.error}
-                  </p>
-                </div>
-              )}
-              {/* Show node results if present */}
-              {executionResult.nodeResults && executionResult.nodeResults.length > 0 && executionResult.nodeResults.map((nodeResult, index) => (
+              {executionResult.nodeResults.map((nodeResult, index) => (
                 <div
                   key={index}
                   className={`p-3 rounded-md border ${
@@ -1573,10 +1214,17 @@ export const ReactFlowEditor = ({
                   )}
                 </div>
               ))}
-              {(executionResult as any)?.message && !executionResult.error && (
+              {(executionResult as any)?.message && (
                 <div className="p-3 rounded-md border bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800">
                   <p className="text-sm text-green-600 dark:text-green-400">
                     {(executionResult as any).message}
+                  </p>
+                </div>
+              )}
+              {executionResult.error && (
+                <div className="p-3 rounded-md border bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800">
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    <strong>Error:</strong> {executionResult.error}
                   </p>
                 </div>
               )}
