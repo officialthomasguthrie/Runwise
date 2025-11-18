@@ -25,6 +25,11 @@ export async function GET(
 
     const { id: workflowId } = await context.params;
 
+    console.log('📥 GET /api/workflows/[id]/executions:', {
+      workflowId,
+      userId: user.id,
+    });
+
     // Get most recent execution for this workflow
     const { data: executions, error: executionsError } = await supabase
       .from('workflow_executions')
@@ -32,7 +37,19 @@ export async function GET(
       .eq('workflow_id', workflowId)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(1);
+      .limit(10); // Get more executions to help debug
+
+    console.log('📋 Executions query result:', {
+      count: executions?.length || 0,
+      error: executionsError?.message,
+      executions: executions?.map((e: any) => ({
+        id: e.id,
+        workflow_id: e.workflow_id,
+        status: e.status,
+        created_at: e.created_at,
+        started_at: e.started_at,
+      })),
+    });
 
     if (executionsError) {
       return NextResponse.json(

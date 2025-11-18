@@ -83,7 +83,7 @@ export const workflowExecutor = inngest.createFunction(
   },
   { event: "workflow/execute" },
   async ({ event, step }) => {
-    const { workflowId, nodes, edges, triggerData, userId, triggerType } = event.data;
+    const { workflowId, nodes, edges, triggerData, userId, triggerType, executionId: providedExecutionId } = event.data;
 
     // Validate input
     if (!workflowId || !nodes || !Array.isArray(nodes) || !edges || !Array.isArray(edges)) {
@@ -102,10 +102,31 @@ export const workflowExecutor = inngest.createFunction(
     // Enforce executions limit (pre-check)
     await assertWithinLimit(userId, planId, "executions");
 
-    // Step 1: Create initial execution record in database
-    const executionRecord = await step.run("create-execution-record", async () => {
+    // Step 1: Use provided executionId or create new one
+    const executionRecord = await step.run("get-or-create-execution-record", async () => {
+      // If executionId was provided (from API route), use it
+      if (providedExecutionId) {
+        console.log('✅ Using provided executionId:', providedExecutionId);
+        // Verify it exists
+        const supabase = createAdminClient();
+        const { data: existing } = await (supabase
+          .from('workflow_executions') as any)
+          .select('id')
+          .eq('id', providedExecutionId)
+          .single();
+        
+        if (existing) {
+          return { executionId: providedExecutionId };
+        } else {
+          console.warn('⚠️ Provided executionId not found, creating new one');
+        }
+      }
+      
+      // Otherwise create a new one (fallback for old events)
       const supabase = createAdminClient();
       const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log('💾 Creating new execution record:', executionId);
       
       const { error } = await (supabase
         .from('workflow_executions') as any)

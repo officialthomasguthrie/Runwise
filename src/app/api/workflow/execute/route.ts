@@ -67,10 +67,37 @@ export async function POST(request: NextRequest) {
     }
 
     // For non-scheduled workflows, execute immediately
-    // Send workflow execution event to Inngest
+    // Create execution record FIRST so frontend can poll for it
+    const adminSupabase = createAdminClient();
+    const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log('💾 Creating execution record:', { executionId, workflowId: body.workflowId });
+    
+    const { error: createError } = await (adminSupabase as any)
+      .from('workflow_executions')
+      .insert({
+        id: executionId,
+        workflow_id: body.workflowId,
+        user_id: user.id,
+        status: 'running',
+        started_at: new Date().toISOString(),
+      });
+
+    if (createError) {
+      console.error('❌ Failed to create execution record:', createError);
+      return NextResponse.json(
+        { error: 'Failed to create execution record', details: createError.message },
+        { status: 500 }
+      );
+    }
+
+    console.log('✅ Execution record created:', executionId);
+
+    // Send workflow execution event to Inngest with the pre-created executionId
     console.log('📤 Sending event to Inngest:', {
       eventName: 'workflow/execute',
       workflowId: body.workflowId,
+      executionId,
       nodesCount: body.nodes?.length,
       edgesCount: body.edges?.length,
       userId: user.id,
@@ -80,6 +107,7 @@ export async function POST(request: NextRequest) {
       name: 'workflow/execute',
       data: {
         workflowId: body.workflowId,
+        executionId, // Pass the pre-created executionId
         nodes: body.nodes,
         edges: body.edges,
         triggerData: body.triggerData || {},
@@ -90,18 +118,11 @@ export async function POST(request: NextRequest) {
     
     console.log('✅ Event sent to Inngest, eventIds:', eventIds);
 
-    // Return event ID for tracking
-    // The actual execution happens asynchronously in Inngest
-    const sendResult: any = eventIds;
-    const normalizedEventId =
-      sendResult?.[0]?.ids?.[0] ??
-      sendResult?.[0] ??
-      sendResult?.ids?.[0] ??
-      sendResult;
-
+    // Return executionId so frontend can poll immediately
     return NextResponse.json({
       success: true,
-      eventId: normalizedEventId,
+      executionId, // Return the executionId so frontend can poll
+      eventId: eventIds,
       message: 'Workflow execution queued',
       status: 'queued',
       scheduled: false,
