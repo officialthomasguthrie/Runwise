@@ -40,10 +40,11 @@ export async function executeWorkflow(
 
     let nodesToExecute = nodes;
     let edgesToUse = edges;
+    let initialOutput = triggerData;
 
-    // If skipTriggers is true, filter out trigger nodes (for test executions)
+    // If skipTriggers is true, execute trigger nodes first to get their output, then execute action nodes
     if (skipTriggers) {
-      const triggerNodeIds = new Set<string>();
+      const triggerNodes: Node[] = [];
       const actionNodes: Node[] = [];
       
       nodes.forEach((node) => {
@@ -58,18 +59,67 @@ export async function executeWorkflow(
           (nodeData.nodeId && nodeRegistry[nodeId]?.type === 'trigger');
         
         if (isTrigger) {
-          triggerNodeIds.add(node.id);
-          logs.push({
-            level: 'info',
-            message: `Skipping trigger node: ${nodeData.label || node.id} (test execution)`,
-            timestamp: new Date().toISOString(),
-          });
+          triggerNodes.push(node);
         } else {
           actionNodes.push(node);
         }
       });
 
-      // Filter edges to remove connections to/from trigger nodes
+      // Execute trigger nodes first to get their output (for test execution)
+      if (triggerNodes.length > 0) {
+        logs.push({
+          level: 'info',
+          message: `Test execution: Executing ${triggerNodes.length} trigger node(s) to generate test data`,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Execute each trigger node to get its output
+        const triggerOutputs: any[] = [];
+        for (const triggerNode of triggerNodes) {
+          const nodeData = (triggerNode.data ?? {}) as Record<string, any>;
+          const nodeLabel = typeof nodeData.label === 'string' ? nodeData.label : triggerNode.id;
+          
+          try {
+            logs.push({
+              level: 'info',
+              message: `Executing trigger node: ${nodeLabel} (test execution)`,
+              timestamp: new Date().toISOString(),
+            });
+
+            const triggerOutput = await executeNode(triggerNode, {}, context);
+            triggerOutputs.push(triggerOutput);
+            
+            logs.push({
+              level: 'info',
+              message: `Trigger node executed successfully: ${nodeLabel}`,
+              data: { outputKeys: Object.keys(triggerOutput || {}) },
+              timestamp: new Date().toISOString(),
+            });
+          } catch (error: any) {
+            logs.push({
+              level: 'warn',
+              message: `Trigger node execution failed, using empty data: ${nodeLabel}`,
+              data: { error: error.message },
+              timestamp: new Date().toISOString(),
+            });
+            // Use empty object if trigger fails
+            triggerOutputs.push({});
+          }
+        }
+
+        // Merge all trigger outputs into initial output
+        initialOutput = triggerOutputs.reduce((acc, output) => ({ ...acc, ...output }), triggerData);
+        
+        logs.push({
+          level: 'info',
+          message: `Trigger nodes executed, starting action nodes with merged output`,
+          data: { outputKeys: Object.keys(initialOutput || {}) },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Filter edges to only include edges between action nodes (remove trigger->action edges, keep action->action)
+      const triggerNodeIds = new Set(triggerNodes.map(n => n.id));
       edgesToUse = edges.filter(
         (edge) => !triggerNodeIds.has(edge.source) && !triggerNodeIds.has(edge.target)
       );
@@ -82,7 +132,7 @@ export async function executeWorkflow(
 
       logs.push({
         level: 'info',
-        message: `Test execution: Skipped ${triggerNodeIds.size} trigger node(s), executing ${nodesToExecute.length} action node(s)`,
+        message: `Test execution: Executed ${triggerNodes.length} trigger node(s), executing ${nodesToExecute.length} action node(s)`,
         timestamp: new Date().toISOString(),
       });
     }
@@ -90,8 +140,8 @@ export async function executeWorkflow(
     // Sort nodes by execution order (topological sort based on edges)
     const sortedNodes = topologicalSort(nodesToExecute, edgesToUse);
 
-    // Execute each node in order
-    let previousOutput = triggerData;
+    // Execute each node in order, starting with the initial output (from triggers or triggerData)
+    let previousOutput = initialOutput;
 
     for (const node of sortedNodes) {
       const nodeStartTime = Date.now();
