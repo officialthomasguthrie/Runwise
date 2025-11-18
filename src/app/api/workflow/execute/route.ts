@@ -49,30 +49,21 @@ export async function POST(request: NextRequest) {
     const hasScheduled = hasScheduledTrigger(body.nodes);
     const scheduleConfig = getScheduleConfig(body.nodes);
 
-    // If workflow has a scheduled trigger, enable scheduled execution instead of running immediately
+    // If workflow has a scheduled trigger, return error (scheduled workflows not supported)
     if (hasScheduled && scheduleConfig) {
-      // Update workflow status to 'active' to enable scheduled execution
-      const adminSupabase = createAdminClient();
-      const { error: updateError } = await (adminSupabase as any)
-        .from('workflows')
-        .update({
-          status: 'active',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', body.workflowId)
-        .eq('user_id', user.id);
-
-      if (updateError) {
-        console.error('Error updating workflow status:', updateError);
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: `Scheduled execution enabled. Workflow will run according to schedule: ${scheduleConfig.cron}`,
-        status: 'scheduled',
+      console.warn('⚠️ Scheduled workflow detected but not supported:', {
+        workflowId: body.workflowId,
         scheduleConfig,
-        scheduled: true,
       });
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Scheduled workflows are not currently supported',
+        message: 'The scheduled workflow executor was temporarily disabled. Please use manual execution instead.',
+        status: 'failed',
+        scheduled: true,
+        scheduleConfig,
+      }, { status: 400 });
     }
 
     // For non-scheduled workflows, execute immediately

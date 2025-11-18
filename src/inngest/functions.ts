@@ -83,7 +83,7 @@ export const workflowExecutor = inngest.createFunction(
   },
   { event: "workflow/execute" },
   async ({ event, step }) => {
-    const { workflowId, nodes, edges, triggerData, userId } = event.data;
+    const { workflowId, nodes, edges, triggerData, userId, triggerType } = event.data;
 
     // Validate input
     if (!workflowId || !nodes || !Array.isArray(nodes) || !edges || !Array.isArray(edges)) {
@@ -129,12 +129,16 @@ export const workflowExecutor = inngest.createFunction(
       try {
         // Execute workflow - we'll need to modify executor to accept executionId
         // For now, we'll execute and then update the ID
+        // Skip trigger nodes for manual/test executions (when user clicks "Test Workflow")
+        const skipTriggers = triggerType === 'manual';
+        
         const result = await executeWorkflow(
           workflowId,
           nodes as Node[],
           edges as Edge[],
           triggerData || {},
-          userId
+          userId,
+          skipTriggers
         );
         
         // Override the executionId to match our database record

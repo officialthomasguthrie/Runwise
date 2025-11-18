@@ -944,30 +944,52 @@ export const ReactFlowEditor = ({
 
       console.log('📥 Response received:', { status: response.status, ok: response.ok });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ API error:', errorData);
-        throw new Error(errorData.error || 'Failed to execute workflow');
+        console.error('❌ API error:', data);
+        // Check if it's a scheduled workflow error
+        if (data.scheduled && data.status === 'failed') {
+          setIsExecuting(false);
+          setExecutionStatus('failed');
+          setExecutionResult({
+            executionId: 'scheduled-unsupported',
+            workflowId: workflowIdToExecute,
+            status: 'failed',
+            startedAt: new Date().toISOString(),
+            completedAt: new Date().toISOString(),
+            duration: 0,
+            nodeResults: [],
+            finalOutput: null,
+            error: data.message || data.error || 'Scheduled workflows are not currently supported.',
+          });
+          setShowLogs(true);
+          alert(data.message || 'Scheduled workflows are not currently supported. Please use manual execution instead.');
+          return;
+        }
+        throw new Error(data.error || data.message || 'Failed to execute workflow');
       }
 
-      const data = await response.json();
       console.log('✅ Execution queued successfully:', data);
       
-      // Check if workflow is scheduled (has scheduled trigger)
+      // Check if workflow is scheduled (has scheduled trigger) - legacy check for old API responses
       if (data.scheduled && data.status === 'scheduled') {
-        // Workflow is now scheduled to run automatically
+        // Scheduled workflows are not currently supported (executor was removed)
         setIsExecuting(false);
-        setExecutionStatus('idle');
+        setExecutionStatus('failed');
         setExecutionResult({
-          executionId: 'scheduled',
+          executionId: 'scheduled-unsupported',
           workflowId: workflowIdToExecute,
-          status: 'success',
+          status: 'failed',
           startedAt: new Date().toISOString(),
           completedAt: new Date().toISOString(),
           duration: 0,
           nodeResults: [],
           finalOutput: null,
+          error: 'Scheduled workflows are not currently supported. The scheduled workflow executor was removed due to stability issues. Please use manual execution or contact support for updates.',
         });
+        setShowLogs(true);
+        alert('Scheduled workflows are not currently supported. The scheduled workflow executor was temporarily disabled. Please use manual execution instead.');
         return;
       }
       
@@ -1288,19 +1310,21 @@ export const ReactFlowEditor = ({
               )}
               <div>
                 <h3 className="font-semibold">
-                  {(executionResult as any)?.message ? 'Scheduled Execution Enabled' : executionResult.status === 'success' ? 'Execution Successful' : 'Execution Failed'}
+                  {executionResult.status === 'success' ? 'Execution Successful' : 'Execution Failed'}
                 </h3>
                 <p className="text-xs text-muted-foreground">
                   {executionResult.nodeResults && executionResult.nodeResults.length > 0 ? (
                     <>Duration: {executionResult.duration}ms | {executionResult.nodeResults.length} nodes processed</>
+                  ) : executionResult.error ? (
+                    <>{executionResult.error}</>
                   ) : (
-                    <>Scheduled workflow will run automatically</>
+                    <>Execution completed</>
                   )}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {executionResult.nodeResults && executionResult.nodeResults.length > 0 && (
+              {(executionResult.nodeResults && executionResult.nodeResults.length > 0) || executionResult.error ? (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1308,9 +1332,9 @@ export const ReactFlowEditor = ({
                   className="gap-2"
                 >
                   {showLogs ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                  {showLogs ? 'Hide Logs' : 'Show Logs'}
+                  {showLogs ? 'Hide Details' : 'Show Details'}
                 </Button>
-              )}
+              ) : null}
               <Button
                 variant="ghost"
                 size="sm"
@@ -1321,10 +1345,19 @@ export const ReactFlowEditor = ({
             </div>
           </div>
 
-          {/* Logs */}
-          {showLogs && executionResult.nodeResults && executionResult.nodeResults.length > 0 && (
+          {/* Logs and Error Details */}
+          {showLogs && (
             <div className="p-4 max-h-64 overflow-y-auto space-y-2">
-              {executionResult.nodeResults.map((nodeResult, index) => (
+              {/* Show error message if present */}
+              {executionResult.error && (
+                <div className="p-3 rounded-md border bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 mb-2">
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    <strong>Error:</strong> {executionResult.error}
+                  </p>
+                </div>
+              )}
+              {/* Show node results if present */}
+              {executionResult.nodeResults && executionResult.nodeResults.length > 0 && executionResult.nodeResults.map((nodeResult, index) => (
                 <div
                   key={index}
                   className={`p-3 rounded-md border ${
@@ -1360,17 +1393,10 @@ export const ReactFlowEditor = ({
                   )}
                 </div>
               ))}
-              {(executionResult as any)?.message && (
+              {(executionResult as any)?.message && !executionResult.error && (
                 <div className="p-3 rounded-md border bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800">
                   <p className="text-sm text-green-600 dark:text-green-400">
                     {(executionResult as any).message}
-                  </p>
-                </div>
-              )}
-              {executionResult.error && (
-                <div className="p-3 rounded-md border bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800">
-                  <p className="text-sm text-red-600 dark:text-red-400">
-                    <strong>Error:</strong> {executionResult.error}
                   </p>
                 </div>
               )}

@@ -21,7 +21,8 @@ export async function executeWorkflow(
   nodes: Node[],
   edges: Edge[],
   triggerData: any = {},
-  userId: string
+  userId: string,
+  skipTriggers: boolean = false
 ): Promise<WorkflowExecutionResult> {
   const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const startedAt = new Date().toISOString();
@@ -37,8 +38,57 @@ export async function executeWorkflow(
       throw new Error('Workflow has no nodes');
     }
 
+    let nodesToExecute = nodes;
+    let edgesToUse = edges;
+
+    // If skipTriggers is true, filter out trigger nodes (for test executions)
+    if (skipTriggers) {
+      const triggerNodeIds = new Set<string>();
+      const actionNodes: Node[] = [];
+      
+      nodes.forEach((node) => {
+        const nodeData = (node.data ?? {}) as Record<string, any>;
+        const nodeId = typeof nodeData.nodeId === 'string' ? nodeData.nodeId : node.id;
+        
+        // Check if it's a trigger node by type or by checking registry
+        const isTrigger = 
+          node.type === 'trigger' || 
+          node.type === 'scheduled-time-trigger' ||
+          (typeof node.type === 'string' && node.type.includes('trigger')) ||
+          (nodeData.nodeId && nodeRegistry[nodeId]?.type === 'trigger');
+        
+        if (isTrigger) {
+          triggerNodeIds.add(node.id);
+          logs.push({
+            level: 'info',
+            message: `Skipping trigger node: ${nodeData.label || node.id} (test execution)`,
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          actionNodes.push(node);
+        }
+      });
+
+      // Filter edges to remove connections to/from trigger nodes
+      edgesToUse = edges.filter(
+        (edge) => !triggerNodeIds.has(edge.source) && !triggerNodeIds.has(edge.target)
+      );
+      nodesToExecute = actionNodes;
+
+      // If no action nodes remain, throw error
+      if (nodesToExecute.length === 0) {
+        throw new Error('Workflow has no action nodes to execute (only trigger nodes found)');
+      }
+
+      logs.push({
+        level: 'info',
+        message: `Test execution: Skipped ${triggerNodeIds.size} trigger node(s), executing ${nodesToExecute.length} action node(s)`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // Sort nodes by execution order (topological sort based on edges)
-    const sortedNodes = topologicalSort(nodes, edges);
+    const sortedNodes = topologicalSort(nodesToExecute, edgesToUse);
 
     // Execute each node in order
     let previousOutput = triggerData;
