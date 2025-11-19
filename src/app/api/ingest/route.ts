@@ -1,3 +1,10 @@
+/**
+ * /api/ingest route - serves Inngest functions directly
+ * This handles the typo where Inngest might be configured with /api/ingest instead of /api/inngest
+ * We serve the functions directly here instead of redirecting, as redirects don't work
+ * for Inngest's internal HTTP requests during step execution.
+ */
+
 import { serve } from "inngest/next";
 import { inngest } from "../../../inngest/client";
 import { 
@@ -6,7 +13,6 @@ import {
   sendTestNotification,
   workflowExecutor,
 } from "../../../inngest/functions";
-import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -20,12 +26,14 @@ const serveHandler = serve({
   ],
 });
 
+// Serve Inngest functions directly at /api/ingest
+// This is identical to /api/inngest to handle the typo in Inngest configuration
 // Wrap handlers with error logging for production debugging
-export const GET = async (req: NextRequest, context?: any) => {
+export const GET = async (req: any, context?: any) => {
   try {
     return await serveHandler.GET(req, context);
   } catch (error: any) {
-    console.error('[Inngest GET Error]', {
+    console.error('[Inngest GET Error (ingest route)]', {
       error: error.message,
       stack: error.stack,
       url: req.url,
@@ -35,11 +43,11 @@ export const GET = async (req: NextRequest, context?: any) => {
   }
 };
 
-export const POST = async (req: NextRequest, context?: any) => {
+export const POST = async (req: any, context?: any) => {
   try {
     return await serveHandler.POST(req, context);
   } catch (error: any) {
-    console.error('[Inngest POST Error]', {
+    console.error('[Inngest POST Error (ingest route)]', {
       error: error.message,
       stack: error.stack,
       url: req.url,
@@ -49,11 +57,11 @@ export const POST = async (req: NextRequest, context?: any) => {
   }
 };
 
-export const PUT = async (req: NextRequest, context?: any) => {
+export const PUT = async (req: any, context?: any) => {
   try {
     return await serveHandler.PUT(req, context);
   } catch (error: any) {
-    console.error('[Inngest PUT Error]', {
+    console.error('[Inngest PUT Error (ingest route)]', {
       error: error.message,
       stack: error.stack,
       url: req.url,
@@ -62,3 +70,4 @@ export const PUT = async (req: NextRequest, context?: any) => {
     throw error;
   }
 };
+
