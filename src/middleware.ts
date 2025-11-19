@@ -2,8 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // Skip middleware for Inngest endpoints - they need to be accessible without auth
-  if (request.nextUrl.pathname.startsWith('/api/inngest') || request.nextUrl.pathname.startsWith('/api/ingest')) {
+  // Skip middleware for Inngest API routes (they need to be accessible without auth)
+  if (request.nextUrl.pathname.startsWith('/api/inngest')) {
     return NextResponse.next();
   }
 
@@ -84,9 +84,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - api/inngest (Inngest endpoint - must be accessible without auth)
+     * - api/inngest (Inngest webhook endpoint - needs to bypass auth)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/inngest|api/ingest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/inngest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

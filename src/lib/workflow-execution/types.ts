@@ -94,8 +94,6 @@ export interface ExecuteWorkflowRequest {
   edges: Edge[];
   triggerData?: any; // Initial data for trigger node
   userId: string;
-  testMode?: boolean;
-  triggerType?: string;
 }
 
 /**

@@ -501,35 +501,21 @@ export default function WorkspacePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={async () => {
-                    console.log('🔴 Test Workflow button clicked');
-                    console.log('🔴 executeWorkflowRef.current:', !!executeWorkflowRef.current);
-                    console.log('🔴 hasNodes:', hasNodes);
-                    console.log('🔴 isExecuting:', isExecuting);
-                    
-                    if (!executeWorkflowRef.current) {
-                      console.error('❌ Execute callback not registered');
-                      alert('Workflow execution not ready. Please wait a moment and try again.');
-                      return;
-                    }
-                    
-                    if (!hasNodes) {
-                      console.error('❌ No nodes in workflow');
-                      alert('Please add nodes to the workflow before testing.');
-                      return;
-                    }
-                    
-                    if (isExecuting) {
-                      console.warn('⚠️ Workflow already executing');
-                      return;
-                    }
-                    
-                    try {
-                      console.log('✅ Calling executeWorkflow...');
-                      await executeWorkflowRef.current();
-                    } catch (error: any) {
-                      console.error('❌ Error executing workflow:', error);
-                      alert(`Failed to execute workflow: ${error.message || 'Unknown error'}`);
+                  onClick={() => {
+                    console.log('🔘 Test Workflow button clicked', { 
+                      hasRef: !!executeWorkflowRef.current, 
+                      hasNodes, 
+                      isExecuting 
+                    });
+                    if (executeWorkflowRef.current && hasNodes && !isExecuting) {
+                      console.log('✅ Calling executeWorkflowRef.current()');
+                      executeWorkflowRef.current();
+                    } else {
+                      console.log('❌ Cannot execute:', { 
+                        hasRef: !!executeWorkflowRef.current, 
+                        hasNodes, 
+                        isExecuting 
+                      });
                     }
                   }}
                   disabled={!hasNodes || isExecuting}
@@ -539,8 +525,6 @@ export default function WorkspacePage() {
                       ? 'Add nodes to test the workflow'
                       : isExecuting
                       ? 'Workflow is currently running'
-                      : !executeWorkflowRef.current
-                      ? 'Workflow execution not ready'
                       : 'Run a test execution of this workflow'
                   }
                 >

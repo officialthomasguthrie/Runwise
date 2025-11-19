@@ -133,8 +133,6 @@ export const ReactFlowEditor = ({
   const pathname = usePathname();
   const [nodes, setNodes] = useState<Node[]>(defaultNodes);
   const [edges, setEdges] = useState<Edge[]>(defaultEdges);
-  const nodesRef = useRef<Node[]>(defaultNodes); // Keep ref in sync with nodes state
-  const edgesRef = useRef<Edge[]>(defaultEdges); // Keep ref in sync with edges state
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null); // Start as null, will be set after load
@@ -316,25 +314,6 @@ export const ReactFlowEditor = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onRegisterConfigureCallback]);
 
-  // Register execute callback with parent
-  useEffect(() => {
-    if (onRegisterExecuteCallback) {
-      const executeWrapper = async () => {
-        await executeWorkflow();
-      };
-      onRegisterExecuteCallback(executeWrapper);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onRegisterExecuteCallback]);
-
-  // Keep refs in sync with state
-  useEffect(() => {
-    nodesRef.current = nodes;
-  }, [nodes]);
-  
-  useEffect(() => {
-    edgesRef.current = edges;
-  }, [edges]);
 
   // Notify execution state changes
   useEffect(() => {
@@ -710,16 +689,16 @@ export const ReactFlowEditor = ({
     return true;
   };
 
-  const getUnconfiguredNodes = (nodesToCheck: Node[] = nodes): Node[] => {
-    return nodesToCheck.filter(node => !isNodeConfigured(node));
+  const getUnconfiguredNodes = (): Node[] => {
+    return nodes.filter(node => !isNodeConfigured(node));
   };
 
-  const getConfiguredNodesCount = (nodesToCheck: Node[] = nodes): number => {
-    return nodesToCheck.filter(node => isNodeConfigured(node)).length;
+  const getConfiguredNodesCount = (): number => {
+    return nodes.filter(node => isNodeConfigured(node)).length;
   };
 
-  const validateWorkflowConfiguration = (nodesToCheck: Node[] = nodes): { valid: boolean; message?: string; nodes?: Node[] } => {
-    const unconfigured = getUnconfiguredNodes(nodesToCheck);
+  const validateWorkflowConfiguration = useCallback((): { valid: boolean; message?: string; nodes?: Node[] } => {
+    const unconfigured = getUnconfiguredNodes();
     
     if (unconfigured.length > 0) {
       return {
@@ -730,7 +709,7 @@ export const ReactFlowEditor = ({
     }
     
     return { valid: true };
-  };
+  }, [nodes]);
 
   // Open config panel for a node
   const openNodeConfig = (node: Node) => {
@@ -798,79 +777,27 @@ export const ReactFlowEditor = ({
   }, []);
 
   // Execute workflow
-  const executeWorkflow = async () => {
-    // Use ref to get the latest nodes/edges to avoid stale closure issues
-    const currentNodes = nodesRef.current;
-    const currentEdges = edgesRef.current;
+  const executeWorkflow = useCallback(async () => {
+    console.log('🚀 executeWorkflow called', { user: !!user, isExecuting, nodeCount: nodes.length });
     
-    console.log('🚀 executeWorkflow called', {
-      hasUser: !!user,
-      isExecuting,
-      nodeCount: currentNodes.length,
-      nodeCountFromState: nodes.length,
-      workflowId: currentWorkflowId
-    });
-
-    if (!user) {
-      console.error('❌ No user authenticated');
-      alert('You must be logged in to execute workflows');
-      throw new Error('User not authenticated');
-    }
-
-    if (isExecuting) {
-      console.warn('⚠️ Workflow already executing');
+    if (!user || isExecuting || nodes.length === 0) {
+      console.log('❌ Execution blocked:', { user: !!user, isExecuting, nodeCount: nodes.length });
       return;
     }
 
-    if (currentNodes.length === 0) {
-      console.error('❌ No nodes in workflow', {
-        refCount: currentNodes.length,
-        stateCount: nodes.length,
-        nodesFromRef: currentNodes,
-        nodesFromState: nodes
-      });
-      alert('Please add nodes to the workflow before testing');
-      throw new Error('No nodes in workflow');
-    }
-
-    // Validate configuration first - use current nodes from ref
-    const validation = validateWorkflowConfiguration(currentNodes);
+    // Validate configuration first
+    const validation = validateWorkflowConfiguration();
+    console.log('✅ Validation result:', validation);
     if (!validation.valid) {
-      console.error('❌ Workflow validation failed:', validation.message);
-      alert(validation.message);
-      throw new Error(validation.message || 'Workflow validation failed');
+      // Show which nodes need configuration
+      const nodeNames = validation.nodes?.map(n => {
+        const nodeData = (n.data ?? {}) as any;
+        return nodeData.label || n.id;
+      }).join(', ') || 'some nodes';
+      alert(`${validation.message}\n\nPlease configure: ${nodeNames}`);
+      return;
     }
 
-    // Ensure workflow is saved before execution
-    let workflowIdToUse = currentWorkflowId;
-    if (!workflowIdToUse || workflowIdToUse === 'temp-workflow') {
-      console.log('💾 Workflow not saved, saving now...');
-      try {
-        const savedWorkflow = await saveWorkflowFromEditor(
-          currentWorkflowId,
-          workflowName,
-          currentNodes,
-          currentEdges,
-          {
-            description: workflow?.description || undefined,
-            ai_prompt: workflow?.ai_prompt || undefined,
-            status: workflow?.status || 'draft',
-          }
-        );
-        workflowIdToUse = savedWorkflow.id;
-        setCurrentWorkflowId(savedWorkflow.id);
-        setWorkflow(savedWorkflow);
-        console.log('✅ Workflow saved with ID:', workflowIdToUse);
-        // Wait a moment for the save to complete
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error: any) {
-        console.error('❌ Failed to save workflow:', error);
-        alert('Failed to save workflow. Please try again.');
-        throw error;
-      }
-    }
-
-    console.log('✅ Starting workflow execution with workflowId:', workflowIdToUse);
     setIsExecuting(true);
     setExecutionResult(null);
     setShowLogs(false);
@@ -883,34 +810,17 @@ export const ReactFlowEditor = ({
     }
 
     try {
-      const requestBody = {
-        workflowId: workflowIdToUse,
-        nodes: currentNodes,
-        edges: currentEdges,
-        triggerData: {},
-        testMode: true,
-        triggerType: 'test',
-      };
-      
-      console.log('📤 Sending execution request:', {
-        workflowId: requestBody.workflowId,
-        nodeCount: requestBody.nodes.length,
-        edgeCount: requestBody.edges.length,
-        testMode: requestBody.testMode
-      });
-
       const response = await fetch('/api/workflow/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
-      });
-
-      console.log('📥 Received response:', {
-        ok: response.ok,
-        status: response.status,
-        statusText: response.statusText
+        body: JSON.stringify({
+          workflowId: currentWorkflowId || 'temp-workflow',
+          nodes,
+          edges,
+          triggerData: {},
+        }),
       });
 
       if (!response.ok) {
@@ -919,17 +829,15 @@ export const ReactFlowEditor = ({
       }
 
       const data = await response.json();
-      console.log('📦 Response data:', data);
       
       // Check if workflow is scheduled (has scheduled trigger)
       if (data.scheduled && data.status === 'scheduled') {
-        console.log('⏰ Workflow scheduled, not executing immediately');
         // Workflow is now scheduled to run automatically
         setIsExecuting(false);
         setExecutionStatus('idle');
         setExecutionResult({
           executionId: 'scheduled',
-          workflowId: workflowIdToUse || 'unknown',
+          workflowId: currentWorkflowId || 'unknown',
           status: 'success',
           startedAt: new Date().toISOString(),
           completedAt: new Date().toISOString(),
@@ -941,53 +849,28 @@ export const ReactFlowEditor = ({
       }
       
       // For async Inngest execution, we get queued status
-      // The executionId is now returned directly from the API
+      // The executionId will be generated by Inngest when it creates the execution record
+      // We need to wait for the execution record to be created, then poll
       if (data.status === 'queued') {
-        console.log('⏳ Workflow queued, executionId:', data.executionId);
-        
-        // If we have an executionId from the API, use it directly
-        if (data.executionId) {
-          console.log('✅ Using executionId from API response:', data.executionId);
-          setCurrentExecutionId(data.executionId);
-          
-          // Start polling every 1 second for status updates
-          pollingIntervalRef.current = setInterval(() => {
-            pollExecutionStatus(data.executionId);
-          }, 1000);
-          
-          // Initial poll
-          pollExecutionStatus(data.executionId);
-          return;
-        }
-        
-        // Fallback: If no executionId provided, try to find it (shouldn't happen now)
-        console.warn('⚠️ No executionId in response, falling back to polling...');
+        // Find the execution by polling for the most recent one for this workflow
         const findExecution = async (): Promise<string | null> => {
           try {
             // Get most recent execution for this workflow
-            const executionsUrl = `/api/workflows/${encodeURIComponent(workflowIdToUse)}/executions`;
-            console.log('🔍 Polling for executions:', executionsUrl);
-            const response = await fetch(executionsUrl);
+            const response = await fetch(`/api/workflows/${encodeURIComponent(currentWorkflowId || 'temp-workflow')}/executions`);
             if (response.ok) {
               const executions = await response.json();
-              console.log('📋 Found executions:', executions?.length || 0);
               if (executions && executions.length > 0) {
                 const latestExecution = executions[0];
                 // Make sure it's recent (within last 30 seconds)
                 const executionTime = new Date(latestExecution.created_at || latestExecution.started_at).getTime();
                 const now = Date.now();
-                const timeDiff = now - executionTime;
-                console.log('⏱️ Execution time check:', { timeDiff, isRecent: timeDiff < 30000 });
-                if (timeDiff < 30000) {
-                  console.log('✅ Found recent execution:', latestExecution.id);
+                if (now - executionTime < 30000) {
                   return latestExecution.id;
                 }
               }
-            } else {
-              console.warn('⚠️ Failed to fetch executions:', response.status, response.statusText);
             }
           } catch (error) {
-            console.error('❌ Error finding execution:', error);
+            console.error('Error finding execution:', error);
           }
           return null;
         };
@@ -998,11 +881,9 @@ export const ReactFlowEditor = ({
           let attempts = 0;
           const maxAttempts = 10; // Try for 10 seconds
           
-          console.log('🔄 Starting to poll for execution...');
           while (!executionId && attempts < maxAttempts) {
             executionId = await findExecution();
             if (executionId) {
-              console.log('✅ Found execution ID, starting status polling:', executionId);
               setCurrentExecutionId(executionId);
               
               // Start polling every 1 second for status updates
@@ -1015,18 +896,16 @@ export const ReactFlowEditor = ({
               return;
             }
             attempts++;
-            console.log(`⏳ Attempt ${attempts}/${maxAttempts} - waiting for execution...`);
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
           
           // Couldn't find execution after max attempts
           if (!executionId) {
-            console.error('❌ Could not find execution after', maxAttempts, 'attempts');
             setExecutionStatus('failed');
             setIsExecuting(false);
             setExecutionResult({
               executionId: 'unknown',
-              workflowId: workflowIdToUse || 'unknown',
+              workflowId: currentWorkflowId || 'unknown',
               status: 'failed',
               startedAt: new Date().toISOString(),
               completedAt: new Date().toISOString(),
@@ -1039,7 +918,6 @@ export const ReactFlowEditor = ({
         };
         
         // Wait a moment for Inngest to create the execution record, then start polling
-        console.log('⏳ Waiting 1 second before starting to poll...');
         setTimeout(startPolling, 1000);
       } else {
         // Direct result (shouldn't happen with Inngest, but handle it)
@@ -1049,7 +927,7 @@ export const ReactFlowEditor = ({
         setShowLogs(true);
       }
     } catch (error: any) {
-      console.error('❌ Execution error:', error);
+      console.error('Execution error:', error);
       setExecutionResult({
         executionId: 'error',
         workflowId: currentWorkflowId || 'unknown',
@@ -1070,11 +948,18 @@ export const ReactFlowEditor = ({
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
-      
-      // Re-throw error so button handler can catch it
-      throw error;
     }
-  };
+  }, [user, isExecuting, nodes, edges, currentWorkflowId, validateWorkflowConfiguration, pollExecutionStatus]);
+
+  // Register execute callback with parent (after executeWorkflow is defined)
+  useEffect(() => {
+    if (onRegisterExecuteCallback) {
+      const executeWrapper = async () => {
+        await executeWorkflow();
+      };
+      onRegisterExecuteCallback(executeWrapper);
+    }
+  }, [onRegisterExecuteCallback, executeWorkflow]);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -1173,11 +1058,11 @@ export const ReactFlowEditor = ({
           const target = event.target as HTMLElement;
           const isButton = target.tagName === 'BUTTON' || 
                           target.closest('button') !== null ||
-                          target.closest('[role="button"]') !== null ||
-                          target.closest('a') !== null; // Also ignore links
+                          target.closest('[role="button"]') !== null;
           
-          // Only open config if not clicking on a button or link
+          // Only open config if not clicking on a button
           if (!isButton) {
+            event.preventDefault();
             openNodeConfig(node);
           }
         }}

@@ -83,49 +83,49 @@ export const workflowExecutor = inngest.createFunction(
   },
   { event: "workflow/execute" },
   async ({ event, step }) => {
-    const { workflowId, nodes, edges, triggerData, userId, executionId: providedExecutionId } = event.data;
+    const { workflowId, nodes, edges, triggerData, userId } = event.data;
 
     // Validate input
     if (!workflowId || !nodes || !Array.isArray(nodes) || !edges || !Array.isArray(edges)) {
       throw new Error("Invalid workflow execution request: missing required fields");
     }
 
-    // Fetch user's plan
-    const supabaseForPlan = createAdminClient();
-    const { data: userRow } = await supabaseForPlan
-      .from("users")
-      .select("id, plan_id")
-      .eq("id", userId)
-      .single();
-    const planId = (userRow as any)?.plan_id ?? "personal";
+    // Step 0: Fetch user's plan and check limits
+    const planCheck = await step.run("check-plan-and-limits", async () => {
+      try {
+        const supabaseForPlan = createAdminClient();
+        const { data: userRow, error: userError } = await supabaseForPlan
+          .from("users")
+          .select("id, plan_id")
+          .eq("id", userId)
+          .single();
+        
+        if (userError) {
+          console.error('Error fetching user plan:', userError);
+          // Default to personal plan if user lookup fails
+          return { planId: "personal" };
+        }
+        
+        const planId = (userRow as any)?.plan_id ?? "personal";
 
-    // Enforce executions limit (pre-check)
-    await assertWithinLimit(userId, planId, "executions");
-
-    // Step 1: Use provided execution ID or create a new one
-    const executionRecord = await step.run("get-or-create-execution-record", async () => {
-      const supabase = createAdminClient();
-      
-      // If execution ID was provided (created by API route), use it and update status
-      if (providedExecutionId) {
-        // Update existing record to 'running'
-        const { error: updateError } = await (supabase
-          .from('workflow_executions') as any)
-          .update({
-            status: 'running',
-            started_at: new Date().toISOString(),
-          })
-          .eq('id', providedExecutionId);
-
-        if (updateError) {
-          console.error('Error updating execution record:', updateError);
-          // Continue anyway - we'll use the provided ID
+        // Enforce executions limit (pre-check)
+        try {
+          await assertWithinLimit(userId, planId, "executions");
+        } catch (limitError: any) {
+          // If limit check fails, throw the error
+          throw new Error(`Limit check failed: ${limitError.message}`);
         }
 
-        return { executionId: providedExecutionId };
+        return { planId };
+      } catch (error: any) {
+        console.error('Error in check-plan-and-limits step:', error);
+        throw error;
       }
+    });
 
-      // Otherwise, create a new execution record
+    // Step 1: Create initial execution record in database
+    const executionRecord = await step.run("create-execution-record", async () => {
+      const supabase = createAdminClient();
       const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       const { error } = await (supabase
@@ -259,25 +259,8 @@ export const workflowExecutor = inngest.createFunction(
       executionId: executionResult.executionId,
       status: executionResult.status,
       duration: executionResult.duration,
-      nodeCount: executionResult.nodeResults.length,
+      nodeCount: executionResult.nodeResults?.length || 0,
     };
   },
 );
 
-// ============================================================================
-// SCHEDULED WORKFLOW EXECUTOR
-// ============================================================================
-
-/**
- * Scheduled Workflow Executor
- * DISABLED: This function was causing issues with continuous execution and 404 errors.
- * 
- * To re-enable automatic scheduled workflow execution:
- * 1. Fix the Inngest step endpoint issues (404 errors on /api/ingest)
- * 2. Implement proper cron parsing (consider using node-cron library)
- * 3. Add better error handling and retry logic
- * 
- * For now, scheduled workflows can still be manually triggered via "Test Workflow" button.
- * They just won't run automatically on their schedule.
- */
-// export const scheduledWorkflowExecutor = inngest.createFunction(...)

@@ -320,13 +320,7 @@ function createExecutionContext(userId: string, logs: LogEntry[]): ExecutionCont
             timestamp: new Date().toISOString(),
           });
 
-          // Preserve full error data for SendGrid and other APIs that return detailed errors
-          const errorMessage = errorData.message || errorData.error || response.statusText;
-          const error = new Error(`HTTP ${response.status}: ${errorMessage}`);
-          // Attach full error data for detailed parsing
-          (error as any).errorData = errorData;
-          (error as any).statusCode = response.status;
-          throw error;
+          throw new Error(`HTTP ${response.status}: ${errorData.message || errorData.error || response.statusText}`);
         }
 
         const contentType = response.headers.get('content-type');
