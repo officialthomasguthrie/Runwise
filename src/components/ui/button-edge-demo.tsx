@@ -16,9 +16,10 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
     const sourceNode = getNode(props.source);
     if (!sourceNode) return;
     const layoutDirection = sourceNode.data?.layoutDirection === 'TB' ? 'TB' : 'LR';
+    const rawSidebarCallback = sourceNode.data?.onOpenAddNodeSidebar;
     const onOpenAddNodeSidebar: AddNodeSidebarCallback =
-      typeof sourceNode.data?.onOpenAddNodeSidebar === 'function'
-        ? sourceNode.data.onOpenAddNodeSidebar
+      typeof rawSidebarCallback === 'function'
+        ? (rawSidebarCallback as () => void)
         : undefined;
     
     // Generate unique ID for new node
