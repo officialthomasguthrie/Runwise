@@ -14,6 +14,7 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
     const sourceNode = getNode(props.source);
     if (!sourceNode) return;
     const layoutDirection = sourceNode.data?.layoutDirection === 'TB' ? 'TB' : 'LR';
+    const onOpenAddNodeSidebar = sourceNode.data?.onOpenAddNodeSidebar;
     
     // Generate unique ID for new node
     const newNodeId = `placeholder-${Date.now()}`;
@@ -32,6 +33,7 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
       position: newNodePosition,
       data: {
         layoutDirection,
+        onOpenAddNodeSidebar, // Pass sidebar opener to placeholder
       },
     });
     
@@ -47,6 +49,13 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
       targetPosition: layoutDirection === 'TB' ? Position.Top : Position.Left,
     } as any;
     addEdges(newEdge);
+    
+    // Auto-open sidebar when placeholder is created
+    if (onOpenAddNodeSidebar) {
+      setTimeout(() => {
+        onOpenAddNodeSidebar();
+      }, 100); // Small delay to ensure node is added first
+    }
   }, [props.source, addNodes, addEdges, getNode]);
  
   return (

@@ -11,7 +11,7 @@ import { AIChatSidebar } from "@/components/ui/ai-chat-sidebar";
 import { ExecutionsView } from "@/components/ui/executions-view";
 import { SettingsView } from "@/components/ui/settings-view";
 import { saveWorkflowFromEditor } from "@/lib/workflows/client";
-import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser } from "lucide-react";
+import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
 
 function WorkflowToggle() {
@@ -54,14 +54,25 @@ export default function WorkspacePage() {
   const [executionStatus, setExecutionStatus] = useState<'idle' | 'queued' | 'running' | 'success' | 'failed'>('idle');
   const [activeView, setActiveView] = useState<'workspace' | 'executions' | 'settings'>('workspace');
   const [isChatSidebarVisible, setIsChatSidebarVisible] = useState(true);
+  const [isLeftSidebarVisible, setIsLeftSidebarVisible] = useState(false);
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    triggers: true,
+    actions: true,
+    conditions: false,
+    utilities: false,
+    integrations: false,
+  });
   
   // Store reference to the workflow update function
   const updateWorkflowRef = useRef<((nodes: any[], edges: any[]) => void) | null>(null);
   const executeWorkflowRef = useRef<(() => Promise<void>) | null>(null);
+  const saveWorkflowRef = useRef<(() => Promise<void>) | null>(null);
   const undoRef = useRef<(() => void) | null>(null);
   const redoRef = useRef<(() => void) | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [saveButtonText, setSaveButtonText] = useState<'Save' | 'Saved'>('Save');
   
   // Extract prompt from URL on mount, but only use it if workflow is empty
   useEffect(() => {
@@ -164,6 +175,33 @@ export default function WorkspacePage() {
     redoRef.current = callbacks.redo;
     setCanUndo(callbacks.canUndo);
     setCanRedo(callbacks.canRedo);
+  }, []);
+
+  const handleRegisterSaveCallback = useCallback((callback: () => Promise<void>) => {
+    console.log('🎯 Registering save callback');
+    saveWorkflowRef.current = callback;
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (!saveWorkflowRef.current) {
+      console.error('❌ Cannot save - saveWorkflowRef is not registered');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await saveWorkflowRef.current();
+      // Change button text to "Saved"
+      setSaveButtonText('Saved');
+      setTimeout(() => {
+        setSaveButtonText('Save');
+      }, 2000); // Revert after 2 seconds
+    } catch (error: any) {
+      console.error('❌ Failed to save workflow:', error);
+      // Could show error message here if needed
+    } finally {
+      setIsSaving(false);
+    }
   }, []);
 
   const handleClearWorkflow = useCallback(async () => {
@@ -382,11 +420,27 @@ export default function WorkspacePage() {
               <WorkflowToggle />
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-sm border border-border/60 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="inline-flex items-center gap-1.5 rounded-sm border border-border/60 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Save workflow"
               >
-                <Save className="h-4 w-4" />
-                <span>Save</span>
+                {isSaving ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current" />
+                    <span>Saving...</span>
+                  </>
+                ) : saveButtonText === 'Saved' ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    <span>Saved</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>Save</span>
+                  </>
+                )}
               </button>
               <button
                 type="button"
@@ -398,7 +452,11 @@ export default function WorkspacePage() {
               </button>
               <button
                 type="button"
-                className="inline-flex items-center p-2 text-muted-foreground transition-colors hover:text-foreground"
+                onClick={() => setActiveView('executions')}
+                className={cn(
+                  "inline-flex items-center p-2 text-muted-foreground transition-colors hover:text-foreground",
+                  activeView === 'executions' ? "text-foreground" : ""
+                )}
                 title="History"
               >
                 <History className="h-4 w-4" />
@@ -436,10 +494,84 @@ export default function WorkspacePage() {
 
         {/* Main Content Area */}
         <div className="flex flex-1 overflow-hidden">
+          {/* Left Sidebar - appears when Plus button is clicked */}
+          {isLeftSidebarVisible && (
+            <div
+              className="fixed left-16 top-16 bottom-0 z-30 bg-background border-r border-border transition-all duration-200"
+              style={{ width: `${leftSidebarWidth}px` }}
+            >
+              <div className="flex h-full flex-col">
+                {/* Header */}
+                <div className="p-4">
+                  <h2 className="text-sm font-medium text-foreground mb-3">Add Node</h2>
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search nodes..."
+                      className="w-full pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    />
+                  </div>
+                </div>
+                {/* Sidebar Content */}
+                <div className="flex-1 overflow-auto">
+                  {/* Expandable Categories */}
+                  {[
+                    { id: 'triggers', label: 'Triggers' },
+                    { id: 'actions', label: 'Actions' },
+                    { id: 'conditions', label: 'Conditions' },
+                    { id: 'utilities', label: 'Utilities' },
+                    { id: 'integrations', label: 'Integrations' },
+                  ].map((category) => {
+                    const isExpanded = expandedCategories[category.id];
+                    return (
+                      <div key={category.id}>
+                        {/* Category Header */}
+                        <button
+                          onClick={() => setExpandedCategories(prev => ({
+                            ...prev,
+                            [category.id]: !prev[category.id]
+                          }))}
+                          className="w-full flex items-center justify-between px-4 py-3 text-left"
+                        >
+                          <span className="text-sm font-medium text-foreground">{category.label}</span>
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </button>
+                        {/* Category Content */}
+                        {isExpanded && (
+                          <div className="px-4 pb-3">
+                            {/* Components will be added here */}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
           <main
-            className="flex h-full flex-1 flex-col overflow-hidden transition-[margin-right] duration-200 relative"
-            style={{ marginRight: isDesktop && isChatSidebarVisible ? `${sidebarWidth}px` : '0px' }}
+            className="flex h-full flex-1 flex-col overflow-hidden transition-[margin-right,margin-left] duration-200 relative"
+            style={{ 
+              marginRight: isDesktop && isChatSidebarVisible ? `${sidebarWidth}px` : '0px',
+              marginLeft: isLeftSidebarVisible ? `${leftSidebarWidth}px` : '0px'
+            }}
           >
+            {/* Hide Sidebar Button - top left of canvas area */}
+            {isLeftSidebarVisible && (
+              <button
+                onClick={() => setIsLeftSidebarVisible(false)}
+                className="absolute top-4 left-4 z-20 inline-flex items-center justify-center rounded-sm p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/50 bg-background/95 backdrop-blur-sm border border-border/60"
+                title="Hide sidebar"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
             {/* Top Center Navigation Bar and Run Button */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
             <nav className="flex items-center gap-1 bg-background/95 backdrop-blur-sm border border-border rounded-md px-2 py-1.5 shadow-sm">
@@ -482,8 +614,9 @@ export default function WorkspacePage() {
             <div className="absolute top-4 right-4 z-20">
               <button
                 type="button"
+                onClick={() => setIsLeftSidebarVisible((prev) => !prev)}
                 className="flex h-10 w-10 items-center justify-center rounded-sm border border-white/80 bg-background/95 text-white shadow-sm transition-transform hover:scale-[1.02]"
-                title="Add"
+                title={isLeftSidebarVisible ? "Close sidebar" : "Open sidebar"}
               >
                 <Plus className="h-5 w-5 stroke-[2.5]" />
               </button>
@@ -573,6 +706,8 @@ export default function WorkspacePage() {
                 onRegisterExecuteCallback={handleRegisterExecuteCallback}
                 onExecutionStateChange={handleExecutionStateChange}
                 onRegisterUndoRedoCallbacks={handleRegisterUndoRedoCallbacks}
+                onRegisterSaveCallback={handleRegisterSaveCallback}
+                onOpenAddNodeSidebar={() => setIsLeftSidebarVisible(true)}
               />
             ) : activeView === 'executions' ? (
               <ExecutionsView workflowId={actualWorkflowId || workflowId || undefined} />

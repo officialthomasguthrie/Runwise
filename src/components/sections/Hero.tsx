@@ -3,7 +3,7 @@ import { HeroSection } from "@/components/ui/hero-section-dark"
 export default function Hero() {
   return (
     <HeroSection
-      title="Welcome to Runwise"
+      title="Introducing Runwise"
       subtitle={{
         regular: "Turn natural language prompts\ninto ",
         gradient: "fully functional workflows",

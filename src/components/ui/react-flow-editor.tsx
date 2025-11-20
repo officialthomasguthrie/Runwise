@@ -109,6 +109,8 @@ interface ReactFlowEditorProps {
   activeView?: 'workspace' | 'executions' | 'settings'; // Optional: active view to display
   onActiveViewChange?: (view: 'workspace' | 'executions' | 'settings') => void; // Optional: callback when view changes
   onRegisterUndoRedoCallbacks?: (callbacks: { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean }) => void; // Optional: register undo/redo callbacks
+  onRegisterSaveCallback?: (callback: () => Promise<void>) => void; // Optional: register save callback for external save button
+  onOpenAddNodeSidebar?: () => void; // Optional: callback to open the add node sidebar
 }
 
 export const ReactFlowEditor = ({
@@ -126,6 +128,8 @@ export const ReactFlowEditor = ({
   activeView = 'workspace',
   onActiveViewChange,
   onRegisterUndoRedoCallbacks,
+  onRegisterSaveCallback,
+  onOpenAddNodeSidebar,
 }: ReactFlowEditorProps = {}) => {
   const { user } = useAuth();
   const router = useRouter();
@@ -618,7 +622,7 @@ export const ReactFlowEditor = ({
   };
 
   // Save workflow to API
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (isSaving) return;
     
     setIsSaving(true);
@@ -651,14 +655,15 @@ export const ReactFlowEditor = ({
       if (onWorkflowSaved) {
         onWorkflowSaved(savedWorkflow);
       }
+      
+      return savedWorkflow;
     } catch (error: any) {
       console.error('❌ Error saving workflow:', error);
-      // Silently log errors - don't interrupt user workflow
-      // The save indicator will show "Unsaved changes" which is enough feedback
+      throw error; // Re-throw so parent can handle it
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [isSaving, currentWorkflowId, workflowName, nodes, edges, workflow, onWorkflowSaved]);
 
   // Configuration helpers
   const isNodeConfigured = (node: Node): boolean => {
@@ -961,6 +966,16 @@ export const ReactFlowEditor = ({
     }
   }, [onRegisterExecuteCallback, executeWorkflow]);
 
+  // Register save callback with parent
+  useEffect(() => {
+    if (onRegisterSaveCallback) {
+      const saveWrapper = async () => {
+        await handleSave();
+      };
+      onRegisterSaveCallback(saveWrapper);
+    }
+  }, [onRegisterSaveCallback, handleSave]);
+
   // Cleanup polling on unmount
   useEffect(() => {
     return () => {
@@ -991,9 +1006,10 @@ export const ReactFlowEditor = ({
         ...node.data,
         layoutDirection,
         onConfigure: () => openNodeConfig(node),
+        onOpenAddNodeSidebar: onOpenAddNodeSidebar, // Pass sidebar opener to placeholder nodes
       }
     }));
-  }, [nodes, layoutDirection]);
+  }, [nodes, layoutDirection, onOpenAddNodeSidebar]);
 
   useEffect(() => {
     setNodes((prev) => {
