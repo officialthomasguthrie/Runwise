@@ -9,14 +9,6 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   outputFileTracingRoot: join(__dirname),
-  async rewrites() {
-    return [
-      {
-        source: '/',
-        destination: '/landing/radison-landing.html',
-      },
-    ];
-  },
 };
 
 export default nextConfig;
