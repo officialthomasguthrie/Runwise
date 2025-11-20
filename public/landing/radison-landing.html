@@ -147,7 +147,100 @@
 <svg width="24" height="24" style="enable-background:new 0 0 24 24" space="preserve" id="svg2054876605_345"><path d="M14.095 10.316 22.286 1h-1.94L13.23 9.088 7.551 1H1l8.59 12.231L1 23h1.94l7.51-8.543 6 8.543H23l-8.905-12.684zm-2.658 3.022-.872-1.218L3.64 2.432h2.98l5.59 7.821.869 1.219 7.265 10.166h-2.982l-5.926-8.3z"/></svg>
 </div>
     
-    
+    <script>
+        // Function to check if user is authenticated via API
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/auth/check', {
+                    credentials: 'include' // Include cookies in the request
+                });
+                const data = await response.json();
+                return data.authenticated === true;
+            } catch (error) {
+                console.error('Error checking auth status:', error);
+                return false; // Default to not authenticated on error
+            }
+        }
+
+        // Function to update all "Start Building" buttons
+        async function updateStartBuildingButtons() {
+            const isAuthenticated = await checkAuthStatus();
+            const targetUrl = isAuthenticated ? '/dashboard' : '/signup';
+
+            // Find all buttons/links that might be "Start Building" buttons
+            const allElements = document.querySelectorAll('a, button, [role="button"], [data-framer-name*="button"], [data-framer-name*="Button"]');
+
+            allElements.forEach(element => {
+                const text = element.textContent?.toLowerCase() || '';
+                const innerHTML = element.innerHTML?.toLowerCase() || '';
+                const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || '';
+                
+                // Check if this element contains "start building" or similar text
+                if (text.includes('start building') || 
+                    text.includes('get started') || 
+                    innerHTML.includes('start building') ||
+                    innerHTML.includes('get started') ||
+                    ariaLabel.includes('start building') ||
+                    ariaLabel.includes('get started')) {
+                    
+                    // Update href for anchor tags
+                    if (element.tagName === 'A' && element.hasAttribute('href')) {
+                        element.href = targetUrl;
+                    }
+                    
+                    // For buttons, check if wrapped in anchor or add click handler
+                    if (element.tagName === 'BUTTON' || element.getAttribute('role') === 'button') {
+                        // If it's already wrapped in an anchor, update that
+                        const parentAnchor = element.closest('a');
+                        if (parentAnchor) {
+                            parentAnchor.href = targetUrl;
+                        } else {
+                            // Add click handler to redirect
+                            const originalOnClick = element.onclick;
+                            element.onclick = function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.location.href = targetUrl;
+                                return false;
+                            };
+                        }
+                    }
+                    
+                    // Handle divs or other elements that act as buttons
+                    if (element.tagName !== 'A' && element.tagName !== 'BUTTON' && 
+                        (element.getAttribute('role') === 'button' || 
+                         element.style.cursor === 'pointer' ||
+                         element.classList.contains('button') ||
+                         element.classList.contains('btn'))) {
+                        element.onclick = function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.location.href = targetUrl;
+                            return false;
+                        };
+                    }
+                }
+            });
+        }
+
+        // Run on page load
+        function init() {
+            // Wait for Framer content to load
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(updateStartBuildingButtons, 1000);
+                });
+            } else {
+                setTimeout(updateStartBuildingButtons, 1000);
+            }
+
+            // Also run after delays to catch dynamically loaded content
+            setTimeout(updateStartBuildingButtons, 2000);
+            setTimeout(updateStartBuildingButtons, 3000);
+        }
+
+        init();
+    </script>
     
 </body>
 </html>
