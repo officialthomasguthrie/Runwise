@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { ButtonEdge } from "@/components/button-edge";
  
+type AddNodeSidebarCallback = (() => void) | undefined;
+
 const ButtonEdgeDemo = memo((props: EdgeProps) => {
   const { addNodes, addEdges, getNode } = useReactFlow();
   
@@ -14,7 +16,10 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
     const sourceNode = getNode(props.source);
     if (!sourceNode) return;
     const layoutDirection = sourceNode.data?.layoutDirection === 'TB' ? 'TB' : 'LR';
-    const onOpenAddNodeSidebar = sourceNode.data?.onOpenAddNodeSidebar;
+    const onOpenAddNodeSidebar: AddNodeSidebarCallback =
+      typeof sourceNode.data?.onOpenAddNodeSidebar === 'function'
+        ? sourceNode.data.onOpenAddNodeSidebar
+        : undefined;
     
     // Generate unique ID for new node
     const newNodeId = `placeholder-${Date.now()}`;
@@ -34,6 +39,9 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
       data: {
         layoutDirection,
         onOpenAddNodeSidebar, // Pass sidebar opener to placeholder
+      } as {
+        layoutDirection: 'LR' | 'TB';
+        onOpenAddNodeSidebar?: () => void;
       },
     });
     

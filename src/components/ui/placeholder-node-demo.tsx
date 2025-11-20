@@ -47,7 +47,12 @@ const getTypeBadgeColor = (type: string) => {
   }
 };
 
-const PlaceholderNodeDemo = memo(({ data }: { data?: { layoutDirection?: 'LR' | 'TB'; onOpenAddNodeSidebar?: () => void } }) => {
+interface PlaceholderNodeData {
+  layoutDirection?: 'LR' | 'TB';
+  onOpenAddNodeSidebar?: () => void;
+}
+
+const PlaceholderNodeDemo = memo(({ data }: { data?: PlaceholderNodeData }) => {
   const nodeId = useNodeId();
   const layoutDirection = data?.layoutDirection === 'TB' ? 'TB' : 'LR';
   const targetPosition = layoutDirection === 'TB' ? Position.Top : Position.Left;
@@ -60,7 +65,7 @@ const PlaceholderNodeDemo = memo(({ data }: { data?: { layoutDirection?: 'LR' | 
   const handlePlusClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     // Open the add node sidebar instead of modal
-    if (data?.onOpenAddNodeSidebar) {
+    if (typeof data?.onOpenAddNodeSidebar === 'function') {
       data.onOpenAddNodeSidebar();
     }
   };
