@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Mail, BarChart3, FileText, Users, Receipt, Headphones, HelpCircle, MessageSquare, Search } from "lucide-react";
+import { Calendar, Mail, BarChart3, FileText, Users, Receipt, Headphones, HelpCircle, MessageSquare, Search, Twitter } from "lucide-react";
 import SearchComponent from "@/components/ui/animated-glowing-search-bar";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
@@ -9,10 +9,15 @@ import { useEffect } from "react";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
 
+import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase-client";
+import { TEMPLATES } from "@/lib/templates";
+
 export default function TemplatesPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isCreating, setIsCreating] = useState<number | null>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -25,112 +30,12 @@ export default function TemplatesPage() {
   const templates = [
     {
       id: 1,
-      name: "Social Media Scheduler",
+      name: "X Post Scheduler",
       description: "Auto-create & post weekly content.",
-      icon: Calendar,
+      icon: Twitter,
       gradient: "from-purple-500/20 to-pink-500/20",
       iconColor: "text-purple-400",
       category: "Marketing"
-    },
-    {
-      id: 2,
-      name: "Email Auto-Responder",
-      description: "Smart replies for new customer emails.",
-      icon: Mail,
-      gradient: "from-blue-500/20 to-purple-500/20",
-      iconColor: "text-blue-400",
-      category: "Customer Service"
-    },
-    {
-      id: 3,
-      name: "Daily Business Report",
-      description: "Summarize sales & site stats each morning.",
-      icon: BarChart3,
-      gradient: "from-green-500/20 to-blue-500/20",
-      iconColor: "text-green-400",
-      category: "Analytics"
-    },
-    {
-      id: 4,
-      name: "Blog Post Publisher",
-      description: "Generate and publish SEO blog posts.",
-      icon: FileText,
-      gradient: "from-orange-500/20 to-red-500/20",
-      iconColor: "text-orange-400",
-      category: "Content"
-    },
-    {
-      id: 5,
-      name: "Lead Follow-Up",
-      description: "Save leads and send follow-up emails.",
-      icon: Users,
-      gradient: "from-teal-500/20 to-green-500/20",
-      iconColor: "text-teal-400",
-      category: "Sales"
-    },
-    {
-      id: 6,
-      name: "Invoice Reminder",
-      description: "Auto-send invoices & payment reminders.",
-      icon: Receipt,
-      gradient: "from-indigo-500/20 to-purple-500/20",
-      iconColor: "text-indigo-400",
-      category: "Finance"
-    },
-    {
-      id: 7,
-      name: "Podcast Summarizer",
-      description: "Turn audio into quotes & highlights.",
-      icon: Headphones,
-      gradient: "from-rose-500/20 to-pink-500/20",
-      iconColor: "text-rose-400",
-      category: "Content"
-    },
-    {
-      id: 8,
-      name: "Knowledge Base Builder",
-      description: "Create FAQs from support emails.",
-      icon: HelpCircle,
-      gradient: "from-cyan-500/20 to-blue-500/20",
-      iconColor: "text-cyan-400",
-      category: "Support"
-    },
-    {
-      id: 9,
-      name: "Slack Digest",
-      description: "Summarize daily messages & key tasks.",
-      icon: MessageSquare,
-      gradient: "from-violet-500/20 to-purple-500/20",
-      iconColor: "text-violet-400",
-      category: "Communication"
-    },
-    // Additional templates
-    {
-      id: 10,
-      name: "Customer Onboarding",
-      description: "Welcome new customers with automated sequences.",
-      icon: Users,
-      gradient: "from-emerald-500/20 to-teal-500/20",
-      iconColor: "text-emerald-400",
-      category: "Customer Service"
-    },
-    {
-      id: 11,
-      name: "Inventory Tracker",
-      description: "Monitor stock levels and send alerts.",
-      icon: BarChart3,
-      gradient: "from-amber-500/20 to-orange-500/20",
-      iconColor: "text-amber-400",
-      category: "Operations"
-    },
-    {
-      id: 12,
-      name: "Meeting Scheduler",
-      description: "Automatically schedule meetings based on availability.",
-      icon: Calendar,
-      gradient: "from-sky-500/20 to-blue-500/20",
-      iconColor: "text-sky-400",
-      category: "Productivity"
     }
   ];
 
@@ -140,6 +45,59 @@ export default function TemplatesPage() {
     template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
     template.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleUseTemplate = async (templateId: number, templateName: string) => {
+    if (!user) return;
+    
+    try {
+      console.log(`Creating template: ${templateId} - ${templateName}`);
+      setIsCreating(templateId);
+      const supabase = createClient();
+      
+      // Get template data or fallback
+      const templateData = TEMPLATES[templateId];
+      const nodes = templateData?.nodes || [
+        { 
+          id: '1', 
+          type: 'workflow-node', 
+          position: { x: 100, y: 100 }, 
+          data: { label: templateName } 
+        }
+      ];
+      const edges = templateData?.edges || [];
+
+      // Create workflow
+      const { data, error } = await (supabase as any)
+        .from('workflows')
+        .insert({
+          name: templateName,
+          user_id: user.id,
+          status: 'active',
+          workflow_data: {
+            nodes,
+            edges,
+            viewport: { x: 0, y: 0, zoom: 1 }
+          }
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating workflow:", error);
+        return;
+      }
+
+      if (data) {
+        console.log("Redirecting to workflow:", data.id);
+        router.push(`/workspace/${data.id}`);
+      }
+
+    } catch (err) {
+      console.error("Unexpected error:", err);
+    } finally {
+      setIsCreating(null);
+    }
+  };
 
   if (!user) {
     return null;
@@ -179,21 +137,41 @@ export default function TemplatesPage() {
                   return (
                     <div
                       key={template.id}
-                      className="group relative bg-card border border-border rounded-lg p-6 hover:border-pink-400/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+                      className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg"
                     >
-                      <div className="flex flex-col items-center text-center space-y-4">
-                        <div
-                          className={`w-12 h-12 bg-gradient-to-br ${template.gradient} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
-                        >
-                          <IconComponent className={`w-6 h-6 ${template.iconColor}`} />
+                      <div className="flex items-start gap-4">
+                        <div className="shrink-0">
+                          <div className={`rounded-md bg-gradient-to-br ${template.gradient} p-3`}>
+                            <IconComponent className={`h-6 w-6 ${template.iconColor}`} />
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-foreground text-sm">{template.name}</h3>
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-semibold text-foreground">{template.name}</h3>
                           <p className="text-xs text-muted-foreground">{template.description}</p>
                         </div>
-                        <button className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-medium rounded-md hover:from-purple-600 hover:to-pink-600 transition-all duration-200">
-                          Use Template
-                        </button>
+                      </div>
+                      
+                      <div className="mt-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleUseTemplate(template.id, template.name);
+                          }}
+                          disabled={isCreating === template.id}
+                          className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+                        >
+                          {isCreating === template.id ? (
+                            <>
+                              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              Creating...
+                            </>
+                          ) : (
+                            "Use Template"
+                          )}
+                        </Button>
                       </div>
                     </div>
                   );

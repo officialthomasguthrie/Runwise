@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { ButtonEdge } from "@/components/button-edge";
  
-type AddNodeSidebarCallback = (() => void) | undefined;
-
 const ButtonEdgeDemo = memo((props: EdgeProps) => {
   const { addNodes, addEdges, getNode } = useReactFlow();
   
@@ -16,11 +14,7 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
     const sourceNode = getNode(props.source);
     if (!sourceNode) return;
     const layoutDirection = sourceNode.data?.layoutDirection === 'TB' ? 'TB' : 'LR';
-    const rawSidebarCallback = sourceNode.data?.onOpenAddNodeSidebar;
-    const onOpenAddNodeSidebar: AddNodeSidebarCallback =
-      typeof rawSidebarCallback === 'function'
-        ? (rawSidebarCallback as () => void)
-        : undefined;
+    const onOpenAddNodeSidebar = sourceNode.data?.onOpenAddNodeSidebar;
     
     // Generate unique ID for new node
     const newNodeId = `placeholder-${Date.now()}`;
@@ -40,9 +34,6 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
       data: {
         layoutDirection,
         onOpenAddNodeSidebar, // Pass sidebar opener to placeholder
-      } as {
-        layoutDirection: 'LR' | 'TB';
-        onOpenAddNodeSidebar?: () => void;
       },
     });
     
@@ -59,17 +50,21 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
     } as any;
     addEdges(newEdge);
     
-    // Auto-open sidebar when placeholder is created
-    if (onOpenAddNodeSidebar) {
+    // Automatically open sidebar for new placeholder
+    if (onOpenAddNodeSidebar && typeof onOpenAddNodeSidebar === 'function') {
       setTimeout(() => {
-        onOpenAddNodeSidebar();
-      }, 100); // Small delay to ensure node is added first
+        onOpenAddNodeSidebar(newNodeId);
+      }, 100);
     }
   }, [props.source, addNodes, addEdges, getNode]);
  
   return (
     <ButtonEdge {...props}>
-      <Button onClick={onEdgeClick} size="icon" variant="secondary">
+      <Button 
+        onClick={onEdgeClick} 
+        size="icon" 
+        className="h-8 w-8 rounded-full backdrop-blur-lg bg-white/50 dark:bg-zinc-900/50 border border-white/40 dark:border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.2)] hover:shadow-[0_0_25px_rgba(0,0,0,0.3)] hover:bg-white/80 dark:hover:bg-zinc-900/80 transition-all duration-300 hover:scale-110 text-foreground"
+      >
         <Plus size={16} />
       </Button>
     </ButtonEdge>

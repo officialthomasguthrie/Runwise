@@ -53,24 +53,6 @@ const HorizontalWorkflowIcon = ({ className, ...props }: LucideProps) => (
   </svg>
 );
 
-const VerticalWorkflowIcon = ({ className, ...props }: LucideProps) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    {...props}
-  >
-    <rect x="9" y="3" width="6" height="6" rx="1.5" />
-    <rect x="3" y="15" width="6" height="6" rx="1.5" />
-    <rect x="15" y="15" width="6" height="6" rx="1.5" />
-    <path d="M12 9v6M9 18h6" />
-  </svg>
-);
 import { useAuth } from '@/contexts/auth-context';
 import { NodeConfigPanel } from '@/components/ui/node-config-panel';
 import { getNodeById } from '@/lib/nodes/registry';
@@ -102,6 +84,7 @@ interface ReactFlowEditorProps {
   autoSave?: boolean; // Optional: enable auto-save (default: false)
   autoSaveInterval?: number; // Optional: auto-save interval in ms (default: 30000)
   onRegisterUpdateCallback?: (callback: (nodes: Node[], edges: Edge[]) => void) => void; // Optional: register update callback for external updates
+  onRegisterGetWorkflowCallback?: (callback: () => { nodes: Node[], edges: Edge[] }) => void; // Optional: register callback to get current workflow state
   onConfigurationStatusChange?: (status: { unconfiguredCount: number; configuredCount: number; totalCount: number }) => void; // Optional: callback when configuration status changes
   onRegisterConfigureCallback?: (callback: () => void) => void; // Optional: register callback to open first unconfigured node
   onRegisterExecuteCallback?: (callback: () => Promise<void>) => void; // Optional: register execute callback for external execution
@@ -110,7 +93,7 @@ interface ReactFlowEditorProps {
   onActiveViewChange?: (view: 'workspace' | 'executions' | 'settings') => void; // Optional: callback when view changes
   onRegisterUndoRedoCallbacks?: (callbacks: { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean }) => void; // Optional: register undo/redo callbacks
   onRegisterSaveCallback?: (callback: () => Promise<void>) => void; // Optional: register save callback for external save button
-  onOpenAddNodeSidebar?: () => void; // Optional: callback to open the add node sidebar
+  onOpenAddNodeSidebar?: (placeholderId?: string) => void; // Optional: callback to open the add node sidebar
 }
 
 export const ReactFlowEditor = ({
@@ -121,6 +104,7 @@ export const ReactFlowEditor = ({
   autoSave = false,
   autoSaveInterval = 30000,
   onRegisterUpdateCallback,
+  onRegisterGetWorkflowCallback,
   onConfigurationStatusChange,
   onRegisterConfigureCallback,
   onRegisterExecuteCallback,
@@ -303,6 +287,17 @@ export const ReactFlowEditor = ({
       onRegisterUpdateCallback(updateWorkflow);
     }
   }, [onRegisterUpdateCallback, updateWorkflow]);
+
+  // Register get workflow callback with parent
+  useEffect(() => {
+    if (onRegisterGetWorkflowCallback) {
+      const getWorkflowState = () => ({
+        nodes,
+        edges
+      });
+      onRegisterGetWorkflowCallback(getWorkflowState);
+    }
+  }, [onRegisterGetWorkflowCallback, nodes, edges]);
 
   // Register configure callback with parent
   useEffect(() => {
@@ -552,6 +547,53 @@ export const ReactFlowEditor = ({
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, autoSave, autoSaveInterval, hasChanges, isSaving, currentWorkflowId]);
+
+  // Function to replace a placeholder node with a real node
+  const replacePlaceholderNode = useCallback((placeholderId: string, nodeTypeId: string) => {
+    setNodes((nds) => {
+      const placeholderNode = nds.find((n) => n.id === placeholderId);
+      if (!placeholderNode) return nds;
+
+      const newNode = {
+        id: `node-${Date.now()}`,
+        type: 'workflow-node',
+        position: placeholderNode.position,
+        data: {
+          nodeId: nodeTypeId,
+          config: {},
+          layoutDirection,
+        },
+      };
+
+      // Replace placeholder with new node
+      const newNodes = nds.map((n) => (n.id === placeholderId ? newNode : n));
+      
+      // Update edges connected to the placeholder
+      setEdges((eds) => 
+        eds.map((e) => {
+          if (e.source === placeholderId) return { ...e, source: newNode.id };
+          if (e.target === placeholderId) return { ...e, target: newNode.id };
+          return e;
+        })
+      );
+
+      setHasChanges(true);
+      return newNodes;
+    });
+  }, [layoutDirection]);
+
+  // Listen for custom event to replace placeholder
+  useEffect(() => {
+    const handleReplacePlaceholder = (event: CustomEvent) => {
+      const { placeholderId, nodeType } = event.detail;
+      replacePlaceholderNode(placeholderId, nodeType);
+    };
+
+    window.addEventListener('replace-placeholder', handleReplacePlaceholder as EventListener);
+    return () => {
+      window.removeEventListener('replace-placeholder', handleReplacePlaceholder as EventListener);
+    };
+  }, [replacePlaceholderNode]);
 
   // Load workflow from API
   const loadWorkflow = async (id: string) => {
@@ -825,6 +867,7 @@ export const ReactFlowEditor = ({
           nodes,
           edges,
           triggerData: {},
+          isTest: true, // Mark as test execution
         }),
       });
 
@@ -1090,6 +1133,40 @@ export const ReactFlowEditor = ({
           console.log('🎯 React Flow instance initialized with key:', reactFlowKey);
           reactFlowInstance.current = instance;
         }}
+        onDrop={(event) => {
+          event.preventDefault();
+          const nodeId = event.dataTransfer.getData('application/reactflow-node-id');
+          
+          if (!nodeId || !reactFlowInstance.current) {
+            return;
+          }
+
+          // Get position from React Flow's screen to flow coordinate conversion
+          const position = reactFlowInstance.current.screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          });
+
+          // Create new node
+          const newNode = {
+            id: `node-${Date.now()}`,
+            type: 'workflow-node',
+            position,
+            data: {
+              nodeId: nodeId,
+              config: {},
+              layoutDirection,
+            },
+          };
+
+          // Add node to canvas
+          setNodes((nds) => [...nds, newNode]);
+          setHasChanges(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+        }}
         fitView
         fitViewOptions={{
           padding: 0.2,
@@ -1119,17 +1196,6 @@ export const ReactFlowEditor = ({
             className={layoutDirection === 'LR' ? 'bg-primary text-primary-foreground' : undefined}
           >
             <HorizontalWorkflowIcon className="h-4 w-4" />
-          </ControlButton>
-          <ControlButton
-            onClick={(event) => {
-              event.stopPropagation();
-              applyLayout('TB');
-            }}
-            title="Layout vertically"
-            aria-label="Layout vertically"
-            className={layoutDirection === 'TB' ? 'bg-primary text-primary-foreground' : undefined}
-          >
-            <VerticalWorkflowIcon className="h-4 w-4" />
           </ControlButton>
         </Controls>
         <MiniMap />

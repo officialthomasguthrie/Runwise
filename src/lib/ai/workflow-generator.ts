@@ -185,10 +185,29 @@ CRITICAL RULES:
     let contextPrompt = '';
     if (request.existingNodes && request.existingNodes.length > 0) {
       contextPrompt = `\n\nEXISTING WORKFLOW CONTEXT:
-The user wants to modify an existing workflow. Current nodes:
-${request.existingNodes.map((n) => `- ${n.id}: ${n.data?.label || n.type}`).join('\n')}
+The user has an active workflow on the canvas.
+Current nodes:
+${request.existingNodes.map((n) => `- ${n.id}: ${n.data?.label || n.type} (${n.data?.description || 'No description'})`).join('\n')}
 
-Please generate a workflow that builds upon or replaces this existing workflow based on the new requirements.`;
+Current edges:
+${request.existingEdges?.map((e) => `- ${e.source} -> ${e.target}`).join('\n') || 'No edges'}
+
+YOUR GOAL:
+Determine if the user wants to:
+1. MODIFY/ADD TO the existing workflow (e.g., "add a slack notification", "connect email to this")
+2. REPLACE/CREATE NEW workflow (e.g., "make a new workflow for...", "clear and build...")
+
+IF MODIFYING:
+- Return the COMPLETE workflow including both existing nodes (that should be kept) and new nodes.
+- Maintain the IDs of existing nodes to preserve them.
+- Add new nodes with new IDs.
+- Connect new nodes to existing nodes where logical.
+
+IF CREATING NEW:
+- Return only the new nodes and edges.
+- Do not include old node IDs.
+
+Please generate the appropriate workflow JSON based on this context.`;
     }
 
     // Use streaming API

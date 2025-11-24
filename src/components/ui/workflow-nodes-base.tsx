@@ -56,7 +56,7 @@ export const TriggerNodeBase = memo(({ data, id }: { data: any; id: string }) =>
       </BaseNodeContent>
       <BaseNodeFooter>
         <h4 className="text-md self-start font-bold">Configuration</h4>
-        <Button variant="outline" className="nodrag w-full">
+        <Button variant="ghost" className="nodrag w-full backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground">
           Configure Email
         </Button>
       </BaseNodeFooter>
@@ -125,7 +125,7 @@ export const ActionNodeBase = memo(({ data, id }: { data: any; id: string }) => 
       </BaseNodeContent>
       <BaseNodeFooter>
         <h4 className="text-md self-start font-bold">Configuration</h4>
-        <Button variant="outline" className="nodrag w-full">
+        <Button variant="ghost" className="nodrag w-full backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground">
           {buttonText}
         </Button>
       </BaseNodeFooter>
@@ -180,7 +180,7 @@ export const EndNodeBase = memo(({ data, id }: { data: any; id: string }) => {
       </BaseNodeContent>
       <BaseNodeFooter>
         <h4 className="text-md self-start font-bold">Status</h4>
-        <Button variant="outline" className="nodrag w-full">
+        <Button variant="ghost" className="nodrag w-full backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground">
           View Logs
         </Button>
       </BaseNodeFooter>

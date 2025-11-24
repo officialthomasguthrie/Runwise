@@ -309,13 +309,13 @@ export default function WorkflowsPage() {
         <CollapsibleSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <BlankHeader />
-          <main className="flex h-full grow flex-col overflow-auto relative">
+        <main className="flex h-full grow flex-col overflow-auto relative">
             <div className="relative pb-12">
-              <div className="relative z-10 px-4 sm:px-6 lg:px-8 pb-4">
+            <div className="relative z-10 px-4 sm:px-6 lg:px-8 pb-4">
                 <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7">
-                  Workflows
-                </h1>
-              </div>
+                Workflows
+              </h1>
+            </div>
 
               {/* Recent Workflows */}
               <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
@@ -326,7 +326,7 @@ export default function WorkflowsPage() {
                   <p className="text-sm md:text-base text-muted-foreground mt-2">
                     Your latest automation workflows
                   </p>
-                </div>
+              </div>
 
                 {workflowsLoading ? (
                   <div className="max-w-full overflow-hidden">
@@ -400,12 +400,12 @@ export default function WorkflowsPage() {
                                   </div>
                                 </div>
                               </GridCard>
-                            </Link>
+                  </Link>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                ))}
+              </div>
+          </div>
+      </div>
                 ) : (
                   <div className="max-w-full overflow-hidden">
                     <div className="w-full" style={{ maxWidth: "calc(100vw - 200px)" }}>
@@ -419,7 +419,7 @@ export default function WorkflowsPage() {
                             <div className="flex items-center gap-2 text-sm md:text-base text-pink-400 hover:text-pink-300 transition-colors cursor-pointer">
                               <span>Get started</span>
                               <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
-                            </div>
+            </div>
                           </Link>
                         </div>
                       </div>
@@ -489,15 +489,15 @@ export default function WorkflowsPage() {
                           <span>See More Templates</span>
                           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
                         </button>
-                      </Link>
+                  </Link>
                     </div>
                   )}
-                </div>
-              </section>
-            </div>
-          </main>
-        </div>
+              </div>
+            </section>
+          </div>
+        </main>
       </div>
+    </div>
 
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

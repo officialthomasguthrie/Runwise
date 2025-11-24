@@ -4,26 +4,21 @@ import { memo } from "react";
 import { Handle, Position, useNodeId } from "@xyflow/react";
 import { PlaceholderNode } from "@/components/placeholder-node";
 
-interface PlaceholderNodeData {
-  layoutDirection?: 'LR' | 'TB';
-  onOpenAddNodeSidebar?: () => void;
-}
-
-const PlaceholderNodeDemo = memo(({ data }: { data?: PlaceholderNodeData }) => {
+const PlaceholderNodeDemo = memo(({ data }: { data?: { layoutDirection?: 'LR' | 'TB'; onOpenAddNodeSidebar?: (nodeId: string) => void } }) => {
   const nodeId = useNodeId();
   const layoutDirection = data?.layoutDirection === 'TB' ? 'TB' : 'LR';
   const targetPosition = layoutDirection === 'TB' ? Position.Top : Position.Left;
   const sourcePosition = layoutDirection === 'TB' ? Position.Bottom : Position.Right;
   const verticalHandleStyle =
     layoutDirection === 'TB'
-      ? { left: '50%', transform: 'translate(-50%, 0)' }
-      : undefined;
+    ? { left: '50%', transform: 'translate(-50%, 0)' }
+    : undefined;
 
   const handlePlusClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Open the add node sidebar instead of modal
-    if (typeof data?.onOpenAddNodeSidebar === 'function') {
-      data.onOpenAddNodeSidebar();
+    // Open the add node sidebar instead of modal, passing the node ID
+    if (data?.onOpenAddNodeSidebar && nodeId) {
+      data.onOpenAddNodeSidebar(nodeId);
     }
   };
 

@@ -193,7 +193,7 @@ type WorkflowSettingsUpdate = Pick<
       )}
       
       <ScrollArea className="flex-1">
-        <div className="pl-16 pr-6 py-6 space-y-8 pt-20 pb-6">
+        <div className="pl-8 pr-6 py-6 space-y-8 pt-20 pb-6">
           {/* Error Messages */}
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md">

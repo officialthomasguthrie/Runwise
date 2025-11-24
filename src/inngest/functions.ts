@@ -83,7 +83,7 @@ export const workflowExecutor = inngest.createFunction(
   },
   { event: "workflow/execute" },
   async ({ event, step }) => {
-    const { workflowId, nodes, edges, triggerData, userId } = event.data;
+    const { workflowId, nodes, edges, triggerData, userId, triggerType = 'manual' } = event.data;
 
     // Validate input
     if (!workflowId || !nodes || !Array.isArray(nodes) || !edges || !Array.isArray(edges)) {
@@ -135,6 +135,8 @@ export const workflowExecutor = inngest.createFunction(
           workflow_id: workflowId,
           user_id: userId,
           status: 'running',
+          trigger_type: triggerType,
+          trigger_data: triggerData || {},
           started_at: new Date().toISOString(),
         });
 

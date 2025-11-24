@@ -8,15 +8,21 @@ export const BaseNode = forwardRef<
   <div
     ref={ref}
     className={cn(
-      "relative rounded-md border bg-card text-card-foreground",
-      "hover:ring-1",
+      "relative rounded-xl border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 text-card-foreground backdrop-blur-xl",
+      "shadow-[0_15px_30px_-12px_rgba(0,0,0,0.1),0_5px_15px_-8px_rgba(0,0,0,0.05),inset_0_1px_1px_rgba(255,255,255,0.8)]",
+      "dark:border-white/20 dark:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.3),0_4px_6px_-4px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.05)]",
+      "hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15),0_10px_20px_-8px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,1)]",
+      "dark:hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.4),0_8px_12px_-8px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.08)]",
+      "hover:-translate-y-1 transition-all duration-300 ease-out",
       // React Flow displays node elements inside of a `NodeWrapper` component,
       // which compiles down to a div with the class `react-flow__node`.
       // When a node is selected, the class `selected` is added to the
       // `react-flow__node` element. This allows us to style the node when it
       // is selected, using Tailwind's `&` selector.
-      "[.react-flow\\_\\_node.selected_&]:border-muted-foreground",
-      "[.react-flow\\_\\_node.selected_&]:shadow-lg",
+      "[.react-flow\\_\\_node.selected_&]:border-primary/50",
+      "[.react-flow\\_\\_node.selected_&]:shadow-[0_0_0_2px_hsl(var(--primary)/0.2),0_15px_30px_-12px_rgba(0,0,0,0.1)]",
+      "[.react-flow\\_\\_node.selected_&]:from-stone-50 [.react-flow\\_\\_node.selected_&]:to-stone-100",
+      "[.react-flow\\_\\_node.selected_&]:dark:from-zinc-900/95 [.react-flow\\_\\_node.selected_&]:dark:to-zinc-900/80",
       className,
     )}
     tabIndex={0}

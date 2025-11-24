@@ -226,11 +226,11 @@ const PricingComparison = React.forwardRef<HTMLDivElement, PricingComparisonProp
                   </div>
                   {planColumns.map((plan) => (
                     <div key={plan.id} className="text-center">
-                      <div className="bg-muted/50 rounded-lg p-4">
+                    <div className="bg-muted/50 rounded-lg p-4">
                         <h4 className="font-semibold text-foreground font-geist">{plan.name}</h4>
                         <p className="text-sm text-muted-foreground font-geist">{plan.price}</p>
                         <p className="text-xs text-muted-foreground font-geist mt-1">{plan.caption}</p>
-                      </div>
+                  </div>
                     </div>
                   ))}
                 </div>
@@ -252,7 +252,7 @@ const PricingComparison = React.forwardRef<HTMLDivElement, PricingComparisonProp
                             <span className="text-sm text-foreground font-geist">
                               {item.values[plan.id]}
                             </span>
-                          </div>
+                        </div>
                         ))}
                       </div>
                     ))}

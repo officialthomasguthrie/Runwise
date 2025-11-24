@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         edges: body.edges,
         triggerData: body.triggerData || {},
         userId: user.id,
-        triggerType: 'manual',
+        triggerType: (body as any).isTest ? 'test' : 'manual',
       },
     });
 

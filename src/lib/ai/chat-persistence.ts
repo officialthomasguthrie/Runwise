@@ -80,7 +80,7 @@ export async function saveMessage(
     const supabase = getSupabaseClient();
     const { error } = await (supabase
       .from('ai_chat_messages') as any)
-      .insert({
+      .upsert({
         id: message.id,
         conversation_id: conversationId,
         role: message.role,
@@ -88,7 +88,7 @@ export async function saveMessage(
         workflow_generated: message.workflowGenerated || false,
         workflow_id: message.workflowId || null,
         created_at: message.timestamp,
-      });
+      }, { onConflict: 'id' });
 
     if (error) {
       // Check if table doesn't exist (gracefully fail)
@@ -104,6 +104,33 @@ export async function saveMessage(
   } catch (error: any) {
     console.error('Error in saveMessage:', error.message || error);
     return { success: false, error: error.message || 'Unknown error' };
+  }
+}
+
+/**
+ * Delete messages in a conversation created after a specific timestamp (exclusive)
+ */
+export async function deleteMessagesAfter(
+  conversationId: string,
+  timestamp: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from('ai_chat_messages')
+      .delete()
+      .eq('conversation_id', conversationId)
+      .gt('created_at', timestamp);
+
+    if (error) {
+      console.error('Error deleting future messages:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error in deleteMessagesAfter:', error);
+    return { success: false, error: error.message };
   }
 }
 

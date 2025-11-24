@@ -184,8 +184,8 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                 data.onConfigure();
               }
             }}
-            variant="outline"
-            className="nodrag mt-4 w-full justify-center"
+            variant="ghost"
+            className="nodrag mt-4 w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
           >
             Configure
           </Button>

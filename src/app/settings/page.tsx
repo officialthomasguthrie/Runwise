@@ -1,6 +1,5 @@
 "use client";
 
-import { SettingsTabsDemo } from "@/components/ui/settings-tabs";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -18,18 +17,6 @@ export default function SettingsPage() {
     }
   }, [user, loading, router]);
 
-  // Show loading screen while authentication is loading
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading settings...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (!user) {
     return null;
   }
@@ -39,16 +26,12 @@ export default function SettingsPage() {
       <CollapsibleSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <BlankHeader />
-        <main className="flex h-full grow flex-col overflow-y-auto overflow-x-hidden">
-          <div className="pt-16 px-[200px] py-6 pb-32">
-            <div className="w-full max-w-6xl">
-              <div className="mb-6">
-                <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                <p className="text-muted-foreground mt-1">
-                  Manage your account settings and preferences
-                </p>
-              </div>
-              <SettingsTabsDemo />
+        <main className="flex h-full grow flex-col overflow-auto relative">
+          <div className="relative pb-12">
+            <div className="relative z-10 px-4 sm:px-6 lg:px-8 pb-4">
+              <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7">
+                Settings
+              </h1>
             </div>
           </div>
         </main>

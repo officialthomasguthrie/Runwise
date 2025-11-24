@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { loadUserExecutions, loadNodeExecutions, type WorkflowExecution, type NodeExecution } from '@/lib/workflow-executions/client';
 import { ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from "@/lib/utils";
 
 interface ExecutionsViewProps {
   workflowId?: string | null; // Optional: filter by workflow
+  className?: string;
 }
 
-export function ExecutionsView({ workflowId }: ExecutionsViewProps) {
+export function ExecutionsView({ workflowId, className }: ExecutionsViewProps) {
   const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,9 +57,21 @@ export function ExecutionsView({ workflowId }: ExecutionsViewProps) {
       // Load node executions if not already loaded
       if (!nodeExecutions[executionId]) {
         setLoadingNodeExecutions(prev => ({ ...prev, [executionId]: true }));
-        const { nodeExecutions: nodes } = await loadNodeExecutions(executionId);
-        setNodeExecutions(prev => ({ ...prev, [executionId]: nodes }));
-        setLoadingNodeExecutions(prev => ({ ...prev, [executionId]: false }));
+        try {
+          const { nodeExecutions: nodes, error: nodeError } = await loadNodeExecutions(executionId);
+          if (nodeError) {
+            console.error('Error loading node executions:', nodeError);
+            // Still set empty array so UI doesn't show loading forever
+            setNodeExecutions(prev => ({ ...prev, [executionId]: [] }));
+          } else {
+            setNodeExecutions(prev => ({ ...prev, [executionId]: nodes }));
+          }
+        } catch (err: any) {
+          console.error('Unexpected error loading node executions:', err);
+          setNodeExecutions(prev => ({ ...prev, [executionId]: [] }));
+        } finally {
+          setLoadingNodeExecutions(prev => ({ ...prev, [executionId]: false }));
+        }
       }
     }
   };
@@ -134,13 +148,7 @@ export function ExecutionsView({ workflowId }: ExecutionsViewProps) {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="px-6 py-4 border-b border-border">
-        <h2 className="text-lg font-semibold">Execution History</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {executions.length} {executions.length === 1 ? 'execution' : 'executions'}
-        </p>
-      </div>
+    <div className={cn("h-full flex flex-col pt-16", className)}>
       
       <ScrollArea className="flex-1">
         <div className="px-6 py-4 space-y-2">
@@ -152,7 +160,7 @@ export function ExecutionsView({ workflowId }: ExecutionsViewProps) {
             return (
               <div
                 key={execution.id}
-                className="border border-border rounded-lg bg-card hover:bg-accent/50 transition-colors"
+                className="rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl transition-all duration-300 text-foreground hover:shadow-md"
               >
                 <button
                   onClick={() => toggleExecution(execution.id)}
@@ -174,7 +182,17 @@ export function ExecutionsView({ workflowId }: ExecutionsViewProps) {
                         {execution.execution_time_ms && (
                           <span>Duration: {formatDuration(execution.execution_time_ms)}</span>
                         )}
-                        <span>Trigger: {execution.trigger_type}</span>
+                        <span>
+                          {execution.trigger_type === 'test' ? (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 text-xs font-medium">
+                                Test
+                              </span>
+                            </span>
+                          ) : (
+                            `Trigger: ${execution.trigger_type}`
+                          )}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -186,7 +204,7 @@ export function ExecutionsView({ workflowId }: ExecutionsViewProps) {
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-border pt-4 space-y-4">
+                  <div className="px-4 pb-4 border-t border-stone-200 dark:border-white/10 pt-4 space-y-4">
                     {/* Error Message */}
                     {execution.error_message && (
                       <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md">
@@ -207,7 +225,7 @@ export function ExecutionsView({ workflowId }: ExecutionsViewProps) {
                           {nodes.map((node) => (
                             <div
                               key={node.id}
-                              className="p-3 bg-muted/50 rounded-md border border-border"
+                              className="p-3 bg-white/40 dark:bg-zinc-900/40 rounded-md border border-stone-200 dark:border-white/10"
                             >
                               <div className="flex items-center gap-2 mb-2">
                                 {getStatusIcon(node.status as any)}
@@ -236,13 +254,13 @@ export function ExecutionsView({ workflowId }: ExecutionsViewProps) {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <h4 className="text-xs font-medium mb-2 text-muted-foreground">Input Data</h4>
-                        <pre className="text-xs p-2 bg-muted/50 rounded border border-border overflow-auto max-h-32">
+                        <pre className="text-xs p-2 bg-white/40 dark:bg-zinc-900/40 rounded border border-stone-200 dark:border-white/10 overflow-auto max-h-32">
                           {JSON.stringify(execution.input_data, null, 2)}
                         </pre>
                       </div>
                       <div>
                         <h4 className="text-xs font-medium mb-2 text-muted-foreground">Output Data</h4>
-                        <pre className="text-xs p-2 bg-muted/50 rounded border border-border overflow-auto max-h-32">
+                        <pre className="text-xs p-2 bg-white/40 dark:bg-zinc-900/40 rounded border border-stone-200 dark:border-white/10 overflow-auto max-h-32">
                           {JSON.stringify(execution.output_data, null, 2)}
                         </pre>
                       </div>

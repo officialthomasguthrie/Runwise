@@ -107,7 +107,7 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
               <Link
                 href={href}
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:text-foreground",
+                  "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
                   pathname === href ? "border-border text-foreground" : ""
                 )}
                 aria-label={label}
@@ -124,7 +124,7 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
             type="button"
             onClick={toggleTheme}
             aria-label="Toggle theme"
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground"
           >
             {mounted ? (
               theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />
@@ -139,7 +139,7 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
               <Link
                 href={href}
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:text-foreground",
+                  "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
                   pathname === href ? "border-border text-foreground" : ""
                 )}
                 aria-label={label}

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    const body: WorkflowGenerationRequest = await request.json();
+    const body = await request.json();
 
     // Validate required fields
     if (!body.userPrompt) {
@@ -53,6 +53,10 @@ export async function POST(request: NextRequest) {
         ? body.availableNodes
         : getSimplifiedNodeList();
 
+    // Extract existing nodes/edges from currentWorkflow if provided
+    const existingNodes = body.currentWorkflow?.nodes || body.existingNodes || [];
+    const existingEdges = body.currentWorkflow?.edges || body.existingEdges || [];
+
     // Create a streaming response
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -62,8 +66,8 @@ export async function POST(request: NextRequest) {
           await generateWorkflowFromPromptStreaming({
             userPrompt: body.userPrompt,
             availableNodes,
-            existingNodes: body.existingNodes,
-            existingEdges: body.existingEdges,
+            existingNodes,
+            existingEdges,
             onChunk: (jsonChunk: string, isComplete: boolean) => {
               const data = JSON.stringify({
                 type: 'json-chunk',

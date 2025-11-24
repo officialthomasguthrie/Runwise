@@ -50,53 +50,53 @@ export default function HelpCenterPage() {
                   <p className="text-sm md:text-base text-muted-foreground mt-2">Get started quickly with these common topics</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <Card className="group relative bg-card border border-border rounded-lg p-6 hover:border-pink-400/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer">
+                  <div className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg">
                     <div className="flex flex-col items-center text-center space-y-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                        <BookOpen className="w-6 h-6 text-blue-400" />
-                      </div>
                       <div className="space-y-2">
                         <h3 className="font-semibold text-foreground text-sm">Getting Started</h3>
                         <p className="text-xs text-muted-foreground">Learn the basics of using Runwise</p>
                       </div>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+                      >
                         <span>Read Guide</span>
                         <ChevronRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
-                  </Card>
+                  </div>
 
-                  <Card className="group relative bg-card border border-border rounded-lg p-6 hover:border-pink-400/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer">
+                  <div className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg">
                     <div className="flex flex-col items-center text-center space-y-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                        <Video className="w-6 h-6 text-green-400" />
-                      </div>
                       <div className="space-y-2">
                         <h3 className="font-semibold text-foreground text-sm">Video Tutorials</h3>
                         <p className="text-xs text-muted-foreground">Watch step-by-step tutorials</p>
                       </div>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+                      >
                         <span>Watch Videos</span>
                         <ChevronRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
-                  </Card>
+                  </div>
 
-                  <Card className="group relative bg-card border border-border rounded-lg p-6 hover:border-pink-400/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer">
+                  <div className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg">
                     <div className="flex flex-col items-center text-center space-y-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                        <MessageCircle className="w-6 h-6 text-purple-400" />
-                      </div>
                       <div className="space-y-2">
                         <h3 className="font-semibold text-foreground text-sm">Live Chat</h3>
                         <p className="text-xs text-muted-foreground">Chat with our support team</p>
                       </div>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+                      >
                         <span>Start Chat</span>
                         <ChevronRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
-                  </Card>
+                  </div>
                 </div>
               </section>
 
@@ -107,53 +107,53 @@ export default function HelpCenterPage() {
                   <p className="text-sm md:text-base text-muted-foreground mt-2">Comprehensive guides and API documentation</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <Card className="group relative bg-card border border-border rounded-lg p-6 hover:border-pink-400/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer">
+                  <div className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg">
                     <div className="flex flex-col items-center text-center space-y-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                        <FileText className="w-6 h-6 text-orange-400" />
-                      </div>
                       <div className="space-y-2">
                         <h3 className="font-semibold text-foreground text-sm">User Guide</h3>
                         <p className="text-xs text-muted-foreground">Complete user manual</p>
                       </div>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+                      >
                         <span>Read Guide</span>
                         <ExternalLink className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
-                  </Card>
+                  </div>
 
-                  <Card className="group relative bg-card border border-border rounded-lg p-6 hover:border-pink-400/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer">
+                  <div className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg">
                     <div className="flex flex-col items-center text-center space-y-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                        <HelpCircle className="w-6 h-6 text-indigo-400" />
-                      </div>
                       <div className="space-y-2">
                         <h3 className="font-semibold text-foreground text-sm">FAQ</h3>
                         <p className="text-xs text-muted-foreground">Frequently asked questions</p>
                       </div>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+                      >
                         <span>Browse FAQ</span>
                         <ChevronRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
-                  </Card>
+                  </div>
 
-                  <Card className="group relative bg-card border border-border rounded-lg p-6 hover:border-pink-400/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer">
+                  <div className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg">
                     <div className="flex flex-col items-center text-center space-y-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-teal-500/20 to-green-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                        <Search className="w-6 h-6 text-teal-400" />
-                      </div>
                       <div className="space-y-2">
                         <h3 className="font-semibold text-foreground text-sm">Search Docs</h3>
                         <p className="text-xs text-muted-foreground">Find specific information</p>
                       </div>
-                      <Button variant="outline" size="sm" className="w-full">
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+                      >
                         <span>Search</span>
                         <ChevronRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
-                  </Card>
+                  </div>
                 </div>
               </section>
 

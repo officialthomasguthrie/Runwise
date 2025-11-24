@@ -175,24 +175,91 @@ export async function loadNodeExecutions(
   try {
     const supabase = createClient();
     
-    const { data, error } = await supabase
+    // Check if executionId is valid
+    if (!executionId || executionId.trim() === '') {
+      console.error('Invalid executionId provided:', executionId);
+      return { nodeExecutions: [], error: 'Invalid execution ID' };
+    }
+
+    // Try node_executions first (schema.sql), then fallback to node_execution_results (workflow-execution-schema.sql)
+    let data: any[] | null = null;
+    let error: any = null;
+
+    // First, try node_executions table (UUID-based)
+    const { data: nodeExecData, error: nodeExecError } = await supabase
       .from('node_executions')
       .select('*')
       .eq('execution_id', executionId)
       .order('started_at', { ascending: true });
 
-    if (error) {
-      console.error('Error loading node executions:', error);
-      return { nodeExecutions: [], error: error.message };
+    if (nodeExecError) {
+      // If node_executions doesn't exist or fails, try node_execution_results
+      console.warn('node_executions query failed, trying node_execution_results:', nodeExecError);
+      
+      const { data: nodeResultData, error: nodeResultError } = await supabase
+        .from('node_execution_results')
+        .select('*')
+        .eq('execution_id', executionId)
+        .order('created_at', { ascending: true });
+
+      if (nodeResultError) {
+        error = nodeResultError;
+        console.error('Both node_executions and node_execution_results queries failed:', {
+          nodeExecError,
+          nodeResultError,
+          executionId,
+        });
+      } else {
+        data = nodeResultData;
+        // Map node_execution_results structure to NodeExecution format
+        if (data) {
+          data = data.map((result: any) => ({
+            id: result.id,
+            execution_id: result.execution_id,
+            node_id: result.node_id || result.node_name, // node_execution_results uses node_name
+            status: result.status,
+            input_data: result.input_data || {},
+            output_data: result.output_data || result.final_output || {},
+            error_message: result.error || result.error_message,
+            execution_time_ms: result.duration_ms || result.execution_time_ms,
+            started_at: result.created_at, // node_execution_results doesn't have started_at
+            completed_at: result.created_at,
+            created_at: result.created_at,
+          }));
+        }
+      }
+    } else {
+      data = nodeExecData;
     }
 
-    const nodeExecutions: NodeExecution[] = (data || []).map((exec: any) => ({
+    if (error) {
+      console.error('Error loading node executions:', {
+        error,
+        errorMessage: error.message,
+        errorDetails: error.details,
+        errorHint: error.hint,
+        errorCode: error.code,
+        executionId,
+      });
+      return { 
+        nodeExecutions: [], 
+        error: error.message || error.details || 'Failed to load node executions' 
+      };
+    }
+
+    // Handle case where data might be null
+    if (!data) {
+      console.warn('No data returned for node executions, executionId:', executionId);
+      return { nodeExecutions: [] };
+    }
+
+    const nodeExecutions: NodeExecution[] = data.map((exec: any) => ({
       id: exec.id,
       execution_id: exec.execution_id,
       node_id: exec.node_id,
       status: exec.status,
-      input_data: exec.input_data,
-      output_data: exec.output_data,
+      input_data: exec.input_data || {},
+      output_data: exec.output_data || {},
       error_message: exec.error_message,
       execution_time_ms: exec.execution_time_ms,
       started_at: exec.started_at,
@@ -202,8 +269,16 @@ export async function loadNodeExecutions(
 
     return { nodeExecutions };
   } catch (error: any) {
-    console.error('Error in loadNodeExecutions:', error);
-    return { nodeExecutions: [], error: error.message };
+    console.error('Error in loadNodeExecutions:', {
+      error,
+      errorMessage: error?.message,
+      errorStack: error?.stack,
+      executionId,
+    });
+    return { 
+      nodeExecutions: [], 
+      error: error?.message || 'An unexpected error occurred while loading node executions' 
+    };
   }
 }
 

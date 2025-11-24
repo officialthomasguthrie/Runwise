@@ -32,12 +32,14 @@ import {
   deleteConversation,
   type ChatConversation,
   updateConversationTitle,
-  deleteAllConversationsForCurrentUser 
+  deleteAllConversationsForCurrentUser,
+  deleteMessagesAfter
 } from '@/lib/ai/chat-persistence';
 
 interface AIChatSidebarProps {
   onWorkflowGenerated?: (workflow: { nodes: any[]; edges: any[]; workflowName?: string }) => void;
   initialPrompt?: string | null;
+  getCurrentWorkflow?: () => { nodes: any[]; edges: any[] };
 }
 
 /**
@@ -50,7 +52,7 @@ interface AIChatSidebarProps {
  * - Message history with database persistence
  * - Chat history browsing
  */
-export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerated, initialPrompt }) => {
+export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerated, initialPrompt, getCurrentWorkflow }) => {
   const { user } = useAuth();
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -932,6 +934,147 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
     }
   };
 
+  const handleEditAndSend = async (messageId: string, newContent: string, timestamp: string) => {
+    if (!newContent.trim() || isLoading || !user) return;
+    
+    setIsLoading(true);
+    setEditingMessageId(null);
+    
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1) {
+        setIsLoading(false);
+        return;
+    }
+    
+    const updatedMessage = {
+        ...messages[messageIndex],
+        content: newContent.trim()
+    };
+    
+    // Keep messages up to this one (history + updated message)
+    const newHistory = messages.slice(0, messageIndex);
+    const newMessagesState = [...newHistory, updatedMessage];
+    
+    setMessages(newMessagesState);
+    
+    const aiMessageId = `msg_${Date.now()}`;
+
+    try {
+        // Update the edited message
+        await saveMessage(updatedMessage, activeConversationId);
+        // Delete everything after it
+        await deleteMessagesAfter(activeConversationId, timestamp);
+        
+        const aiMessage: ChatMessage = {
+          id: aiMessageId,
+          role: 'assistant',
+          content: 'Thinking...',
+          timestamp: new Date().toISOString(),
+        };
+        
+        setMessages(prev => [...prev, aiMessage]);
+        
+        const response = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: newContent.trim(),
+            chatId: activeConversationId,
+            conversationHistory: newHistory,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await safeParseJSON(response);
+          throw new Error(errorData.error || 'Failed to get AI response');
+        }
+
+        if (!response.body) throw new Error('Response body is null');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullMessage = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr) continue;
+              
+              try {
+                const data = JSON.parse(jsonStr);
+                
+                if (data.type === 'chunk') {
+                  fullMessage += data.content;
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === aiMessageId
+                        ? { ...msg, content: fullMessage }
+                        : msg
+                    )
+                  );
+                } else if (data.type === 'complete') {
+                  fullMessage = data.message;
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === aiMessageId
+                        ? { ...msg, content: fullMessage }
+                        : msg
+                    )
+                  );
+
+                  const completeAiMessage: ChatMessage = {
+                    id: aiMessageId,
+                    role: 'assistant',
+                    content: fullMessage,
+                    timestamp: new Date().toISOString(),
+                  };
+                  await saveMessage(completeAiMessage, activeConversationId);
+
+                  if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
+                    setWorkflowPrompt(data.metadata.workflowPrompt);
+                  }
+                } else if (data.type === 'error') {
+                  throw new Error(data.error || 'Stream error');
+                }
+              } catch (parseError) {
+                 if (jsonStr.length > 0) {
+                    console.error('Error parsing stream data:', parseError);
+                 }
+              }
+            }
+          }
+        }
+
+    } catch (err: any) {
+        console.error('Error in edit and send:', err);
+        setError(err.message || 'Failed to send message');
+        
+        setMessages((prev) => {
+          const filtered = prev.filter((msg) => msg.id !== aiMessageId);
+          return [
+            ...filtered,
+            {
+              id: `msg_${Date.now()}`,
+              role: 'assistant',
+              content: `Sorry, I encountered an error: ${err.message}`,
+              timestamp: new Date().toISOString(),
+            },
+          ];
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   const generateWorkflow = async () => {
     if (!workflowPrompt || !user) return;
 
@@ -950,6 +1093,9 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
     setMessages((prev) => [...prev, generatingMessage]);
 
     try {
+      // Get current workflow state if available
+      const currentWorkflow = getCurrentWorkflow ? getCurrentWorkflow() : { nodes: [], edges: [] };
+      
       // Call workflow generation API with streaming
       const response = await fetch('/api/ai/generate-workflow', {
         method: 'POST',
@@ -959,6 +1105,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
         body: JSON.stringify({
           userPrompt: workflowPrompt,
           availableNodes: [], // API will fetch all available nodes
+          currentWorkflow: currentWorkflow, // Send current workflow context
         }),
       });
 
@@ -1202,7 +1349,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
       {/* Chat History Panel - Full Screen */}
       {showChatHistory ? (
         <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-background/50 overflow-x-hidden">
-          <ScrollArea className="flex-1 h-full overflow-y-auto overflow-x-hidden max-w-full">
+          <ScrollArea className="flex-1 h-full overflow-y-auto overflow-x-hidden max-w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <div className="flex-1 min-h-[320px] px-3 py-4 space-y-2">
               {isLoadingConversations ? (
                 <div className="flex h-full items-center justify-center">
@@ -1222,10 +1369,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
                     <button
                       key={conversation.id}
                       onClick={() => switchToConversation(conversation.id)}
-                      className={`group relative w-full text-left rounded-lg border px-3 py-2 transition-colors ${
+                      className={`group relative w-full text-left px-3 py-2 rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl transition-all duration-300 text-foreground ${
                         conversation.id === activeConversationId
-                          ? 'border-border text-foreground bg-muted/30'
-                          : 'border-border/60 hover:border-border hover:bg-muted/40'
+                          ? 'shadow-sm ring-1 ring-stone-300 dark:ring-white/30'
+                          : 'hover:shadow-sm hover:border-stone-300 dark:hover:border-white/30'
                       }`}
                     >
                       <span className="pr-8 text-sm font-medium leading-tight whitespace-pre-wrap break-words">
@@ -1280,42 +1427,49 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
                     // User message - editable textbox
                     <div className="w-full pl-0 pr-1">
                       {editingMessageId === message.id ? (
-                        <textarea
-                          ref={editingTextareaRef}
-                          value={editingMessageContent}
-                          onChange={(e) => setEditingMessageContent(e.target.value)}
-                          onBlur={() => {
-                            // Update message content
-                            setMessages((prev) =>
-                              prev.map((msg) =>
-                                msg.id === message.id
-                                  ? { ...msg, content: editingMessageContent }
-                                  : msg
-                              )
-                            );
-                            setEditingMessageId(null);
-                            // TODO: Save updated message to database
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              e.currentTarget.blur();
-                            }
-                            if (e.key === 'Escape') {
-                              setEditingMessageId(null);
-                              setEditingMessageContent(message.content);
-                            }
-                          }}
-                          className="w-full bg-muted/50 border border-border rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-12 focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all scrollbar-hide overflow-y-auto"
-                          style={{
-                            minHeight: '48px',
-                            maxHeight: '85px',
-                            lineHeight: '1.5',
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none'
-                          }}
-                          autoFocus
-                        />
+                        <div className="relative w-full">
+                          <textarea
+                            ref={editingTextareaRef}
+                            value={editingMessageContent}
+                            onChange={(e) => setEditingMessageContent(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleEditAndSend(message.id, editingMessageContent, message.timestamp);
+                              }
+                              if (e.key === 'Escape') {
+                                setEditingMessageId(null);
+                                setEditingMessageContent(message.content);
+                              }
+                            }}
+                            className="w-full bg-muted/50 border border-border rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-12 focus:border-stone-300 dark:focus:border-white/30 focus:ring-0 transition-all scrollbar-hide overflow-y-auto"
+                            style={{
+                              minHeight: '48px',
+                              maxHeight: '85px',
+                              lineHeight: '1.5',
+                              scrollbarWidth: 'none',
+                              msOverflowStyle: 'none'
+                            }}
+                            autoFocus
+                          />
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditAndSend(message.id, editingMessageContent, message.timestamp);
+                            }}
+                            size="icon"
+                            variant="ghost"
+                            className="absolute right-2 bottom-2 h-8 w-8 text-foreground hover:text-foreground hover:bg-transparent disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Send Message"
+                            disabled={!editingMessageContent.trim() || isLoading}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Send className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       ) : (
                         <div
                           ref={(el) => {
@@ -1329,7 +1483,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
                             setEditingMessageId(message.id);
                             setEditingMessageContent(message.content);
                           }}
-                          className="w-full bg-muted/50 border border-border rounded-lg px-4 py-3 cursor-text hover:border-primary/30 transition-colors overflow-hidden relative"
+                          className="w-full bg-muted/50 border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl rounded-lg px-4 py-3 cursor-text transition-all duration-300 overflow-hidden relative"
                           style={{ 
                             maxHeight: '85px',
                             minHeight: '48px',
@@ -1355,10 +1509,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
                           </p>
                           {hasOverflow.get(message.id) && (
                             <div 
-                              className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none rounded-b-lg"
-                              style={{
-                                background: 'linear-gradient(to bottom, transparent 0%, hsl(var(--muted) / 0.5) 70%, hsl(var(--muted) / 0.5) 100%)'
-                              }}
+                              className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none rounded-b-lg bg-gradient-to-b from-transparent to-white dark:to-black"
                             />
                           )}
                         </div>
@@ -1525,7 +1676,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
                   onKeyDown={handleKeyDown}
                   placeholder="Ask me anything..."
                   disabled={isLoading}
-                  className="w-full bg-transparent border border-border/50 rounded-lg outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground/60 py-3 px-4 pr-12 focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto"
+                  className="w-full bg-transparent border border-border/50 rounded-lg outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground/60 py-3 px-4 pr-12 focus:border-stone-300 dark:focus:border-white/30 focus:ring-0 transition-all scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto"
                   rows={1}
                   style={{
                     height: '75px',
