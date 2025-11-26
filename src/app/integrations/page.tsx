@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-client";
 import SearchComponent from "@/components/ui/animated-glowing-search-bar";
+import { useTheme } from "next-themes";
 import {
   Slack, FileSpreadsheet, Mail, Calendar, Database, Cloud, Check, Edit2, Webhook, Github,
   Trello, FileText, DollarSign, ShoppingCart, Users, MessageSquare, Bell, Zap,
@@ -16,10 +17,25 @@ import {
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function IntegrationsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // Fix hydration mismatch for theme
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [configuredIntegrations, setConfiguredIntegrations] = useState<Array<{
     id: string;
     name: string;
@@ -31,80 +47,123 @@ export default function IntegrationsPage() {
   }>>([]);
   const [integrationsLoading, setIntegrationsLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [comingSoonDialogOpen, setComingSoonDialogOpen] = useState<boolean>(false);
+  const [selectedIntegrationName, setSelectedIntegrationName] = useState<string>("");
 
-  // Demo integrations (will be shown since no real integrations exist yet)
-  const demoIntegrations = [
-    {
-      id: 'demo-1',
-      name: 'Google Sheets',
-      description: 'Read and write spreadsheet data',
-      icon: FileSpreadsheet,
-      slug: 'googlesheets',
-      gradient: 'from-green-500/20 to-emerald-500/20',
-      iconColor: 'text-green-400',
-      status: 'configured'
-    },
-    {
-      id: 'demo-2',
-      name: 'Slack',
-      description: 'Send messages to channels',
-      icon: Slack,
-      slug: 'slack',
-      gradient: 'from-purple-500/20 to-pink-500/20',
-      iconColor: 'text-purple-400',
-      status: 'configured'
-    },
-    {
-      id: 'demo-3',
-      name: 'Gmail',
-      description: 'Send and receive emails',
-      icon: Mail,
-      slug: 'gmail',
-      gradient: 'from-red-500/20 to-orange-500/20',
-      iconColor: 'text-red-400',
-      status: 'configured'
-    },
-    {
-      id: 'demo-4',
-      name: 'Google Calendar',
-      description: 'Manage calendar events',
-      icon: Calendar,
-      slug: 'googlecalendar',
-      gradient: 'from-blue-500/20 to-cyan-500/20',
-      iconColor: 'text-blue-400',
-      status: 'configured'
-    },
-    {
-      id: 'demo-5',
-      name: 'PostgreSQL',
-      description: 'Connect to databases',
-      icon: Database,
-      slug: 'postgresql',
-      gradient: 'from-indigo-500/20 to-blue-500/20',
-      iconColor: 'text-indigo-400',
-      status: 'configured'
-    },
-    {
-      id: 'demo-6',
-      name: 'AWS S3',
-      description: 'Store and retrieve files',
-      icon: Cloud,
-      slug: 'amazons3',
-      gradient: 'from-orange-500/20 to-yellow-500/20',
-      iconColor: 'text-orange-400',
-      status: 'configured'
-    },
-    {
-      id: 'demo-8',
-      name: 'GitHub',
-      description: 'Access repositories and issues',
-      icon: Github,
-      slug: 'github',
-      gradient: 'from-gray-500/20 to-slate-500/20',
-      iconColor: 'text-gray-400',
-      status: 'configured'
-    }
+  // List of integration slugs that have black or very dark logos (should be inverted to white in dark mode)
+  // NOTE: CSS filters (brightness-0 + invert) will make logos monochrome white, losing original colors
+  // Only include logos that are actually black/dark and need to be white in dark mode
+  const darkLogos = [
+    'github',      // Black - will be white in dark mode (loses colors if multi-colored)
+    'notion',      // Black - will be white in dark mode (loses colors if multi-colored)
+    'x',           // Twitter/X - black - will be white in dark mode
+    'openai',      // Dark gray/black (also needs to be black in light mode)
+    'postgresql',  // Very dark blue (appears almost black) - will be white in dark mode
+    'slack'        // Purple but should be white in dark mode (will lose original purple color)
   ];
+  
+  // Logos that should be black in light mode (but may be colored)
+  // NOTE: brightness-0 makes logos black, losing original colors
+  const lightModeBlackLogos = [
+    'openai'       // Purple in light mode, should be black (loses original color)
+  ];
+
+  // Helper function to check if a logo uses Brandfetch
+  const usesBrandfetch = (slug: string): boolean => {
+  const brandfetchSlugs = [
+      'googlesheets', 'slack', 'gmail', 'googlecalendar', 'postgresql', 'amazons3',
+      'github', 'trello', 'notion', 'stripe', 'shopify', 'hubspot', 'discord',
+      'twilio', 'sendgrid', 'zapier', 'dropbox', 'googledrive', 'airtable', 'x',
+      'facebook', 'instagram', 'linkedin', 'youtube', 'spotify', 'figma', 'canva',
+      'asana', 'mongodb', 'redis', 'salesforce', 'mailchimp', 'googleanalytics',
+      'intercom', 'zendesk', 'openai', 'zoom', 'microsoftteams'
+    ];
+    return brandfetchSlugs.includes(slug);
+  };
+
+  // Helper function to get logo URL - uses Brandfetch for specific logos, Simple Icons for others
+  const getLogoUrl = (slug: string): string => {
+    const isDark = mounted && theme === 'dark';
+    const clientId = '1dxbfHSJFAPEGdCLU4o5B';
+    const clientId2 = '1bxid64Mup7aczewSAYMX';
+    
+    // Brandfetch logo mappings
+    const brandfetchLogos: Record<string, { light?: string; dark?: string }> = {
+      'googlesheets': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idKa2XnbFY.svg?c=${clientId}` },
+      'slack': { dark: `https://cdn.brandfetch.io/idJ_HhtG0Z/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'gmail': { dark: `https://cdn.brandfetch.io/id5o3EIREg/theme/dark/symbol.svg?c=${clientId}` },
+      'googlecalendar': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idMX2_OMSc.svg?c=${clientId}` },
+      'postgresql': { dark: `https://cdn.brandfetch.io/idjSeCeMle/theme/dark/logo.svg?c=${clientId}` },
+      'amazons3': { 
+        light: `https://cdn.brandfetch.io/idVoqFQ-78/theme/dark/logo.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idVoqFQ-78/theme/light/logo.svg?c=${clientId}`
+      },
+      'github': {
+        light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`
+      },
+      'trello': { dark: `https://cdn.brandfetch.io/idToc8bDY1/theme/dark/symbol.svg?c=${clientId}` },
+      'notion': { dark: `https://cdn.brandfetch.io/idPYUoikV7/theme/dark/symbol.svg?c=${clientId}` },
+      'stripe': { dark: `https://cdn.brandfetch.io/idxAg10C0L/w/480/h/480/theme/dark/icon.jpeg?c=${clientId}` },
+      'shopify': { dark: `https://cdn.brandfetch.io/idAgPm7IvG/theme/dark/symbol.svg?c=${clientId}` },
+      'hubspot': { dark: `https://cdn.brandfetch.io/idRt0LuzRf/theme/dark/symbol.svg?c=${clientId}` },
+      'discord': { dark: `https://cdn.brandfetch.io/idM8Hlme1a/theme/dark/symbol.svg?c=${clientId}` },
+      'twilio': { dark: `https://cdn.brandfetch.io/idT7wVo_zL/theme/dark/symbol.svg?c=${clientId}` },
+      'sendgrid': { dark: `https://cdn.brandfetch.io/idHHcfw5Qu/theme/dark/symbol.svg?c=${clientId}` },
+      'zapier': { dark: `https://cdn.brandfetch.io/idNMs_nMA0/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'dropbox': { dark: `https://cdn.brandfetch.io/idY3kwH_Nx/theme/dark/symbol.svg?c=${clientId}` },
+      'googledrive': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idncaAgFGT.svg?c=${clientId}` },
+      'airtable': { dark: `https://cdn.brandfetch.io/iddsnRzkxS/theme/dark/symbol.svg?c=${clientId}` },
+      'x': {
+        light: `https://cdn.brandfetch.io/idS5WhqBbM/theme/dark/logo.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idS5WhqBbM/theme/light/logo.svg?c=${clientId}`
+      },
+      'facebook': { dark: `https://cdn.brandfetch.io/idpKX136kp/w/2084/h/2084/theme/dark/logo.png?c=${clientId}` },
+      'instagram': { dark: `https://cdn.brandfetch.io/ido5G85nya/theme/light/symbol.svg?c=${clientId}` },
+      'linkedin': { dark: `https://cdn.brandfetch.io/idJFz6sAsl/theme/dark/symbol.svg?c=${clientId}` },
+      'youtube': { dark: `https://cdn.brandfetch.io/idVfYwcuQz/theme/dark/symbol.svg?c=${clientId}` },
+      'spotify': { dark: `https://cdn.brandfetch.io/id20mQyGeY/theme/dark/symbol.svg?c=${clientId}` },
+      'figma': { dark: `https://cdn.brandfetch.io/idZHcZ_i7F/theme/dark/symbol.svg?c=${clientId}` },
+      'canva': { dark: `https://cdn.brandfetch.io/id9mVQlyB1/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'zoom': { dark: `https://cdn.brandfetch.io/id3aO4Szj3/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'microsoftteams': { dark: `https://cdn.brandfetch.io/idchmboHEZ/theme/dark/symbol.svg?c=${clientId}` },
+      'asana': { dark: `https://cdn.brandfetch.io/idxPi2Evsk/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'mongodb': { dark: `https://cdn.brandfetch.io/ideyyfT0Lp/theme/dark/idolyTWJJO.svg?c=${clientId}` },
+      'redis': { dark: `https://cdn.brandfetch.io/idFEnp00Rl/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'salesforce': { dark: `https://cdn.brandfetch.io/idVE84WdIN/theme/dark/logo.svg?c=${clientId}` },
+      'mailchimp': { dark: `https://cdn.brandfetch.io/idMvnv36a4/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'googleanalytics': { dark: `https://cdn.brandfetch.io/idYpJMnlBx/w/192/h/192/theme/dark/logo.png?c=${clientId}` },
+      'intercom': {
+        light: `https://cdn.brandfetch.io/idYJNDWF1m/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idYJNDWF1m/theme/light/symbol.svg?c=${clientId}`
+      },
+      'zendesk': {
+        light: `https://cdn.brandfetch.io/idNq8SRGPd/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idNq8SRGPd/theme/dark/idhQUhn6jo.svg?c=${clientId}`
+      },
+      'openai': {
+        light: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idR3duQxYl/theme/light/symbol.svg?c=${clientId}`
+      }
+    };
+
+    const logoConfig = brandfetchLogos[slug];
+    if (logoConfig) {
+      // If logo has theme-specific URLs, use appropriate one
+      if (isDark && logoConfig.dark) {
+        return logoConfig.dark;
+      } else if (!isDark && logoConfig.light) {
+        return logoConfig.light;
+      } else if (logoConfig.dark) {
+        // Fallback to dark if no light version
+        return logoConfig.dark;
+      }
+    }
+    
+    // Default to Simple Icons for logos not in the mapping
+    return `https://cdn.simpleicons.org/${slug}`;
+  };
+
 
   // All available integrations (40 integrations for 4x10 grid)
   const allIntegrations = [
@@ -222,104 +281,68 @@ export default function IntegrationsPage() {
               </h1>
             </div>
 
-            {/* Configured Integrations */}
-            <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
-              <div className="mb-6">
-                <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">
-                  Configured Integrations
-                </h2>
-                <p className="text-sm md:text-base text-muted-foreground mt-2">
-                  Your active integrations and connections
-                </p>
-              </div>
+            {/* Configured Integrations - Only show if there are configured integrations */}
+            {!integrationsLoading && configuredIntegrations.length > 0 && (
+              <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
+                <div className="mb-6">
+                  <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">
+                    Configured Integrations
+                  </h2>
+                  <p className="text-sm md:text-base text-muted-foreground mt-2">
+                    Your active integrations and connections
+                  </p>
+                </div>
 
-              <div>
-                {integrationsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="text-sm text-muted-foreground">Loading integrations...</div>
-                  </div>
-                ) : configuredIntegrations.length === 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {demoIntegrations.map((integration) => {
-                      const Icon = integration.icon;
-                      return (
-                        <div
-                          key={integration.id}
-                          className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg"
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="shrink-0">
-                              {integration.slug ? (
-                                <div className="p-2">
-                                  <img 
-                                    src={`https://cdn.simpleicons.org/${integration.slug}`} 
-                                    alt={integration.name} 
-                                    className="h-8 w-8" 
-                                  />
-                                </div>
-                              ) : (
+                <div>
+                  {integrationsLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-sm text-muted-foreground">Loading integrations...</div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {configuredIntegrations.map((integration) => {
+                        const Icon = integration.icon;
+                        return (
+                          <div
+                            key={integration.id}
+                            className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg"
+                          >
+                            <div className="flex items-start gap-4">
+                              <div className="shrink-0">
+                                {/* Since these are dynamic, we need to map them to slugs if we want logos, or store slug in DB. 
+                                    For now, falling back to icon if no slug in DB data, but the DB data is empty currently. 
+                                    If we had real data, we'd need slug there too. */}
                                 <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-3`}>
                                   <Icon className={`h-6 w-6 ${integration.iconColor}`} />
                                 </div>
-                              )}
-                            </div>
-                            <div className="space-y-1">
-                              <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
-                              <p className="text-xs text-muted-foreground">{integration.description}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="mt-4">
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
-                            >
-                              Configure
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {configuredIntegrations.map((integration) => {
-                      const Icon = integration.icon;
-                      return (
-                        <div
-                          key={integration.id}
-                          className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg"
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="shrink-0">
-                              {/* Since these are dynamic, we need to map them to slugs if we want logos, or store slug in DB. 
-                                  For now, falling back to icon if no slug in DB data, but the DB data is empty currently. 
-                                  If we had real data, we'd need slug there too. */}
-                              <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-3`}>
-                                <Icon className={`h-6 w-6 ${integration.iconColor}`} />
+                              </div>
+                              <div className="space-y-1">
+                                <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
+                                <p className="text-xs text-muted-foreground">{integration.description}</p>
                               </div>
                             </div>
-                            <div className="space-y-1">
-                              <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
-                              <p className="text-xs text-muted-foreground">{integration.description}</p>
+                            
+                            <div className="mt-4">
+                              <Button
+                                variant="ghost"
+                                onClick={() => {
+                                  setSelectedIntegrationName(integration.name);
+                                  setComingSoonDialogOpen(true);
+                                }}
+                                className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+                              >
+                                <Clock className="h-4 w-4" />
+                                Coming Soon
+                              </Button>
                             </div>
                           </div>
-                          
-                          <div className="mt-4">
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
-                            >
-                              Configure
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </section>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
 
             {/* Discover Integrations */}
             <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
@@ -350,9 +373,13 @@ export default function IntegrationsPage() {
                         {integration.slug ? (
                           <div className="p-2">
                             <img 
-                              src={`https://cdn.simpleicons.org/${integration.slug}`} 
+                              src={getLogoUrl(integration.slug)} 
                               alt={integration.name} 
-                              className="h-8 w-8" 
+                              className={`h-8 w-8 object-contain ${
+                                !usesBrandfetch(integration.slug) && darkLogos.includes(integration.slug) ? 'dark:brightness-0 dark:invert' : ''
+                              } ${
+                                !usesBrandfetch(integration.slug) && lightModeBlackLogos.includes(integration.slug) ? 'brightness-0' : ''
+                              }`} 
                             />
                           </div>
                         ) : (
@@ -370,9 +397,14 @@ export default function IntegrationsPage() {
                       <div className="mt-4">
                         <Button
                           variant="ghost"
+                          onClick={() => {
+                            setSelectedIntegrationName(integration.name);
+                            setComingSoonDialogOpen(true);
+                          }}
                           className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
                         >
-                          Configure
+                          <Clock className="h-4 w-4" />
+                          Coming Soon
                         </Button>
                       </div>
                     </div>
@@ -383,6 +415,34 @@ export default function IntegrationsPage() {
           </div>
         </main>
       </div>
+
+      {/* Coming Soon Dialog */}
+      <Dialog open={comingSoonDialogOpen} onOpenChange={setComingSoonDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Coming Soon</DialogTitle>
+            <DialogDescription className="pt-2">
+              {selectedIntegrationName ? (
+                <>
+                  This integration is coming soon. Our developers are working hard to integrate {selectedIntegrationName} into Runwise.
+                </>
+              ) : (
+                <>
+                  This integration is coming soon. Our developers are working hard to integrate it.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              onClick={() => setComingSoonDialogOpen(false)}
+              className="w-full sm:w-auto justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+            >
+              Okay
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

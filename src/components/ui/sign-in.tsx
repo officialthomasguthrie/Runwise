@@ -80,7 +80,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div className="h-[100dvh] flex flex-col md:flex-row font-geist w-[100dvw] relative" suppressHydrationWarning={true}>
+    <div className="h-[100dvh] flex flex-col md:flex-row font-geist w-[100dvw] relative bg-background text-foreground" suppressHydrationWarning={true}>
       {/* Go Back Button */}
       {onGoBack && (
         <button
@@ -103,7 +103,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               <div className="animate-element animate-delay-300" suppressHydrationWarning={true}>
                 <label className="text-xs font-medium text-muted-foreground">Email Address</label>
                 <GlassInputWrapper>
-                  <input name="email" type="email" placeholder="Enter your email address" className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none" />
+                  <input name="email" type="email" placeholder="Enter your email address" className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" />
                 </GlassInputWrapper>
               </div>
 
@@ -111,7 +111,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 <label className="text-xs font-medium text-muted-foreground">Password</label>
                 <GlassInputWrapper>
                   <div className="relative" suppressHydrationWarning={true}>
-                    <input name="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" className="w-full bg-transparent text-xs p-1.5 pr-7 rounded-lg focus:outline-none" />
+                    <input name="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" className="w-full bg-transparent text-xs p-1.5 pr-7 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-1.5 flex items-center">
                       {showPassword ? <EyeOff className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />}
                     </button>
@@ -138,12 +138,12 @@ export const SignInPage: React.FC<SignInPageProps> = ({
             </div>
 
             <div className="animate-element animate-delay-1000 space-y-1" suppressHydrationWarning={true}>
-              <button onClick={onGoogleSignIn} className="w-full flex items-center justify-center gap-2 border border-border rounded-lg py-1.5 hover:bg-secondary transition-colors">
+              <button onClick={onGoogleSignIn} className="w-full flex items-center justify-center gap-2 border border-border rounded-lg py-1.5 hover:bg-secondary transition-colors text-foreground bg-background">
                 <GoogleIcon />
                 <span className="text-xs">Continue with Google</span>
               </button>
               
-              <button onClick={onMicrosoftSignIn} className="w-full flex items-center justify-center gap-2 border border-border rounded-lg py-1.5 hover:bg-secondary transition-colors">
+              <button onClick={onMicrosoftSignIn} className="w-full flex items-center justify-center gap-2 border border-border rounded-lg py-1.5 hover:bg-secondary transition-colors text-foreground bg-background">
                 <MicrosoftIcon />
                 <span className="text-xs">Continue with Microsoft</span>
               </button>

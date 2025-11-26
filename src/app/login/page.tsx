@@ -1,6 +1,5 @@
 "use client";
 
-import { Metadata } from "next";
 import { SignInPage, Testimonial } from "@/components/ui/sign-in";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
@@ -105,7 +104,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="bg-background text-foreground" suppressHydrationWarning={true}>
+    <div className="min-h-screen w-full bg-background text-foreground" suppressHydrationWarning={true}>
       <SignInPage
         title={<span className="font-light text-foreground tracking-tighter">Welcome back</span>}
         description="Sign in to your account to continue building AI workflows"

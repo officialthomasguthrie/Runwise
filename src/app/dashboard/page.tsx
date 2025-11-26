@@ -250,7 +250,7 @@ export default function DashboardPage() {
         <CollapsibleSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <BlankHeader />
-          <main className="flex h-full grow flex-col overflow-auto relative">
+          <main className="flex h-full grow flex-col overflow-auto relative scrollbar-hide">
             {/* Dashboard Hero Section */}
             <section className="relative pt-6 pb-48">
               <GridBackground variant="auto" />

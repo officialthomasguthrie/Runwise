@@ -36,6 +36,15 @@ export default function TemplatesPage() {
       gradient: "from-purple-500/20 to-pink-500/20",
       iconColor: "text-purple-400",
       category: "Marketing"
+    },
+    {
+      id: 2,
+      name: "Email Auto-Responder",
+      description: "Automatically generate summaries and AI-powered replies to incoming emails.",
+      icon: Mail,
+      gradient: "from-blue-500/20 to-cyan-500/20",
+      iconColor: "text-blue-400",
+      category: "Communication"
     }
   ];
 
@@ -141,9 +150,7 @@ export default function TemplatesPage() {
                     >
                       <div className="flex items-start gap-4">
                         <div className="shrink-0">
-                          <div className={`rounded-md bg-gradient-to-br ${template.gradient} p-3`}>
-                            <IconComponent className={`h-6 w-6 ${template.iconColor}`} />
-                          </div>
+                          <IconComponent className="h-6 w-6 text-black dark:text-white" />
                         </div>
                         <div className="space-y-1">
                           <h3 className="text-sm font-semibold text-foreground">{template.name}</h3>

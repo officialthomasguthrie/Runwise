@@ -26,7 +26,7 @@ export const GridBackground = ({
     switch (currentVariant) {
       case "dark":
         return {
-          background: "#000000",
+          background: "hsl(0, 0%, 4%)",
           backgroundImage: `
             linear-gradient(to right, rgba(75, 85, 99, 0.4) 1px, transparent 1px),
             linear-gradient(to bottom, rgba(75, 85, 99, 0.4) 1px, transparent 1px)
@@ -55,7 +55,7 @@ export const GridBackground = ({
       default: // auto - theme-aware
         if (mounted && theme === "dark") {
           return {
-            background: "#000000",
+            background: "hsl(0, 0%, 4%)",
             backgroundImage: `
               linear-gradient(to right, rgba(75, 85, 99, 0.4) 1px, transparent 1px),
               linear-gradient(to bottom, rgba(75, 85, 99, 0.4) 1px, transparent 1px),
@@ -87,13 +87,13 @@ export const GridBackground = ({
         className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none"
         style={{
           background: `linear-gradient(to bottom, transparent 0%, ${
-            mounted && theme === "dark" ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.3)"
+            mounted && theme === "dark" ? "rgba(10,10,10,0.3)" : "rgba(255,255,255,0.3)"
           } 30%, ${
-            mounted && theme === "dark" ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.6)"
+            mounted && theme === "dark" ? "rgba(10,10,10,0.6)" : "rgba(255,255,255,0.6)"
           } 60%, ${
-            mounted && theme === "dark" ? "rgba(0,0,0,0.9)" : "rgba(255,255,255,0.9)"
+            mounted && theme === "dark" ? "rgba(10,10,10,0.9)" : "rgba(255,255,255,0.9)"
           } 85%, ${
-            mounted && theme === "dark" ? "rgba(0,0,0,1)" : "rgba(255,255,255,1)"
+            mounted && theme === "dark" ? "hsl(0, 0%, 4%)" : "rgba(255,255,255,1)"
           } 100%)`
         }}
       />
