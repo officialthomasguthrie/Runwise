@@ -73,7 +73,7 @@ export default function FeedbackPage() {
       <CollapsibleSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <BlankHeader />
-        <main className="flex h-full grow flex-col overflow-auto relative">
+        <main className="flex h-full grow flex-col overflow-auto relative scrollbar-hide">
           <div className="relative pb-12">
             <div className="relative z-10 px-4 sm:px-6 lg:px-8 pb-4">
               <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7">

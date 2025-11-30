@@ -1,0 +1,89 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap");
+
+@import "tailwindcss";
+
+body {
+  font-family: "Outfit", sans-serif;
+  background-color: black;
+  color: white;
+}
+
+.start-building-btn {
+  box-shadow: rgba(0, 0, 0, 0.15) 0px 0.706592px 0.706592px -0.625px,
+    rgba(0, 0, 0, 0.14) 0px 1.80656px 1.80656px -1.25px,
+    rgba(0, 0, 0, 0.14) 0px 3.62176px 3.62176px -1.875px,
+    rgba(0, 0, 0, 0.13) 0px 6.8656px 6.8656px -2.5px,
+    rgba(0, 0, 0, 0.1) 0px 13.6468px 13.6468px -3.125px,
+    rgba(0, 0, 0, 0.05) 0px 30px 30px -3.75px;
+}
+
+.marque-slider {
+  opacity: 1;
+  mask-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0) 0%,
+    rgb(0, 0, 0) 25%,
+    rgb(0, 0, 0) 75%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+.marque-slider-content {
+  animation: marquee 30s linear infinite;
+  will-change: transform;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow-2 4s linear infinite;
+}
+
+@keyframes spin-slow-2 {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(333%);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 5s linear infinite;
+}
+
+.animate-progress {
+  animation: progress 5s ease-in-out infinite;
+}
+
+@media screen and (max-width: 1200px) {
+  .data-insights-box:first-child,
+  .data-insights-box:last-child {
+    display: none;
+  }
+}

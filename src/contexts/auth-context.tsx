@@ -81,6 +81,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    if (typeof window === 'undefined') {
+      return { error: new Error('Window is not available') };
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -91,6 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithMicrosoft = async () => {
+    if (typeof window === 'undefined') {
+      return { error: new Error('Window is not available') };
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'azure',
       options: {
