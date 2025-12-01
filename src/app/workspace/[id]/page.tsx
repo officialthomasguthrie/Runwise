@@ -787,8 +787,8 @@ export default function WorkspacePage() {
             style={{ 
               marginRight: isDesktop && isChatSidebarVisible ? `${sidebarWidth}px` : '0px',
               marginLeft: isLeftSidebarVisible 
-                ? `${leftSidebarWidth + (isConfigPanelVisible ? 514 : 0)}px` 
-                : isConfigPanelVisible ? '514px' : '0px'
+                ? `${leftSidebarWidth + (isConfigPanelVisible ? 320 : 0)}px` 
+                : isConfigPanelVisible ? '320px' : '0px'
             }}
           >
             {/* Hide Sidebar Button - top left of canvas area */}
@@ -945,7 +945,7 @@ export default function WorkspacePage() {
                     setIsChatSidebarVisible(true);
                   }
                   // Send the message to the chat with context
-                  setExternalChatMessage(`Help me fill out the ${fieldName}.`);
+                  setExternalChatMessage(`Help me with the ${fieldName}.`);
                   setExternalChatContext({
                     fieldName,
                     nodeType,

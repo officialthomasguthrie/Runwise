@@ -1062,19 +1062,19 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       timestamp: new Date().toISOString(),
     };
 
-          // Add user message
-          setMessages((prev) => [...prev, userMessage]);
-          setInputValue('');
-          setIsLoading(true);
-          setError(null);
+    // Add user message
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue('');
+    setIsLoading(true);
+    setError(null);
           
           // Clear workflow prompt for external messages (Ask AI) - will be set only if AI explicitly proposes workflow
           if (externalMessage) {
             setWorkflowPrompt(null);
           }
 
-          // Track if this is a new conversation
-          const isFirstMessage = isNewConversation.current;
+    // Track if this is a new conversation
+    const isFirstMessage = isNewConversation.current;
 
     // Ensure the conversation exists before saving the first message (RLS requires it)
     if (isFirstMessage) {
@@ -1876,7 +1876,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             const lastMessage = messages[messages.length - 1];
             if (!lastMessage || lastMessage.role !== 'assistant') return false;
             
-            const content = lastMessage.content.toLowerCase();
+              const content = lastMessage.content.toLowerCase();
             // Only show if AI explicitly mentions generating a workflow, creating a workflow, or clicking generate workflow button
             const explicitlyProposesWorkflow = 
               (content.includes('generate workflow') || 
@@ -1888,6 +1888,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                content.includes('generate workflow button')) &&
               // Don't show for field-filling questions
               !content.includes('help me fill out') &&
+              !content.includes('help me with') &&
               !content.includes('fill out the') &&
               !content.includes('api key') &&
               !content.includes('field');

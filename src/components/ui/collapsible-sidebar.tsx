@@ -95,11 +95,11 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
     >
       <div className="flex items-center justify-center px-2 py-4">
         <Link href="/" className="flex items-center justify-center">
-          <img
-            src="/logo.png"
-            alt="Runwise Logo"
-            className="h-8 w-auto object-contain"
-          />
+        <img
+          src="/logo.png"
+          alt="Runwise Logo"
+          className="h-8 w-auto object-contain"
+        />
         </Link>
       </div>
       <nav className="flex-1 px-2 pb-4 mt-2">

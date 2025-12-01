@@ -82,7 +82,7 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onAskAI }: NodeConfig
               Configuration required: {configuredFieldsCount}/{requiredFieldsCount} fields
             </p>
           )}
-        </div>
+      </div>
 
         {/* Configuration Fields */}
         {Object.entries(configSchema).map(([key, schema]: [string, any]) => (
@@ -91,15 +91,15 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onAskAI }: NodeConfig
               {schema.label}
               {schema.required && <span className="text-red-500 ml-1">*</span>}
             </label>
-            
+
             {/* Text Input */}
             {schema.type === 'string' && !schema.options && (
               <div className="relative">
-                <Input
-                  type="text"
+              <Input
+                type="text"
                   value={localConfig[key] || ''}
-                  onChange={(e) => handleChange(key, e.target.value)}
-                  placeholder={schema.description}
+                onChange={(e) => handleChange(key, e.target.value)}
+                placeholder={schema.description}
                   className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-border focus-visible:border-border pr-24"
                 />
                 <Button
@@ -122,10 +122,10 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onAskAI }: NodeConfig
             {/* Textarea */}
             {schema.type === 'textarea' && (
               <div className="relative">
-                <Textarea
+              <Textarea
                   value={localConfig[key] || ''}
-                  onChange={(e) => handleChange(key, e.target.value)}
-                  placeholder={schema.description}
+                onChange={(e) => handleChange(key, e.target.value)}
+                placeholder={schema.description}
                   rows={3}
                   className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-border focus-visible:border-border pb-10"
                 />
@@ -185,13 +185,13 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onAskAI }: NodeConfig
 
       {/* Save Button at Bottom */}
       <div className="p-4 bg-background/95 backdrop-blur-sm">
-        <Button
-          onClick={handleSave}
+          <Button
+            onClick={handleSave}
           variant="ghost"
           className="w-full justify-center items-center text-center backdrop-blur-xl bg-gray-100 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-gray-200 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
-        >
+          >
           Save Configuration
-        </Button>
+          </Button>
       </div>
     </div>
   );
