@@ -166,7 +166,8 @@ export const Header: React.FC = () => {
               </div>
 
               {/* Button - Desktop */}
-              <button
+              <Link
+                href="/dashboard"
                 className={`border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg start-building-btn cursor-pointer overflow-hidden relative group hidden md:block transition-all duration-500 ease-in-out mr-2 ${
                   isScrolled ? "h-[34px]" : "h-[38px]"
                 }`}
@@ -248,7 +249,7 @@ export const Header: React.FC = () => {
                     />
                   </div>
                 </div>
-              </button>
+              </Link>
 
               {/* Hamburger/Close Menu Button - Mobile */}
               <button
@@ -314,7 +315,7 @@ export const Header: React.FC = () => {
           </nav>
 
           {/* Mobile Button */}
-          <button className="w-full border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center gap-2 hover:bg-[#bd28b3] transition-colors">
+          <Link href="/dashboard" className="w-full border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center gap-2 hover:bg-[#bd28b3] transition-colors">
             <span className="text-sm font-normal leading-[1.2em] text-white">
               Start Building
             </span>
@@ -324,7 +325,7 @@ export const Header: React.FC = () => {
               loading="lazy"
               className="w-4 h-4"
             />
-          </button>
+          </Link>
         </div>
       </div>
     </>

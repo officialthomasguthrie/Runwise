@@ -40,6 +40,9 @@ interface AIChatSidebarProps {
   onWorkflowGenerated?: (workflow: { nodes: any[]; edges: any[]; workflowName?: string }) => void;
   initialPrompt?: string | null;
   getCurrentWorkflow?: () => { nodes: any[]; edges: any[] };
+  externalMessage?: string | null;
+  externalContext?: { fieldName?: string; nodeType?: string; nodeId?: string; workflowName?: string } | null;
+  onExternalMessageSent?: () => void;
 }
 
 /**
@@ -52,7 +55,14 @@ interface AIChatSidebarProps {
  * - Message history with database persistence
  * - Chat history browsing
  */
-export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerated, initialPrompt, getCurrentWorkflow }) => {
+export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ 
+  onWorkflowGenerated, 
+  initialPrompt, 
+  getCurrentWorkflow,
+  externalMessage,
+  externalContext,
+  onExternalMessageSent
+}) => {
   const { user } = useAuth();
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -411,6 +421,309 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
     }
   }, [initialPrompt, user, isLoading]);
 
+  // Handle external messages from Ask AI button
+  const hasProcessedExternalMessage = useRef<string | null>(null);
+  useEffect(() => {
+    // Reset ref when external message is cleared
+    if (!externalMessage) {
+      hasProcessedExternalMessage.current = null;
+      return;
+    }
+    
+    if (externalMessage && user && !isLoading && hasProcessedExternalMessage.current !== externalMessage) {
+      hasProcessedExternalMessage.current = externalMessage;
+      
+      // Build the message with context
+      let messageContent = externalMessage;
+      if (externalContext) {
+        const contextParts: string[] = [];
+        if (externalContext.fieldName) {
+          contextParts.push(`Field: ${externalContext.fieldName}`);
+        }
+        if (externalContext.nodeType) {
+          contextParts.push(`Node Type: ${externalContext.nodeType}`);
+        }
+        if (externalContext.workflowName) {
+          contextParts.push(`Workflow: ${externalContext.workflowName}`);
+        }
+        if (contextParts.length > 0) {
+          messageContent += `\n\nContext: ${contextParts.join(', ')}`;
+        }
+      }
+
+      // Get or create conversation ID
+      let conversationId = activeConversationId;
+      const isFirstMessage = isNewConversation.current;
+      
+      if (isFirstMessage) {
+        // Create a new conversation ID
+        conversationId = `chat_${Date.now()}`;
+        setActiveConversationId(conversationId);
+        setMessages([]);
+        setWorkflowPrompt(null);
+        setError(null);
+        setHasUnsavedMessages(false);
+        isNewConversation.current = true;
+        titleGeneratedRef.current = false;
+        shortTitleGeneratedRef.current = false;
+        setShowChatHistory(false);
+
+        // Open a new tab for this conversation immediately
+        const newTab: ChatConversation = {
+          id: conversationId,
+          title: 'New Chat',
+          user_id: user?.id ?? '',
+          created_at: new Date().toISOString(),
+        } as ChatConversation;
+        setOpenTabs((prev) => {
+          const withoutDup = prev.filter(t => t.id !== conversationId);
+          const updated = [...withoutDup, newTab];
+          return updated.slice(-5);
+        });
+      }
+
+      // Set input value and send after a short delay
+      setInputValue(messageContent);
+      setTimeout(() => {
+        const sendExternalMsg = async () => {
+          if (!user) return;
+
+          const userMessage: ChatMessage = {
+            id: `msg_${Date.now()}`,
+            role: 'user',
+            content: messageContent.trim(),
+            timestamp: new Date().toISOString(),
+          };
+
+          // Add user message
+          setMessages((prev) => [...prev, userMessage]);
+          setInputValue('');
+          setIsLoading(true);
+          setError(null);
+
+          // Ensure the conversation exists before saving the first message
+          if (isFirstMessage) {
+            const conversationTitle = 'New Chat';
+            const { success, error } = await saveConversation(
+              conversationId,
+              conversationTitle,
+              user.id
+            );
+
+            if (!success) {
+              console.error('Failed to create conversation before external message:', error);
+              setIsLoading(false);
+              setError(error || 'Failed to create conversation');
+              return;
+            }
+
+            isNewConversation.current = false;
+            loadUserConversations();
+          }
+
+          // Save user message to database
+          await saveMessage(userMessage, conversationId);
+
+          // Generate title from first user message for new chats
+          if (isFirstMessage) {
+            shortTitleGeneratedRef.current = true;
+            generateShortTitle(userMessage.content).then((shortTitle) => {
+              if (shortTitle) {
+                updateConversationTitle(conversationId, shortTitle);
+                setConversationTitleEverywhere(conversationId, shortTitle);
+              }
+            }).catch((err) => {
+              console.error('Error generating short title:', err);
+            });
+          }
+
+          // Create streaming AI message placeholder
+          const aiMessageId = `msg_${Date.now()}`;
+          const aiMessage: ChatMessage = {
+            id: aiMessageId,
+            role: 'assistant',
+            content: 'Thinking...',
+            timestamp: new Date().toISOString(),
+          };
+
+          setMessages((prev) => [...prev, aiMessage]);
+
+          try {
+            // Build enhanced message with context for AI
+            let enhancedMessage = externalMessage;
+            if (externalContext) {
+              const contextInfo: string[] = [];
+              if (externalContext.fieldName) {
+                contextInfo.push(`The user is asking about the "${externalContext.fieldName}" field`);
+              }
+              if (externalContext.nodeType) {
+                contextInfo.push(`in a "${externalContext.nodeType}" node`);
+              }
+              if (externalContext.workflowName) {
+                contextInfo.push(`within the "${externalContext.workflowName}" workflow`);
+              }
+              if (contextInfo.length > 0) {
+                enhancedMessage += `. ${contextInfo.join(', ')}.`;
+              }
+            }
+
+            // Call AI chat API with streaming and context
+            const response = await fetch('/api/ai/chat', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                message: enhancedMessage,
+                chatId: conversationId,
+                conversationHistory: messages,
+                context: externalContext ? {
+                  fieldName: externalContext.fieldName,
+                  nodeType: externalContext.nodeType,
+                  nodeId: externalContext.nodeId,
+                  workflowName: externalContext.workflowName,
+                } : undefined,
+              }),
+            });
+
+            if (!response.ok) {
+              const errorData = await safeParseJSON(response);
+              throw new Error(errorData.error || 'Failed to get AI response');
+            }
+
+            if (!response.body) {
+              throw new Error('Response body is null');
+            }
+
+            // Read the stream
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let fullMessage = '';
+
+            while (true) {
+              const { done, value } = await reader.read();
+              
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n\n');
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const jsonStr = line.slice(6).trim();
+                  if (!jsonStr || jsonStr.length === 0) continue;
+                  
+                  try {
+                    const data = JSON.parse(jsonStr);
+                    
+                    if (data.type === 'chunk') {
+                      fullMessage += data.content;
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === aiMessageId
+                            ? { ...msg, content: fullMessage }
+                            : msg
+                        )
+                      );
+                    } else if (data.type === 'complete') {
+                      fullMessage = data.message;
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === aiMessageId
+                            ? { ...msg, content: fullMessage }
+                            : msg
+                        )
+                      );
+
+                      const completeAiMessage: ChatMessage = {
+                        id: aiMessageId,
+                        role: 'assistant',
+                        content: fullMessage,
+                        timestamp: new Date().toISOString(),
+                      };
+                      await saveMessage(completeAiMessage, conversationId);
+
+                      if (!titleGeneratedRef.current && !shortTitleGeneratedRef.current) {
+                        titleGeneratedRef.current = true;
+                        const source = messages.length > 0 ? messages[0].content : fullMessage;
+                        const aiTitle = await requestAiTitle(source);
+                        const finalTitle = aiTitle || generateConversationTitle(source);
+                        await updateConversationTitle(conversationId, finalTitle);
+                        setConversationTitleEverywhere(conversationId, finalTitle);
+                      }
+
+                      // Only set workflowPrompt if AI explicitly proposes workflow generation
+                      // For external messages (Ask AI), be more strict
+                      if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
+                        const responseContent = fullMessage.toLowerCase();
+                        const explicitlyProposesWorkflow = 
+                          responseContent.includes('generate workflow') ||
+                          responseContent.includes('create workflow') ||
+                          responseContent.includes('build workflow') ||
+                          responseContent.includes("click 'generate workflow'") ||
+                          responseContent.includes('click the generate workflow button') ||
+                          responseContent.includes('generate workflow button');
+                        
+                        // For external messages (Ask AI), only set if explicitly proposed
+                        if (externalMessage) {
+                          if (explicitlyProposesWorkflow) {
+                            setWorkflowPrompt(data.metadata.workflowPrompt);
+                          } else {
+                            // Clear workflow prompt for field-filling questions
+                            setWorkflowPrompt(null);
+                          }
+                        } else {
+                          // For regular messages, set workflow prompt normally
+                          setWorkflowPrompt(data.metadata.workflowPrompt);
+                        }
+                      } else if (externalMessage) {
+                        // Clear workflow prompt if no workflow intent detected for external messages
+                        setWorkflowPrompt(null);
+                      }
+                    } else if (data.type === 'error') {
+                      throw new Error(data.error || 'Stream error');
+                    }
+                  } catch (parseError) {
+                    if (jsonStr.length > 0) {
+                      console.error('Error parsing stream data:', parseError);
+                    }
+                  }
+                }
+              }
+            }
+
+            // Notify that message was sent
+            if (onExternalMessageSent) {
+              onExternalMessageSent();
+            }
+          } catch (err: any) {
+            console.error('Error sending external message:', err);
+            setError(err.message || 'Failed to send message');
+            
+            setMessages((prev) => {
+              const filtered = prev.filter((msg) => msg.id !== aiMessageId);
+              return [
+                ...filtered,
+                {
+                  id: `msg_${Date.now()}`,
+                  role: 'assistant',
+                  content: `Sorry, I encountered an error: ${err.message}`,
+                  timestamp: new Date().toISOString(),
+                },
+              ];
+            });
+          } finally {
+            setIsLoading(false);
+          }
+        };
+
+        sendExternalMsg();
+      }, 100);
+    }
+  }, [externalMessage, externalContext, user, isLoading, onExternalMessageSent]);
+
   // Load conversations function
   const loadUserConversations = async () => {
     setIsLoadingConversations(true);
@@ -749,14 +1062,19 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
       timestamp: new Date().toISOString(),
     };
 
-    // Add user message
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue('');
-    setIsLoading(true);
-    setError(null);
+          // Add user message
+          setMessages((prev) => [...prev, userMessage]);
+          setInputValue('');
+          setIsLoading(true);
+          setError(null);
+          
+          // Clear workflow prompt for external messages (Ask AI) - will be set only if AI explicitly proposes workflow
+          if (externalMessage) {
+            setWorkflowPrompt(null);
+          }
 
-    // Track if this is a new conversation
-    const isFirstMessage = isNewConversation.current;
+          // Track if this is a new conversation
+          const isFirstMessage = isNewConversation.current;
 
     // Ensure the conversation exists before saving the first message (RLS requires it)
     if (isFirstMessage) {
@@ -1553,18 +1871,28 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ onWorkflowGenerate
 
           {/* Loading state is now handled by showing the streaming message */}
 
-          {/* Workflow Generation Button - Only show if last message is from AI and mentions generating */}
+          {/* Workflow Generation Button - Only show if last message is from AI and explicitly proposes workflow generation */}
           {workflowPrompt && !isGeneratingWorkflow && (() => {
             const lastMessage = messages[messages.length - 1];
             if (!lastMessage || lastMessage.role !== 'assistant') return false;
             
             const content = lastMessage.content.toLowerCase();
-            const mentionsGenerate = content.includes('generate') || 
-                                    content.includes('click') ||
-                                    content.includes('ready') ||
-                                    content.includes('would you like');
+            // Only show if AI explicitly mentions generating a workflow, creating a workflow, or clicking generate workflow button
+            const explicitlyProposesWorkflow = 
+              (content.includes('generate workflow') || 
+               content.includes('create workflow') ||
+               content.includes('build workflow') ||
+               content.includes('make a workflow') ||
+               content.includes("click 'generate workflow'") ||
+               content.includes('click the generate workflow button') ||
+               content.includes('generate workflow button')) &&
+              // Don't show for field-filling questions
+              !content.includes('help me fill out') &&
+              !content.includes('fill out the') &&
+              !content.includes('api key') &&
+              !content.includes('field');
             
-            return mentionsGenerate;
+            return explicitlyProposesWorkflow;
            })() && (
              <div className="flex justify-center py-2">
                <Button

@@ -84,13 +84,15 @@ export function MinimalSidebar() {
       {/* Logo Section */}
       <div className="h-16 flex items-center justify-center border-b border-border px-4">
         {isCollapsed ? (
-          <img
-            src={logoSrc}
-            alt="Runwise Logo"
-            className="h-8 w-8 object-contain"
-          />
+          <Link href="/" className="flex items-center justify-center">
+            <img
+              src={logoSrc}
+              alt="Runwise Logo"
+              className="h-8 w-8 object-contain"
+            />
+          </Link>
         ) : (
-          <Link href="/dashboard" className="flex items-center">
+          <Link href="/" className="flex items-center">
             <img
               src={logoSrc}
               alt="Runwise Logo"

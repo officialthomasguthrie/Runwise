@@ -4,7 +4,7 @@ import Link from "next/link";
 export const Footer: React.FC = () => {
   return (
     <footer className="border-t border-[#ffffff1a] pt-[64px] pb-8 px-10 relative overflow-hidden">
-      <div className="max-w-[1200px] w-full mx-auto flex gap-6 md:gap-2.5 flex-col md:flex-row md:justify-between relative z-30">
+      <div className="max-w-[1200px] w-full mx-auto flex gap-6 md:gap-8 flex-col md:flex-row md:justify-between relative z-30">
         <div className="flex flex-col gap-7.5">
           <div>
             <Link href="/" className="text-[28px] font-medium">
@@ -57,30 +57,42 @@ export const Footer: React.FC = () => {
           </ul>
         </div>
 
-        <ul className="flex flex-col gap-y-2.5">
-          <li className="text-base font-normal -tracking-[.02em] leading-[1.4em] hover:text-white">
-            Navigation
-          </li>
-          <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-            <Link href="#process">Process</Link>
-          </li>
+        <div className="flex flex-col sm:flex-row gap-8">
+          {/* Navigation column */}
+          <ul className="flex flex-col gap-y-2.5 min-w-[140px]">
+            <li className="text-base font-normal -tracking-[.02em] leading-[1.4em] hover:text-white">
+              Navigation
+            </li>
+            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+              <Link href="#process">Process</Link>
+            </li>
 
-          <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-            <Link href="#possibilities">Services</Link>
-          </li>
+            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+              <Link href="#possibilities">Services</Link>
+            </li>
 
-          <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-            <Link href="#benefits">Benefits</Link>
-          </li>
+            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+              <Link href="#benefits">Benefits</Link>
+            </li>
 
-          <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-            <Link href="#pricing">Plans</Link>
-          </li>
+            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+              <Link href="#pricing">Plans</Link>
+            </li>
+          </ul>
 
-          <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-            <Link href="#contact">Contact</Link>
-          </li>
-        </ul>
+          {/* Contact column */}
+          <ul className="flex flex-col gap-y-2.5 min-w-[180px]">
+            <li className="text-base font-normal -tracking-[.02em] leading-[1.4em] hover:text-white">
+              Contact
+            </li>
+            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+              <a href="mailto:hello@runwiseai.app">Email: hello@runwiseai.app</a>
+            </li>
+            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+              <a href="tel:+640223591512">Phone: +64 022 359 1512</a>
+            </li>
+          </ul>
+        </div>
       </div>
 
       {/* Copyright */}

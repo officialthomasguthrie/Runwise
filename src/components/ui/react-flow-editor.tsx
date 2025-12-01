@@ -31,7 +31,7 @@ import type { Workflow } from '@/lib/workflows/types';
 import type { WorkflowExecutionResult } from '@/lib/workflow-execution/types';
 import { getLayoutedElements } from '@/lib/workflows/layout';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, ChevronDown, ChevronUp, Settings, AlertCircle, Play } from 'lucide-react';
+import { CheckCircle, XCircle, ChevronDown, ChevronUp, Settings, AlertCircle, Play, ChevronLeft } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 
 const HorizontalWorkflowIcon = ({ className, ...props }: LucideProps) => (
@@ -94,6 +94,8 @@ interface ReactFlowEditorProps {
   onRegisterUndoRedoCallbacks?: (callbacks: { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean }) => void; // Optional: register undo/redo callbacks
   onRegisterSaveCallback?: (callback: () => Promise<void>) => void; // Optional: register save callback for external save button
   onOpenAddNodeSidebar?: (placeholderId?: string) => void; // Optional: callback to open the add node sidebar
+  onConfigPanelVisibilityChange?: (isVisible: boolean) => void; // Optional: callback when config panel visibility changes
+  onAskAI?: (fieldName: string, nodeId: string, nodeType: string) => void; // Optional: callback when Ask AI button is clicked
 }
 
 export const ReactFlowEditor = ({
@@ -114,6 +116,8 @@ export const ReactFlowEditor = ({
   onRegisterUndoRedoCallbacks,
   onRegisterSaveCallback,
   onOpenAddNodeSidebar,
+  onConfigPanelVisibilityChange,
+  onAskAI,
 }: ReactFlowEditorProps = {}) => {
   const { user } = useAuth();
   const router = useRouter();
@@ -313,6 +317,12 @@ export const ReactFlowEditor = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onRegisterConfigureCallback]);
 
+  // Notify config panel visibility changes
+  useEffect(() => {
+    if (onConfigPanelVisibilityChange) {
+      onConfigPanelVisibilityChange(showConfigPanel);
+    }
+  }, [showConfigPanel, onConfigPanelVisibilityChange]);
 
   // Notify execution state changes
   useEffect(() => {
@@ -1204,14 +1214,28 @@ export const ReactFlowEditor = ({
 
       {/* Node Configuration Panel */}
       {showConfigPanel && selectedNodeForConfig && (
-        <NodeConfigPanel
-          node={selectedNodeForConfig}
-          onUpdate={handleNodeConfigUpdate}
-          onClose={() => {
-            setShowConfigPanel(false);
-            setSelectedNodeForConfig(null);
-          }}
-        />
+        <>
+          <NodeConfigPanel
+            node={selectedNodeForConfig}
+            onUpdate={handleNodeConfigUpdate}
+            onClose={() => {
+              setShowConfigPanel(false);
+              setSelectedNodeForConfig(null);
+            }}
+            onAskAI={onAskAI}
+          />
+          {/* Close Config Panel Button - positioned outside the panel with gap and animation */}
+          <button
+            onClick={() => {
+              setShowConfigPanel(false);
+              setSelectedNodeForConfig(null);
+            }}
+            className="fixed top-20 left-[530px] z-30 inline-flex items-center justify-center rounded-sm p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/50 bg-background/95 backdrop-blur-sm border border-border/60 animate-in slide-in-from-left duration-300"
+            title="Hide config panel"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        </>
       )}
 
       {/* Execution Status Indicator */}

@@ -1,5 +1,4 @@
 import { Benefits } from "./components/Benefits";
-import { Contact } from "./components/Contact";
 import { FAQ } from "./components/FAQ";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
@@ -11,7 +10,7 @@ import { WhoWeAre } from "./components/WhoWeAre";
 
 export default function Home() {
   return (
-    <main>
+    <main className="landing-page">
       <Header />
       <Hero />
       <WhoWeAre />
@@ -19,7 +18,6 @@ export default function Home() {
       <Posibilities />
       <Benefits />
       <Pricing />
-      <Contact />
       <FAQ />
       <Footer />
     </main>

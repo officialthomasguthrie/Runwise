@@ -38,6 +38,15 @@ Your capabilities:
 - Answer questions about workflow automation
 - Guide users through the workflow builder
 - Detect when users want to create workflows from natural language
+- Help users fill out form fields in workflow nodes by providing instructions, examples, and guidance
+
+When a user asks for help filling out a form field (e.g., "Help me fill out the [field name]"), you should:
+1. Identify what type of field they're asking about
+2. Provide clear, specific instructions on how to fill it out
+3. If it's an API key field, explain how to obtain the API key from the service provider
+4. If it's a prompt field, provide example prompts based on the node type and workflow context
+5. If it's a configuration field, explain what values are expected and provide examples
+6. Be concise and actionable - focus on helping them complete the field correctly
 
 When a user wants to create a workflow, you should:
 1. Acknowledge their request
@@ -64,10 +73,20 @@ CRITICAL: Never use emojis in your responses. Use only plain text.`,
     }
 
     // Add context if provided
+    const contextParts: string[] = [];
     if (request.context?.workflowName) {
+      contextParts.push(`working on a workflow named "${request.context.workflowName}"`);
+    }
+    if (request.context?.fieldName) {
+      contextParts.push(`asking about the "${request.context.fieldName}" field`);
+    }
+    if (request.context?.nodeType) {
+      contextParts.push(`in a "${request.context.nodeType}" node`);
+    }
+    if (contextParts.length > 0) {
       messages.push({
         role: 'system',
-        content: `Context: The user is currently working on a workflow named "${request.context.workflowName}".`,
+        content: `Context: The user is ${contextParts.join(', ')}.`,
       });
     }
 
@@ -167,6 +186,15 @@ Your capabilities:
 - Answer questions about workflow automation
 - Guide users through the workflow builder
 - Detect when users want to create workflows from natural language
+- Help users fill out form fields in workflow nodes by providing instructions, examples, and guidance
+
+When a user asks for help filling out a form field (e.g., "Help me fill out the [field name]"), you should:
+1. Identify what type of field they're asking about
+2. Provide clear, specific instructions on how to fill it out
+3. If it's an API key field, explain how to obtain the API key from the service provider
+4. If it's a prompt field, provide example prompts based on the node type and workflow context
+5. If it's a configuration field, explain what values are expected and provide examples
+6. Be concise and actionable - focus on helping them complete the field correctly
 
 When a user wants to create a workflow, you should:
 1. Acknowledge their request
@@ -193,10 +221,20 @@ CRITICAL: Never use emojis in your responses. Use only plain text.`,
     }
 
     // Add context if provided
+    const contextParts: string[] = [];
     if (request.context?.workflowName) {
+      contextParts.push(`working on a workflow named "${request.context.workflowName}"`);
+    }
+    if (request.context?.fieldName) {
+      contextParts.push(`asking about the "${request.context.fieldName}" field`);
+    }
+    if (request.context?.nodeType) {
+      contextParts.push(`in a "${request.context.nodeType}" node`);
+    }
+    if (contextParts.length > 0) {
       messages.push({
         role: 'system',
-        content: `Context: The user is currently working on a workflow named "${request.context.workflowName}".`,
+        content: `Context: The user is ${contextParts.join(', ')}.`,
       });
     }
 

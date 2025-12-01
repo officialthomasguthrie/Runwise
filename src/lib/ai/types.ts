@@ -74,6 +74,9 @@ export interface ChatRequest {
   context?: {
     workflowId?: string;
     workflowName?: string;
+    fieldName?: string;
+    nodeType?: string;
+    nodeId?: string;
   };
 }
 

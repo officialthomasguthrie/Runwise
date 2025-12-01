@@ -44,10 +44,12 @@ export default function AnalyticsPage() {
           <div className="relative pb-48">
             <div className="relative z-10 px-4 sm:px-6 lg:px-8 pb-4">
               <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7 mb-8">
-                Analytics
+                Analytics Coming Soon
               </h1>
 
-              <div className="space-y-6">
+              <div className="relative">
+                {/* Blurred content */}
+                <div className="space-y-6 blur-[2px] pointer-events-none select-none opacity-50">
                 {/* Overview Section */}
                 <div className="pb-4">
                   <button 
@@ -134,6 +136,7 @@ export default function AnalyticsPage() {
                       </div>
                     </div>
                   )}
+                </div>
                 </div>
               </div>
             </div>

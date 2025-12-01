@@ -56,6 +56,9 @@ export default function WorkspacePage() {
   const [isChatSidebarVisible, setIsChatSidebarVisible] = useState(true);
   const [isLeftSidebarVisible, setIsLeftSidebarVisible] = useState(false);
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
+  const [isConfigPanelVisible, setIsConfigPanelVisible] = useState(false);
+  const [externalChatMessage, setExternalChatMessage] = useState<string | null>(null);
+  const [externalChatContext, setExternalChatContext] = useState<{ fieldName?: string; nodeType?: string; nodeId?: string; workflowName?: string } | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     triggers: true,
     actions: true,
@@ -473,7 +476,9 @@ export default function WorkspacePage() {
 
   return (
     <div className="flex h-screen w-screen bg-background">
-      <CollapsibleSidebar />
+      <div className="relative z-50">
+        <CollapsibleSidebar />
+      </div>
       <div className="flex flex-1 flex-col bg-background relative">
         {/* Header with editable workspace name */}
         <header className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
@@ -781,7 +786,9 @@ export default function WorkspacePage() {
             className="flex h-full flex-1 flex-col overflow-hidden transition-[margin-right,margin-left] duration-200 relative"
             style={{ 
               marginRight: isDesktop && isChatSidebarVisible ? `${sidebarWidth}px` : '0px',
-              marginLeft: isLeftSidebarVisible ? `${leftSidebarWidth}px` : '0px'
+              marginLeft: isLeftSidebarVisible 
+                ? `${leftSidebarWidth + (isConfigPanelVisible ? 514 : 0)}px` 
+                : isConfigPanelVisible ? '514px' : '0px'
             }}
           >
             {/* Hide Sidebar Button - top left of canvas area */}
@@ -925,6 +932,27 @@ export default function WorkspacePage() {
                 onExecutionStateChange={handleExecutionStateChange}
                 onRegisterUndoRedoCallbacks={handleRegisterUndoRedoCallbacks}
                 onRegisterSaveCallback={handleRegisterSaveCallback}
+                onConfigPanelVisibilityChange={(isVisible) => {
+                  setIsConfigPanelVisible(isVisible);
+                  // Hide add node sidebar when config panel opens
+                  if (isVisible && isLeftSidebarVisible) {
+                    setIsLeftSidebarVisible(false);
+                  }
+                }}
+                onAskAI={(fieldName: string, nodeId: string, nodeType: string) => {
+                  // Open chat if it's closed
+                  if (!isChatSidebarVisible) {
+                    setIsChatSidebarVisible(true);
+                  }
+                  // Send the message to the chat with context
+                  setExternalChatMessage(`Help me fill out the ${fieldName}.`);
+                  setExternalChatContext({
+                    fieldName,
+                    nodeType,
+                    nodeId,
+                    workflowName: workflowName,
+                  });
+                }}
                 onOpenAddNodeSidebar={(placeholderId?: string) => {
                   if (placeholderId) {
                     setActivePlaceholderId(placeholderId);
@@ -955,7 +983,13 @@ export default function WorkspacePage() {
               className="fixed top-16 right-0 bottom-0 z-30"
               style={{ width: `${sidebarWidth}px` }}
             >
-              <AIChatSidebar 
+              <AIChatSidebar
+                externalMessage={externalChatMessage}
+                externalContext={externalChatContext}
+                onExternalMessageSent={() => {
+                  setExternalChatMessage(null);
+                  setExternalChatContext(null);
+                }} 
                 onWorkflowGenerated={handleWorkflowGenerated}
                 initialPrompt={initialPrompt}
                 getCurrentWorkflow={() => {

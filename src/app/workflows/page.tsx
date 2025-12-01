@@ -6,9 +6,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { GridCard } from "@/components/ui/grid-card";
-import { FolderOpen, Clock, ArrowRight, Trash2, X, Calendar, Mail, BarChart3, FileText, Users, Receipt, Headphones, HelpCircle, MessageSquare, Search } from "lucide-react";
+import { FolderOpen, Clock, ArrowRight, Trash2, X } from "lucide-react";
 import type { Database } from "@/types/database";
-import SearchComponent from "@/components/ui/animated-glowing-search-bar";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
 
@@ -23,89 +22,6 @@ export default function WorkflowsPage() {
   const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
   const [isSavingName, setIsSavingName] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-
-  // Template data
-  const templates = [
-    {
-      id: 1,
-      name: "Social Media Scheduler",
-      description: "Auto-create & post weekly content.",
-      icon: Calendar,
-      gradient: "from-purple-500/20 to-pink-500/20",
-      iconColor: "text-purple-400"
-    },
-    {
-      id: 2,
-      name: "Email Auto-Responder",
-      description: "Smart replies for new customer emails.",
-      icon: Mail,
-      gradient: "from-blue-500/20 to-purple-500/20",
-      iconColor: "text-blue-400"
-    },
-    {
-      id: 3,
-      name: "Daily Business Report",
-      description: "Summarize sales & site stats each morning.",
-      icon: BarChart3,
-      gradient: "from-green-500/20 to-blue-500/20",
-      iconColor: "text-green-400"
-    },
-    {
-      id: 4,
-      name: "Blog Post Publisher",
-      description: "Generate and publish SEO blog posts.",
-      icon: FileText,
-      gradient: "from-orange-500/20 to-red-500/20",
-      iconColor: "text-orange-400"
-    },
-    {
-      id: 5,
-      name: "Lead Follow-Up",
-      description: "Save leads and send follow-up emails.",
-      icon: Users,
-      gradient: "from-teal-500/20 to-green-500/20",
-      iconColor: "text-teal-400"
-    },
-    {
-      id: 6,
-      name: "Invoice Reminder",
-      description: "Auto-send invoices & payment reminders.",
-      icon: Receipt,
-      gradient: "from-indigo-500/20 to-purple-500/20",
-      iconColor: "text-indigo-400"
-    },
-    {
-      id: 7,
-      name: "Podcast Summarizer",
-      description: "Turn audio into quotes & highlights.",
-      icon: Headphones,
-      gradient: "from-rose-500/20 to-pink-500/20",
-      iconColor: "text-rose-400"
-    },
-    {
-      id: 8,
-      name: "Knowledge Base Builder",
-      description: "Create FAQs from support emails.",
-      icon: HelpCircle,
-      gradient: "from-cyan-500/20 to-blue-500/20",
-      iconColor: "text-cyan-400"
-    },
-    {
-      id: 9,
-      name: "Slack Digest",
-      description: "Summarize daily messages & key tasks.",
-      icon: MessageSquare,
-      gradient: "from-violet-500/20 to-purple-500/20",
-      iconColor: "text-violet-400"
-    }
-  ];
-
-  // Filter templates based on search query
-  const filteredTemplates = templates.filter(template =>
-    template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    template.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   // Function to refresh workflows
   const refreshWorkflows = async () => {
@@ -428,72 +344,6 @@ export default function WorkflowsPage() {
                 )}
               </section>
 
-              {/* Templates */}
-              <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
-                <div className="mb-6 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">
-                      Templates
-                    </h2>
-                    <p className="text-sm md:text-base text-muted-foreground mt-2">
-                      Pre-built workflow templates to get you started
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0">
-                    <SearchComponent value={searchQuery} onChange={setSearchQuery} placeholder="Search templates..." />
-                  </div>
-                </div>
-
-                <div>
-                  {filteredTemplates.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredTemplates.map((template) => {
-                        const IconComponent = template.icon;
-                        return (
-                          <div
-                            key={template.id}
-                            className="group relative bg-card border border-border rounded-lg p-6 hover:border-pink-400/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
-                          >
-                            <div className="flex flex-col items-center text-center space-y-4">
-                              <div
-                                className={`w-12 h-12 bg-gradient-to-br ${template.gradient} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
-                              >
-                                <IconComponent className={`w-6 h-6 ${template.iconColor}`} />
-                              </div>
-                              <div className="space-y-2">
-                                <h3 className="font-semibold text-foreground text-sm">{template.name}</h3>
-                                <p className="text-xs text-muted-foreground">{template.description}</p>
-                              </div>
-                              <button className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-medium rounded-md hover:from-purple-600 hover:to-pink-600 transition-all duration-200">
-                                Use Template
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 bg-gradient-to-br from-gray-500/20 to-gray-600/20 rounded-lg flex items-center justify-center mx-auto mb-4">
-                        <Search className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">No templates found</h3>
-                      <p className="text-sm text-muted-foreground">Try adjusting your search terms</p>
-                    </div>
-                  )}
-
-                  {filteredTemplates.length > 0 && (
-                    <div className="flex justify-center mt-8">
-                      <Link href="/templates">
-                        <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200 group">
-                          <span>See More Templates</span>
-                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
-                        </button>
-                  </Link>
-                    </div>
-                  )}
-              </div>
-            </section>
           </div>
         </main>
       </div>

@@ -89,16 +89,18 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
   return (
     <aside
       className={cn(
-        "relative h-full border-r border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 flex flex-col w-16",
+        "relative h-full border-r border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 flex flex-col w-16 z-40",
         className
       )}
     >
       <div className="flex items-center justify-center px-2 py-4">
-        <img
-          src="/logo.png"
-          alt="Runwise Logo"
-          className="h-8 w-auto object-contain"
-        />
+        <Link href="/" className="flex items-center justify-center">
+          <img
+            src="/logo.png"
+            alt="Runwise Logo"
+            className="h-8 w-auto object-contain"
+          />
+        </Link>
       </div>
       <nav className="flex-1 px-2 pb-4 mt-2">
         <ul className="flex flex-col items-center gap-3">
