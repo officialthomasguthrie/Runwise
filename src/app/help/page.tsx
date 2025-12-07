@@ -164,7 +164,7 @@ export default function HelpCenterPage() {
                   <p className="text-sm md:text-base text-muted-foreground mt-2">Multiple ways to get help when you need it</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="border-border bg-card">
+                  <Card className="border-stone-200 dark:border-white/10 bg-card">
                     <CardHeader>
                       <CardTitle className="text-foreground">Contact Support</CardTitle>
                       <CardDescription>
@@ -189,7 +189,7 @@ export default function HelpCenterPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="border-border bg-card">
+                  <Card className="border-stone-200 dark:border-white/10 bg-card">
                     <CardHeader>
                       <CardTitle className="text-foreground">Community</CardTitle>
                       <CardDescription>

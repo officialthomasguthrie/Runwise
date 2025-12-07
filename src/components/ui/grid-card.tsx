@@ -10,7 +10,7 @@ export function GridCard({
 	return (
 		<div
 			className={cn(
-				'group bg-background relative isolate z-0 flex h-full flex-col justify-between overflow-hidden rounded-sm border px-5 py-4 transition-colors duration-75',
+				'group bg-background relative isolate z-0 flex h-full flex-col justify-between overflow-hidden rounded-sm border border-stone-200 dark:border-white/10 px-5 py-4 transition-colors duration-75',
 				className,
 			)}
 			{...props}
@@ -23,7 +23,7 @@ export function GridCard({
 						x={0}
 						y={0}
 						squares={getRandomPattern(5)}
-						className="fill-border/50 stroke-border absolute inset-0 size-full translate-y-2 transition-transform duration-150 ease-out group-hover:translate-y-0"
+						className="fill-stone-200/50 dark:fill-white/10 stroke-stone-200 dark:stroke-white/10 absolute inset-0 size-full translate-y-2 transition-transform duration-150 ease-out group-hover:translate-y-0"
 					/>
 				</div>
 				<div

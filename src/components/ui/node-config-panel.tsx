@@ -70,7 +70,7 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onAskAI }: NodeConfig
   };
 
   return (
-    <div className="fixed left-16 top-16 bottom-0 w-[450px] bg-background border-r border-border z-10 flex flex-col animate-in slide-in-from-left duration-300">
+    <div className="fixed left-16 top-16 bottom-0 w-[450px] bg-background border-r border-stone-200 dark:border-white/10 z-10 flex flex-col animate-in slide-in-from-left duration-300">
       <div className="flex-1 overflow-auto scrollbar-hide p-4 space-y-6">
         <div className="space-y-2">
           <h2 className="text-xl font-bold text-foreground">{nodeData.label || 'Node'}</h2>
@@ -100,7 +100,7 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onAskAI }: NodeConfig
                   value={localConfig[key] || ''}
                 onChange={(e) => handleChange(key, e.target.value)}
                 placeholder={schema.description}
-                  className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-border focus-visible:border-border pr-24"
+                  className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-stone-200 dark:focus:border-white/10 focus-visible:border-stone-200 dark:focus-visible:border-white/10 pr-24"
                 />
                 <Button
                   type="button"
@@ -127,7 +127,7 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onAskAI }: NodeConfig
                 onChange={(e) => handleChange(key, e.target.value)}
                 placeholder={schema.description}
                   rows={3}
-                  className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-border focus-visible:border-border pb-10"
+                  className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-stone-200 dark:focus:border-white/10 focus-visible:border-stone-200 dark:focus-visible:border-white/10 pb-10"
                 />
                 <Button
                   type="button"
@@ -153,7 +153,7 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onAskAI }: NodeConfig
                 value={localConfig[key] || schema.default || ''}
                 onChange={(e) => handleChange(key, parseFloat(e.target.value))}
                 placeholder={schema.description}
-                className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-border focus-visible:border-border"
+                className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-stone-200 dark:focus:border-white/10 focus-visible:border-stone-200 dark:focus-visible:border-white/10"
               />
             )}
 
@@ -162,7 +162,7 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onAskAI }: NodeConfig
               <select
                 value={localConfig[key] || schema.default || ''}
                 onChange={(e) => handleChange(key, e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-md backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none text-foreground focus:outline-none focus:ring-0 focus:ring-offset-0"
+                className="w-full px-3 py-2 text-sm rounded-md backdrop-blur-xl !bg-white/70 dark:!bg-white/5 border border-gray-300 dark:border-white/10 shadow-none text-foreground focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-stone-200 dark:focus:border-white/10 focus-visible:border-stone-200 dark:focus-visible:border-white/10"
               >
                 <option value="">Select {schema.label}</option>
                 {schema.options.map((option: any) => (

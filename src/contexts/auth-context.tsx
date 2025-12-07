@@ -13,6 +13,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<{ error: any }>;
   signInWithMicrosoft: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -112,6 +113,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const { data: { user: refreshedUser }, error } = await supabase.auth.getUser();
+      if (!error && refreshedUser) {
+        setUser(refreshedUser);
+        // Also refresh session to get updated metadata
+        const { data: { session: refreshedSession } } = await supabase.auth.getSession();
+        if (refreshedSession) {
+          setSession(refreshedSession);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+    }
+  };
+
   const value = {
     user,
     session,
@@ -121,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithGoogle,
     signInWithMicrosoft,
     signOut,
+    refreshUser,
   };
 
   return (

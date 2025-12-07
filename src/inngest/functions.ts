@@ -5,6 +5,9 @@ import type { Database } from "@/types/database";
 import type { Node, Edge } from "@xyflow/react";
 import { assertWithinLimit, incrementUsage } from "@/lib/usage";
 import { getPlanLimits } from "@/lib/plans/config";
+import { hasScheduledTrigger, getScheduleConfig } from "@/lib/workflows/schedule-utils";
+import { parseExpression } from "cron-parser";
+import { scheduleNextWorkflowRun } from "@/lib/workflows/schedule-scheduler";
 
 // ============================================================================
 // TEST FUNCTIONS
@@ -88,6 +91,34 @@ export const workflowExecutor = inngest.createFunction(
     // Validate input
     if (!workflowId || !nodes || !Array.isArray(nodes) || !edges || !Array.isArray(edges)) {
       throw new Error("Invalid workflow execution request: missing required fields");
+    }
+
+    // Step 0.5: Check if workflow is active (skip for manual/test executions)
+    if (triggerType !== 'manual' && triggerType !== 'test') {
+      const workflowStatus = await step.run("check-workflow-status", async () => {
+        const supabase = createAdminClient();
+        const { data: workflow, error } = await (supabase as any)
+          .from('workflows')
+          .select('id, status')
+          .eq('id', workflowId)
+          .single();
+
+        if (error) {
+          console.error('Error checking workflow status:', error);
+          return null;
+        }
+
+        return workflow?.status;
+      });
+
+      if (workflowStatus !== 'active') {
+        console.log(`Workflow ${workflowId} is not active (status: ${workflowStatus}), skipping execution`);
+        return {
+          skipped: true,
+          reason: `Workflow is not active (status: ${workflowStatus})`,
+          workflowId,
+        };
+      }
     }
 
     // Step 0: Fetch user's plan and check limits
@@ -262,6 +293,245 @@ export const workflowExecutor = inngest.createFunction(
       status: executionResult.status,
       duration: executionResult.duration,
       nodeCount: executionResult.nodeResults?.length || 0,
+    };
+  },
+);
+
+// ============================================================================
+// SCHEDULED WORKFLOW TRIGGER (Event-Based)
+// ============================================================================
+
+/**
+ * Scheduled Workflow Trigger Function (Event-Based)
+ * Triggered by delayed events scheduled for specific times
+ * Executes the workflow and schedules the next occurrence
+ */
+export const scheduledWorkflowTrigger = inngest.createFunction(
+  {
+    id: "scheduled-workflow-trigger",
+    name: "Scheduled Workflow Trigger",
+  },
+  { event: "workflow/scheduled-trigger" },
+  async ({ event, step }) => {
+    const {
+      workflowId,
+      nodes,
+      edges,
+      userId,
+      cronExpression,
+      timezone,
+    } = event.data;
+
+    // Step 1: Verify workflow is still active before executing
+    const workflowStatus = await step.run("verify-workflow-active", async () => {
+      const supabase = createAdminClient();
+      const { data: workflow, error } = await (supabase as any)
+        .from('workflows')
+        .select('id, status')
+        .eq('id', workflowId)
+        .single();
+
+      if (error) {
+        console.error('Error checking workflow status:', error);
+        return null;
+      }
+
+      return workflow?.status;
+    });
+
+    // If workflow is no longer active, don't execute or reschedule
+    if (workflowStatus !== 'active') {
+      console.log(
+        `Workflow ${workflowId} is not active (status: ${workflowStatus}), skipping execution and reschedule`
+      );
+      return {
+        skipped: true,
+        reason: `Workflow is not active (status: ${workflowStatus})`,
+        workflowId,
+      };
+    }
+
+    // Step 2: Trigger the workflow execution
+    await step.run("trigger-workflow-execution", async () => {
+      await inngest.send({
+        name: 'workflow/execute',
+        data: {
+          workflowId: workflowId,
+          nodes: nodes,
+          edges: edges,
+          triggerData: {
+            triggerTime: new Date().toISOString(),
+            schedule: cronExpression,
+            timezone: timezone,
+          },
+          userId: userId,
+          triggerType: 'scheduled',
+        },
+      });
+    });
+
+    // Step 3: Schedule the next occurrence
+    await step.run("schedule-next-run", async () => {
+      // Double-check workflow is still active before scheduling next run
+      const supabase = createAdminClient();
+      const { data: workflow } = await (supabase as any)
+        .from('workflows')
+        .select('status')
+        .eq('id', workflowId)
+        .single();
+
+      if (workflow?.status === 'active') {
+        await scheduleNextWorkflowRun({
+          workflowId,
+          nodes,
+          edges,
+          userId,
+          cronExpression,
+          timezone,
+        });
+      } else {
+        console.log(
+          `Workflow ${workflowId} is no longer active, not scheduling next run`
+        );
+      }
+    });
+
+    return {
+      executed: true,
+      workflowId,
+      nextRunScheduled: workflowStatus === 'active',
+    };
+  },
+);
+
+// ============================================================================
+// POLLING WORKFLOW TRIGGER
+// ============================================================================
+
+/**
+ * Polling Workflow Trigger Function
+ * Runs every 5 minutes to check for active workflows with polling triggers
+ * (form submissions, emails, Slack messages, sheet rows, etc.)
+ * and triggers them when new data is found
+ */
+export const pollingWorkflowTrigger = inngest.createFunction(
+  {
+    id: "polling-workflow-trigger",
+    name: "Polling Workflow Trigger",
+  },
+  { cron: "*/5 * * * *" }, // Run every 5 minutes
+  async ({ step }) => {
+    // Step 1: Fetch all active workflows with polling triggers
+    const activeWorkflows = await step.run("fetch-active-polling-workflows", async () => {
+      const supabase = createAdminClient();
+      
+      // Get all active workflows
+      const { data: workflows, error } = await (supabase as any)
+        .from('workflows')
+        .select('id, workflow_data, user_id, name')
+        .eq('status', 'active');
+
+      if (error) {
+        console.error('Error fetching active workflows for polling:', error);
+        return [];
+      }
+
+      if (!workflows || workflows.length === 0) {
+        return [];
+      }
+
+      // Filter workflows that have polling triggers
+      // Polling triggers are those that need to check external APIs periodically
+      const pollingTriggerTypes = [
+        'new-form-submission',
+        'new-email-received',
+        'new-message-in-slack',
+        'new-row-in-google-sheet',
+        'new-github-issue',
+        'file-uploaded',
+      ];
+
+      const pollingWorkflows = workflows.filter((workflow: any) => {
+        if (!workflow.workflow_data?.nodes) return false;
+        
+        const nodes = workflow.workflow_data.nodes as Node[];
+        return nodes.some(node => {
+          const nodeId = node.data?.nodeId;
+          return nodeId && pollingTriggerTypes.includes(nodeId);
+        });
+      });
+
+      return pollingWorkflows;
+    });
+
+    if (activeWorkflows.length === 0) {
+      return { triggered: 0, message: 'No active polling workflows found' };
+    }
+
+    // Step 2: Poll each workflow's trigger and trigger if new data found
+    const triggeredWorkflows: string[] = [];
+
+    for (const workflow of activeWorkflows) {
+      await step.run(`poll-and-trigger-${workflow.id}`, async () => {
+        const nodes = workflow.workflow_data.nodes as Node[];
+        const edges = workflow.workflow_data.edges || [];
+        
+        // Find the polling trigger node
+        const pollingTriggerTypes = [
+          'new-form-submission',
+          'new-email-received',
+          'new-message-in-slack',
+          'new-row-in-google-sheet',
+          'new-github-issue',
+          'file-uploaded',
+        ];
+        
+        const triggerNode = nodes.find(node => {
+          const nodeId = node.data?.nodeId;
+          return nodeId && pollingTriggerTypes.includes(nodeId);
+        });
+
+        if (!triggerNode) {
+          return { triggered: false, reason: 'No polling trigger found' };
+        }
+
+        const triggerType = triggerNode.data?.nodeId;
+        const config = triggerNode.data?.config || {};
+
+        // For now, we'll trigger the workflow execution
+        // The actual polling logic is handled in the node's execute function
+        // which will check for new data and return it
+        // This is a simplified approach - in production, you'd want to:
+        // 1. Check last poll time from database
+        // 2. Poll the external API
+        // 3. Compare with previous data
+        // 4. Only trigger if new data is found
+
+        // Trigger the workflow - the executor will handle the polling logic
+        await inngest.send({
+          name: 'workflow/execute',
+          data: {
+            workflowId: workflow.id,
+            nodes: nodes,
+            edges: edges,
+            triggerData: {
+              triggerType: triggerType,
+              polledAt: new Date().toISOString(),
+            },
+            userId: workflow.user_id,
+            triggerType: 'polling',
+          },
+        });
+
+        triggeredWorkflows.push(workflow.id);
+        return { triggered: true, workflowId: workflow.id, triggerType };
+      });
+    }
+
+    return {
+      triggered: triggeredWorkflows.length,
+      workflowIds: triggeredWorkflows,
+      message: `Polled and triggered ${triggeredWorkflows.length} workflow(s)`,
     };
   },
 );

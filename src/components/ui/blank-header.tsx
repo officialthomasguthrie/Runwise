@@ -180,7 +180,7 @@ export function BlankHeader({ className }: BlankHeaderProps) {
   return (
     <div
       className={cn(
-        "relative h-16 w-full shrink-0 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50",
+        "relative h-16 w-full shrink-0 border-b border-stone-200 dark:border-white/10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50",
         className
       )}
     >
@@ -204,10 +204,10 @@ export function BlankHeader({ className }: BlankHeaderProps) {
                     value={searchQuery}
                     onChange={handleSearchChange}
                     onFocus={handleInputFocus}
-                    className="pl-9 pe-11 focus-visible:ring-0 focus-visible:border-input"
+                    className="pl-9 pe-11 focus-visible:ring-0 focus-visible:border-stone-300 dark:focus-visible:border-white/20"
                   />
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-muted-foreground">
-                    <kbd className="inline-flex h-5 max-h-full items-center rounded border border-border px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
+                    <kbd className="inline-flex h-5 max-h-full items-center rounded border border-stone-200 dark:border-white/10 px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
                       ⌘K
                     </kbd>
                   </div>
@@ -215,7 +215,7 @@ export function BlankHeader({ className }: BlankHeaderProps) {
 
                 {/* Search Dropdown */}
                 {showDropdown && (showHistory || showResults || showNoResults) && (
-                  <div className="absolute top-full left-0 right-0 mt-2 z-[100] rounded-lg border border-border bg-white dark:bg-black shadow-lg max-h-96 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-2 z-[100] rounded-lg border border-stone-200 dark:border-white/10 bg-white dark:bg-black shadow-lg max-h-96 overflow-y-auto">
                     {/* Search Results */}
                     {showResults && (
                       <div className="p-2">
@@ -234,7 +234,7 @@ export function BlankHeader({ className }: BlankHeaderProps) {
 
                     {/* Recent Search History */}
                     {showHistory && (
-                      <div className="p-2 border-t border-border">
+                      <div className="p-2 border-t border-stone-200 dark:border-white/10">
                         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
                           Recent Searches
                         </div>

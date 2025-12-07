@@ -5,14 +5,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase-client";
+import { cn } from "@/lib/utils";
 import GradientText from "@/components/ui/GradientText";
 import { GradientAIChatInput } from "@/components/ui/gradient-ai-chat-input";
-import { GridBackground } from "@/components/ui/grid-background";
 import { GridCard } from "@/components/ui/grid-card";
+import { AnimatedGridPattern } from "@/components/ui/animated-grid-pattern";
 import { ButtonColorful } from "@/components/ui/button-colorful";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
-import { FolderOpen, Clock, ArrowRight, Trash2, X } from "lucide-react";
+import { Workflow, Clock, ArrowRight, Trash2, X } from "lucide-react";
 import { Component as AILoader } from "@/components/ui/ai-loader";
 import TextType from "@/components/ui/text-type";
 
@@ -168,7 +169,7 @@ export default function DashboardPage() {
         .from('workflows')
         .insert({
           name: projectName,
-          status: 'active',
+          status: 'draft',
           user_id: user!.id,
           workflow_data: { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } },
         })
@@ -191,9 +192,47 @@ export default function DashboardPage() {
     router.push(`/workspace/${targetId}?prompt=${encodeURIComponent(message)}`);
   };
 
-  const handleOptionSelect = (option: { id: string; label: string; value: string }) => {
-    console.log("Option selected:", option);
-    // TODO: Implement AI model selection logic
+  const handleNewRun = async () => {
+    // Create a new blank workflow and navigate to it in a new tab
+    let workflowId: string | null = null;
+    try {
+      const supabase = createClient();
+      const projectName = await getNextUntitledName();
+      const { data, error } = await (supabase as any)
+        .from('workflows')
+        .insert({
+          name: projectName,
+          status: 'draft',
+          user_id: user!.id,
+          workflow_data: { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } },
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Failed to create project:', error);
+      } else {
+        workflowId = data?.id;
+        console.log('Created new workflow:', workflowId);
+      }
+    } catch (e) {
+      console.error('Unexpected error creating project:', e);
+    }
+    
+    const targetId = workflowId || `workspace_${Date.now()}`;
+    window.open(`/workspace/${targetId}`, '_blank');
+  };
+
+  const handleCreateFromTemplate = () => {
+    window.open('/templates', '_blank');
+  };
+
+  const handleConnectNewApp = () => {
+    window.open('/integrations', '_blank');
+  };
+
+  const handleExploreIntegrations = () => {
+    window.open('/integrations', '_blank');
   };
 
   // Load recent projects for the current user
@@ -250,11 +289,24 @@ export default function DashboardPage() {
         <CollapsibleSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <BlankHeader />
-          <main className="flex h-full grow flex-col overflow-auto relative scrollbar-hide">
+          <main className="flex h-full grow flex-col overflow-y-auto relative scrollbar-hide">
+            {/* Animated Grid Pattern - Full Dashboard Background */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+              <AnimatedGridPattern
+                numSquares={30}
+                maxOpacity={0.1}
+                duration={3}
+                repeatDelay={1}
+                  className={cn(
+                    "[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]",
+                    "inset-x-[-20%] inset-y-[-20%] w-[140%] h-[150%] skew-y-12",
+                  )}
+              />
+              <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+            </div>
+            
             {/* Dashboard Hero Section */}
-            <section className="relative pt-6 pb-48">
-              <GridBackground variant="auto" />
-
+            <section className="relative pt-6 pb-48 z-10">
               <motion.div
                 className="relative z-10 p-8 pb-12"
                 variants={staggerContainer}
@@ -265,16 +317,15 @@ export default function DashboardPage() {
                   <motion.h1
                     className="mx-auto mb-4 text-2xl font-geist tracking-tighter text-foreground leading-tight sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl"
                     variants={fadeInUp}
+                    style={{ overflow: 'visible' }}
                   >
-                    What would you like to{" "}
-                    <GradientText
+                    What would you like to <GradientText
                       colors={['#a855f7', '#ec4899', '#a855f7', '#ec4899', '#a855f7']}
                       animationSpeed={6}
                       className="inline"
                     >
                       automate
-                    </GradientText>{" "}
-                    today?
+                    </GradientText> today?
                   </motion.h1>
 
                   <motion.p
@@ -309,12 +360,6 @@ export default function DashboardPage() {
                         />
                       }
                       onSend={handleSend}
-                      onOptionSelect={handleOptionSelect}
-                      dropdownOptions={[
-                        { id: "gpt4", label: "GPT-4", value: "gpt4" },
-                        { id: "claude", label: "Claude", value: "claude" },
-                        { id: "gemini", label: "Gemini", value: "gemini" }
-                      ]}
                       className="w-full max-w-2xl"
                     />
                   </motion.div>
@@ -323,10 +368,10 @@ export default function DashboardPage() {
                     className="mt-8 hidden flex-wrap justify-center gap-4 md:flex"
                     variants={fadeInUp}
                   >
-                    <ButtonColorful label="New Run" />
-                    <ButtonColorful label="Create from Template" />
-                    <ButtonColorful label="Connect a New App" />
-                    <ButtonColorful label="Explore Integrations" />
+                    <ButtonColorful label="New Run" onClick={handleNewRun} />
+                    <ButtonColorful label="Create from Template" onClick={handleCreateFromTemplate} />
+                    <ButtonColorful label="Connect a New App" onClick={handleConnectNewApp} />
+                    <ButtonColorful label="Explore Integrations" onClick={handleExploreIntegrations} />
                   </motion.div>
 
                   <motion.div
@@ -358,7 +403,7 @@ export default function DashboardPage() {
                                 e.stopPropagation();
                                 setConfirmDeleteId(p.id);
                               }}
-                              className="absolute right-2 top-2 z-20 inline-flex items-center justify-center rounded-md border border-border bg-background/80 p-1 text-red-500 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
+                              className="absolute right-2 top-2 z-20 inline-flex items-center justify-center rounded-md border border-stone-200 dark:border-white/10 bg-background/80 p-1 text-red-500 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -369,7 +414,7 @@ export default function DashboardPage() {
                               <div className="relative z-10">
                                 <div className="mb-3 flex items-center gap-3">
                                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-pink-400 to-purple-400">
-                                    <FolderOpen className="h-4 w-4 text-white" />
+                                    <Workflow className="h-4 w-4 text-white" />
                                   </div>
                                   <div className="min-w-0 flex-1 text-left">
                                     {editingProjectId === p.id ? (
@@ -387,7 +432,7 @@ export default function DashboardPage() {
                                             cancelEditingName();
                                           }
                                         }}
-                                        className="w-full rounded-sm border border-border bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                        className="w-full rounded-sm border border-stone-200 dark:border-white/10 bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-white/20"
                                       />
                                     ) : (
                                       <button
@@ -445,7 +490,7 @@ export default function DashboardPage() {
       {/* Delete Confirmation Modal */}
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-md border border-border bg-background p-4 shadow-lg">
+          <div className="w-full max-w-sm rounded-md border border-stone-200 dark:border-white/10 bg-background p-4 shadow-lg">
             <div className="flex items-start justify-between">
               <h3 className="text-base font-semibold text-foreground">Delete project?</h3>
               <button
@@ -462,7 +507,7 @@ export default function DashboardPage() {
             <div className="mt-4 flex items-center justify-end gap-2">
               <button
                 onClick={() => setConfirmDeleteId(null)}
-                className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
+                className="inline-flex items-center rounded-md border border-stone-200 dark:border-white/10 bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
               >
                 Cancel
               </button>

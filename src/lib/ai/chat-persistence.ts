@@ -78,6 +78,44 @@ export async function saveMessage(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = getSupabaseClient();
+    
+    // First, verify the conversation exists and belongs to the current user
+    // This is required by RLS policies
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    
+    // Check if conversation exists
+    const { data: conversation, error: convError } = await supabase
+      .from('ai_chat_conversations')
+      .select('id, user_id')
+      .eq('id', conversationId)
+      .single();
+    
+    if (convError || !conversation) {
+      // Conversation doesn't exist - create it first
+      console.log('Conversation does not exist, creating it before saving message');
+      const { success, error } = await saveConversation(
+        conversationId,
+        'New Chat',
+        user.id
+      );
+      
+      if (!success) {
+        console.error('Failed to create conversation before saving message:', error);
+        return { success: false, error: error || 'Failed to create conversation' };
+      }
+    } else {
+      // Verify conversation belongs to current user
+      const conv = conversation as { id: string; user_id: string };
+      if (conv.user_id !== user.id) {
+        // Conversation exists but belongs to a different user
+        return { success: false, error: 'Conversation does not belong to current user' };
+      }
+    }
+    
+    // Now save the message
     const { error } = await (supabase
       .from('ai_chat_messages') as any)
       .upsert({
@@ -153,14 +191,35 @@ export async function loadMessages(
       return { messages: [], error: error.message };
     }
 
-    const messages: ChatMessage[] = (data || []).map((msg: any) => ({
-      id: msg.id,
-      role: msg.role,
-      content: msg.content,
-      timestamp: msg.created_at,
-      workflowGenerated: msg.workflow_generated,
-      workflowId: msg.workflow_id,
-    }));
+    const messages: ChatMessage[] = (data || []).map((msg: any) => {
+      const chatMsg: ChatMessage = {
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.created_at,
+        workflowGenerated: msg.workflow_generated,
+        workflowId: msg.workflow_id,
+      };
+      
+      // Reconstruct workflow generation messages by checking content patterns
+      // If it's a workflow-generated message, check if it's the success or summary message
+      if (msg.workflow_generated) {
+        // Check if this is the "Workflow Generated Successfully" message
+        if (msg.content === 'Workflow Generated Successfully') {
+          (chatMsg as any).workflowGeneratedSuccess = true;
+        }
+        // Check if this is the summary (reasoning) message
+        // Summary messages come after the success message and contain the AI's explanation
+        // We'll identify them by checking if they follow a workflow generation pattern
+        else if (msg.content && !msg.content.includes('has been generated and added to your canvas') && 
+                 msg.content !== 'Workflow Generated Successfully') {
+          // This is likely the summary message
+          (chatMsg as any).workflowGeneratedSummary = true;
+        }
+      }
+      
+      return chatMsg;
+    });
 
     return { messages };
   } catch (error: any) {

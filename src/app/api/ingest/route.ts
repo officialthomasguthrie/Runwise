@@ -12,6 +12,8 @@ import {
   testWorkflow,
   sendTestNotification,
   workflowExecutor,
+  scheduledWorkflowTrigger,
+  pollingWorkflowTrigger,
 } from "../../../inngest/functions";
 
 export const runtime = "nodejs";
@@ -23,6 +25,8 @@ const serveHandler = serve({
     testWorkflow,
     sendTestNotification,
     workflowExecutor,
+    scheduledWorkflowTrigger,
+    pollingWorkflowTrigger,
   ],
 });
 

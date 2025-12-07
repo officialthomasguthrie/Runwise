@@ -92,17 +92,34 @@ export async function POST(request: NextRequest) {
     const userId = createdUser.user.id;
     const now = new Date().toISOString();
 
+    // Determine subscription tier from plan
+    const plan = onboardingRecord.metadata?.plan as string | undefined;
+    let subscriptionTier = 'professional'; // default
+    if (plan?.startsWith('personal')) {
+      subscriptionTier = 'personal';
+    } else if (plan?.startsWith('pro')) {
+      subscriptionTier = 'professional';
+    }
+
+    // Get monthly credit allocation for the subscription tier
+    const { getMonthlyCreditAllocation } = await import('@/lib/credits/calculator');
+    const monthlyCredits = getMonthlyCreditAllocation(subscriptionTier);
+
     const { error: upsertError } = await (adminSupabase.from('users') as any)
       .upsert({
         id: userId,
         email,
         first_name: firstName,
         last_name: lastName,
-        subscription_tier: 'pro',
+        subscription_tier: subscriptionTier,
         subscription_status: 'active',
         subscription_started_at: now,
         stripe_customer_id: onboardingRecord.stripe_customer_id,
         stripe_subscription_id: onboardingRecord.stripe_subscription_id,
+        credits_balance: monthlyCredits,
+        credits_used_this_month: 0,
+        credits_last_reset: now,
+        total_credits_used: 0,
         updated_at: now,
       });
 

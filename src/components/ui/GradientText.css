@@ -1,7 +1,11 @@
 .animated-gradient-text {
   position: relative;
-  display: inline-block;
+  display: inline;
   overflow: visible;
+  margin: 0;
+  padding: 0;
+  vertical-align: baseline;
+  line-height: inherit;
 }
 
 .text-content {
@@ -11,6 +15,12 @@
   -webkit-text-fill-color: transparent;
   animation: gradientShift linear infinite;
   overflow: visible;
+  display: inline;
+  margin: 0;
+  padding: 0;
+  letter-spacing: 0;
+  position: relative;
+  text-shadow: 0 0 0 transparent;
 }
 
 .gradient-overlay {

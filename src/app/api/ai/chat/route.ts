@@ -7,6 +7,8 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { generateStreamingChatResponse } from '@/lib/ai/chat';
 import type { ChatRequest } from '@/lib/ai/types';
+import { checkCreditsAvailable, deductCredits } from '@/lib/credits/tracker';
+import { calculateCreditsFromTokens, estimateChatResponseCredits } from '@/lib/credits/calculator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,6 +72,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Estimate credits needed for chat response
+    const estimatedCredits = estimateChatResponseCredits(
+      body.message.length,
+      500 // Estimate average response length
+    );
+
+    // Check if user has enough credits
+    const creditCheck = await checkCreditsAvailable(user.id, estimatedCredits);
+    if (!creditCheck.available) {
+      return new Response(
+        JSON.stringify({ 
+          error: creditCheck.message || 'Insufficient credits',
+          credits: {
+            required: estimatedCredits,
+            available: creditCheck.balance,
+          }
+        }),
+        { status: 402, headers: { 'Content-Type': 'application/json' } } // 402 Payment Required
+      );
+    }
+
     console.log('Calling generateStreamingChatResponse...');
     
     // Create a streaming response
@@ -92,11 +115,50 @@ export async function POST(request: NextRequest) {
               });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             },
-            onComplete: (fullMessage: string, metadata?: any) => {
+            onComplete: async (fullMessage: string, metadata?: any) => {
+              // Calculate exact credits from token usage
+              let creditsUsed = estimatedCredits;
+              
+              if (metadata?.tokenUsage) {
+                creditsUsed = calculateCreditsFromTokens(
+                  metadata.tokenUsage.inputTokens,
+                  metadata.tokenUsage.outputTokens
+                );
+              } else {
+                // Estimate based on message lengths
+                creditsUsed = estimateChatResponseCredits(
+                  body.message.length,
+                  fullMessage.length
+                );
+              }
+
+              // Deduct credits after successful chat response
+              const deduction = await deductCredits(
+                user.id,
+                creditsUsed,
+                'chat_message',
+                {
+                  chatId: body.chatId,
+                  messageLength: body.message.length,
+                  responseLength: fullMessage.length,
+                }
+              );
+
+              if (!deduction.success) {
+                console.error('Failed to deduct credits:', deduction.error);
+                // Still return response, but log the error
+              }
+
               const data = JSON.stringify({
                 type: 'complete',
                 message: fullMessage,
-                metadata,
+                metadata: {
+                  ...metadata,
+                  credits: {
+                    used: creditsUsed,
+                    remaining: deduction.newBalance,
+                  },
+                },
               });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               controller.close();

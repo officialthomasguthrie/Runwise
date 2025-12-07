@@ -14,7 +14,7 @@ export interface Database {
           last_name: string | null
           avatar_url: string | null
           timezone: string
-          subscription_tier: 'free' | 'pro' | 'enterprise'
+          subscription_tier: 'free' | 'pro' | 'enterprise' | 'personal' | 'professional'
           subscription_status: 'active' | 'cancelled' | 'past_due'
           subscription_expires_at: string | null
           subscription_started_at: string | null
@@ -23,6 +23,10 @@ export interface Database {
           usage_reset_at: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
+          credits_balance: number
+          credits_used_this_month: number
+          credits_last_reset: string
+          total_credits_used: number
           created_at: string
           updated_at: string
         }
@@ -33,7 +37,7 @@ export interface Database {
           last_name?: string | null
           avatar_url?: string | null
           timezone?: string
-          subscription_tier?: 'free' | 'pro' | 'enterprise'
+          subscription_tier?: 'free' | 'pro' | 'enterprise' | 'personal' | 'professional'
           subscription_status?: 'active' | 'cancelled' | 'past_due'
           subscription_expires_at?: string | null
           subscription_started_at?: string | null
@@ -42,6 +46,10 @@ export interface Database {
           usage_reset_at?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          credits_balance?: number
+          credits_used_this_month?: number
+          credits_last_reset?: string
+          total_credits_used?: number
           created_at?: string
           updated_at?: string
         }
@@ -52,7 +60,7 @@ export interface Database {
           last_name?: string | null
           avatar_url?: string | null
           timezone?: string
-          subscription_tier?: 'free' | 'pro' | 'enterprise'
+          subscription_tier?: 'free' | 'pro' | 'enterprise' | 'personal' | 'professional'
           subscription_status?: 'active' | 'cancelled' | 'past_due'
           subscription_expires_at?: string | null
           subscription_started_at?: string | null
@@ -61,6 +69,10 @@ export interface Database {
           usage_reset_at?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          credits_balance?: number
+          credits_used_this_month?: number
+          credits_last_reset?: string
+          total_credits_used?: number
           created_at?: string
           updated_at?: string
         }

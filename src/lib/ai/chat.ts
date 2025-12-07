@@ -32,13 +32,14 @@ export async function generateChatResponse(
       {
         role: 'system',
         content: `You are Runwise AI, an intelligent assistant for an AI-powered workflow automation platform. 
-        
+
 Your capabilities:
 - Help users understand how to create workflows
 - Answer questions about workflow automation
 - Guide users through the workflow builder
 - Detect when users want to create workflows from natural language
 - Help users fill out form fields in workflow nodes by providing instructions, examples, and guidance
+- Configure nodes automatically when users provide configuration values (e.g., API keys, times, prompts)
 
 When a user asks for help with a form field (e.g., "Help me with the [field name]" or "Help me fill out the [field name]"), you should:
 1. Identify what type of field they're asking about (API key, prompt, mapping, configuration option, etc.), using the field name, node type, and workflow name for context.
@@ -55,6 +56,13 @@ When a user wants to create a workflow, you should:
 3. Ask: "Does this look correct? Click 'Generate Workflow' to create it, or let me know if you'd like any tweaks."
 
 IMPORTANT: Do NOT automatically generate the workflow. Always wait for the user to click the "Generate Workflow" button. Your response should end with something like: "Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
+
+When a user wants to configure a node (e.g., "Set the OpenAI API key to sk-12345" or "Make the trigger run every day at 9 AM" or "Generate a prompt for the AI node"), you should:
+1. Acknowledge what you're configuring
+2. Extract the values from their message
+3. If values are provided, confirm you'll configure it
+4. If values are missing, ask the user to provide them with clear instructions on how to get them (e.g., for API keys, explain where to find them)
+5. The system will automatically apply the configuration - you don't need to do anything special, just respond naturally
 
 Be helpful, concise, and professional. If a user asks about creating a workflow, encourage them to describe it in detail so you can generate it accurately.
 
@@ -108,10 +116,23 @@ CRITICAL: Never use emojis in your responses. Use only plain text.`,
 
     console.log('OpenAI API response received');
     const aiResponse = completion.choices[0]?.message?.content || '';
+    
+    // Capture token usage for credit calculation
+    const tokenUsage = {
+      inputTokens: completion.usage?.prompt_tokens || 0,
+      outputTokens: completion.usage?.completion_tokens || 0,
+    };
     console.log('AI response content length:', aiResponse.length);
-    const shouldGenerateWorkflow = detectWorkflowIntent(request.message);
+    // Check both user message and AI response for workflow intent
+    const userHasWorkflowIntent = detectWorkflowIntent(request.message);
+    const aiProposesWorkflow = detectWorkflowIntent(aiResponse) || 
+      aiResponse.toLowerCase().includes('generate workflow') ||
+      aiResponse.toLowerCase().includes('create workflow') ||
+      aiResponse.toLowerCase().includes('build workflow') ||
+      aiResponse.toLowerCase().includes('click') && aiResponse.toLowerCase().includes('generate');
+    const shouldGenerateWorkflow = userHasWorkflowIntent || aiProposesWorkflow;
     const workflowPrompt = shouldGenerateWorkflow
-      ? extractWorkflowPrompt(request.message)
+      ? (extractWorkflowPrompt(request.message) || extractWorkflowPrompt(aiResponse) || request.message)
       : undefined;
 
     // Generate suggestions for follow-up
@@ -181,13 +202,14 @@ export async function generateStreamingChatResponse(
       {
         role: 'system',
         content: `You are Runwise AI, an intelligent assistant for an AI-powered workflow automation platform. 
-        
+
 Your capabilities:
 - Help users understand how to create workflows
 - Answer questions about workflow automation
 - Guide users through the workflow builder
 - Detect when users want to create workflows from natural language
 - Help users fill out form fields in workflow nodes by providing instructions, examples, and guidance
+- Configure nodes automatically when users provide configuration values (e.g., API keys, times, prompts)
 
 When a user asks for help with a form field (e.g., "Help me with the [field name]" or "Help me fill out the [field name]"), you should:
 1. Identify what type of field they're asking about (API key, prompt, mapping, configuration option, etc.), using the field name, node type, and workflow name for context.
@@ -204,6 +226,13 @@ When a user wants to create a workflow, you should:
 3. Ask: "Does this look correct? Click 'Generate Workflow' to create it, or let me know if you'd like any tweaks."
 
 IMPORTANT: Do NOT automatically generate the workflow. Always wait for the user to click the "Generate Workflow" button. Your response should end with something like: "Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
+
+When a user wants to configure a node (e.g., "Set the OpenAI API key to sk-12345" or "Make the trigger run every day at 9 AM" or "Generate a prompt for the AI node"), you should:
+1. Acknowledge what you're configuring
+2. Extract the values from their message
+3. If values are provided, confirm you'll configure it
+4. If values are missing, ask the user to provide them with clear instructions on how to get them (e.g., for API keys, explain where to find them)
+5. The system will automatically apply the configuration - you don't need to do anything special, just respond naturally
 
 Be helpful, concise, and professional. If a user asks about creating a workflow, encourage them to describe it in detail so you can generate it accurately.
 
@@ -249,6 +278,9 @@ CRITICAL: Never use emojis in your responses. Use only plain text.`,
     console.log('Calling OpenAI API with streaming with', messages.length, 'messages');
     
     let fullMessage = '';
+    let inputTokens = 0;
+    let outputTokens = 0;
+    
     const stream = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages,
@@ -263,21 +295,56 @@ CRITICAL: Never use emojis in your responses. Use only plain text.`,
         fullMessage += content;
         request.onChunk(content, false);
       }
+      
+      // Capture token usage if available in chunk
+      if (chunk.usage) {
+        inputTokens = chunk.usage.prompt_tokens || 0;
+        outputTokens = chunk.usage.completion_tokens || 0;
+      }
     }
+    
+    // If we didn't get usage from chunks, estimate from content
+    if (inputTokens === 0 || outputTokens === 0) {
+      // Rough estimate: ~4 characters per token
+      const messagesText = messages.map(m => m.content).join(' ');
+      inputTokens = Math.ceil(messagesText.length / 4);
+      outputTokens = Math.ceil(fullMessage.length / 4);
+    }
+    
+    const tokenUsage = {
+      inputTokens,
+      outputTokens,
+    };
 
     console.log('Streaming complete, full message length:', fullMessage.length);
     
-    // Analyze the complete message for workflow intent
-    const shouldGenerateWorkflow = detectWorkflowIntent(request.message);
+    // Analyze both user message and AI response for workflow intent
+    const userHasWorkflowIntent = detectWorkflowIntent(request.message);
+    const aiProposesWorkflow = detectWorkflowIntent(fullMessage) || 
+      fullMessage.toLowerCase().includes('generate workflow') ||
+      fullMessage.toLowerCase().includes('create workflow') ||
+      fullMessage.toLowerCase().includes('build workflow') ||
+      (fullMessage.toLowerCase().includes('click') && fullMessage.toLowerCase().includes('generate'));
+    const shouldGenerateWorkflow = userHasWorkflowIntent || aiProposesWorkflow;
     const workflowPrompt = shouldGenerateWorkflow
-      ? extractWorkflowPrompt(request.message)
+      ? (extractWorkflowPrompt(request.message) || extractWorkflowPrompt(fullMessage) || request.message)
       : undefined;
 
-    // Call onComplete with metadata
+    console.log('🔍 Workflow intent analysis:', {
+      userMessage: request.message.substring(0, 50),
+      userHasWorkflowIntent,
+      aiProposesWorkflow,
+      shouldGenerateWorkflow,
+      workflowPrompt: workflowPrompt?.substring(0, 50),
+      aiResponsePreview: fullMessage.substring(0, 100)
+    });
+
+    // Call onComplete with metadata including token usage
     request.onComplete(fullMessage, {
       shouldGenerateWorkflow,
       workflowPrompt,
       suggestions: generateSuggestions(fullMessage, shouldGenerateWorkflow),
+      tokenUsage,
     });
   } catch (error: any) {
     console.error('Error generating streaming chat response:', error);

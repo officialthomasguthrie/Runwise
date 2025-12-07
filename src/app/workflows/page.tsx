@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { GridCard } from "@/components/ui/grid-card";
-import { FolderOpen, Clock, ArrowRight, Trash2, X } from "lucide-react";
+import { Workflow, Clock, ArrowRight, Trash2, X } from "lucide-react";
 import type { Database } from "@/types/database";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
@@ -268,7 +268,7 @@ export default function WorkflowsPage() {
                                 e.stopPropagation();
                                 setConfirmDeleteId(w.id);
                               }}
-                              className="absolute right-2 top-2 z-20 inline-flex items-center justify-center rounded-md bg-background/80 border border-border p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-background"
+                              className="absolute right-2 top-2 z-20 inline-flex items-center justify-center rounded-md bg-background/80 border border-stone-200 dark:border-white/10 p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-background"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -277,7 +277,7 @@ export default function WorkflowsPage() {
                                 <div className="relative z-10">
                                   <div className="flex items-center gap-3 mb-3">
                                     <div className="w-8 h-8 bg-gradient-to-br from-pink-400 to-purple-400 rounded-lg flex items-center justify-center">
-                                      <FolderOpen className="w-4 h-4 text-white" />
+                                      <Workflow className="w-4 h-4 text-white" />
                                     </div>
                                     <div className="min-w-0 flex-1 text-left">
                                       {editingWorkflowId === w.id ? (
@@ -295,7 +295,7 @@ export default function WorkflowsPage() {
                                               cancelEditingName();
                                             }
                                           }}
-                                          className="w-full rounded-sm border border-border bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                          className="w-full rounded-sm border border-stone-200 dark:border-white/10 bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-white/20"
                                         />
                                       ) : (
                                         <button
@@ -351,7 +351,7 @@ export default function WorkflowsPage() {
 
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-md border border-border bg-background p-4 shadow-lg">
+          <div className="w-full max-w-sm rounded-md border border-stone-200 dark:border-white/10 bg-background p-4 shadow-lg">
             <div className="flex items-start justify-between">
               <h3 className="text-base font-semibold text-foreground">Delete workflow?</h3>
               <button
@@ -368,7 +368,7 @@ export default function WorkflowsPage() {
             <div className="mt-4 flex items-center justify-end gap-2">
               <button
                 onClick={() => setConfirmDeleteId(null)}
-                className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
+                className="inline-flex items-center rounded-md border border-stone-200 dark:border-white/10 bg-background px-3 py-1.5 text-sm text-foreground hover:bg-accent"
               >
                 Cancel
               </button>

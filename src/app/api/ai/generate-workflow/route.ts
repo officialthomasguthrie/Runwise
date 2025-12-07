@@ -12,6 +12,8 @@ import {
 import type {
   WorkflowGenerationRequest,
 } from '@/lib/ai/types';
+import { checkCreditsAvailable, deductCredits } from '@/lib/credits/tracker';
+import { calculateCreditsFromTokens, estimateWorkflowGenerationCredits } from '@/lib/credits/calculator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,6 +59,30 @@ export async function POST(request: NextRequest) {
     const existingNodes = body.currentWorkflow?.nodes || body.existingNodes || [];
     const existingEdges = body.currentWorkflow?.edges || body.existingEdges || [];
 
+    // Estimate credits needed (we'll calculate exact amount after generation)
+    const estimatedCredits = estimateWorkflowGenerationCredits(
+      existingNodes.length + 5, // Estimate based on existing + new nodes
+      false // Will check for custom nodes after generation
+    );
+
+    // Check if user has enough credits
+    const creditCheck = await checkCreditsAvailable(user.id, estimatedCredits);
+    if (!creditCheck.available) {
+      return new Response(
+        JSON.stringify({ 
+          error: creditCheck.message || 'Insufficient credits',
+          credits: {
+            required: estimatedCredits,
+            available: creditCheck.balance,
+          }
+        }),
+        { status: 402, headers: { 'Content-Type': 'application/json' } } // 402 Payment Required
+      );
+    }
+
+    // Track token usage for credit deduction
+    let tokenUsage: { inputTokens: number; outputTokens: number } | null = null;
+
     // Create a streaming response
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -76,11 +102,51 @@ export async function POST(request: NextRequest) {
               });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             },
-            onComplete: (workflow: any) => {
+            onComplete: async (workflow: any, usage?: { inputTokens: number; outputTokens: number }) => {
+              // Calculate exact credits from token usage
+              let creditsUsed = estimatedCredits;
+              
+              // Use actual token usage if available, otherwise estimate
+              if (usage) {
+                creditsUsed = calculateCreditsFromTokens(
+                  usage.inputTokens,
+                  usage.outputTokens
+                );
+                tokenUsage = usage; // Store for reference
+              } else {
+                // Estimate based on workflow complexity
+                const nodeCount = workflow.nodes?.length || 0;
+                const hasCustomNodes = workflow.nodes?.some((n: any) => 
+                  n.data?.nodeId === 'CUSTOM_GENERATED'
+                ) || false;
+                creditsUsed = estimateWorkflowGenerationCredits(nodeCount, hasCustomNodes);
+              }
+
+              // Deduct credits after successful generation
+              const deduction = await deductCredits(
+                user.id,
+                creditsUsed,
+                'workflow_generation',
+                {
+                  workflowName: workflow.workflowName,
+                  nodeCount: workflow.nodes?.length || 0,
+                  prompt: body.userPrompt.substring(0, 100), // First 100 chars
+                }
+              );
+
+              if (!deduction.success) {
+                console.error('Failed to deduct credits:', deduction.error);
+                // Still return workflow, but log the error
+              }
+
               const data = JSON.stringify({
                 type: 'complete',
                 success: true,
                 workflow,
+                credits: {
+                  used: creditsUsed,
+                  remaining: deduction.newBalance,
+                },
               });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               controller.close();

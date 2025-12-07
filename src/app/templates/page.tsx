@@ -81,7 +81,7 @@ export default function TemplatesPage() {
         .insert({
           name: templateName,
           user_id: user.id,
-          status: 'active',
+          status: 'draft',
           workflow_data: {
             nodes,
             edges,

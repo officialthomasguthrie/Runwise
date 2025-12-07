@@ -38,6 +38,7 @@ import {
 
 interface AIChatSidebarProps {
   onWorkflowGenerated?: (workflow: { nodes: any[]; edges: any[]; workflowName?: string }) => void;
+  onNodesConfigured?: (configurations: Array<{ nodeId: string; config: Record<string, any> }>) => void;
   initialPrompt?: string | null;
   getCurrentWorkflow?: () => { nodes: any[]; edges: any[] };
   externalMessage?: string | null;
@@ -56,7 +57,8 @@ interface AIChatSidebarProps {
  * - Chat history browsing
  */
 export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({ 
-  onWorkflowGenerated, 
+  onWorkflowGenerated,
+  onNodesConfigured,
   initialPrompt, 
   getCurrentWorkflow,
   externalMessage,
@@ -130,6 +132,21 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       }
     }
   }, [messages]);
+
+  // Auto-scroll to bottom when Generate Workflow button appears
+  useEffect(() => {
+    if (workflowPrompt) {
+      // Small delay to ensure the button is rendered
+      setTimeout(() => {
+        if (scrollAreaRef.current) {
+          const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+          if (scrollElement) {
+            scrollElement.scrollTop = scrollElement.scrollHeight;
+          }
+        }
+      }, 100);
+    }
+  }, [workflowPrompt]);
 
   // Auto-resize editing textarea based on content (max 85px)
   useEffect(() => {
@@ -377,10 +394,35 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                       }
 
                       // Check if workflow generation is suggested
+                      // Filter out field-filling questions
+                      console.log('🔍 Complete event received:', {
+                        hasMetadata: !!data.metadata,
+                        shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                        workflowPrompt: data.metadata?.workflowPrompt,
+                        fullMetadata: data.metadata
+                      });
+                      
                       if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
+                        const responseContent = fullMessage.toLowerCase();
+                        const isFieldFillingQuestion = 
+                          responseContent.includes('help me fill out') ||
+                          responseContent.includes('help me with') ||
+                          responseContent.includes('fill out the');
+                        
+                        if (!isFieldFillingQuestion) {
                         setWorkflowPrompt(data.metadata.workflowPrompt);
                         // Don't auto-generate - wait for user to click the button
-                        console.log('🎯 Workflow generation ready. Waiting for user to click Generate button.');
+                          console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
+                        } else {
+                          console.log('🚫 Field-filling question detected, not setting workflowPrompt');
+                          setWorkflowPrompt(null);
+                        }
+                      } else {
+                        console.log('❌ No workflow intent detected:', {
+                          shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                          hasWorkflowPrompt: !!data.metadata?.workflowPrompt
+                        });
+                        setWorkflowPrompt(null);
                       }
                     } else if (data.type === 'error') {
                       throw new Error(data.error || 'Stream error');
@@ -654,32 +696,40 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         setConversationTitleEverywhere(conversationId, finalTitle);
                       }
 
-                      // Only set workflowPrompt if AI explicitly proposes workflow generation
-                      // For external messages (Ask AI), be more strict
+                      // Set workflowPrompt if AI detects workflow intent
+                      // Filter out field-filling questions (Ask AI button)
+                      console.log('🔍 Complete event received (sendMessage):', {
+                        hasMetadata: !!data.metadata,
+                        shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                        workflowPrompt: data.metadata?.workflowPrompt,
+                        fullMetadata: data.metadata
+                      });
+                      
                       if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
                         const responseContent = fullMessage.toLowerCase();
-                        const explicitlyProposesWorkflow = 
-                          responseContent.includes('generate workflow') ||
-                          responseContent.includes('create workflow') ||
-                          responseContent.includes('build workflow') ||
-                          responseContent.includes("click 'generate workflow'") ||
-                          responseContent.includes('click the generate workflow button') ||
-                          responseContent.includes('generate workflow button');
+                        // Don't show for field-filling questions (Ask AI button)
+                        const isFieldFillingQuestion = 
+                          responseContent.includes('help me fill out') ||
+                          responseContent.includes('help me with') ||
+                          responseContent.includes('fill out the') ||
+                          (externalMessage && (
+                            responseContent.includes('api key') ||
+                            responseContent.includes('field') ||
+                            responseContent.includes('configuration')
+                          ));
                         
-                        // For external messages (Ask AI), only set if explicitly proposed
-                        if (externalMessage) {
-                          if (explicitlyProposesWorkflow) {
-                            setWorkflowPrompt(data.metadata.workflowPrompt);
-                          } else {
-                            // Clear workflow prompt for field-filling questions
-                            setWorkflowPrompt(null);
-                          }
-                        } else {
-                          // For regular messages, set workflow prompt normally
+                        if (!isFieldFillingQuestion) {
                           setWorkflowPrompt(data.metadata.workflowPrompt);
+                          console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
+                        } else {
+                          console.log('🚫 Field-filling question detected, not setting workflowPrompt');
+                          setWorkflowPrompt(null);
                         }
-                      } else if (externalMessage) {
-                        // Clear workflow prompt if no workflow intent detected for external messages
+                      } else {
+                        console.log('❌ No workflow intent detected (sendMessage):', {
+                          shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                          hasWorkflowPrompt: !!data.metadata?.workflowPrompt
+                        });
                         setWorkflowPrompt(null);
                       }
                     } else if (data.type === 'error') {
@@ -1214,9 +1264,54 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   setConversationTitleEverywhere(activeConversationId, finalTitle);
                 }
 
+                // Check for configuration intent and handle it
+                const userMessage = messages.length >= 2 ? messages[messages.length - 2]?.content : '';
+                const shouldConfigure = userMessage && (
+                  userMessage.toLowerCase().includes('set') ||
+                  userMessage.toLowerCase().includes('configure') ||
+                  userMessage.toLowerCase().includes('fill in') ||
+                  userMessage.toLowerCase().includes('api key') ||
+                  userMessage.toLowerCase().includes('make it') ||
+                  userMessage.toLowerCase().includes('change') ||
+                  userMessage.toLowerCase().includes('update') ||
+                  userMessage.toLowerCase().includes('put') ||
+                  userMessage.toLowerCase().includes('use')
+                );
+
+                if (shouldConfigure && getCurrentWorkflow && onNodesConfigured) {
+                  // Call configuration API
+                  handleNodeConfiguration(userMessage, fullMessage);
+                }
+
                 // Check if workflow generation is suggested
+                // Filter out field-filling questions
+                console.log('🔍 Complete event received (regular send):', {
+                  hasMetadata: !!data.metadata,
+                  shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                  workflowPrompt: data.metadata?.workflowPrompt,
+                  fullMetadata: data.metadata
+                });
+                
                 if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
+                  const responseContent = fullMessage.toLowerCase();
+                  const isFieldFillingQuestion = 
+                    responseContent.includes('help me fill out') ||
+                    responseContent.includes('help me with') ||
+                    responseContent.includes('fill out the');
+                  
+                  if (!isFieldFillingQuestion) {
                   setWorkflowPrompt(data.metadata.workflowPrompt);
+                    console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
+                  } else {
+                    console.log('🚫 Field-filling question detected, not setting workflowPrompt');
+                    setWorkflowPrompt(null);
+                  }
+                } else {
+                  console.log('❌ No workflow intent detected (regular send):', {
+                    shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                    hasWorkflowPrompt: !!data.metadata?.workflowPrompt
+                  });
+                  setWorkflowPrompt(null);
                 }
               } else if (data.type === 'error') {
                 throw new Error(data.error || 'Stream error');
@@ -1357,8 +1452,54 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   };
                   await saveMessage(completeAiMessage, activeConversationId);
 
+                  // Check for configuration intent and handle it
+                  const userMessage = messages.length >= 2 ? messages[messages.length - 2]?.content : '';
+                  const shouldConfigure = userMessage && (
+                    userMessage.toLowerCase().includes('set') ||
+                    userMessage.toLowerCase().includes('configure') ||
+                    userMessage.toLowerCase().includes('fill in') ||
+                    userMessage.toLowerCase().includes('api key') ||
+                    userMessage.toLowerCase().includes('make it') ||
+                    userMessage.toLowerCase().includes('change') ||
+                    userMessage.toLowerCase().includes('update') ||
+                    userMessage.toLowerCase().includes('put') ||
+                    userMessage.toLowerCase().includes('use')
+                  );
+
+                  if (shouldConfigure && getCurrentWorkflow && onNodesConfigured) {
+                    // Call configuration API
+                    handleNodeConfiguration(userMessage, fullMessage);
+                  }
+
+                  // Check if workflow generation is suggested
+                  // Filter out field-filling questions
+                  console.log('🔍 Complete event received (edit and send):', {
+                    hasMetadata: !!data.metadata,
+                    shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                    workflowPrompt: data.metadata?.workflowPrompt,
+                    fullMetadata: data.metadata
+                  });
+
                   if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
+                    const responseContent = fullMessage.toLowerCase();
+                    const isFieldFillingQuestion = 
+                      responseContent.includes('help me fill out') ||
+                      responseContent.includes('help me with') ||
+                      responseContent.includes('fill out the');
+                    
+                    if (!isFieldFillingQuestion) {
                     setWorkflowPrompt(data.metadata.workflowPrompt);
+                      console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
+                    } else {
+                      console.log('🚫 Field-filling question detected, not setting workflowPrompt');
+                      setWorkflowPrompt(null);
+                    }
+                  } else {
+                    console.log('❌ No workflow intent detected (edit and send):', {
+                      shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                      hasWorkflowPrompt: !!data.metadata?.workflowPrompt
+                    });
+                    setWorkflowPrompt(null);
                   }
                 } else if (data.type === 'error') {
                   throw new Error(data.error || 'Stream error');
@@ -1390,6 +1531,60 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         });
     } finally {
         setIsLoading(false);
+    }
+  };
+
+  const handleNodeConfiguration = async (userMessage: string, aiResponse: string) => {
+    if (!getCurrentWorkflow || !onNodesConfigured) return;
+
+    try {
+      const currentWorkflow = getCurrentWorkflow();
+      
+      const response = await fetch('/api/ai/configure-nodes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userMessage,
+          currentWorkflow,
+          conversationHistory: messages.slice(-5).map(msg => ({
+            role: msg.role,
+            content: msg.content,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to configure nodes');
+        return;
+      }
+
+      const result = await response.json();
+      
+      if (result.needsInput) {
+        // AI needs more information - it will ask in the response
+        return;
+      }
+
+      if (result.configurations && result.configurations.length > 0) {
+        // Apply configurations
+        onNodesConfigured(result.configurations);
+        
+        // Add a system message showing what was configured
+        const configSummary = result.summary || result.message || 'Configuration updated';
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `config_${Date.now()}`,
+            role: 'assistant',
+            content: configSummary,
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('Error configuring nodes:', error);
     }
   };
 
@@ -1518,19 +1713,56 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       }
 
       // Remove the "Generating..." message and add success message
+      const confirmationMessage = `Workflow "${finalWorkflow.workflowName}" has been generated and added to your canvas!`;
+      const aiSummary = finalWorkflow.reasoning || '';
+      const now = Date.now();
+      
+      const confirmationMsg: ChatMessage = {
+        id: `msg_${now}`,
+        role: 'assistant',
+        content: confirmationMessage,
+        timestamp: new Date().toISOString(),
+        workflowGenerated: true,
+      };
+      
+      const successMsg: ChatMessage = {
+        id: `msg_${now + 1}`,
+        role: 'assistant',
+        content: 'Workflow Generated Successfully',
+        timestamp: new Date().toISOString(),
+        workflowGenerated: true, // Mark as workflow-related so it's saved
+      };
+      
+      const summaryMsg: ChatMessage | null = aiSummary ? {
+        id: `msg_${now + 2}`,
+        role: 'assistant',
+        content: aiSummary,
+        timestamp: new Date().toISOString(),
+        workflowGenerated: true, // Mark as workflow-related so it's saved
+      } : null;
+      
       setMessages((prev) => {
         const filtered = prev.filter((msg) => msg.id !== generatingMessage.id);
         return [
           ...filtered,
-          {
-            id: `msg_${Date.now()}`,
-            role: 'assistant',
-            content: `Workflow "${finalWorkflow.workflowName}" has been generated and added to your canvas! ${finalWorkflow.reasoning || ''}`,
-            timestamp: new Date().toISOString(),
-            workflowGenerated: true,
-          },
+          confirmationMsg,
+          successMsg,
+          ...(summaryMsg ? [summaryMsg] : []),
         ];
       });
+      
+      // Save all messages to database
+      try {
+        await saveMessage(confirmationMsg, activeConversationId);
+        await saveMessage(successMsg, activeConversationId);
+        if (summaryMsg) {
+          await saveMessage(summaryMsg, activeConversationId);
+        }
+      } catch (saveError) {
+        console.error('Error saving workflow generation messages:', saveError);
+        // Don't block the UI if save fails
+      }
+      
       setWorkflowPrompt(null);
     } catch (err: any) {
       console.error('Error generating workflow:', err);
@@ -1565,7 +1797,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   return (
     <div className="h-full w-full max-w-full flex flex-col bg-background/95 backdrop-blur-sm overflow-x-hidden min-w-0">
       {/* Top Bar - Action Icons */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-background/50">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-stone-200 dark:border-white/10 bg-background/50">
         {/* Header / Tabs */}
         {showChatHistory ? (
           <div className="flex-1">
@@ -1589,10 +1821,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 <button
                   key={tab.id}
                   onClick={() => switchToConversation(tab.id)}
-                  className={`group relative inline-flex items-center px-3 py-1.5 rounded-md text-xs border ${
+                  className={`group relative inline-flex items-center px-3 py-1.5 rounded-md text-xs transition-colors ${
                     tab.id === activeConversationId
-                      ? 'bg-muted text-foreground border-border'
-                      : 'text-muted-foreground border-transparent'
+                      ? 'backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] text-foreground'
+                      : 'text-muted-foreground border-transparent hover:bg-white/20 dark:hover:bg-zinc-900/20'
                   }`}
                   title={tab.title}
                 >
@@ -1618,7 +1850,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground"
+            className="h-8 w-8 text-muted-foreground hover:bg-white/20 dark:hover:bg-zinc-900/20"
             title="New Chat"
             onClick={createNewConversation}
           >
@@ -1629,8 +1861,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             size="icon"
             className={`h-8 w-8 ${
               showChatHistory
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground'
+                ? 'backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] text-foreground'
+                : 'text-muted-foreground hover:bg-white/20 dark:hover:bg-zinc-900/20'
             }`}
             title="Chat History"
             onClick={() => setShowChatHistory(!showChatHistory)}
@@ -1642,7 +1874,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground"
+                className="h-8 w-8 text-muted-foreground hover:bg-white/20 dark:hover:bg-zinc-900/20"
               >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
@@ -1760,7 +1992,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                 setEditingMessageContent(message.content);
                               }
                             }}
-                            className="w-full bg-muted/50 border border-border rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-12 focus:border-stone-300 dark:focus:border-white/30 focus:ring-0 transition-all scrollbar-hide overflow-y-auto"
+                            className="w-full bg-muted/50 border border-stone-200 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-12 focus:border-stone-300 dark:focus:border-white/30 focus:ring-0 transition-all scrollbar-hide overflow-y-auto"
                             style={{
                               minHeight: '48px',
                               maxHeight: '85px',
@@ -1850,6 +2082,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         >
                           {message.content}
                         </p>
+                      ) : (message as any).workflowGeneratedSuccess ? (
+                        <p className="text-xs text-muted-foreground/70 italic whitespace-pre-wrap">
+                          {message.content}
+                        </p>
                       ) : (
                         <p className="text-sm whitespace-pre-wrap">
                           {message.content.split(/(\*\*.*?\*\*)/g).map((part, index) => {
@@ -1871,113 +2107,43 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
           {/* Loading state is now handled by showing the streaming message */}
 
-          {/* Workflow Generation Button - Only show if last message is from AI and explicitly proposes workflow generation */}
-          {workflowPrompt && !isGeneratingWorkflow && (() => {
+          {/* Workflow Generation Button - Show if workflowPrompt is set and last message is from AI */}
+          {(() => {
             const lastMessage = messages[messages.length - 1];
-            if (!lastMessage || lastMessage.role !== 'assistant') return false;
-            
-              const content = lastMessage.content.toLowerCase();
-            // Only show if AI explicitly mentions generating a workflow, creating a workflow, or clicking generate workflow button
-            const explicitlyProposesWorkflow = 
-              (content.includes('generate workflow') || 
-               content.includes('create workflow') ||
-               content.includes('build workflow') ||
-               content.includes('make a workflow') ||
-               content.includes("click 'generate workflow'") ||
-               content.includes('click the generate workflow button') ||
-               content.includes('generate workflow button')) &&
-              // Don't show for field-filling questions
-              !content.includes('help me fill out') &&
-              !content.includes('help me with') &&
-              !content.includes('fill out the') &&
-              !content.includes('api key') &&
-              !content.includes('field');
-            
-            return explicitlyProposesWorkflow;
-           })() && (
+            const shouldShow = workflowPrompt && !isGeneratingWorkflow && lastMessage && lastMessage.role === 'assistant';
+            console.log('🔘 Button visibility check:', {
+              workflowPrompt,
+              isGeneratingWorkflow,
+              hasLastMessage: !!lastMessage,
+              lastMessageRole: lastMessage?.role,
+              shouldShow,
+              messagesLength: messages.length
+            });
+            return shouldShow;
+          })() ? (
              <div className="flex justify-center py-2">
                <Button
                  onClick={generateWorkflow}
                  variant="outline"
-                 className="gap-2 bg-background text-foreground border-border hover:bg-accent hover:text-foreground px-10"
+                 className="gap-2 bg-background text-foreground border-stone-200 dark:border-white/10 hover:bg-accent hover:text-foreground px-10"
                  size="lg"
                >
                  Generate Workflow
                </Button>
              </div>
-           )}
+           ) : null}
 
           {isGeneratingWorkflow && (
             <div className="flex justify-center py-2">
               <Button 
                 disabled 
                 variant="outline"
-                className="gap-2 bg-background text-foreground border-border px-10"
+                className="gap-2 bg-background text-foreground border-stone-200 dark:border-white/10 px-10"
                 size="lg"
               >
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Generating Workflow...
               </Button>
-            </div>
-          )}
-          
-          {/* JSON Preview - Show below the generating button and persist after generation */}
-          {workflowJson && (
-            <div className="flex gap-3 justify-start mt-2 px-4">
-              <div className="max-w-[95%] w-full">
-                <button
-                  onClick={() => setIsJsonExpanded(!isJsonExpanded)}
-                  className="w-full text-left bg-muted/30 border border-border rounded-lg overflow-hidden hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground">Workflow JSON</span>
-                      {isGeneratingWorkflow && (
-                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                      )}
-                    </div>
-                    {isJsonExpanded ? (
-                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className={`px-3 pb-2 overflow-hidden transition-all ${isJsonExpanded ? 'max-h-none' : 'max-h-[7.5rem]'}`}>
-                    <pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap break-words overflow-x-auto">
-                      {isJsonExpanded ? workflowJson : (() => {
-                        const lines = workflowJson.split('\n');
-                        if (lines.length <= 5) {
-                          return workflowJson;
-                        }
-                        // Show the last 5 lines
-                        const last5Lines = lines.slice(-5).join('\n');
-                        return `...\n${last5Lines}`;
-                      })()}
-                    </pre>
-                  </div>
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {/* Show "Waiting for JSON..." placeholder when generating but no JSON yet */}
-          {isGeneratingWorkflow && !workflowJson && (
-            <div className="flex gap-3 justify-start mt-2 px-4">
-              <div className="max-w-[95%] w-full">
-                <div className="w-full text-left bg-muted/30 border border-border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground">Workflow JSON</span>
-                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                    </div>
-                  </div>
-                  <div className="px-3 pb-2">
-                    <pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap break-words overflow-x-auto">
-                      <span className="text-muted-foreground italic">Waiting for JSON...</span>
-                    </pre>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
@@ -1992,7 +2158,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       </ScrollArea>
 
       {/* Input Area - Positioned at bottom */}
-      <div className="border-t border-border/50 bg-background/50 backdrop-blur-sm">
+      <div className="border-t border-stone-200 dark:border-white/10 bg-background/50 backdrop-blur-sm">
         <div className="p-4">
           {/* Input Box */}
           <div className="relative">
@@ -2005,7 +2171,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder="Ask me anything..."
                   disabled={isLoading}
-                  className="w-full bg-transparent border border-border/50 rounded-lg outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground/60 py-3 px-4 pr-12 focus:border-stone-300 dark:focus:border-white/30 focus:ring-0 transition-all scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto"
+                  className="w-full bg-transparent border border-stone-200 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground/60 py-3 px-4 pr-12 focus:border-stone-300 dark:focus:border-white/30 focus:ring-0 transition-all scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto"
                   rows={1}
                   style={{
                     height: '75px',
@@ -2048,7 +2214,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           />
           
           {/* Modal */}
-          <div className="relative z-10 w-full max-w-md mx-4 bg-background border border-border rounded-lg shadow-lg p-6">
+          <div className="relative z-10 w-full max-w-md mx-4 bg-background border border-stone-200 dark:border-white/10 rounded-lg shadow-lg p-6">
             <div className="space-y-4">
               {/* Icon and Title */}
               <div className="flex items-start gap-4">
@@ -2097,7 +2263,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             onClick={cancelClearAllHistory}
           />
           {/* Modal */}
-          <div className="relative z-10 w-full max-w-md mx-4 bg-background border border-border rounded-lg shadow-lg p-6">
+          <div className="relative z-10 w-full max-w-md mx-4 bg-background border border-stone-200 dark:border-white/10 rounded-lg shadow-lg p-6">
             <div className="space-y-4">
               {/* Icon and Title */}
               <div className="flex items-start gap-4">

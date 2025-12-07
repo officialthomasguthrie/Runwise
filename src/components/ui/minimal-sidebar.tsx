@@ -77,12 +77,12 @@ export function MinimalSidebar() {
   return (
     <div
       className={cn(
-        "fixed left-0 top-0 h-full bg-background border-r border-border transition-all duration-300 z-40 flex flex-col",
+        "fixed left-0 top-0 h-full bg-background border-r border-stone-200 dark:border-white/10 transition-all duration-300 z-40 flex flex-col",
         isCollapsed ? "w-16" : "w-64"
       )}
     >
       {/* Logo Section */}
-      <div className="h-16 flex items-center justify-center border-b border-border px-4">
+      <div className="h-16 flex items-center justify-center border-b border-stone-200 dark:border-white/10 px-4">
         {isCollapsed ? (
           <Link href="/" className="flex items-center justify-center">
             <img
@@ -134,7 +134,7 @@ export function MinimalSidebar() {
       </nav>
 
       {/* Toggle Button */}
-      <div className="border-t border-border p-2">
+      <div className="border-t border-stone-200 dark:border-white/10 p-2">
         <button
           onClick={toggleSidebar}
           className={cn(

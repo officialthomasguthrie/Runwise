@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Sun,
   Moon,
+  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -43,8 +44,14 @@ function UserProfileAvatar({ user }: { user: any }) {
   const avatarUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? undefined;
   return (
     <Link href="/settings" className="flex items-center justify-center" aria-label="Profile">
-      <Avatar className="h-8 w-8 border border-border">
-        {avatarUrl ? <AvatarImage src={avatarUrl} alt="User avatar" /> : null}
+      <Avatar className="h-8 w-8 border border-stone-200 dark:border-white/10">
+        {avatarUrl ? (
+          <AvatarImage 
+            src={avatarUrl} 
+            alt="User avatar" 
+            key={avatarUrl}
+          />
+        ) : null}
         <AvatarFallback className="text-xs">
           {getInitials(user)}
         </AvatarFallback>
@@ -89,10 +96,16 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
   return (
     <aside
       className={cn(
-        "relative h-full border-r border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 flex flex-col w-16 z-40",
+        "relative h-full border-r border-stone-200 dark:border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 flex flex-col w-16 z-40",
         className
       )}
     >
+      {/* Collapse button - center of right edge */}
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-50">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full border border-stone-200 dark:border-white/10 bg-background/95 backdrop-blur shadow-sm">
+          <ChevronLeft className="h-3 w-3 text-muted-foreground" />
+        </div>
+      </div>
       <div className="flex items-center justify-center px-2 py-4">
         <Link href="/" className="flex items-center justify-center">
         <img
@@ -110,7 +123,7 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
                 href={href}
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
-                  pathname === href ? "border-border text-foreground" : ""
+                  pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
                 )}
                 aria-label={label}
               >
@@ -142,7 +155,7 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
                 href={href}
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
-                  pathname === href ? "border-border text-foreground" : ""
+                  pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
                 )}
                 aria-label={label}
               >

@@ -11,10 +11,68 @@ type Plan = {
   description: string;
   buttonText: string;
   features: string[];
+  planId?: string; // 'personal' or 'professional'
 };
 
 export const Pricing: React.FC = () => {
   const [isAnnual, setIsAnnual] = useState(true);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const handleCheckout = async (planName: string) => {
+    // Map plan names to plan IDs
+    const planIdMap: Record<string, { monthly: string; yearly: string }> = {
+      Personal: {
+        monthly: 'personal-monthly',
+        yearly: 'personal-yearly',
+      },
+      Professional: {
+        monthly: 'pro-monthly',
+        yearly: 'pro-yearly',
+      },
+    };
+
+    const planConfig = planIdMap[planName];
+    if (!planConfig) {
+      // Enterprise plan - handle separately if needed
+      return;
+    }
+
+    const planId = isAnnual ? planConfig.yearly : planConfig.monthly;
+    setLoadingPlan(planName);
+
+    try {
+      const response = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan: planId,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(
+          payload.error ?? 'Unable to start checkout. Please try again.',
+        );
+      }
+
+      const payload = await response.json();
+      if (!payload.url) {
+        throw new Error('Stripe did not return a checkout URL.');
+      }
+
+      window.location.href = payload.url as string;
+    } catch (error: any) {
+      console.error('Failed to start checkout:', error);
+      alert(
+        error?.message ??
+          'We could not start the checkout flow. Please try again.',
+      );
+      setLoadingPlan(null);
+    }
+  };
 
   const plans: Plan[] = [
     {
@@ -25,6 +83,7 @@ export const Pricing: React.FC = () => {
       description:
         "Essential tools and features for starting your journey with ease.",
       buttonText: "Start Free Trial",
+      planId: "personal",
       features: [
         "100 credits",
         "100+ executions",
@@ -44,6 +103,7 @@ export const Pricing: React.FC = () => {
       description:
         "Advanced capabilities designed to meet growing business needs.",
       buttonText: "Start Free Trial",
+      planId: "professional",
       features: [
         "Everything in personal",
         "500 credits",
@@ -208,34 +268,42 @@ export const Pricing: React.FC = () => {
           </div>
 
           {/* CTA Button */}
-          <button className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-2.5 px-[15px] cursor-pointer overflow-hidden relative group">
+          <button
+            onClick={() => handleCheckout(plans[0].name)}
+            disabled={loadingPlan === plans[0].name}
+            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-2.5 px-[15px] cursor-pointer overflow-hidden relative group disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <div className="h-[18px] relative overflow-hidden">
               {/* Default state  */}
               <div className="flex items-end justify-center gap-[5px] absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">
                 <p className="text-[15px] font-normal leading-[1.2em]">
-                  {plans[0].buttonText}
+                  {loadingPlan === plans[0].name ? "Redirecting…" : plans[0].buttonText}
                 </p>
 
-                <img
-                  src="/assets/icons/arrow-top.svg"
-                  alt="arrow-top"
-                  loading="lazy"
-                  className="w-4 h-4"
-                />
+                {loadingPlan !== plans[0].name && (
+                  <img
+                    src="/assets/icons/arrow-top.svg"
+                    alt="arrow-top"
+                    loading="lazy"
+                    className="w-4 h-4"
+                  />
+                )}
               </div>
 
               {/* Hover state  */}
               <div className="flex items-end justify-center gap-[5px] absolute inset-0 translate-y-full opacity-0 transition-all duration-500 ease-in-out group-hover:translate-y-0 group-hover:opacity-100">
                 <p className="text-[15px] font-normal leading-[1.2em]">
-                  {plans[0].buttonText}
+                  {loadingPlan === plans[0].name ? "Redirecting…" : plans[0].buttonText}
                 </p>
 
-                <img
-                  src="/assets/icons/arrow-right.svg"
-                  alt="arrow-right"
-                  loading="lazy"
-                  className="w-4 h-4"
-                />
+                {loadingPlan !== plans[0].name && (
+                  <img
+                    src="/assets/icons/arrow-right.svg"
+                    alt="arrow-right"
+                    loading="lazy"
+                    className="w-4 h-4"
+                  />
+                )}
               </div>
             </div>
           </button>
@@ -311,34 +379,42 @@ export const Pricing: React.FC = () => {
           </div>
 
           {/* CTA Button */}
-          <button className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-2.5 px-[15px] cursor-pointer overflow-hidden relative group">
+          <button
+            onClick={() => handleCheckout(plans[1].name)}
+            disabled={loadingPlan === plans[1].name}
+            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-2.5 px-[15px] cursor-pointer overflow-hidden relative group disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <div className="h-[18px] relative overflow-hidden">
               {/* Default state  */}
               <div className="flex items-end justify-center gap-[5px] absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">
                 <p className="text-[15px] font-normal leading-[1.2em]">
-                  {plans[1].buttonText}
+                  {loadingPlan === plans[1].name ? "Redirecting…" : plans[1].buttonText}
                 </p>
 
-                <img
-                  src="/assets/icons/arrow-top.svg"
-                  alt="arrow-top"
-                  loading="lazy"
-                  className="w-4 h-4"
-                />
+                {loadingPlan !== plans[1].name && (
+                  <img
+                    src="/assets/icons/arrow-top.svg"
+                    alt="arrow-top"
+                    loading="lazy"
+                    className="w-4 h-4"
+                  />
+                )}
               </div>
 
               {/* Hover state  */}
               <div className="flex items-end justify-center gap-[5px] absolute inset-0 translate-y-full opacity-0 transition-all duration-500 ease-in-out group-hover:translate-y-0 group-hover:opacity-100">
                 <p className="text-[15px] font-normal leading-[1.2em]">
-                  {plans[1].buttonText}
+                  {loadingPlan === plans[1].name ? "Redirecting…" : plans[1].buttonText}
                 </p>
 
-                <img
-                  src="/assets/icons/arrow-right.svg"
-                  alt="arrow-right"
-                  loading="lazy"
-                  className="w-4 h-4"
-                />
+                {loadingPlan !== plans[1].name && (
+                  <img
+                    src="/assets/icons/arrow-right.svg"
+                    alt="arrow-right"
+                    loading="lazy"
+                    className="w-4 h-4"
+                  />
+                )}
               </div>
             </div>
           </button>
@@ -413,8 +489,11 @@ export const Pricing: React.FC = () => {
             </p>
           </div>
 
-          {/* CTA Button */}
-          <button className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-2.5 px-[15px] cursor-pointer overflow-hidden relative group">
+          {/* CTA Button - Enterprise (opens Cal.com in new tab) */}
+          <button 
+            onClick={() => window.open('https://cal.com/thomas-guthrie/runwise-enterprise-consultation', '_blank')}
+            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-2.5 px-[15px] cursor-pointer overflow-hidden relative group"
+          >
             <div className="h-[18px] relative overflow-hidden">
               {/* Default state  */}
               <div className="flex items-end justify-center gap-[5px] absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">

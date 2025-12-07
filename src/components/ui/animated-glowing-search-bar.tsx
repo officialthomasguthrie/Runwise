@@ -22,7 +22,7 @@ const SearchComponent = ({ value = "", onChange, placeholder = "Search..." }: Se
           name="text" 
           value={value}
           onChange={handleInputChange}
-          className="bg-background border border-border w-[420px] h-[40px] rounded-lg text-foreground px-[40px] text-sm focus:outline-none placeholder-muted-foreground" 
+          className="bg-background border border-stone-200 dark:border-white/10 w-[420px] h-[40px] rounded-lg text-foreground px-[40px] text-sm focus:outline-none placeholder-muted-foreground" 
         />
         
         <div id="search-icon" className="absolute left-3 top-[8px]">

@@ -14,8 +14,32 @@ import { saveWorkflowFromEditor } from "@/lib/workflows/client";
 import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check, Link, Mail, Clock, MessageSquare, Table, FileCheck, CreditCard, GitBranch, FileText, Calendar, Smartphone, Upload, Database, MessageCircle, Equal, Minus, ArrowRight, ArrowLeft, Filter, Type, Code, Hourglass, Merge, Scissors, FileSpreadsheet, Sparkles, Calculator } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
 
-function WorkflowToggle() {
-  const [isChecked, setIsChecked] = useState(false);
+function WorkflowToggle({ workflowId, initialActive, onToggle }: { workflowId: string | null; initialActive: boolean; onToggle: (active: boolean) => Promise<void> }) {
+  const [isChecked, setIsChecked] = useState(initialActive);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Sync with prop changes
+  useEffect(() => {
+    setIsChecked(initialActive);
+  }, [initialActive]);
+
+  const handleToggle = async () => {
+    if (!workflowId || isUpdating) return;
+    
+    const newValue = !isChecked;
+    setIsChecked(newValue);
+    setIsUpdating(true);
+
+    try {
+      await onToggle(newValue);
+    } catch (error) {
+      // Revert on error
+      setIsChecked(!newValue);
+      console.error('Failed to toggle workflow:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
     <label className="flex cursor-pointer select-none items-center gap-2" aria-label="Workflow toggle">
@@ -23,9 +47,22 @@ function WorkflowToggle() {
         {isChecked ? "Active" : "Inactive"}
       </span>
       <div className="relative">
-        <input type="checkbox" checked={isChecked} onChange={() => setIsChecked((prev) => !prev)} className="sr-only" />
-        <div className={cn("block h-6 w-12 rounded-full transition-colors", isChecked ? "bg-primary" : "bg-border/70")} />
-        <div className={cn("absolute left-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow-sm transition-transform", isChecked ? "translate-x-6" : "")} />
+        <input 
+          type="checkbox" 
+          checked={isChecked} 
+          onChange={handleToggle}
+          disabled={!workflowId || isUpdating}
+          className="sr-only" 
+        />
+        <div className={cn(
+          "block h-6 w-12 rounded-full transition-colors",
+          isChecked ? "backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40" : "bg-stone-200/70 dark:bg-white/10",
+          (!workflowId || isUpdating) && "opacity-50"
+        )} />
+        <div className={cn(
+          "absolute left-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow-sm transition-transform",
+          isChecked ? "translate-x-6" : ""
+        )} />
       </div>
     </label>
   );
@@ -59,6 +96,8 @@ export default function WorkspacePage() {
   const [isConfigPanelVisible, setIsConfigPanelVisible] = useState(false);
   const [externalChatMessage, setExternalChatMessage] = useState<string | null>(null);
   const [externalChatContext, setExternalChatContext] = useState<{ fieldName?: string; nodeType?: string; nodeId?: string; workflowName?: string } | null>(null);
+  const [workflowActive, setWorkflowActive] = useState(false);
+  const [isLoadingWorkflowStatus, setIsLoadingWorkflowStatus] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     triggers: true,
     actions: true,
@@ -159,7 +198,7 @@ export default function WorkspacePage() {
         }}
         className="flex items-center gap-2.5 p-2.5 rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl transition-all duration-300 cursor-pointer cursor-grab active:cursor-grabbing text-foreground"
       >
-        <div className="flex items-center justify-center w-8 h-8 rounded-md bg-background/50 border border-border/20">
+        <div className="flex items-center justify-center w-8 h-8 rounded-md bg-background/50 border border-stone-200 dark:border-white/10">
           {icon}
         </div>
         <div className="flex-1 min-w-0">
@@ -300,6 +339,75 @@ export default function WorkspacePage() {
     saveWorkflowRef.current = callback;
   }, []);
 
+  // Load workflow activation status
+  useEffect(() => {
+    const loadWorkflowStatus = async () => {
+      if (!actualWorkflowId) {
+        setIsLoadingWorkflowStatus(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/workflow/${actualWorkflowId}/activate`);
+        if (response.ok) {
+          const data = await response.json();
+          setWorkflowActive(data.active);
+        } else {
+          console.error('Failed to load workflow status');
+          setWorkflowActive(false);
+        }
+      } catch (error) {
+        console.error('Error loading workflow status:', error);
+        setWorkflowActive(false);
+      } finally {
+        setIsLoadingWorkflowStatus(false);
+      }
+    };
+
+    loadWorkflowStatus();
+  }, [actualWorkflowId]);
+
+  // Handle workflow toggle
+  const handleWorkflowToggle = useCallback(async (active: boolean) => {
+    if (!actualWorkflowId) {
+      console.error('Cannot toggle workflow - no workflow ID');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/workflow/${actualWorkflowId}/activate`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ active }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.message || errorData.error || 'Failed to toggle workflow';
+        
+        // Show user-friendly error message
+        if (errorData.unconfiguredNodes && errorData.unconfiguredNodes.length > 0) {
+          const nodeList = errorData.unconfiguredNodes
+            .map((n: any) => `${n.nodeLabel} (missing: ${n.missingFields.join(', ')})`)
+            .join('\n');
+          alert(`Cannot activate workflow:\n\n${errorMessage}\n\nUnconfigured nodes:\n${nodeList}\n\nPlease configure all required fields before activating.`);
+        } else {
+          alert(`Cannot activate workflow: ${errorMessage}`);
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      setWorkflowActive(data.status === 'active');
+    } catch (error: any) {
+      console.error('Error toggling workflow:', error);
+      throw error; // Re-throw so toggle component can handle it
+    }
+  }, [actualWorkflowId]);
+
 
   const handleSave = useCallback(async () => {
     if (!saveWorkflowRef.current) {
@@ -410,6 +518,34 @@ export default function WorkspacePage() {
   };
 
   // Handle workflow generation from AI
+  const handleNodesConfigured = useCallback((configurations: Array<{ nodeId: string; config: Record<string, any> }>) => {
+    if (!updateWorkflowRef.current) return;
+    
+    // Get current workflow
+    const currentWorkflow = getWorkflowRef.current ? getWorkflowRef.current() : { nodes: [], edges: [] };
+    
+    // Update nodes with new configurations
+    const updatedNodes = currentWorkflow.nodes.map((node: any) => {
+      const config = configurations.find(c => c.nodeId === node.id);
+      if (config) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            config: {
+              ...node.data.config,
+              ...config.config,
+            },
+          },
+        };
+      }
+      return node;
+    });
+    
+    // Update workflow
+    updateWorkflowRef.current(updatedNodes, currentWorkflow.edges);
+  }, []);
+
   const handleWorkflowGenerated = async (workflow: { nodes: any[]; edges: any[]; workflowName?: string }) => {
     console.log('🔥 Workflow generated in page.tsx:', workflow);
     console.log('🔥 Nodes received:', workflow.nodes);
@@ -477,11 +613,11 @@ export default function WorkspacePage() {
   return (
     <div className="flex h-screen w-screen bg-background">
       <div className="relative z-50">
-        <CollapsibleSidebar />
+      <CollapsibleSidebar />
       </div>
       <div className="flex flex-1 flex-col bg-background relative">
         {/* Header with editable workspace name */}
-        <header className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+        <header className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-stone-200 dark:border-white/10">
           <div className="flex h-full items-center justify-between px-4 md:px-6">
             {/* Editable Workspace Name and Undo/Redo */}
             <div className="flex items-center gap-3">
@@ -501,7 +637,7 @@ export default function WorkspacePage() {
                         cancelEditingName();
                       }
                     }}
-                    className="px-2 py-1 rounded-sm border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-sm font-medium min-w-[200px] max-w-[400px]"
+                    className="px-2 py-1 rounded-sm border border-stone-200 dark:border-white/10 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-white/20 text-sm font-medium min-w-[200px] max-w-[400px]"
                   />
                 ) : (
                   <button
@@ -517,7 +653,7 @@ export default function WorkspacePage() {
               </div>
               
               {/* Undo/Redo Buttons */}
-              <div className="flex items-center gap-1 border-l border-border pl-3">
+              <div className="flex items-center gap-1 border-l border-stone-200 dark:border-white/10 pl-3">
                 <button
                   onClick={() => undoRef.current?.()}
                   disabled={!canUndo}
@@ -538,12 +674,16 @@ export default function WorkspacePage() {
             </div>
 
             <div className="flex items-center gap-4">
-              <WorkflowToggle />
+              <WorkflowToggle 
+                workflowId={actualWorkflowId} 
+                initialActive={workflowActive}
+                onToggle={handleWorkflowToggle}
+              />
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving}
-                className="inline-flex items-center gap-1.5 rounded-sm border border-border/60 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 rounded-sm border border-stone-200 dark:border-white/10 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Save workflow"
               >
                 {isSaving ? (
@@ -565,7 +705,7 @@ export default function WorkspacePage() {
               </button>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-sm border border-border/60 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50"
+                className="inline-flex items-center gap-1.5 rounded-sm border border-stone-200 dark:border-white/10 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50"
                 title="Share workflow"
               >
                 <Share2 className="h-4 w-4" />
@@ -611,7 +751,7 @@ export default function WorkspacePage() {
           {/* Left Sidebar - appears when Plus button is clicked, ONLY in workspace view */}
           {isLeftSidebarVisible && activeView === 'workspace' && (
             <div
-              className="fixed left-16 top-16 bottom-0 z-30 bg-background border-r border-border transition-all duration-200"
+              className="fixed left-16 top-16 bottom-0 z-30 bg-background border-r border-stone-200 dark:border-white/10 transition-all duration-200"
               style={{ width: `${leftSidebarWidth}px` }}
             >
               <div className="flex h-full flex-col">
@@ -626,7 +766,7 @@ export default function WorkspacePage() {
                       placeholder="Search nodes..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none"
+                      className="w-full pl-8 pr-3 py-2 text-sm bg-background border border-stone-200 dark:border-white/10 rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none"
                     />
                   </div>
                 </div>
@@ -838,7 +978,7 @@ export default function WorkspacePage() {
                     setActivePlaceholderId(null);
                     setIsLeftSidebarVisible((prev) => !prev);
                   }}
-                  className="flex h-10 w-10 items-center justify-center rounded-sm border border-border bg-background/95 text-foreground shadow-sm transition-transform hover:scale-[1.02] hover:bg-accent"
+                  className="flex h-10 w-10 items-center justify-center rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 text-foreground shadow-sm transition-all hover:scale-[1.02] hover:bg-white dark:hover:bg-zinc-900"
                   title={isLeftSidebarVisible ? "Close sidebar" : "Add Node"}
                 >
                   <Plus className="h-5 w-5 stroke-[2.5]" />
@@ -851,7 +991,7 @@ export default function WorkspacePage() {
                 <button
                   type="button"
                   onClick={handleClearWorkflow}
-                  className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-sm border border-border bg-background/95 text-foreground shadow-sm transition-colors hover:bg-accent"
+                  className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 text-foreground shadow-sm transition-colors hover:bg-white/40 dark:hover:bg-zinc-900/40"
                   title="Clear workflow canvas"
                 >
                   <Eraser className="h-5 w-5" />
@@ -876,7 +1016,7 @@ export default function WorkspacePage() {
                     }
                   }}
                   disabled={!hasNodes || isExecuting}
-                  className="pointer-events-auto inline-flex items-center gap-2.5 rounded-sm border border-border bg-background/95 px-5 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                  className="pointer-events-auto inline-flex items-center gap-2.5 rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 px-5 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-white/40 dark:hover:bg-zinc-900/40 disabled:cursor-not-allowed disabled:opacity-60"
                   title={
                     !hasNodes
                       ? 'Add nodes to test the workflow'
@@ -975,7 +1115,7 @@ export default function WorkspacePage() {
             {/* Resize Handle */}
             <div
               onMouseDown={handleMouseDown}
-              className={`fixed top-16 bottom-0 w-px bg-border z-40 cursor-col-resize`}
+              className={`fixed top-16 bottom-0 w-px bg-stone-200 dark:bg-white/10 z-40 cursor-col-resize hover:bg-stone-300 dark:hover:bg-white/20 transition-colors`}
               style={{ right: `${sidebarWidth}px` }}
             />
             {/* AI Chat Sidebar */}
@@ -983,7 +1123,7 @@ export default function WorkspacePage() {
               className="fixed top-16 right-0 bottom-0 z-30"
               style={{ width: `${sidebarWidth}px` }}
             >
-              <AIChatSidebar
+              <AIChatSidebar 
                 externalMessage={externalChatMessage}
                 externalContext={externalChatContext}
                 onExternalMessageSent={() => {
@@ -991,6 +1131,7 @@ export default function WorkspacePage() {
                   setExternalChatContext(null);
                 }} 
                 onWorkflowGenerated={handleWorkflowGenerated}
+                onNodesConfigured={handleNodesConfigured}
                 initialPrompt={initialPrompt}
                 getCurrentWorkflow={() => {
                   if (getWorkflowRef.current) {

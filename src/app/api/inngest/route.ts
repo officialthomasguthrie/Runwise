@@ -5,7 +5,10 @@ import {
   testWorkflow,
   sendTestNotification,
   workflowExecutor,
+  scheduledWorkflowTrigger,
+  pollingWorkflowTrigger,
 } from "../../../inngest/functions";
+import { monthlyCreditReset } from "../../../inngest/functions-credits";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
@@ -17,6 +20,9 @@ const serveHandler = serve({
     testWorkflow,
     sendTestNotification,
     workflowExecutor,
+    scheduledWorkflowTrigger,
+    pollingWorkflowTrigger,
+    monthlyCreditReset,
   ],
 });
 

@@ -22,9 +22,10 @@ export function convertAIGeneratedWorkflowToReactFlow(
 
   // Convert nodes
   const nodes: Node[] = aiWorkflow.nodes.map((aiNode) => {
-    // Get node definition to add label
+    // Get node definition to add label (only for library nodes)
     const nodeDef = getNodeById(aiNode.data.nodeId);
-    const nodeLabel = nodeDef?.name || aiNode.data.nodeId;
+    // Use AI-provided label if available, otherwise use node definition name, otherwise use nodeId
+    const nodeLabel = aiNode.data.label || nodeDef?.name || aiNode.data.nodeId;
 
     return {
       id: aiNode.id,
@@ -35,7 +36,9 @@ export function convertAIGeneratedWorkflowToReactFlow(
       },
       data: {
         ...aiNode.data,
-        label: nodeLabel, // Add label from node definition
+        label: nodeLabel, // Use AI-provided label or fallback to node definition
+        // Preserve configSchema for custom nodes
+        configSchema: aiNode.data.configSchema || nodeDef?.configSchema,
       },
       // Optional: Set default dimensions if not provided
       width: 320, // Standard node width
@@ -70,6 +73,10 @@ export function validateAIGeneratedWorkflow(
   const missingNodes: string[] = [];
 
   for (const node of aiWorkflow.nodes) {
+    // CUSTOM_GENERATED nodes are valid even if not in registry
+    if (node.data.nodeId === 'CUSTOM_GENERATED') {
+      continue;
+    }
     const nodeDef = getNodeById(node.data.nodeId);
     if (!nodeDef) {
       missingNodes.push(node.data.nodeId);

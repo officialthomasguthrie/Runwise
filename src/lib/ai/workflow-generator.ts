@@ -18,7 +18,7 @@ import { nodeRegistry } from '@/lib/nodes';
 export async function generateWorkflowFromPromptStreaming(
   request: WorkflowGenerationRequest & {
     onChunk: (jsonChunk: string, isComplete: boolean) => void;
-    onComplete: (workflow: AIGeneratedWorkflow) => void;
+    onComplete: (workflow: AIGeneratedWorkflow, tokenUsage?: { inputTokens: number; outputTokens: number }) => void;
     onError: (error: Error) => void;
   }
 ): Promise<void> {
@@ -71,6 +71,9 @@ When library nodes don't cover the requirement, generate a custom node:
 - Provide clear metadata (name, description)
 - Include a "description" field in data (REQUIRED - explain what the node does)
 - Code format: async (inputData, config, context) => { /* your code */ return result; }
+- **CRITICAL**: Include a "configSchema" object in data that defines ALL configuration fields the node needs
+- The configSchema must match the config values used in customCode (e.g., if code uses config.apiKey, schema must include apiKey field)
+- Analyze the customCode to identify ALL config values it uses and create a schema field for EACH one
 
 DESCRIPTION GUIDELINES:
 - Write descriptions in 1-2 clear, concise sentences
@@ -104,6 +107,14 @@ Example Custom Node:
     "label": "Fetch Crypto Price",
     "description": "Fetches cryptocurrency price from CoinGecko API",
     "customCode": "async (inputData, config, context) => { const response = await context.http.get(\`https://api.coingecko.com/api/v3/simple/price?ids=\${config.cryptoId}&vs_currencies=usd\`); return { price: response[config.cryptoId].usd, timestamp: new Date().toISOString() }; }",
+    "configSchema": {
+      "cryptoId": {
+        "type": "string",
+        "label": "Cryptocurrency ID",
+        "description": "The CoinGecko cryptocurrency ID (e.g., 'bitcoin', 'ethereum')",
+        "required": true
+      }
+    },
     "metadata": {
       "name": "Fetch Crypto Price",
       "description": "Fetches cryptocurrency price from CoinGecko API",
@@ -112,6 +123,17 @@ Example Custom Node:
     }
   }
 }
+
+CONFIG SCHEMA FORMAT:
+The configSchema must be an object where each key is a config field name, and the value is an object with:
+- type: "string" | "number" | "textarea" | "select"
+- label: Human-readable field name
+- description: What this field is for
+- required: true/false (true if the customCode requires this value)
+- options: Array of {value, label} objects (only for type: "select")
+- default: Optional default value
+
+Analyze the customCode carefully to identify ALL config values it uses (e.g., config.apiKey, config.url, config.method, config.cryptoId) and create a schema field for EACH one. If the code uses config.something, there MUST be a corresponding field in configSchema.
 
 NODE POSITIONING:
 - Use position: { x: 0, y: 0 } for ALL nodes (auto-layout handles positioning)
@@ -152,6 +174,7 @@ Return a JSON object with this exact structure:
         "label": "Node Name",
         "description": "A short, clear description of what this node does (REQUIRED for all nodes)",
         "customCode": "/* only if CUSTOM_GENERATED */",
+        "configSchema": { /* REQUIRED if CUSTOM_GENERATED - defines all config fields needed */ },
         "metadata": { /* only if CUSTOM_GENERATED */ }
       }
     }
@@ -176,8 +199,10 @@ Return a JSON object with this exact structure:
 
 CRITICAL RULES:
 1. Every node MUST include a "description" field in data that explains what the node does in 1-2 sentences
-2. DO NOT include "config" objects - these will be configured by users through the configuration UI
-3. Users will fill in API keys, credentials, and other settings after generation`;
+2. For CUSTOM_GENERATED nodes, you MUST include a "configSchema" object that defines ALL configuration fields the node needs
+3. The configSchema must match every config value used in the customCode (e.g., if code uses config.apiKey, schema must have apiKey field)
+4. DO NOT include "config" objects with actual values - users will fill these in through the configuration UI
+5. Users will fill in API keys, credentials, and other settings after generation using the configSchema you provide`;
 
     const userPrompt = request.userPrompt;
 
@@ -242,8 +267,21 @@ Please generate the appropriate workflow JSON based on this context.`;
       }
     }
 
+    // Estimate token usage (streaming doesn't provide usage in chunks)
+    // Rough estimate: ~4 characters per token
+    const systemPromptTokens = Math.ceil(systemPrompt.length / 4);
+    const userPromptTokens = Math.ceil((userPrompt + contextPrompt).length / 4);
+    const inputTokens = systemPromptTokens + userPromptTokens;
+    const outputTokens = Math.ceil(fullContent.length / 4);
+
     // Send final chunk
     request.onChunk(fullContent, true);
+    
+    // Store token usage for credit calculation (accessible via onComplete callback)
+    (request as any).tokenUsage = {
+      inputTokens,
+      outputTokens,
+    };
 
     // Parse the complete JSON response
     let generatedWorkflow: AIGeneratedWorkflow;
@@ -276,8 +314,11 @@ Please generate the appropriate workflow JSON based on this context.`;
       },
     }));
 
-    // Call onComplete with the final workflow
-    request.onComplete(generatedWorkflow);
+    // Call onComplete with the final workflow and token usage
+    request.onComplete(generatedWorkflow, {
+      inputTokens,
+      outputTokens,
+    });
   } catch (error: any) {
     console.error('Error generating workflow:', error);
     request.onError(error);
@@ -338,6 +379,9 @@ When library nodes don't cover the requirement, generate a custom node:
 - Provide clear metadata (name, description)
 - Include a "description" field in data (REQUIRED - explain what the node does)
 - Code format: async (inputData, config, context) => { /* your code */ return result; }
+- **CRITICAL**: Include a "configSchema" object in data that defines ALL configuration fields the node needs
+- The configSchema must match the config values used in customCode (e.g., if code uses config.apiKey, schema must include apiKey field)
+- Analyze the customCode to identify ALL config values it uses and create a schema field for EACH one
 
 DESCRIPTION GUIDELINES:
 - Write descriptions in 1-2 clear, concise sentences
@@ -371,6 +415,14 @@ Example Custom Node:
     "label": "Fetch Crypto Price",
     "description": "Fetches cryptocurrency price from CoinGecko API",
     "customCode": "async (inputData, config, context) => { const response = await context.http.get(\`https://api.coingecko.com/api/v3/simple/price?ids=\${config.cryptoId}&vs_currencies=usd\`); return { price: response[config.cryptoId].usd, timestamp: new Date().toISOString() }; }",
+    "configSchema": {
+      "cryptoId": {
+        "type": "string",
+        "label": "Cryptocurrency ID",
+        "description": "The CoinGecko cryptocurrency ID (e.g., 'bitcoin', 'ethereum')",
+        "required": true
+      }
+    },
     "metadata": {
       "name": "Fetch Crypto Price",
       "description": "Fetches cryptocurrency price from CoinGecko API",
@@ -379,6 +431,17 @@ Example Custom Node:
     }
   }
 }
+
+CONFIG SCHEMA FORMAT:
+The configSchema must be an object where each key is a config field name, and the value is an object with:
+- type: "string" | "number" | "textarea" | "select"
+- label: Human-readable field name
+- description: What this field is for
+- required: true/false (true if the customCode requires this value)
+- options: Array of {value, label} objects (only for type: "select")
+- default: Optional default value
+
+Analyze the customCode carefully to identify ALL config values it uses (e.g., config.apiKey, config.url, config.method, config.cryptoId) and create a schema field for EACH one. If the code uses config.something, there MUST be a corresponding field in configSchema.
 
 NODE POSITIONING:
 - Use position: { x: 0, y: 0 } for ALL nodes (auto-layout handles positioning)
@@ -419,6 +482,7 @@ Return a JSON object with this exact structure:
         "label": "Node Name",
         "description": "A short, clear description of what this node does (REQUIRED for all nodes)",
         "customCode": "/* only if CUSTOM_GENERATED */",
+        "configSchema": { /* REQUIRED if CUSTOM_GENERATED - defines all config fields needed */ },
         "metadata": { /* only if CUSTOM_GENERATED */ }
       }
     }
@@ -443,8 +507,10 @@ Return a JSON object with this exact structure:
 
 CRITICAL RULES:
 1. Every node MUST include a "description" field in data that explains what the node does in 1-2 sentences
-2. DO NOT include "config" objects - these will be configured by users through the configuration UI
-3. Users will fill in API keys, credentials, and other settings after generation`;
+2. For CUSTOM_GENERATED nodes, you MUST include a "configSchema" object that defines ALL configuration fields the node needs
+3. The configSchema must match every config value used in the customCode (e.g., if code uses config.apiKey, schema must have apiKey field)
+4. DO NOT include "config" objects with actual values - users will fill these in through the configuration UI
+5. Users will fill in API keys, credentials, and other settings after generation using the configSchema you provide`;
 
     const userPrompt = request.userPrompt;
 
@@ -476,6 +542,12 @@ Please generate a workflow that builds upon or replaces this existing workflow b
     });
 
     const responseContent = completion.choices[0]?.message?.content;
+    
+    // Capture token usage for credit calculation
+    const tokenUsage = {
+      inputTokens: completion.usage?.prompt_tokens || 0,
+      outputTokens: completion.usage?.completion_tokens || 0,
+    };
     if (!responseContent) {
       throw new Error('No response from OpenAI');
     }
@@ -571,6 +643,16 @@ export function detectWorkflowIntent(message: string): boolean {
     'receive',
     'form',
     'email',
+    'generate workflow',
+    'click',
+    'button',
+    'propose',
+    'suggest',
+    'would you like',
+    'i can create',
+    'i can build',
+    'i\'ll create',
+    'i\'ll build',
   ];
 
   const lowerMessage = message.toLowerCase();

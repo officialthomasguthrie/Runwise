@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Send, ChevronDown, X, Check } from "lucide-react";
+import { Send, ChevronDown, X, Check, ArrowUp } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
@@ -60,12 +60,8 @@ export function GradientAIChatInput({
   className,
   disabled = false,
 
-  // Dropdown options with defaults
-  dropdownOptions = [
-    { id: "option1", label: "ChatGPT", value: "chatgpt" },
-    { id: "option2", label: "Claude", value: "claude" },
-    { id: "option3", label: "Gemini", value: "gemini" }
-  ],
+  // Dropdown options - no defaults, only show if provided
+  dropdownOptions,
   onOptionSelect,
 
   // Theme-aware gradient defaults
@@ -200,7 +196,7 @@ export function GradientAIChatInput({
       {/* Main container with complex multi-layer gradient border */}
       <div className="relative">
         {/* Outer thin border (0.5px) - darker gradient */}
-        <div className="absolute inset-0 rounded-[20px] p-[0.5px]"
+        <div className="absolute inset-0 rounded-[16px] p-[0.5px]"
              style={{
                background: `conic-gradient(from 0deg at 50% 50%,
                  ${currentOuterGradient.topLeft} 0deg,     /* Top left - darker version */
@@ -212,7 +208,7 @@ export function GradientAIChatInput({
              }}>
           
           {/* Main thick border (2px) - primary gradient */}
-          <div className="h-full w-full rounded-[19.5px] p-[2px]"
+          <div className="h-full w-full rounded-[15.5px] p-[2px]"
                style={{
                  background: `conic-gradient(from 0deg at 50% 50%,
                    ${currentMainGradient.topLeft} 0deg,     /* Top left */
@@ -224,10 +220,10 @@ export function GradientAIChatInput({
                }}>
             
             {/* Inner container with background */}
-            <div className="h-full w-full rounded-[17.5px] bg-background relative">
+            <div className="h-full w-full rounded-[13.5px] bg-background relative">
               
               {/* Inner thin border (0.5px) - configurable opacity darker gradient */}
-              <div className="absolute inset-0 rounded-[17.5px] p-[0.5px]"
+              <div className="absolute inset-0 rounded-[13.5px] p-[0.5px]"
                    style={{
                      background: `conic-gradient(from 0deg at 50% 50%,
                        ${hexToRgba(currentOuterGradient.topLeft, innerGradientOpacity)} 0deg,
@@ -237,7 +233,7 @@ export function GradientAIChatInput({
                        ${hexToRgba(currentOuterGradient.topLeft, innerGradientOpacity)} 360deg
                      )`
                    }}>
-                <div className="h-full w-full rounded-[17px] bg-background"></div>
+                <div className="h-full w-full rounded-[13px] bg-background"></div>
               </div>
 
               {/* Yellow/orange highlight on top edge */}
@@ -258,7 +254,7 @@ export function GradientAIChatInput({
         {/* Content container - Two row layout */}
         <div className="relative p-4">
 
-          {/* Top row: Text input + Send button */}
+          {/* Top row: Text input */}
           <div className="flex items-start gap-3 mb-3">
             {/* Text input area */}
             <div className="flex-1 relative">
@@ -279,7 +275,7 @@ export function GradientAIChatInput({
                   disabled && "opacity-50 cursor-not-allowed"
                 )}
                 style={{
-                  height: "60px",
+                  height: "100px",
                   outline: "none !important",
                   boxShadow: "none !important",
                   scrollbarWidth: "thin",
@@ -293,17 +289,19 @@ export function GradientAIChatInput({
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Send button - Top right corner */}
+          {/* Send button - Bottom right corner circle */}
+          <div className="absolute bottom-4 right-4">
             <motion.button
               type="submit"
               onClick={handleSubmit}
               disabled={disabled || !message.trim()}
               className={cn(
                 "flex items-center justify-center",
-                "w-8 h-8 mt-1", // Align with text top
-                "text-muted-foreground hover:text-foreground",
-                "transition-colors cursor-pointer",
+                "w-8 h-8 rounded-full",
+                "bg-black dark:bg-white",
+                "transition-all cursor-pointer",
                 (disabled || !message.trim()) && "opacity-50 cursor-not-allowed"
               )}
               whileHover={shouldAnimate && message.trim() ? { scale: 1.1 } : {}}
@@ -314,7 +312,7 @@ export function GradientAIChatInput({
                 damping: 25,
               }}
             >
-              <Send className="w-4 h-4" />
+              <ArrowUp className="w-5 h-5 text-white dark:text-black" />
             </motion.button>
           </div>
 
@@ -322,7 +320,8 @@ export function GradientAIChatInput({
           <div className="flex items-center gap-2">
            
 
-            {/* Dropdown selector - Hidden on Mobile */}
+            {/* Dropdown selector - Only show if options are provided */}
+            {dropdownOptions && dropdownOptions.length > 0 && (
             <div className="relative hidden md:block" ref={dropdownRef}>
               <motion.button
                 type="button"
@@ -387,6 +386,7 @@ export function GradientAIChatInput({
                 </motion.div>
               )}
             </div>
+            )}
 
           </div>
         </div>
@@ -422,7 +422,7 @@ export function GradientAIChatInput({
 
             {/* Additional drop shadow for depth */}
             <div
-              className="absolute inset-0 rounded-[20px] shadow-lg pointer-events-none"
+              className="absolute inset-0 rounded-[16px] shadow-lg pointer-events-none"
               style={{
                 opacity: shadowOpacity,
                 boxShadow: `0 10px 25px ${hexToRgba(currentShadowColor, isDark ? 0.15 : 0.05)}`

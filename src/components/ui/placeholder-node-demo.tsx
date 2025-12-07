@@ -28,12 +28,12 @@ const PlaceholderNodeDemo = memo(({ data }: { data?: { layoutDirection?: 'LR' | 
         type="target"
         position={targetPosition}
         id="target"
-        className="w-3 h-3 bg-primary border-2 border-background"
+        className="w-3 h-3 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-2 border-background"
         style={verticalHandleStyle}
       />
       <button
         onClick={handlePlusClick}
-        className="w-full h-full flex items-center justify-center cursor-pointer hover:opacity-70 transition-opacity text-gray-400 hover:text-foreground"
+        className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-gray-400 hover:text-foreground rounded-lg"
         type="button"
       >
         +
@@ -42,7 +42,7 @@ const PlaceholderNodeDemo = memo(({ data }: { data?: { layoutDirection?: 'LR' | 
         type="source"
         position={sourcePosition}
         id="source"
-        className="w-3 h-3 bg-primary border-2 border-background"
+        className="w-3 h-3 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-2 border-background"
         style={verticalHandleStyle}
       />
     </PlaceholderNode>

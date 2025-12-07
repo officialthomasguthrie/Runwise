@@ -1059,7 +1059,7 @@ export const nodeRegistry: NodeRegistry = {
       { name: 'triggerTime', type: 'string', description: 'Trigger execution time' },
     ],
     configSchema: {
-      schedule: { type: 'string', label: 'Schedule', description: 'Cron expression (e.g., "0 9 * * *" for daily at 9 AM)', required: true },
+      schedule: { type: 'string', label: 'Schedule', description: 'Select frequency and time for scheduled execution', required: true },
       timezone: { type: 'string', label: 'Timezone', description: 'Timezone (e.g., "America/New_York")', required: false, default: 'UTC' },
     },
     execute: scheduledTimeTriggerExecute,

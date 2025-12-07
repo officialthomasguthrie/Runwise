@@ -1,675 +1,474 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { 
-  Database, 
-  Link, 
-  Key, 
-  Webhook, 
-  Plus, 
-  Trash2, 
-  Edit, 
-  Copy,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Zap,
-  Github,
-  Slack,
-  Chrome,
-  Mail,
-  Figma,
-  FileText,
-  Calendar,
-  Bug,
-  MessageCircle,
-  Twitter,
-  Settings,
-  Eye,
-  EyeOff,
-  ExternalLink
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
+import { createClient } from "@/lib/supabase-client";
+import {
+  Slack, FileSpreadsheet, Mail, Calendar, Database, Cloud, Check, Edit2, Webhook, Github,
+  Trello, FileText, DollarSign, ShoppingCart, Users, MessageSquare, Bell, Zap,
+  Box, Droplet, Twitter, Facebook, Instagram, Linkedin, Youtube, Music,
+  Camera, Image, Video, Mic, Phone, Clock, MapPin, Compass,
+  CreditCard, ShieldCheck, Lock, Key, Server, HardDrive, Wifi, Globe,
+  Code, Terminal, Package, Layers, CheckSquare, BarChart3, HelpCircle, Search, Plug
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import SearchComponent from "@/components/ui/animated-glowing-search-bar";
 
-interface Integration {
+export function IntegrationsSettings() {
+  const { user, loading } = useAuth();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [comingSoonDialogOpen, setComingSoonDialogOpen] = useState<boolean>(false);
+  const [selectedIntegrationName, setSelectedIntegrationName] = useState<string>("");
+  const [configuredIntegrations, setConfiguredIntegrations] = useState<Array<{
   id: string;
   name: string;
   description: string;
-  icon: React.ComponentType<any>;
-  status: 'connected' | 'disconnected' | 'error';
-  lastSync?: string;
-  permissions: string[];
-  category: 'productivity' | 'development' | 'communication' | 'design' | 'other';
-}
+    icon: any;
+    slug?: string;
+    gradient: string;
+    iconColor: string;
+    status: string;
+  }>>([]);
+  const [integrationsLoading, setIntegrationsLoading] = useState<boolean>(true);
 
-interface APIKey {
-  id: string;
-  name: string;
-  key: string;
-  permissions: string[];
-  lastUsed?: string;
-  createdAt: string;
-}
-
-interface Webhook {
-  id: string;
-  name: string;
-  url: string;
-  events: string[];
-  status: 'active' | 'inactive' | 'error';
-  lastTriggered?: string;
-}
-
-export function IntegrationsSettings() {
-  const { user } = useAuth();
-  const [integrations, setIntegrations] = useState<Integration[]>([
-    {
-      id: 'github',
-      name: 'GitHub',
-      description: 'Connect your GitHub repositories',
-      icon: Github,
-      status: 'connected',
-      lastSync: new Date().toISOString(),
-      permissions: ['read:repos', 'read:user'],
-      category: 'development'
-    },
-    {
-      id: 'slack',
-      name: 'Slack',
-      description: 'Send notifications to Slack channels',
-      icon: Slack,
-      status: 'disconnected',
-      permissions: ['chat:write'],
-      category: 'communication'
-    },
-    {
-      id: 'google',
-      name: 'Google Workspace',
-      description: 'Access Google Drive and Calendar',
-      icon: Chrome,
-      status: 'connected',
-      lastSync: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      permissions: ['drive:read', 'calendar:read'],
-      category: 'productivity'
-    },
-    {
-      id: 'figma',
-      name: 'Figma',
-      description: 'Import designs from Figma',
-      icon: Figma,
-      status: 'disconnected',
-      permissions: ['files:read'],
-      category: 'design'
-    },
-    {
-      id: 'notion',
-      name: 'Notion',
-      description: 'Sync with Notion databases',
-      icon: FileText,
-      status: 'error',
-      permissions: ['read', 'write'],
-      category: 'productivity'
-    }
-  ]);
-  const [apiKeys, setApiKeys] = useState<APIKey[]>([
-    {
-      id: 'key_1',
-      name: 'Production API Key',
-      key: 'sk_live_1234567890abcdef',
-      permissions: ['read', 'write'],
-      lastUsed: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-    },
-    {
-      id: 'key_2',
-      name: 'Development API Key',
-      key: 'sk_test_abcdef1234567890',
-      permissions: ['read'],
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    }
-  ]);
-  const [webhooks, setWebhooks] = useState<Webhook[]>([
-    {
-      id: 'webhook_1',
-      name: 'Workflow Updates',
-      url: 'https://api.example.com/webhooks/workflow',
-      events: ['workflow.created', 'workflow.updated'],
-      status: 'active',
-      lastTriggered: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
-    },
-    {
-      id: 'webhook_2',
-      name: 'User Events',
-      url: 'https://api.example.com/webhooks/user',
-      events: ['user.created', 'user.updated'],
-      status: 'inactive',
-      lastTriggered: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    }
-  ]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
-
-  // Load integrations data
+  // Fix hydration mismatch for theme
   useEffect(() => {
-    const loadIntegrationsData = async () => {
-      if (!user) return;
+    setMounted(true);
+  }, []);
 
-      try {
-        setIsLoading(true);
-        // In a real app, this would load from integrations API
-        // For now, we'll use mock data
-      } catch (error) {
-        console.error('Error loading integrations data:', error);
-      } finally {
-        setIsLoading(false);
+  // List of integration slugs that have black or very dark logos (should be inverted to white in dark mode)
+  const darkLogos = [
+    'github',
+    'notion',
+    'x',
+    'openai',
+    'postgresql',
+    'slack'
+  ];
+  
+  const lightModeBlackLogos = [
+    'openai'
+  ];
+
+  // Helper function to check if a logo uses Brandfetch
+  const usesBrandfetch = (slug: string): boolean => {
+    const brandfetchSlugs = [
+      'googlesheets', 'slack', 'gmail', 'googlecalendar', 'postgresql', 'amazons3',
+      'github', 'trello', 'notion', 'stripe', 'shopify', 'hubspot', 'discord',
+      'twilio', 'sendgrid', 'zapier', 'dropbox', 'googledrive', 'airtable', 'x',
+      'facebook', 'instagram', 'linkedin', 'youtube', 'spotify', 'figma', 'canva',
+      'asana', 'mongodb', 'redis', 'salesforce', 'mailchimp', 'googleanalytics',
+      'intercom', 'zendesk', 'openai', 'zoom', 'microsoftteams'
+    ];
+    return brandfetchSlugs.includes(slug);
+  };
+
+  // Helper function to get logo URL
+  const getLogoUrl = (slug: string): string => {
+    const isDark = mounted && theme === 'dark';
+    const clientId = '1dxbfHSJFAPEGdCLU4o5B';
+    
+    const brandfetchLogos: Record<string, { light?: string; dark?: string }> = {
+      'googlesheets': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idKa2XnbFY.svg?c=${clientId}` },
+      'slack': { dark: `https://cdn.brandfetch.io/idJ_HhtG0Z/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'gmail': { dark: `https://cdn.brandfetch.io/id5o3EIREg/theme/dark/symbol.svg?c=${clientId}` },
+      'googlecalendar': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idMX2_OMSc.svg?c=${clientId}` },
+      'postgresql': { dark: `https://cdn.brandfetch.io/idjSeCeMle/theme/dark/logo.svg?c=${clientId}` },
+      'amazons3': { 
+        light: `https://cdn.brandfetch.io/idVoqFQ-78/theme/dark/logo.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idVoqFQ-78/theme/light/logo.svg?c=${clientId}`
+      },
+      'github': {
+        light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`
+      },
+      'trello': { dark: `https://cdn.brandfetch.io/idToc8bDY1/theme/dark/symbol.svg?c=${clientId}` },
+      'notion': { dark: `https://cdn.brandfetch.io/idPYUoikV7/theme/dark/symbol.svg?c=${clientId}` },
+      'stripe': { dark: `https://cdn.brandfetch.io/idxAg10C0L/w/480/h/480/theme/dark/icon.jpeg?c=${clientId}` },
+      'shopify': { dark: `https://cdn.brandfetch.io/idAgPm7IvG/theme/dark/symbol.svg?c=${clientId}` },
+      'hubspot': { dark: `https://cdn.brandfetch.io/idRt0LuzRf/theme/dark/symbol.svg?c=${clientId}` },
+      'discord': { dark: `https://cdn.brandfetch.io/idM8Hlme1a/theme/dark/symbol.svg?c=${clientId}` },
+      'twilio': { dark: `https://cdn.brandfetch.io/idT7wVo_zL/theme/dark/symbol.svg?c=${clientId}` },
+      'sendgrid': { dark: `https://cdn.brandfetch.io/idHHcfw5Qu/theme/dark/symbol.svg?c=${clientId}` },
+      'zapier': { dark: `https://cdn.brandfetch.io/idNMs_nMA0/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'dropbox': { dark: `https://cdn.brandfetch.io/idY3kwH_Nx/theme/dark/symbol.svg?c=${clientId}` },
+      'googledrive': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idncaAgFGT.svg?c=${clientId}` },
+      'airtable': { dark: `https://cdn.brandfetch.io/iddsnRzkxS/theme/dark/symbol.svg?c=${clientId}` },
+      'x': {
+        light: `https://cdn.brandfetch.io/idS5WhqBbM/theme/dark/logo.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idS5WhqBbM/theme/light/logo.svg?c=${clientId}`
+      },
+      'facebook': { dark: `https://cdn.brandfetch.io/idpKX136kp/w/2084/h/2084/theme/dark/logo.png?c=${clientId}` },
+      'instagram': { dark: `https://cdn.brandfetch.io/ido5G85nya/theme/light/symbol.svg?c=${clientId}` },
+      'linkedin': { dark: `https://cdn.brandfetch.io/idJFz6sAsl/theme/dark/symbol.svg?c=${clientId}` },
+      'youtube': { dark: `https://cdn.brandfetch.io/idVfYwcuQz/theme/dark/symbol.svg?c=${clientId}` },
+      'spotify': { dark: `https://cdn.brandfetch.io/id20mQyGeY/theme/dark/symbol.svg?c=${clientId}` },
+      'figma': { dark: `https://cdn.brandfetch.io/idZHcZ_i7F/theme/dark/symbol.svg?c=${clientId}` },
+      'canva': { dark: `https://cdn.brandfetch.io/id9mVQlyB1/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'zoom': { dark: `https://cdn.brandfetch.io/id3aO4Szj3/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'microsoftteams': { dark: `https://cdn.brandfetch.io/idchmboHEZ/theme/dark/symbol.svg?c=${clientId}` },
+      'asana': { dark: `https://cdn.brandfetch.io/idxPi2Evsk/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'mongodb': { dark: `https://cdn.brandfetch.io/ideyyfT0Lp/theme/dark/idolyTWJJO.svg?c=${clientId}` },
+      'redis': { dark: `https://cdn.brandfetch.io/idFEnp00Rl/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'salesforce': { dark: `https://cdn.brandfetch.io/idVE84WdIN/theme/dark/logo.svg?c=${clientId}` },
+      'mailchimp': { dark: `https://cdn.brandfetch.io/idMvnv36a4/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'googleanalytics': { dark: `https://cdn.brandfetch.io/idYpJMnlBx/w/192/h/192/theme/dark/logo.png?c=${clientId}` },
+      'intercom': {
+        light: `https://cdn.brandfetch.io/idYJNDWF1m/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idYJNDWF1m/theme/light/symbol.svg?c=${clientId}`
+      },
+      'zendesk': {
+        light: `https://cdn.brandfetch.io/idNq8SRGPd/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idNq8SRGPd/theme/dark/idhQUhn6jo.svg?c=${clientId}`
+      },
+      'openai': {
+        light: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idR3duQxYl/theme/light/symbol.svg?c=${clientId}`
       }
     };
 
-    loadIntegrationsData();
-  }, [user]);
-
-  // Handle integration connection
-  const handleConnectIntegration = async (integrationId: string) => {
-    setIsSaving(true);
-    setSaveStatus('idle');
-
-    try {
-      // In a real app, this would initiate OAuth flow
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      setIntegrations(prev => 
-        prev.map(integration => 
-          integration.id === integrationId 
-            ? { ...integration, status: 'connected' as const, lastSync: new Date().toISOString() }
-            : integration
-        )
-      );
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (error) {
-      console.error('Error connecting integration:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 5000);
-    } finally {
-      setIsSaving(false);
+    const logoConfig = brandfetchLogos[slug];
+    if (logoConfig) {
+      if (isDark && logoConfig.dark) {
+        return logoConfig.dark;
+      } else if (!isDark && logoConfig.light) {
+        return logoConfig.light;
+      } else if (logoConfig.dark) {
+        return logoConfig.dark;
+      }
     }
+    
+    return `https://cdn.simpleicons.org/${slug}`;
   };
 
-  // Handle integration disconnection
-  const handleDisconnectIntegration = async (integrationId: string) => {
-    if (!confirm('Are you sure you want to disconnect this integration?')) {
+  // All available integrations
+  const allIntegrations = [
+    { id: 'all-1', name: 'Google Sheets', description: 'Spreadsheet management', icon: FileSpreadsheet, slug: 'googlesheets', gradient: 'from-green-500/20 to-emerald-500/20', iconColor: 'text-green-400', category: 'Productivity' },
+    { id: 'all-2', name: 'Slack', description: 'Team communication', icon: Slack, slug: 'slack', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'Communication' },
+    { id: 'all-3', name: 'Gmail', description: 'Email service', icon: Mail, slug: 'gmail', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Communication' },
+    { id: 'all-4', name: 'Google Calendar', description: 'Calendar events', icon: Calendar, slug: 'googlecalendar', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Productivity' },
+    { id: 'all-5', name: 'PostgreSQL', description: 'Database management', icon: Database, slug: 'postgresql', gradient: 'from-indigo-500/20 to-blue-500/20', iconColor: 'text-indigo-400', category: 'Database' },
+    { id: 'all-6', name: 'AWS S3', description: 'Cloud storage', icon: Cloud, slug: 'amazons3', gradient: 'from-orange-500/20 to-yellow-500/20', iconColor: 'text-orange-400', category: 'Storage' },
+    { id: 'all-8', name: 'GitHub', description: 'Code repositories', icon: Github, slug: 'github', gradient: 'from-gray-500/20 to-slate-500/20', iconColor: 'text-gray-400', category: 'Development' },
+    { id: 'all-9', name: 'Trello', description: 'Project boards', icon: Trello, slug: 'trello', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Productivity' },
+    { id: 'all-10', name: 'Notion', description: 'Note taking', icon: FileText, slug: 'notion', gradient: 'from-gray-500/20 to-zinc-500/20', iconColor: 'text-gray-400', category: 'Productivity' },
+    { id: 'all-11', name: 'Stripe', description: 'Payment processing', icon: DollarSign, slug: 'stripe', gradient: 'from-purple-500/20 to-violet-500/20', iconColor: 'text-purple-400', category: 'Finance' },
+    { id: 'all-12', name: 'Shopify', description: 'E-commerce platform', icon: ShoppingCart, slug: 'shopify', gradient: 'from-green-500/20 to-lime-500/20', iconColor: 'text-green-400', category: 'E-commerce' },
+    { id: 'all-13', name: 'HubSpot', description: 'CRM platform', icon: Users, slug: 'hubspot', gradient: 'from-orange-500/20 to-red-500/20', iconColor: 'text-orange-400', category: 'CRM' },
+    { id: 'all-14', name: 'Discord', description: 'Community chat', icon: MessageSquare, slug: 'discord', gradient: 'from-indigo-500/20 to-purple-500/20', iconColor: 'text-indigo-400', category: 'Communication' },
+    { id: 'all-15', name: 'Twilio', description: 'SMS & voice', icon: Phone, slug: 'twilio', gradient: 'from-red-500/20 to-pink-500/20', iconColor: 'text-red-400', category: 'Communication' },
+    { id: 'all-16', name: 'SendGrid', description: 'Email delivery', icon: Mail, slug: 'sendgrid', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Communication' },
+    { id: 'all-17', name: 'Zapier', description: 'Workflow automation', icon: Zap, slug: 'zapier', gradient: 'from-orange-500/20 to-amber-500/20', iconColor: 'text-orange-400', category: 'Automation' },
+    { id: 'all-18', name: 'Dropbox', description: 'File storage', icon: Box, slug: 'dropbox', gradient: 'from-blue-500/20 to-sky-500/20', iconColor: 'text-blue-400', category: 'Storage' },
+    { id: 'all-19', name: 'Google Drive', description: 'Cloud storage', icon: Cloud, slug: 'googledrive', gradient: 'from-yellow-500/20 to-green-500/20', iconColor: 'text-yellow-400', category: 'Storage' },
+    { id: 'all-20', name: 'Airtable', description: 'Database tables', icon: Database, slug: 'airtable', gradient: 'from-yellow-500/20 to-orange-500/20', iconColor: 'text-yellow-400', category: 'Database' },
+    { id: 'all-21', name: 'Twitter', description: 'Social media', icon: Twitter, slug: 'x', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Social' },
+    { id: 'all-22', name: 'Facebook', description: 'Social network', icon: Facebook, slug: 'facebook', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Social' },
+    { id: 'all-23', name: 'Instagram', description: 'Photo sharing', icon: Instagram, slug: 'instagram', gradient: 'from-pink-500/20 to-purple-500/20', iconColor: 'text-pink-400', category: 'Social' },
+    { id: 'all-24', name: 'LinkedIn', description: 'Professional network', icon: Linkedin, slug: 'linkedin', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Social' },
+    { id: 'all-25', name: 'YouTube', description: 'Video platform', icon: Youtube, slug: 'youtube', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Social' },
+    { id: 'all-26', name: 'Spotify', description: 'Music streaming', icon: Music, slug: 'spotify', gradient: 'from-green-500/20 to-emerald-500/20', iconColor: 'text-green-400', category: 'Media' },
+    { id: 'all-27', name: 'Figma', description: 'Design tool', icon: Layers, slug: 'figma', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'Design' },
+    { id: 'all-28', name: 'Canva', description: 'Graphic design', icon: Image, slug: 'canva', gradient: 'from-cyan-500/20 to-blue-500/20', iconColor: 'text-cyan-400', category: 'Design' },
+    { id: 'all-29', name: 'Zoom', description: 'Video conferencing', icon: Video, slug: 'zoom', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Communication' },
+    { id: 'all-30', name: 'Microsoft Teams', description: 'Team collaboration', icon: Users, slug: 'microsoftteams', gradient: 'from-purple-500/20 to-blue-500/20', iconColor: 'text-purple-400', category: 'Communication' },
+    { id: 'all-31', name: 'Asana', description: 'Task management', icon: CheckSquare, slug: 'asana', gradient: 'from-pink-500/20 to-red-500/20', iconColor: 'text-pink-400', category: 'Productivity' },
+    { id: 'all-32', name: 'Jira', description: 'Issue tracking', icon: Trello, slug: 'jira', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Development' },
+    { id: 'all-33', name: 'MongoDB', description: 'NoSQL database', icon: Database, slug: 'mongodb', gradient: 'from-green-500/20 to-teal-500/20', iconColor: 'text-green-400', category: 'Database' },
+    { id: 'all-34', name: 'Redis', description: 'Cache database', icon: Server, slug: 'redis', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Database' },
+    { id: 'all-35', name: 'Salesforce', description: 'CRM platform', icon: Cloud, slug: 'salesforce', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'CRM' },
+    { id: 'all-36', name: 'Mailchimp', description: 'Email marketing', icon: Mail, slug: 'mailchimp', gradient: 'from-yellow-500/20 to-orange-500/20', iconColor: 'text-yellow-400', category: 'Marketing' },
+    { id: 'all-37', name: 'Google Analytics', description: 'Website analytics', icon: BarChart3, slug: 'googleanalytics', gradient: 'from-orange-500/20 to-red-500/20', iconColor: 'text-orange-400', category: 'Analytics' },
+    { id: 'all-38', name: 'Intercom', description: 'Customer messaging', icon: MessageSquare, slug: 'intercom', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Support' },
+    { id: 'all-39', name: 'Zendesk', description: 'Help desk software', icon: HelpCircle, slug: 'zendesk', gradient: 'from-green-500/20 to-teal-500/20', iconColor: 'text-green-400', category: 'Support' },
+    { id: 'all-40', name: 'OpenAI', description: 'AI language models', icon: Zap, slug: 'openai', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'AI' }
+  ];
+
+  // Load configured integrations from database
+  useEffect(() => {
+    // Don't load if auth is still loading
+    if (loading) return;
+    
+    // If no user, set loading to false immediately
+    if (!user) {
+      setIntegrationsLoading(false);
+      setConfiguredIntegrations([]);
       return;
     }
 
-    setIsSaving(true);
-    try {
-      setIntegrations(prev => 
-        prev.map(integration => 
-          integration.id === integrationId 
-            ? { ...integration, status: 'disconnected' as const, lastSync: undefined }
-            : integration
-        )
-      );
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (error) {
-      console.error('Error disconnecting integration:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 5000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    let cancelled = false;
 
-  // Handle API key operations
-  const handleCreateAPIKey = async () => {
-    setIsSaving(true);
-    try {
-      const newKey: APIKey = {
-        id: `key_${Date.now()}`,
-        name: 'New API Key',
-        key: `sk_${Math.random().toString(36).substring(2, 15)}`,
-        permissions: ['read'],
-        createdAt: new Date().toISOString()
-      };
-      
-      setApiKeys(prev => [...prev, newKey]);
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (error) {
-      console.error('Error creating API key:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 5000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteAPIKey = async (keyId: string) => {
-    if (!confirm('Are you sure you want to delete this API key?')) {
+    const loadIntegrations = async () => {
+      setIntegrationsLoading(true);
+      try {
+        const supabase = createClient();
+        const { data: authData } = await supabase.auth.getUser();
+        
+        if (cancelled || !authData.user) {
+          if (!cancelled) {
+            setConfiguredIntegrations([]);
+            setIntegrationsLoading(false);
+          }
       return;
     }
 
-    setIsSaving(true);
-    try {
-      setApiKeys(prev => prev.filter(key => key.id !== keyId));
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (error) {
-      console.error('Error deleting API key:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 5000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+        const { data, error } = await supabase
+          .from('user_integrations')
+          .select('id, name, config, is_active, created_at')
+          .eq('user_id', authData.user.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
 
-  const handleCopyAPIKey = async (key: string) => {
-    try {
-      await navigator.clipboard.writeText(key);
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Error copying API key:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    }
-  };
+        if (cancelled) return;
 
-  // Handle webhook operations
-  const handleCreateWebhook = async () => {
-    setIsSaving(true);
-    try {
-      const newWebhook: Webhook = {
-        id: `webhook_${Date.now()}`,
-        name: 'New Webhook',
-        url: 'https://api.example.com/webhooks/new',
-        events: ['workflow.created'],
+        if (error) {
+          console.error('Failed to fetch integrations:', error);
+          setConfiguredIntegrations([]);
+        } else {
+          // Map database integrations to the allIntegrations format
+          const mappedIntegrations = (data ?? []).map((dbIntegration: { id: string; name: string; config: any; is_active: boolean; created_at: string }) => {
+            // Find matching integration in allIntegrations by name
+            const matchingIntegration = allIntegrations.find(
+              (integration) => integration.name.toLowerCase() === dbIntegration.name.toLowerCase()
+            );
+            
+            if (matchingIntegration) {
+              return {
+                id: dbIntegration.id,
+                name: dbIntegration.name,
+                description: matchingIntegration.description,
+                icon: matchingIntegration.icon,
+                slug: matchingIntegration.slug,
+                gradient: matchingIntegration.gradient,
+                iconColor: matchingIntegration.iconColor,
+                status: 'active'
+              };
+            }
+            
+            // Fallback if no match found
+            return {
+              id: dbIntegration.id,
+              name: dbIntegration.name,
+              description: 'Connected integration',
+              icon: Plug,
+              gradient: 'from-gray-500/20 to-slate-500/20',
+              iconColor: 'text-gray-400',
         status: 'active'
       };
-      
-      setWebhooks(prev => [...prev, newWebhook]);
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (error) {
-      console.error('Error creating webhook:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 5000);
+          });
+          
+          setConfiguredIntegrations(mappedIntegrations);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error('Unexpected error fetching integrations:', e);
+          setConfiguredIntegrations([]);
+        }
     } finally {
-      setIsSaving(false);
-    }
-  };
+        if (!cancelled) {
+          setIntegrationsLoading(false);
+        }
+      }
+    };
 
-  const handleDeleteWebhook = async (webhookId: string) => {
-    if (!confirm('Are you sure you want to delete this webhook?')) {
-      return;
-    }
+    loadIntegrations();
 
-    setIsSaving(true);
-    try {
-      setWebhooks(prev => prev.filter(webhook => webhook.id !== webhookId));
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (error) {
-      console.error('Error deleting webhook:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 5000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading]);
 
-  const toggleAPIKeyVisibility = (keyId: string) => {
-    setShowApiKeys(prev => ({ ...prev, [keyId]: !prev[keyId] }));
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'connected':
-      case 'active':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'disconnected':
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
-      case 'error':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin" />
-        <span className="ml-2 text-muted-foreground">Loading integrations...</span>
-      </div>
-    );
-  }
+  // Filter integrations based on search query
+  const filteredIntegrations = allIntegrations.filter(integration =>
+    integration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    integration.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    integration.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Integrations Header */}
-      <div>
-        <div className="mb-6">
-          <div>
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Integrations & API
+    <>
+      {/* Configured Integrations Section */}
+      <div className="mb-8">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-foreground">
+            Configured Integrations
             </h2>
-            <p className="text-muted-foreground mt-1">
-              Connect third-party services and manage API access
+          <p className="text-sm text-muted-foreground mt-1">
+            Your active integrations and connections
             </p>
+        </div>
+
+        {integrationsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-sm text-muted-foreground">Loading integrations...</div>
           </div>
+        ) : configuredIntegrations.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {configuredIntegrations.map((integration) => {
+              const Icon = integration.icon;
+              return (
+                <div
+                  key={integration.id}
+                  className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-4 transition-all duration-300 text-foreground hover:shadow-lg"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="shrink-0">
+                      {integration.slug ? (
+                        <div className="p-1.5">
+                          <img 
+                            src={getLogoUrl(integration.slug)} 
+                            alt={integration.name} 
+                            className={`h-6 w-6 object-contain ${
+                              !usesBrandfetch(integration.slug) && darkLogos.includes(integration.slug) ? 'dark:brightness-0 dark:invert' : ''
+                            } ${
+                              !usesBrandfetch(integration.slug) && lightModeBlackLogos.includes(integration.slug) ? 'brightness-0' : ''
+                            }`} 
+                          />
+                        </div>
+                      ) : (
+                        <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-2`}>
+                          <Icon className={`h-5 w-5 ${integration.iconColor}`} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-0.5 flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-foreground truncate">{integration.name}</h3>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{integration.description}</p>
         </div>
       </div>
 
-      {/* Third-Party Integrations */}
-      <div>
-        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Link className="h-4 w-4" />
-          Third-Party Integrations
-        </h3>
-        <p className="text-muted-foreground mb-6">
-          Connect your favorite tools and services
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {integrations.map((integration) => {
-            const IconComponent = integration.icon;
-            return (
-              <div key={integration.id} className="p-4 bg-muted/50 border border-border rounded-md">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-background border border-border rounded-md">
-                    <IconComponent className="h-5 w-5" />
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+                      <Check className="h-3 w-3" />
+                      <span>Connected</span>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium">{integration.name}</h4>
-                    <p className="text-sm text-muted-foreground">{integration.description}</p>
-                  </div>
-                  <Badge className={getStatusColor(integration.status)}>
-                    {integration.status.charAt(0).toUpperCase() + integration.status.slice(1)}
-                  </Badge>
-                </div>
-                
-                {integration.lastSync && (
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Last sync: {new Date(integration.lastSync).toLocaleDateString()}
-                  </p>
-                )}
-                
-                <div className="flex items-center gap-2">
-                  {integration.status === 'connected' ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDisconnectIntegration(integration.id)}
-                      disabled={isSaving}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    >
-                      Disconnect
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => handleConnectIntegration(integration.id)}
-                      disabled={isSaving}
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                      size="sm"
-                    >
-                      Connect
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={integration.status !== 'connected'}
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
             );
           })}
         </div>
+        ) : (
+          <div className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-8">
+            <div className="flex flex-col items-center justify-center text-center space-y-3">
+              <div className="p-3 rounded-full bg-muted/50">
+                <Plug className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">No configured integrations</h3>
+                <p className="text-xs text-muted-foreground">
+                  Connect your first integration below to get started
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <Separator className="my-8" />
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">
+            Discover Integrations
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Popular integrations you can connect in seconds
+          </p>
+        </div>
+        <div className="flex-shrink-0">
+          <SearchComponent value={searchQuery} onChange={setSearchQuery} placeholder="Search integrations..." />
+        </div>
+      </div>
 
-      {/* API Keys */}
-      <div>
-        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Key className="h-4 w-4" />
-          API Keys
-        </h3>
-        <p className="text-muted-foreground mb-6">
-          Manage your API keys for programmatic access
-        </p>
-        
-        <div className="space-y-4">
-          {apiKeys.map((apiKey) => (
-            <div key={apiKey.id} className="p-4 bg-muted/50 border border-border rounded-md">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h4 className="font-medium">{apiKey.name}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Created {new Date(apiKey.createdAt).toLocaleDateString()}
-                    {apiKey.lastUsed && (
-                      <span> • Last used {new Date(apiKey.lastUsed).toLocaleDateString()}</span>
-                    )}
-                  </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {filteredIntegrations.map((integration) => {
+          const Icon = integration.icon;
+          return (
+            <div
+              key={integration.id}
+              className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-4 transition-all duration-300 text-foreground hover:shadow-lg"
+            >
+              <div className="flex items-start gap-3">
+                <div className="shrink-0">
+                  {integration.slug ? (
+                    <div className="p-1.5">
+                      <img 
+                        src={getLogoUrl(integration.slug)} 
+                        alt={integration.name} 
+                        className={`h-6 w-6 object-contain ${
+                          !usesBrandfetch(integration.slug) && darkLogos.includes(integration.slug) ? 'dark:brightness-0 dark:invert' : ''
+                        } ${
+                          !usesBrandfetch(integration.slug) && lightModeBlackLogos.includes(integration.slug) ? 'brightness-0' : ''
+                        }`} 
+                      />
+                  </div>
+                  ) : (
+                    <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-2`}>
+                      <Icon className={`h-5 w-5 ${integration.iconColor}`} />
+                  </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteAPIKey(apiKey.id)}
-                    disabled={isSaving}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <h3 className="text-sm font-semibold text-foreground truncate">{integration.name}</h3>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{integration.description}</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                <div className="flex-1 relative">
-                  <Input
-                    value={showApiKeys[apiKey.id] ? apiKey.key : '••••••••••••••••'}
-                    readOnly
-                    className="bg-background font-mono text-sm"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
-                    onClick={() => toggleAPIKeyVisibility(apiKey.id)}
-                  >
-                    {showApiKeys[apiKey.id] ? (
-                      <EyeOff className="h-3 w-3" />
-                    ) : (
-                      <Eye className="h-3 w-3" />
-                    )}
-                  </Button>
-                </div>
+              <div className="mt-3">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleCopyAPIKey(apiKey.key)}
+                  variant="ghost"
+                  onClick={() => {
+                    setSelectedIntegrationName(integration.name);
+                    setComingSoonDialogOpen(true);
+                  }}
+                  className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground text-xs py-1.5 h-auto"
                 >
-                  <Copy className="h-4 w-4" />
+                  <Clock className="h-3 w-3 mr-1.5" />
+                  Coming Soon
                 </Button>
               </div>
-              
-              <div className="mt-2 flex items-center gap-2">
-                {apiKey.permissions.map((permission) => (
-                  <Badge key={permission} variant="secondary" className="text-xs">
-                    {permission}
-                  </Badge>
-                ))}
-              </div>
             </div>
-          ))}
-          
-          <Button
-            onClick={handleCreateAPIKey}
-            disabled={isSaving}
-            variant="outline"
-            className="w-full"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create New API Key
-          </Button>
-        </div>
+          );
+        })}
       </div>
 
-      <Separator className="my-8" />
-
-      {/* Webhooks */}
-      <div>
-        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Webhook className="h-4 w-4" />
-          Webhooks
-        </h3>
-        <p className="text-muted-foreground mb-6">
-          Configure webhooks to receive real-time notifications
-        </p>
-        
-        <div className="space-y-4">
-          {webhooks.map((webhook) => (
-            <div key={webhook.id} className="p-4 bg-muted/50 border border-border rounded-md">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                    <Webhook className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium">{webhook.name}</h4>
-                    <p className="text-sm text-muted-foreground">{webhook.url}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge className={getStatusColor(webhook.status)}>
-                    {webhook.status.charAt(0).toUpperCase() + webhook.status.slice(1)}
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteWebhook(webhook.id)}
-                    disabled={isSaving}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Events</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    {webhook.events.map((event) => (
-                      <Badge key={event} variant="secondary" className="text-xs">
-                        {event}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                
-                {webhook.lastTriggered && (
-                  <p className="text-xs text-muted-foreground">
-                    Last triggered: {new Date(webhook.lastTriggered).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-          
-          <Button
-            onClick={handleCreateWebhook}
-            disabled={isSaving}
-            variant="outline"
-            className="w-full"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create New Webhook
-          </Button>
-        </div>
-      </div>
-
-      <Separator className="my-8" />
-
-      {/* API Documentation */}
-      <div>
-        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <ExternalLink className="h-4 w-4" />
-          API Documentation
-        </h3>
-        <p className="text-muted-foreground mb-6">
-          Learn how to integrate with our API
-        </p>
-        
-        <div className="p-4 bg-muted/50 border border-border rounded-md">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-md">
-              <Zap className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div>
-              <h4 className="font-medium">API Documentation</h4>
-              <p className="text-sm text-muted-foreground">
-                Complete guide to our REST API and webhooks
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
+      {/* Coming Soon Dialog */}
+      <Dialog open={comingSoonDialogOpen} onOpenChange={setComingSoonDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Coming Soon</DialogTitle>
+            <DialogDescription className="pt-2">
+              {selectedIntegrationName ? (
+                <>
+                  This integration is coming soon. Our developers are working hard to integrate {selectedIntegrationName} into Runwise.
+                </>
+              ) : (
+                <>
+                  This integration is coming soon. Our developers are working hard to integrate it.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
             <Button
-              variant="outline"
-              size="sm"
+              onClick={() => setComingSoonDialogOpen(false)}
+              className="w-full sm:w-auto justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
             >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              View Documentation
+              Okay
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-            >
-              <Github className="h-4 w-4 mr-2" />
-              SDK Examples
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between pt-6">
-        <div className="flex items-center gap-2">
-          {saveStatus === 'success' && (
-            <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="h-4 w-4" />
-              <span className="text-sm">Integration settings updated successfully!</span>
-            </div>
-          )}
-          {saveStatus === 'error' && (
-            <div className="flex items-center gap-2 text-red-600">
-              <AlertCircle className="h-4 w-4" />
-              <span className="text-sm">Failed to update integration settings. Please try again.</span>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Database className="h-4 w-4" />
-          <span>Last updated: {new Date().toLocaleDateString()}</span>
-        </div>
-      </div>
-    </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

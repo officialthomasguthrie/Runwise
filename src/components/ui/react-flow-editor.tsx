@@ -33,6 +33,7 @@ import { getLayoutedElements } from '@/lib/workflows/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { ScheduleInput } from '@/components/ui/schedule-input';
 import { CheckCircle, XCircle, ChevronDown, ChevronUp, Settings, AlertCircle, Play, ChevronLeft, Sparkles } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 
@@ -724,9 +725,11 @@ export const ReactFlowEditor = ({
   const isNodeConfigured = (node: Node): boolean => {
     const nodeData = (node.data ?? {}) as any;
     const nodeDefinition = getNodeById(nodeData.nodeId ?? "");
-    if (!nodeDefinition || !nodeDefinition.configSchema) return true; // No config needed
-    
-    const schema = nodeDefinition.configSchema;
+    // Use custom node's configSchema if it's a CUSTOM_GENERATED node, otherwise use registry schema
+    const schema = (nodeData.nodeId === 'CUSTOM_GENERATED' && nodeData.configSchema)
+      ? nodeData.configSchema
+      : nodeDefinition?.configSchema || {};
+    if (!schema || Object.keys(schema).length === 0) return true; // No config needed
     
     // If no required fields, node is configured
     const hasRequiredFields = Object.values(schema).some((field: any) => field.required);
@@ -1080,7 +1083,10 @@ export const ReactFlowEditor = ({
   // Derived data for configuration sidebar
   const selectedNodeData = (selectedNodeForConfig?.data ?? {}) as any;
   const selectedNodeDefinition = selectedNodeData.nodeId ? getNodeById(selectedNodeData.nodeId) : null;
-  const selectedConfigSchema = selectedNodeDefinition?.configSchema || {};
+  // Use custom node's configSchema if it's a CUSTOM_GENERATED node, otherwise use registry schema
+  const selectedConfigSchema = selectedNodeData.nodeId === 'CUSTOM_GENERATED' && selectedNodeData.configSchema
+    ? selectedNodeData.configSchema
+    : selectedNodeDefinition?.configSchema || {};
 
   // Keep localConfig in sync when opening a different node
   useEffect(() => {
@@ -1237,7 +1243,7 @@ export const ReactFlowEditor = ({
             }}
             title="Layout horizontally"
             aria-label="Layout horizontally"
-            className={layoutDirection === 'LR' ? 'bg-primary text-primary-foreground' : undefined}
+            className={layoutDirection === 'LR' ? 'backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] text-foreground' : undefined}
           >
             <HorizontalWorkflowIcon className="h-4 w-4" />
           </ControlButton>
@@ -1249,7 +1255,7 @@ export const ReactFlowEditor = ({
       {showConfigPanel && selectedNodeForConfig && (
         <>
           <div
-            className="fixed left-16 top-16 bottom-0 w-[320px] bg-background border-r border-border z-30 animate-in slide-in-from-left duration-300"
+            className="fixed left-16 top-16 bottom-0 w-[320px] bg-background border-r border-stone-200 dark:border-white/10 z-30 animate-in slide-in-from-left duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex h-full flex-col">
@@ -1260,9 +1266,9 @@ export const ReactFlowEditor = ({
                     {selectedNodeData.label || 'Node'}
                   </h2>
                   {/* Node description */}
-                  {selectedNodeDefinition?.description && (
+                  {(selectedNodeDefinition?.description || selectedNodeData.description) && (
                     <p className="text-sm text-muted-foreground">
-                      {selectedNodeDefinition.description}
+                      {selectedNodeDefinition?.description || selectedNodeData.description}
                     </p>
                   )}
                   {/* Configuration required summary */}
@@ -1283,14 +1289,103 @@ export const ReactFlowEditor = ({
                         {schema.required && <span className="text-red-500 ml-1">*</span>}
                       </label>
 
+                      {/* Schedule Input (for schedule fields) */}
+                      {key === 'schedule' && schema.type === 'string' && (
+                        <ScheduleInput
+                          value={localConfig[key] ?? ''}
+                          onChange={(cron) => handleConfigFieldChange(key, cron)}
+                          placeholder={schema.placeholder || schema.description}
+                        />
+                      )}
+
+                      {/* Timezone Dropdown */}
+                      {key === 'timezone' && schema.type === 'string' && (
+                        <select
+                          value={localConfig[key] ?? schema.default ?? 'UTC'}
+                          onChange={(e) => handleConfigFieldChange(key, e.target.value)}
+                          className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+                        >
+                          <option value="UTC">UTC</option>
+                          <option value="America/New_York">Eastern Time (ET)</option>
+                          <option value="America/Chicago">Central Time (CT)</option>
+                          <option value="America/Denver">Mountain Time (MT)</option>
+                          <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                          <option value="America/Phoenix">Arizona Time</option>
+                          <option value="America/Anchorage">Alaska Time</option>
+                          <option value="Pacific/Honolulu">Hawaii Time</option>
+                          <option value="Europe/London">London (GMT)</option>
+                          <option value="Europe/Paris">Paris (CET)</option>
+                          <option value="Europe/Berlin">Berlin (CET)</option>
+                          <option value="Europe/Rome">Rome (CET)</option>
+                          <option value="Europe/Madrid">Madrid (CET)</option>
+                          <option value="Europe/Amsterdam">Amsterdam (CET)</option>
+                          <option value="Europe/Stockholm">Stockholm (CET)</option>
+                          <option value="Europe/Zurich">Zurich (CET)</option>
+                          <option value="Asia/Tokyo">Tokyo (JST)</option>
+                          <option value="Asia/Shanghai">Shanghai (CST)</option>
+                          <option value="Asia/Hong_Kong">Hong Kong (HKT)</option>
+                          <option value="Asia/Singapore">Singapore (SGT)</option>
+                          <option value="Asia/Dubai">Dubai (GST)</option>
+                          <option value="Asia/Kolkata">Mumbai (IST)</option>
+                          <option value="Australia/Sydney">Sydney (AEST)</option>
+                          <option value="Australia/Melbourne">Melbourne (AEST)</option>
+                          <option value="Australia/Brisbane">Brisbane (AEST)</option>
+                          <option value="Pacific/Auckland">Auckland (NZST)</option>
+                          <option value="America/Toronto">Toronto (EST)</option>
+                          <option value="America/Vancouver">Vancouver (PST)</option>
+                          <option value="America/Mexico_City">Mexico City (CST)</option>
+                          <option value="America/Sao_Paulo">São Paulo (BRT)</option>
+                          <option value="America/Buenos_Aires">Buenos Aires (ART)</option>
+                        </select>
+                      )}
+
                       {/* String input + Ask AI (small textboxes) */}
-                      {schema.type === 'string' && !schema.options && (
+                      {schema.type === 'string' && !schema.options && key !== 'schedule' && key !== 'timezone' && (
                         <div className="relative">
                           <Input
                             type="text"
                             value={localConfig[key] ?? ''}
                             onChange={(e) => handleConfigFieldChange(key, e.target.value)}
-                            placeholder={schema.placeholder || schema.description}
+                            placeholder={(() => {
+                              let placeholderText = schema.placeholder || schema.description || '';
+                              const maxLength = 25;
+                              
+                              // Remove "(e.g." and everything after it
+                              const eGIndex = placeholderText.toLowerCase().indexOf('(e.g.');
+                              if (eGIndex !== -1) {
+                                placeholderText = placeholderText.substring(0, eGIndex).trim();
+                              }
+                              
+                              // Also remove "(e.g" without the period
+                              const eGIndex2 = placeholderText.toLowerCase().indexOf('(e.g');
+                              if (eGIndex2 !== -1) {
+                                placeholderText = placeholderText.substring(0, eGIndex2).trim();
+                              }
+                              
+                              // If text is already short enough, return as-is
+                              if (placeholderText.length <= maxLength) {
+                                return placeholderText;
+                              }
+                              
+                              // Truncate at word boundary
+                              let truncated = placeholderText.substring(0, maxLength);
+                              
+                              // Find the last space before the limit
+                              const lastSpace = truncated.lastIndexOf(' ');
+                              
+                              // If we found a space and it's not too close to the start, cut there
+                              if (lastSpace > 10) {
+                                truncated = truncated.substring(0, lastSpace);
+                              } else {
+                                // If no good space found, just cut at maxLength
+                                truncated = placeholderText.substring(0, maxLength);
+                              }
+                              
+                              // Remove trailing punctuation that might look odd
+                              truncated = truncated.replace(/[.,;:!?]+$/, '');
+                              
+                              return truncated;
+                            })()}
                             className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 pr-24 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
                           />
                           <Button
@@ -1358,7 +1453,7 @@ export const ReactFlowEditor = ({
                         <select
                           value={localConfig[key] ?? schema.default ?? ''}
                           onChange={(e) => handleConfigFieldChange(key, e.target.value)}
-                          className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+                          className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
                         >
                           <option value="">
                             {schema.placeholder || `Select ${schema.label || key}`}
@@ -1376,7 +1471,7 @@ export const ReactFlowEditor = ({
               </div>
 
               {/* Save Configuration button pinned to bottom, matching node Configure styling */}
-              <div className="px-4 pb-4 pt-2 border-t border-border/60">
+              <div className="px-4 pb-4 pt-2 border-t border-stone-200 dark:border-white/10">
                 <Button
                   type="button"
                   variant="ghost"
@@ -1387,10 +1482,10 @@ export const ReactFlowEditor = ({
                     // Config is already synced live via localConfig; this is a UI save confirmation.
                     setTimeout(() => {
                       setIsSavingConfig(false);
-                      setShowConfigPanel(false);
-                      setSelectedNodeForConfig(null);
+            setShowConfigPanel(false);
+            setSelectedNodeForConfig(null);
                     }, 700);
-                  }}
+          }}
                 >
                   {isSavingConfig ? (
                     <>
@@ -1410,7 +1505,7 @@ export const ReactFlowEditor = ({
               setShowConfigPanel(false);
               setSelectedNodeForConfig(null);
             }}
-            className="absolute top-4 left-4 z-40 inline-flex items-center justify-center rounded-sm p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/50 bg-background/95 backdrop-blur-sm border border-border/60"
+            className="absolute top-4 left-4 z-40 inline-flex items-center justify-center rounded-sm p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/50 bg-background/95 backdrop-blur-sm border border-stone-200 dark:border-white/10"
             title="Hide config sidebar"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -1420,7 +1515,7 @@ export const ReactFlowEditor = ({
 
       {/* Execution Status Indicator */}
       {(isExecuting || executionStatus === 'queued' || executionStatus === 'running') && !executionResult && (
-        <div className="absolute bottom-4 left-4 z-10 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl p-4">
+        <div className="absolute bottom-4 left-4 z-10 bg-background/95 backdrop-blur-sm border border-stone-200 dark:border-white/10 rounded-lg shadow-xl p-4">
           <div className="flex items-center gap-3">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
             <div>
@@ -1439,9 +1534,9 @@ export const ReactFlowEditor = ({
 
       {/* Execution Results Panel */}
       {executionResult && (
-        <div className="absolute bottom-4 left-4 right-4 z-10 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl">
+        <div className="absolute bottom-4 left-4 right-4 z-10 bg-background/95 backdrop-blur-sm border border-stone-200 dark:border-white/10 rounded-lg shadow-xl">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="flex items-center justify-between p-4 border-b border-stone-200 dark:border-white/10">
             <div className="flex items-center gap-3">
               {executionResult.status === 'success' ? (
                 <CheckCircle className="h-5 w-5 text-green-600" />

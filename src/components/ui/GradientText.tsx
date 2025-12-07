@@ -22,11 +22,11 @@ export default function GradientText({
   };
 
   return (
-    <div className={`animated-gradient-text ${className}`} suppressHydrationWarning={true}>
-      {showBorder && <div className="gradient-overlay" style={gradientStyle} suppressHydrationWarning={true}></div>}
-      <div className="text-content" style={gradientStyle} suppressHydrationWarning={true}>
+    <span className={`animated-gradient-text ${className}`} suppressHydrationWarning={true}>
+      {showBorder && <span className="gradient-overlay" style={gradientStyle} suppressHydrationWarning={true}></span>}
+      <span className="text-content" style={gradientStyle} suppressHydrationWarning={true}>
         {children}
-      </div>
-    </div>
+      </span>
+    </span>
   );
 }

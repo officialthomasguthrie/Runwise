@@ -3,11 +3,16 @@
 import { Suspense, useEffect, useMemo, useState, FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
 type Status = 'loading' | 'ready' | 'submitting' | 'signed-in' | 'error';
+
+// Glass input wrapper component matching signup page
+const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
+  <div className="rounded-2xl border border-border bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
+    {children}
+  </div>
+);
 
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
@@ -19,10 +24,22 @@ function CheckoutSuccessContent() {
   const [status, setStatus] = useState<Status>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [plan, setPlan] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Helper function to get plan display name
+  const getPlanDisplayName = (planId: string | null): string => {
+    if (!planId) return 'Runwise';
+    if (planId.startsWith('personal')) return 'Personal';
+    if (planId.startsWith('pro')) return 'Professional';
+    return 'Runwise';
+  };
+
+  const planDisplayName = getPlanDisplayName(plan);
 
   useEffect(() => {
     async function hydrate() {
@@ -50,6 +67,9 @@ function CheckoutSuccessContent() {
         setToken(payload.token);
         if (typeof payload.email === 'string' && payload.email.length > 0) {
           setEmail(payload.email);
+        }
+        if (typeof payload.plan === 'string' && payload.plan.length > 0) {
+          setPlan(payload.plan);
         }
         setStatus('ready');
       } catch (error: any) {
@@ -137,95 +157,160 @@ function CheckoutSuccessContent() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-2xl px-4 py-16">
-        <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-            {status === 'signed-in'
-              ? 'All set!'
-              : 'Finish setting up your Runwise Pro account'}
-          </h1>
-          <p className="mt-3 text-muted-foreground">
-            {status === 'signed-in'
-              ? 'Redirecting you to your dashboard…'
-              : 'Complete the form below to activate your Runwise Professional subscription.'}
-          </p>
+  const handleGoBack = () => {
+    router.push('/#pricing');
+  };
 
-          {status !== 'signed-in' && (
-            <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First name</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(event) => setFirstName(event.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last name</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(event) => setLastName(event.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  minLength={8}
-                  placeholder="Choose a secure password"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Password must be at least 8 characters.
-                </p>
-              </div>
-
-              {errorMessage && (
-                <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                  {errorMessage}
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={status === 'submitting' || status === 'loading'}
-              >
-                {status === 'submitting' ? 'Activating…' : 'Activate Runwise Pro'}
-              </Button>
-            </form>
-          )}
-
-          {status === 'loading' && (
-            <p className="mt-6 text-sm text-muted-foreground">
-              Validating your payment…
-            </p>
-          )}
+  if (status === 'signed-in') {
+    return (
+      <div className="h-[100dvh] flex items-center justify-center font-geist w-[100dvw] relative bg-background text-foreground" suppressHydrationWarning={true}>
+        <div className="text-center">
+          <h1 className="text-xl md:text-2xl font-semibold leading-tight mb-2">All set!</h1>
+          <p className="text-xs text-muted-foreground">Redirecting you to your dashboard…</p>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="h-[100dvh] flex flex-col md:flex-row font-geist w-[100dvw] relative bg-background text-foreground" suppressHydrationWarning={true}>
+      {/* Go Back Button */}
+      <button
+        onClick={handleGoBack}
+        className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/50 backdrop-blur-sm"
+      >
+        <ArrowLeft className="w-3 h-3" />
+        Go Back
+      </button>
+
+      {/* Left column: onboarding form */}
+      <section className="flex-1 flex items-center justify-center p-3" suppressHydrationWarning={true}>
+        <div className="w-full max-w-xs" suppressHydrationWarning={true}>
+          <div className="flex flex-col gap-2" suppressHydrationWarning={true}>
+            <h1 className="animate-element animate-delay-100 text-xl md:text-2xl font-semibold leading-tight">
+              {status === 'loading' 
+                ? 'Validating your payment…' 
+                : `Finish setting up your ${planDisplayName} account`}
+            </h1>
+            <p className="animate-element animate-delay-200 text-xs text-muted-foreground">
+              {status === 'loading'
+                ? 'One moment while we prepare your onboarding experience.'
+                : `Complete the form below to activate your Runwise ${planDisplayName} subscription.`}
+            </p>
+
+            {status === 'loading' ? (
+              <div className="mt-4 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-400"></div>
+              </div>
+            ) : (status === 'ready' || status === 'submitting') && (
+              <form className="space-y-2 mt-4" onSubmit={handleSubmit} suppressHydrationWarning={true}>
+                <div className="animate-element animate-delay-300 grid grid-cols-2 gap-2" suppressHydrationWarning={true}>
+                  <div suppressHydrationWarning={true}>
+                    <label className="text-xs font-medium text-muted-foreground">First Name</label>
+                    <GlassInputWrapper>
+                      <input
+                        type="text"
+                        placeholder="John"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground"
+                        required
+                      />
+                    </GlassInputWrapper>
+                  </div>
+                  <div suppressHydrationWarning={true}>
+                    <label className="text-xs font-medium text-muted-foreground">Last Name</label>
+                    <GlassInputWrapper>
+                      <input
+                        type="text"
+                        placeholder="Doe"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground"
+                        required
+                      />
+                    </GlassInputWrapper>
+                  </div>
+                </div>
+
+                <div className="animate-element animate-delay-400" suppressHydrationWarning={true}>
+                  <label className="text-xs font-medium text-muted-foreground">Email Address</label>
+                  <GlassInputWrapper>
+                    <input
+                      type="email"
+                      placeholder="john@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground"
+                      required
+                    />
+                  </GlassInputWrapper>
+                </div>
+
+                <div className="animate-element animate-delay-500" suppressHydrationWarning={true}>
+                  <label className="text-xs font-medium text-muted-foreground">Password</label>
+                  <GlassInputWrapper>
+                    <div className="relative" suppressHydrationWarning={true}>
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Create a strong password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-transparent text-xs p-1.5 pr-7 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground"
+                        required
+                        minLength={8}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-1.5 flex items-center"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
+                        ) : (
+                          <Eye className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
+                        )}
+                      </button>
+                    </div>
+                  </GlassInputWrapper>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Password must be at least 8 characters.
+                  </p>
+                </div>
+
+                {errorMessage && (
+                  <div className="animate-element animate-delay-600 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive" suppressHydrationWarning={true}>
+                    {errorMessage}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={status === 'submitting'}
+                  className="animate-element animate-delay-700 w-full rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 py-1.5 font-medium text-white transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {status === 'submitting' ? 'Activating…' : 'Complete Setup'}
+                </button>
+              </form>
+            )}
+
+            {status === 'error' && errorMessage && (
+              <div className="mt-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {errorMessage}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Right column: hero image */}
+      <section className="hidden md:block flex-1 relative p-4" suppressHydrationWarning={true}>
+        <div
+          className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl bg-cover bg-center"
+          style={{ backgroundImage: `url(https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=2160&q=80)` }}
+          suppressHydrationWarning={true}
+        ></div>
+      </section>
     </div>
   );
 }
@@ -234,16 +319,10 @@ export default function CheckoutSuccessPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background">
-          <div className="container mx-auto max-w-2xl px-4 py-16">
-            <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                Validating your payment…
-              </h1>
-              <p className="mt-3 text-muted-foreground">
-                One moment while we prepare your onboarding experience.
-              </p>
-            </div>
+        <div className="h-[100dvh] flex items-center justify-center font-geist w-[100dvw] relative bg-background text-foreground" suppressHydrationWarning={true}>
+          <div className="text-center">
+            <h1 className="text-xl md:text-2xl font-semibold leading-tight mb-2">Validating your payment…</h1>
+            <p className="text-xs text-muted-foreground">One moment while we prepare your onboarding experience.</p>
           </div>
         </div>
       }
@@ -252,6 +331,3 @@ export default function CheckoutSuccessPage() {
     </Suspense>
   );
 }
-
-
-

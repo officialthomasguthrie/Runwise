@@ -9,7 +9,11 @@
   width: 12px !important;
   height: 12px !important;
   border: 2px solid hsl(var(--background)) !important;
-  background: hsl(var(--primary)) !important;
+  background: #ec4899 !important; /* pink-500 */
+}
+
+.dark .react-flow__handle {
+  background: #ec4899 !important; /* pink-500 */
 }
 
 .react-flow__handle-top {
@@ -30,14 +34,22 @@
 
 /* React Flow Edge Styles */
 .react-flow__edge-path {
-  stroke: hsl(var(--primary)) !important;
+  stroke: rgb(120 113 108) !important; /* stone-400 */
   stroke-width: 2px !important;
 }
 
-.react-flow__edge.selected .react-flow__edge-path {
-  stroke: hsl(var(--primary)) !important;
-  stroke-width: 3px !important;
-}
+  .dark .react-flow__edge-path {
+    stroke: rgba(255, 255, 255, 0.4) !important;
+  }
+  
+  .react-flow__edge.selected .react-flow__edge-path {
+    stroke: rgb(120 113 108) !important; /* stone-400 */
+    stroke-width: 3px !important;
+  }
+  
+  .dark .react-flow__edge.selected .react-flow__edge-path {
+    stroke: rgba(255, 255, 255, 0.6) !important;
+  }
 
 /* React Flow Controls (Zoom Bar) Styles */
 .react-flow__controls {
@@ -45,7 +57,7 @@
   left: 8px !important;
   bottom: 8px !important;
   background: hsl(var(--card)) !important;
-  border: 1px solid hsl(var(--border)) !important;
+  border: 1px solid rgb(231 229 228) !important; /* stone-200 */
   display: flex !important;
   flex-direction: row !important;
   width: auto !important;
@@ -53,9 +65,13 @@
   padding: 0 !important;
 }
 
+.dark .react-flow__controls {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
 .react-flow__controls-button {
   background: hsl(var(--card)) !important;
-  border-right: 1px solid hsl(var(--border)) !important;
+  border-right: 1px solid rgb(231 229 228) !important; /* stone-200 */
   border-bottom: none !important;
   color: hsl(var(--foreground)) !important;
   width: 32px !important;
@@ -72,6 +88,10 @@
   box-sizing: border-box !important;
 }
 
+.dark .react-flow__controls-button {
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
 .react-flow__controls-button svg {
   width: 14px !important;
   height: 14px !important;
@@ -83,8 +103,12 @@
 }
 
 .react-flow__controls-button:hover {
-  background: hsl(var(--accent)) !important;
+  background: rgba(255, 255, 255, 0.2) !important; /* white/20 */
   color: hsl(var(--foreground)) !important;
+}
+
+.dark .react-flow__controls-button:hover {
+  background: rgba(24, 24, 27, 0.2) !important; /* zinc-900/20 */
 }
 
 /* React Flow MiniMap Styles */
@@ -93,7 +117,11 @@
   right: 8px !important;
   bottom: 8px !important;
   background: hsl(var(--card)) !important;
-  border: 1px solid hsl(var(--border)) !important;
+  border: 1px solid rgb(231 229 228) !important; /* stone-200 */
+}
+
+.dark .react-flow__minimap {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 .react-flow__minimap-mask {
@@ -101,20 +129,14 @@
 }
 
 .react-flow__minimap-node {
-  fill: hsl(var(--muted)) !important;
-  stroke: hsl(var(--border)) !important;
-}
-
-/* Darker minimap nodes in light mode */
-:root .react-flow__minimap-node {
-  fill: #e5e7eb !important; /* gray-200 for better visibility in light mode */
-  stroke: #d1d5db !important; /* gray-300 for borders */
+  fill: rgb(231 229 228) !important; /* stone-200 */
+  stroke: rgb(214 211 209) !important; /* stone-300 */
 }
 
 /* Darker minimap nodes in dark mode */
 .dark .react-flow__minimap-node {
-  fill: #4b5563 !important; /* gray-600 for better visibility in dark mode */
-  stroke: #6b7280 !important; /* gray-500 for borders */
+  fill: rgb(63 63 70) !important; /* zinc-700 */
+  stroke: rgba(255, 255, 255, 0.1) !important;
 }
 
 .react-flow__minimap-pane {
@@ -129,6 +151,38 @@
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Dark mode dropdown options styling */
+.dark select option {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Light mode dropdown options styling */
+select option {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Dark mode select dropdown background - ensure proper contrast */
+/* Exclude node dropdowns that have their own styling */
+.dark select:not(.nodrag) {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.dark select:not(.nodrag):focus {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Additional styling for better dark mode dropdown appearance */
+.dark select option:checked,
+.dark select option:focus,
+.dark select option:hover {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
 }
 
 
