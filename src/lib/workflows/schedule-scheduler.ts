@@ -4,8 +4,11 @@
  */
 
 import { inngest } from '@/inngest/client';
-import { parseExpression } from 'cron-parser';
 import type { Node, Edge } from '@xyflow/react';
+// @ts-ignore - cron-parser has incorrect type definitions
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const cronParser = require('cron-parser');
+const parseExpression = cronParser.parseExpression as (cronExpression: string, options?: any) => any;
 import { getScheduleConfig } from './schedule-utils';
 
 export interface ScheduledWorkflowData {

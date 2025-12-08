@@ -26,6 +26,10 @@ export function convertAIGeneratedWorkflowToReactFlow(
     const nodeDef = getNodeById(aiNode.data.nodeId);
     // Use AI-provided label if available, otherwise use node definition name, otherwise use nodeId
     const nodeLabel = (aiNode.data as any).label || nodeDef?.name || aiNode.data.nodeId;
+    
+    // Access configSchema with type assertion since it's a custom property
+    const aiNodeData = aiNode.data as any;
+    const configSchema = aiNodeData.configSchema || nodeDef?.configSchema;
 
     return {
       id: aiNode.id,
@@ -38,7 +42,7 @@ export function convertAIGeneratedWorkflowToReactFlow(
         ...aiNode.data,
         label: nodeLabel, // Use AI-provided label or fallback to node definition
         // Preserve configSchema for custom nodes
-        configSchema: aiNode.data.configSchema || nodeDef?.configSchema,
+        configSchema: configSchema,
       },
       // Optional: Set default dimensions if not provided
       width: 320, // Standard node width
