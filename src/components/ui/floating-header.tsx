@@ -163,15 +163,10 @@ export function FloatingHeader() {
 							</span>
 						</Button>
 					) : (
-						// Login/Signup Buttons
-						<>
-							<Button size="sm" variant="secondary" asChild>
-								<a href="/login">Login</a>
-							</Button>
-							<Button size="sm" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white" asChild>
-								<a href="/signup">Sign Up</a>
-							</Button>
-						</>
+						// Login Button
+						<Button size="sm" variant="secondary" asChild>
+							<a href="/login">Login</a>
+						</Button>
 					)}
 					<Sheet open={open} onOpenChange={setOpen}>
 						<Button
@@ -233,15 +228,10 @@ export function FloatingHeader() {
 											</Button>
 										</div>
 									) : (
-										// Mobile Login/Signup
-										<>
-											<Button variant="outline" className="flex-1" asChild>
-												<a href="/login">Login</a>
-											</Button>
-											<Button className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white" asChild>
-												<a href="/signup">Sign Up</a>
-											</Button>
-										</>
+										// Mobile Login
+										<Button variant="outline" className="flex-1" asChild>
+											<a href="/login">Login</a>
+										</Button>
 									)}
 								</div>
 							</SheetFooter>

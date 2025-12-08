@@ -67,6 +67,7 @@ export interface WorkflowExecutionResult {
   nodeResults: NodeExecutionResult[];
   finalOutput: any;
   error?: string;
+  logs?: LogEntry[]; // Optional logs from workflow execution
 }
 
 /**

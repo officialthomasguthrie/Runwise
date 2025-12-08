@@ -299,7 +299,8 @@ export default function DashboardPage() {
                 repeatDelay={1}
                   className={cn(
                     "[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]",
-                    "inset-x-[-20%] inset-y-[-20%] w-[140%] h-[150%] skew-y-12",
+                    "inset-y-[-20%] h-[150%] skew-y-12",
+                    "left-[calc(50%-70%+2rem)] w-[140%]",
                   )}
               />
               <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-background to-transparent pointer-events-none" />

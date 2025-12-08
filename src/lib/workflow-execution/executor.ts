@@ -40,9 +40,18 @@ export async function executeWorkflow(
     // Sort nodes by execution order (topological sort based on edges)
     const sortedNodes = topologicalSort(nodes, edges);
 
-    // Execute each node in order
-    let previousOutput = triggerData;
+    // Build reverse edge map: target -> [sources]
+    const sourceMap = new Map<string, string[]>();
+    edges.forEach((edge) => {
+      const sources = sourceMap.get(edge.target) || [];
+      sources.push(edge.source);
+      sourceMap.set(edge.target, sources);
+    });
 
+    // Track outputs for each node
+    const nodeOutputs = new Map<string, any>();
+
+    // Execute each node in order
     for (const node of sortedNodes) {
       const nodeStartTime = Date.now();
       const nodeLogs: LogEntry[] = [];
@@ -56,10 +65,76 @@ export async function executeWorkflow(
           timestamp: new Date().toISOString(),
         });
 
+        // Get input data for this node
+        const sourceNodeIds = sourceMap.get(node.id) || [];
+        let inputData: any;
+
+        if (sourceNodeIds.length === 0) {
+          // No sources = trigger node, use triggerData
+          inputData = triggerData;
+          logs.push({
+            level: 'info',
+            message: `Node ${nodeLabel} is a trigger node, using triggerData`,
+            timestamp: new Date().toISOString(),
+          });
+        } else if (sourceNodeIds.length === 1) {
+          // Single source = use that node's output
+          const sourceOutput = nodeOutputs.get(sourceNodeIds[0]);
+          if (sourceOutput === undefined) {
+            throw new Error(`Source node ${sourceNodeIds[0]} has no output`);
+          }
+          inputData = sourceOutput;
+          logs.push({
+            level: 'info',
+            message: `Node ${nodeLabel} receiving input from single source: ${sourceNodeIds[0]}`,
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          // Multiple sources = merge their outputs
+          const sourceOutputs = sourceNodeIds.map((sourceId) => {
+            const output = nodeOutputs.get(sourceId);
+            if (output === undefined) {
+              throw new Error(`Source node ${sourceId} has no output`);
+            }
+            return output;
+          });
+
+          // Merge strategy: combine all outputs into a single object
+          // If outputs are objects, merge them. If arrays, combine them.
+          inputData = {};
+          sourceOutputs.forEach((output, index) => {
+            if (typeof output === 'object' && output !== null && !Array.isArray(output)) {
+              // Merge object properties
+              Object.assign(inputData, output);
+              // Also store under source node ID for reference
+              inputData[`_from_${sourceNodeIds[index]}`] = output;
+            } else if (Array.isArray(output)) {
+              // Combine arrays
+              if (!Array.isArray(inputData)) {
+                inputData = [];
+              }
+              inputData.push(...output);
+            } else {
+              // Store primitive values under source node ID
+              inputData[`_from_${sourceNodeIds[index]}`] = output;
+            }
+          });
+
+          logs.push({
+            level: 'info',
+            message: `Node ${nodeLabel} receiving input from ${sourceNodeIds.length} sources: ${sourceNodeIds.join(', ')}`,
+            data: { mergedKeys: Object.keys(inputData) },
+            timestamp: new Date().toISOString(),
+          });
+        }
+
         // Execute the node
-        const nodeOutput = await executeNode(node, previousOutput, context);
+        const nodeOutput = await executeNode(node, inputData, context);
 
         const duration = Date.now() - nodeStartTime;
+
+        // Store output for this node
+        nodeOutputs.set(node.id, nodeOutput);
 
         // Record successful execution
         nodeResults.push({
@@ -70,9 +145,6 @@ export async function executeWorkflow(
           duration,
           logs: nodeLogs,
         });
-
-        // Pass output to next node
-        previousOutput = nodeOutput;
 
         logs.push({
           level: 'info',
@@ -106,6 +178,36 @@ export async function executeWorkflow(
       }
     }
 
+    // Get final output (last node's output or merged outputs if multiple end nodes)
+    const endNodes = sortedNodes.filter((node) => {
+      const nodeId = node.id;
+      // Check if this node has no outgoing edges (it's an end node)
+      return !edges.some((edge) => edge.source === nodeId);
+    });
+
+    let finalOutput: any;
+    if (endNodes.length === 0) {
+      // No end nodes, use last node's output
+      finalOutput = nodeOutputs.get(sortedNodes[sortedNodes.length - 1]?.id) || null;
+    } else if (endNodes.length === 1) {
+      // Single end node
+      finalOutput = nodeOutputs.get(endNodes[0].id) || null;
+    } else {
+      // Multiple end nodes, merge their outputs
+      finalOutput = {};
+      endNodes.forEach((node) => {
+        const output = nodeOutputs.get(node.id);
+        if (output !== undefined) {
+          if (typeof output === 'object' && output !== null && !Array.isArray(output)) {
+            Object.assign(finalOutput, output);
+            finalOutput[`_from_${node.id}`] = output;
+          } else {
+            finalOutput[`_from_${node.id}`] = output;
+          }
+        }
+      });
+    }
+
     const completedAt = new Date().toISOString();
     const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
     
@@ -117,7 +219,8 @@ export async function executeWorkflow(
       completedAt,
       duration,
       nodeResults,
-      finalOutput: previousOutput,
+      finalOutput,
+      logs,
     };
   } catch (error: any) {
     const completedAt = new Date().toISOString();
@@ -139,6 +242,7 @@ export async function executeWorkflow(
       nodeResults,
       finalOutput: null,
       error: error.message || 'Unknown error',
+      logs,
     };
   }
 }

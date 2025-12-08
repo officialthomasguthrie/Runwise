@@ -59,7 +59,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from auth pages
-  if (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup')) {
+  if (request.nextUrl.pathname.startsWith('/login')) {
     if (user) {
       // Redirect to dashboard if already authenticated
       const url = request.nextUrl.clone()

@@ -6,7 +6,8 @@ import type { Node, Edge } from "@xyflow/react";
 import { assertWithinLimit, incrementUsage } from "@/lib/usage";
 import { getPlanLimits } from "@/lib/plans/config";
 import { hasScheduledTrigger, getScheduleConfig } from "@/lib/workflows/schedule-utils";
-import { parseExpression } from "cron-parser";
+// @ts-ignore - cron-parser has incorrect type definitions
+import parseExpression from "cron-parser";
 import { scheduleNextWorkflowRun } from "@/lib/workflows/schedule-scheduler";
 
 // ============================================================================
@@ -457,7 +458,7 @@ export const pollingWorkflowTrigger = inngest.createFunction(
         const nodes = workflow.workflow_data.nodes as Node[];
         return nodes.some(node => {
           const nodeId = node.data?.nodeId;
-          return nodeId && pollingTriggerTypes.includes(nodeId);
+          return typeof nodeId === 'string' && pollingTriggerTypes.includes(nodeId);
         });
       });
 
@@ -488,7 +489,7 @@ export const pollingWorkflowTrigger = inngest.createFunction(
         
         const triggerNode = nodes.find(node => {
           const nodeId = node.data?.nodeId;
-          return nodeId && pollingTriggerTypes.includes(nodeId);
+          return typeof nodeId === 'string' && pollingTriggerTypes.includes(nodeId);
         });
 
         if (!triggerNode) {

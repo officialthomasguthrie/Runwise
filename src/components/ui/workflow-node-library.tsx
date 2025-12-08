@@ -219,26 +219,6 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
               const fieldValue = localConfig[key] || '';
               const placeholderText = schema.placeholder || schema.description || '';
               
-              // Truncate placeholder to 25 chars at word boundary (for small textboxes only)
-              const truncatePlaceholder = (text: string): string => {
-                let truncated = text;
-                if (truncated.length > 25) {
-                  const eGIndex = truncated.toLowerCase().indexOf('(e.g.');
-                  if (eGIndex !== -1) {
-                    truncated = truncated.substring(0, eGIndex).trim();
-                  }
-                  if (truncated.length > 25) {
-                    let truncated2 = truncated.substring(0, 25);
-                    const lastSpace = truncated2.lastIndexOf(' ');
-                    if (lastSpace > 10) {
-                      truncated2 = truncated2.substring(0, lastSpace);
-                    }
-                    truncated = truncated2.replace(/[.,;:!?]+$/, '');
-                  }
-                }
-                return truncated;
-              };
-              
               return (
                 <div key={key} className="space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">
@@ -314,7 +294,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                         e.stopPropagation();
                         handleFieldChange(key, e.target.value);
                       }}
-                      placeholder={truncatePlaceholder(placeholderText)}
+                      placeholder={placeholderText}
                       className="nodrag text-xs h-8 backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-gray-300 dark:border-white/10 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-stone-200 dark:focus:border-white/10 focus-visible:border-stone-200 dark:focus-visible:border-white/10"
                       onClick={(e) => e.stopPropagation()}
                       onMouseDown={(e) => e.stopPropagation()}

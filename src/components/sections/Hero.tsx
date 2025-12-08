@@ -10,7 +10,7 @@ export default function Hero() {
       }}
       description="Transform your ideas into reality with Runwise's AI-powered platform. Simply describe what you want, and watch it come to life as integrated, functional workflows."
       ctaText="Start Building"
-      ctaHref="/signup"
+      ctaHref="/login"
       gridOptions={{
         angle: 65,
         opacity: 0,

@@ -1278,13 +1278,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   userMessage.toLowerCase().includes('use')
                 );
 
-                if (shouldConfigure && getCurrentWorkflow && onNodesConfigured) {
-                  // Call configuration API
-                  handleNodeConfiguration(userMessage, fullMessage);
-                }
-
                 // Check if workflow generation is suggested
-                // Filter out field-filling questions
                 console.log('🔍 Complete event received (regular send):', {
                   hasMetadata: !!data.metadata,
                   shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
@@ -1292,15 +1286,33 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   fullMetadata: data.metadata
                 });
                 
-                if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
-                  const responseContent = fullMessage.toLowerCase();
-                  const isFieldFillingQuestion = 
-                    responseContent.includes('help me fill out') ||
-                    responseContent.includes('help me with') ||
-                    responseContent.includes('fill out the');
-                  
-                  if (!isFieldFillingQuestion) {
+                // Determine if this is a workflow modification (not just field configuration)
+                const currentWorkflow = getCurrentWorkflow ? getCurrentWorkflow() : { nodes: [], edges: [] };
+                const hasExistingWorkflow = currentWorkflow.nodes.length > 0;
+                const isWorkflowModification = data.metadata?.shouldGenerateWorkflow && 
+                  data.metadata?.workflowPrompt &&
+                  hasExistingWorkflow;
+                
+                const isFieldFillingOnly = fullMessage.toLowerCase().includes('help me fill out') ||
+                  fullMessage.toLowerCase().includes('help me with') ||
+                  fullMessage.toLowerCase().includes('fill out the');
+                
+                // If it's a workflow modification, auto-apply it
+                if (isWorkflowModification && !isFieldFillingOnly) {
+                  console.log('🚀 Auto-applying workflow modification...');
+                  // Automatically generate the workflow without requiring button click
                   setWorkflowPrompt(data.metadata.workflowPrompt);
+                  // Trigger generation immediately after state update
+                  setTimeout(() => {
+                    generateWorkflow();
+                  }, 100);
+                } else if (shouldConfigure && getCurrentWorkflow && onNodesConfigured && !isWorkflowModification) {
+                  // Call configuration API for field-only updates (not workflow modifications)
+                  handleNodeConfiguration(userMessage, fullMessage);
+                } else if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
+                  // New workflow creation - show button
+                  if (!isFieldFillingOnly) {
+                    setWorkflowPrompt(data.metadata.workflowPrompt);
                     console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
                   } else {
                     console.log('🚫 Field-filling question detected, not setting workflowPrompt');
@@ -1466,29 +1478,41 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     userMessage.toLowerCase().includes('use')
                   );
 
-                  if (shouldConfigure && getCurrentWorkflow && onNodesConfigured) {
-                    // Call configuration API
-                    handleNodeConfiguration(userMessage, fullMessage);
-                  }
-
                   // Check if workflow generation is suggested
-                  // Filter out field-filling questions
                   console.log('🔍 Complete event received (edit and send):', {
                     hasMetadata: !!data.metadata,
                     shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
                     workflowPrompt: data.metadata?.workflowPrompt,
                     fullMetadata: data.metadata
                   });
-
-                  if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
-                    const responseContent = fullMessage.toLowerCase();
-                    const isFieldFillingQuestion = 
-                      responseContent.includes('help me fill out') ||
-                      responseContent.includes('help me with') ||
-                      responseContent.includes('fill out the');
-                    
-                    if (!isFieldFillingQuestion) {
+                  
+                  // Determine if this is a workflow modification (not just field configuration)
+                  const currentWorkflow = getCurrentWorkflow ? getCurrentWorkflow() : { nodes: [], edges: [] };
+                  const hasExistingWorkflow = currentWorkflow.nodes.length > 0;
+                  const isWorkflowModification = data.metadata?.shouldGenerateWorkflow && 
+                    data.metadata?.workflowPrompt &&
+                    hasExistingWorkflow;
+                  
+                  const isFieldFillingOnly = fullMessage.toLowerCase().includes('help me fill out') ||
+                    fullMessage.toLowerCase().includes('help me with') ||
+                    fullMessage.toLowerCase().includes('fill out the');
+                  
+                  // If it's a workflow modification, auto-apply it
+                  if (isWorkflowModification && !isFieldFillingOnly) {
+                    console.log('🚀 Auto-applying workflow modification...');
+                    // Automatically generate the workflow without requiring button click
                     setWorkflowPrompt(data.metadata.workflowPrompt);
+                    // Trigger generation immediately after state update
+                    setTimeout(() => {
+                      generateWorkflow();
+                    }, 100);
+                  } else if (shouldConfigure && getCurrentWorkflow && onNodesConfigured && !isWorkflowModification) {
+                    // Call configuration API for field-only updates (not workflow modifications)
+                    handleNodeConfiguration(userMessage, fullMessage);
+                  } else if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
+                    // New workflow creation - show button
+                    if (!isFieldFillingOnly) {
+                      setWorkflowPrompt(data.metadata.workflowPrompt);
                       console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
                     } else {
                       console.log('🚫 Field-filling question detected, not setting workflowPrompt');

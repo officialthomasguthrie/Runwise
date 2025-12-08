@@ -166,7 +166,21 @@ export const FAQ: React.FC = () => {
           </div>
 
           {/* CTA Button */}
-          <button className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[150.44px] whitespace-nowrap w-full rounded-lg py-2.5 px-[15px] cursor-pointer overflow-hidden relative group mt-6">
+          <button 
+            onClick={() => {
+              const pricingSection = document.getElementById("pricing");
+              if (pricingSection) {
+                const headerOffset = 80;
+                const elementPosition = pricingSection.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                window.scrollTo({
+                  top: offsetPosition,
+                  behavior: "smooth",
+                });
+              }
+            }}
+            className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[150.44px] whitespace-nowrap w-full rounded-lg py-2.5 px-[15px] cursor-pointer overflow-hidden relative group mt-6"
+          >
             <div className="h-[18px] relative overflow-hidden">
               {/* default */}
               <div className="flex items-end gap-[5px] absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">

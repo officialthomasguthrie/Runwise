@@ -63,12 +63,31 @@ export async function executeCustomCode(
       },
     });
 
-    // Wrap the code in an async function
-    const wrappedCode = `
-      (async function() {
-        ${code}
-      })()
-    `;
+    // Check if code is already a function (arrow function or function declaration)
+    // AI generates: async (inputData, config, context) => { ... }
+    let wrappedCode: string;
+    
+    const trimmedCode = code.trim();
+    const isFunction = (trimmedCode.startsWith('async') && trimmedCode.includes('=>')) || 
+                      trimmedCode.startsWith('function') ||
+                      trimmedCode.startsWith('async function');
+    
+    if (isFunction) {
+      // Code is already a function, we need to call it with parameters
+      wrappedCode = `
+        (async function() {
+          const fn = ${code};
+          return await fn(inputData, config, context);
+        })()
+      `;
+    } else {
+      // Code is just a body, wrap it in a function and execute
+      wrappedCode = `
+        (async function() {
+          ${code}
+        })()
+      `;
+    }
 
     // Execute the code
     const result = await vm.run(wrappedCode);

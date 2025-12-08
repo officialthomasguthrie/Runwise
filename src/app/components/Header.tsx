@@ -166,8 +166,20 @@ export const Header: React.FC = () => {
               </div>
 
               {/* Button - Desktop */}
-              <Link
-                href="/dashboard"
+              <button
+                onClick={(event) => {
+                  event.preventDefault();
+                  const pricingSection = document.getElementById("pricing");
+                  if (pricingSection) {
+                    const headerOffset = 80;
+                    const elementPosition = pricingSection.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                    window.scrollTo({
+                      top: offsetPosition,
+                      behavior: "smooth",
+                    });
+                  }
+                }}
                 className={`border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg start-building-btn cursor-pointer overflow-hidden relative group hidden md:block transition-all duration-500 ease-in-out mr-2 ${
                   isScrolled ? "h-[34px]" : "h-[38px]"
                 }`}
@@ -249,7 +261,7 @@ export const Header: React.FC = () => {
                     />
                   </div>
                 </div>
-              </Link>
+              </button>
 
               {/* Hamburger/Close Menu Button - Mobile */}
               <button
@@ -315,7 +327,23 @@ export const Header: React.FC = () => {
           </nav>
 
           {/* Mobile Button */}
-          <Link href="/dashboard" className="w-full border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center gap-2 hover:bg-[#bd28b3] transition-colors">
+          <button 
+            onClick={(event) => {
+              event.preventDefault();
+              const pricingSection = document.getElementById("pricing");
+              if (pricingSection) {
+                const headerOffset = 80;
+                const elementPosition = pricingSection.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                window.scrollTo({
+                  top: offsetPosition,
+                  behavior: "smooth",
+                });
+              }
+              closeMenu();
+            }}
+            className="w-full border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center gap-2 hover:bg-[#bd28b3] transition-colors"
+          >
             <span className="text-sm font-normal leading-[1.2em] text-white">
               Start Building
             </span>
@@ -325,7 +353,7 @@ export const Header: React.FC = () => {
               loading="lazy"
               className="w-4 h-4"
             />
-          </Link>
+          </button>
         </div>
       </div>
     </>

@@ -25,7 +25,7 @@ export function convertAIGeneratedWorkflowToReactFlow(
     // Get node definition to add label (only for library nodes)
     const nodeDef = getNodeById(aiNode.data.nodeId);
     // Use AI-provided label if available, otherwise use node definition name, otherwise use nodeId
-    const nodeLabel = aiNode.data.label || nodeDef?.name || aiNode.data.nodeId;
+    const nodeLabel = (aiNode.data as any).label || nodeDef?.name || aiNode.data.nodeId;
 
     return {
       id: aiNode.id,

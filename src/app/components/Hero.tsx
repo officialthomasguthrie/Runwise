@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo, useEffect, useState } from "react";
-import Link from "next/link";
 import Marquee from "react-fast-marquee";
 import { motion } from "framer-motion";
 
@@ -128,7 +127,21 @@ export const Hero: React.FC = () => {
 
           <div className="flex items-center justify-center gap-[15px] mt-8">
             {/* Start Building BTN */}
-            <Link href="/dashboard" className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[140.77px] w-full min-h-[38px] py-2.5 rounded-lg start-building-btn px-[15px] cursor-pointer overflow-hidden relative group">
+            <button 
+              onClick={() => {
+                const pricingSection = document.getElementById("pricing");
+                if (pricingSection) {
+                  const headerOffset = 80;
+                  const elementPosition = pricingSection.getBoundingClientRect().top;
+                  const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                  window.scrollTo({
+                    top: offsetPosition,
+                    behavior: "smooth",
+                  });
+                }
+              }}
+              className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[140.77px] w-full min-h-[38px] py-2.5 rounded-lg start-building-btn px-[15px] cursor-pointer overflow-hidden relative group"
+            >
               <div className="h-[18px] relative overflow-hidden flex items-center">
                 <div className="flex items-center gap-[5px] absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">
                   <p className="text-sm">Start Building</p>
@@ -142,7 +155,7 @@ export const Hero: React.FC = () => {
                   />
                 </div>
               </div>
-            </Link>
+            </button>
 
             {/* See Plans BTN */}
             <button 

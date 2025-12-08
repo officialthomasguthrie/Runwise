@@ -197,20 +197,55 @@ export const ReactFlowEditor = ({
     console.log('AI Nodes structure:', JSON.stringify(newNodes, null, 2));
     console.log('AI Edges structure:', JSON.stringify(newEdges, null, 2));
     
-    // Transform nodes to ensure they have all required React Flow properties
+    // Get current nodes to preserve their data
+    // We need to access current nodes, so we'll use a ref pattern or get it synchronously
+    // For now, we'll merge in the flushSync block where we have access to current state
+    // Create a map of existing nodes by ID for merging
+    const existingNodesMap = new Map(nodes.map(n => [n.id, n]));
+    
+    // Transform nodes and merge with existing node data to preserve config, configSchema, customCode, etc.
     const transformedNodes = newNodes.map((node: any) => {
-      // Ensure the node has a label in data
-      const nodeData = {
-        ...node.data,
-        label: node.data?.label || node.data?.metadata?.name || 'Untitled Node',
-      };
+      const existingNode = existingNodesMap.get(node.id);
+      
+      // If node exists, merge existing data with new data
+      // Preserve: config, configSchema, customCode, metadata, and other custom properties
+      let mergedData = { ...node.data };
+      
+      if (existingNode) {
+        const existingData = existingNode.data || {};
+        console.log(`🔄 Merging existing node ${node.id}:`, {
+          existing: { config: existingData.config, configSchema: existingData.configSchema, customCode: !!existingData.customCode },
+          new: { config: node.data?.config, configSchema: node.data?.configSchema, customCode: !!node.data?.customCode }
+        });
+        
+        // Merge data: new data takes precedence for structure, but preserve existing config/configSchema/customCode
+        mergedData = {
+          ...existingData, // Start with existing data (preserves config, configSchema, customCode, etc.)
+          ...node.data,   // Override with new data (updates label, description, etc.)
+          // Explicitly preserve critical fields from existing node
+          config: existingData.config || node.data?.config || {},
+          configSchema: existingData.configSchema || node.data?.configSchema,
+          customCode: existingData.customCode || node.data?.customCode,
+          metadata: existingData.metadata || node.data?.metadata,
+          // Update label/description from new node if provided
+          label: node.data?.label || existingData.label || node.data?.metadata?.name || 'Untitled Node',
+          description: node.data?.description || existingData.description,
+        };
+      } else {
+        // New node - ensure it has a label
+        mergedData = {
+          ...node.data,
+          label: node.data?.label || node.data?.metadata?.name || 'Untitled Node',
+        };
+      }
       
       return {
-        ...node,
-        data: nodeData,
+        ...(existingNode || node), // Use existing node as base if it exists
+        ...node,                  // Override with new node properties
+        data: mergedData,          // Use merged data
         // Ensure required React Flow properties exist
-        type: node.type || 'workflow-node',
-        position: node.position || { x: 0, y: 0 },
+        type: node.type || existingNode?.type || 'workflow-node',
+        position: node.position || existingNode?.position || { x: 0, y: 0 },
       };
     });
     
@@ -287,7 +322,7 @@ export const ReactFlowEditor = ({
         });
       }
     }, 500);
-  }, [historyIndex, layoutDirection, orientEdges]);
+  }, [historyIndex, layoutDirection, orientEdges, nodes]);
 
   // Register update callback with parent
   useEffect(() => {
@@ -1348,7 +1383,6 @@ export const ReactFlowEditor = ({
                             onChange={(e) => handleConfigFieldChange(key, e.target.value)}
                             placeholder={(() => {
                               let placeholderText = schema.placeholder || schema.description || '';
-                              const maxLength = 25;
                               
                               // Remove "(e.g." and everything after it
                               const eGIndex = placeholderText.toLowerCase().indexOf('(e.g.');
@@ -1362,29 +1396,7 @@ export const ReactFlowEditor = ({
                                 placeholderText = placeholderText.substring(0, eGIndex2).trim();
                               }
                               
-                              // If text is already short enough, return as-is
-                              if (placeholderText.length <= maxLength) {
-                                return placeholderText;
-                              }
-                              
-                              // Truncate at word boundary
-                              let truncated = placeholderText.substring(0, maxLength);
-                              
-                              // Find the last space before the limit
-                              const lastSpace = truncated.lastIndexOf(' ');
-                              
-                              // If we found a space and it's not too close to the start, cut there
-                              if (lastSpace > 10) {
-                                truncated = truncated.substring(0, lastSpace);
-                              } else {
-                                // If no good space found, just cut at maxLength
-                                truncated = placeholderText.substring(0, maxLength);
-                              }
-                              
-                              // Remove trailing punctuation that might look odd
-                              truncated = truncated.replace(/[.,;:!?]+$/, '');
-                              
-                              return truncated;
+                              return placeholderText;
                             })()}
                             className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 pr-24 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
                           />
