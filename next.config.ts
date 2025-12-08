@@ -1,14 +1,11 @@
 import type { NextConfig } from "next";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { join } from "path";
 
 const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  outputFileTracingRoot: join(__dirname),
+  outputFileTracingRoot: join(process.cwd()),
 };
 
 export default nextConfig;
