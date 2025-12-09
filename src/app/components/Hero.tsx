@@ -3,10 +3,14 @@
 import React, { useMemo, useEffect, useState } from "react";
 import Marquee from "react-fast-marquee";
 import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/auth-context";
+import { useRouter } from "next/navigation";
 
 export const Hero: React.FC = () => {
   const [isStylesReady, setIsStylesReady] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
   type Brand = {
     src: string;
@@ -129,31 +133,26 @@ export const Hero: React.FC = () => {
             {/* Start Building BTN */}
             <button 
               onClick={() => {
-                const pricingSection = document.getElementById("pricing");
-                if (pricingSection) {
-                  const headerOffset = 80;
-                  const elementPosition = pricingSection.getBoundingClientRect().top;
-                  const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                  window.scrollTo({
-                    top: offsetPosition,
-                    behavior: "smooth",
-                  });
+                if (!loading && user) {
+                  router.push("/dashboard");
+                } else {
+                  const pricingSection = document.getElementById("pricing");
+                  if (pricingSection) {
+                    const headerOffset = 80;
+                    const elementPosition = pricingSection.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                    window.scrollTo({
+                      top: offsetPosition,
+                      behavior: "smooth",
+                    });
+                  }
                 }
               }}
-              className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[140.77px] w-full min-h-[38px] py-2.5 rounded-lg start-building-btn px-[15px] cursor-pointer overflow-hidden relative group"
+              className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[140.77px] w-full min-h-[38px] py-2.5 rounded-lg px-[15px] cursor-pointer flex items-center justify-center"
             >
-              <div className="h-[18px] relative overflow-hidden flex items-center">
-                <div className="flex items-center gap-[5px] absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">
-                  <p className="text-sm">Start Building</p>
-                  <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" />
-                </div>
-                <div className="flex items-center gap-[5px] absolute inset-0 translate-y-full opacity-0 transition-all duration-500 ease-in-out group-hover:translate-y-0 group-hover:opacity-100">
-                  <p className="text-sm">Start Building</p>
-                  <img
-                    src="/assets/icons/arrow-right.svg"
-                    className="w-4 h-4"
-                  />
-                </div>
+              <div className="flex items-center justify-center gap-[5px]">
+                <p className="text-sm">{!loading && user ? "Dashboard" : "Start Building"}</p>
+                <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" />
               </div>
             </button>
 
@@ -171,16 +170,9 @@ export const Hero: React.FC = () => {
                   });
                 }
               }}
-              className="border border-[#ffffff1a] max-w-[93.19px] w-full min-h-[38px] py-2.5 rounded-lg start-building-btn px-[15px] cursor-pointer overflow-hidden relative group"
+              className="border border-[#ffffff1a] max-w-[93.19px] w-full min-h-[38px] py-2.5 rounded-lg px-[15px] cursor-pointer flex items-center justify-center"
             >
-              <div className="h-[18px] relative overflow-hidden flex items-center">
-                <div className="flex items-center text-sm absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">
-                  See Plans
-                </div>
-                <div className="flex items-center text-sm absolute inset-0 translate-y-full opacity-0 transition-all duration-500 ease-in-out group-hover:translate-y-0 group-hover:opacity-100">
-                  See Plans
-                </div>
-              </div>
+              <span className="text-sm">See Plans</span>
             </button>
           </div>
         </div>

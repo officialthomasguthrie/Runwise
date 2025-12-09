@@ -5,9 +5,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { validateWorkflowData } from '@/lib/workflows/utils';
 import type { UpdateWorkflowInput } from '@/lib/workflows/types';
 import { getPlanLimits } from '@/lib/plans/config';
+import { assertStepsLimit } from '@/lib/usage';
 
 // GET /api/workflows/[id] - Get a single workflow
 export async function GET(
@@ -89,6 +91,32 @@ export async function PUT(
         { error: 'Invalid workflow_data structure' },
         { status: 400 }
       );
+    }
+    
+    // Check step limit if workflow_data is being updated
+    if (body.workflow_data) {
+      const adminSupabase = createAdminClient();
+      const { data: userRow } = await (adminSupabase as any)
+        .from('users')
+        .select('plan_id')
+        .eq('id', user.id)
+        .single();
+      const planId = (userRow as any)?.plan_id ?? 'personal';
+      
+      // Count nodes in workflow (excluding placeholder nodes)
+      const nodes = body.workflow_data?.nodes || [];
+      const nodeCount = nodes.filter((node: any) => 
+        node.type !== 'placeholder' && node.data?.nodeId !== 'placeholder'
+      ).length;
+      
+      try {
+        assertStepsLimit(planId, nodeCount);
+      } catch (limitError: any) {
+        return NextResponse.json(
+          { error: limitError.message },
+          { status: 403 }
+        );
+      }
     }
     
     // Check if workflow exists and belongs to user

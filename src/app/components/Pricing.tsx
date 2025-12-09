@@ -15,7 +15,7 @@ type Plan = {
 };
 
 export const Pricing: React.FC = () => {
-  const [isAnnual, setIsAnnual] = useState(true);
+  const [isAnnual, setIsAnnual] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const handleCheckout = async (planName: string) => {
@@ -197,21 +197,21 @@ export const Pricing: React.FC = () => {
       >
         <div className="bg-[#ffffff0f] border border-[#ffffff1a] rounded-[10px] p-[5px] flex items-center gap-2.5">
           <button
-            onClick={() => setIsAnnual(true)}
-            className={`px-2.5 py-2 rounded-lg text-base leading-[1.4em] -tracking-[.02em] font-normal cursor-pointer transition-all duration-300 ${
-              isAnnual ? "bg-[#bd28b3ba] text-white" : "text-white"
-            }`}
-          >
-            Annually
-          </button>
-
-          <button
             onClick={() => setIsAnnual(false)}
             className={`px-2.5 py-2 rounded-lg text-base leading-[1.4em] -tracking-[.02em] font-normal cursor-pointer transition-all duration-300 ${
               !isAnnual ? "bg-[#bd28b3ba] text-white" : "text-white"
             }`}
           >
             Monthly
+          </button>
+
+          <button
+            onClick={() => setIsAnnual(true)}
+            className={`px-2.5 py-2 rounded-lg text-base leading-[1.4em] -tracking-[.02em] font-normal cursor-pointer transition-all duration-300 ${
+              isAnnual ? "bg-[#bd28b3ba] text-white" : "text-white"
+            }`}
+          >
+            Annually (20% Off)
           </button>
         </div>
       </motion.div>
@@ -271,40 +271,20 @@ export const Pricing: React.FC = () => {
           <button
             onClick={() => handleCheckout(plans[0].name)}
             disabled={loadingPlan === plans[0].name}
-            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-2.5 px-[15px] cursor-pointer overflow-hidden relative group disabled:opacity-50 disabled:cursor-not-allowed"
+            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg py-2.5 px-[15px] cursor-pointer flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div className="h-[18px] relative overflow-hidden">
-              {/* Default state  */}
-              <div className="flex items-end justify-center gap-[5px] absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">
-                <p className="text-[15px] font-normal leading-[1.2em]">
-                  {loadingPlan === plans[0].name ? "Redirecting…" : plans[0].buttonText}
-                </p>
-
-                {loadingPlan !== plans[0].name && (
-                  <img
-                    src="/assets/icons/arrow-top.svg"
-                    alt="arrow-top"
-                    loading="lazy"
-                    className="w-4 h-4"
-                  />
-                )}
-              </div>
-
-              {/* Hover state  */}
-              <div className="flex items-end justify-center gap-[5px] absolute inset-0 translate-y-full opacity-0 transition-all duration-500 ease-in-out group-hover:translate-y-0 group-hover:opacity-100">
-                <p className="text-[15px] font-normal leading-[1.2em]">
-                  {loadingPlan === plans[0].name ? "Redirecting…" : plans[0].buttonText}
-                </p>
-
-                {loadingPlan !== plans[0].name && (
-                  <img
-                    src="/assets/icons/arrow-right.svg"
-                    alt="arrow-right"
-                    loading="lazy"
-                    className="w-4 h-4"
-                  />
-                )}
-              </div>
+            <div className="flex items-center justify-center gap-[5px]">
+              <p className="text-[15px] font-normal leading-[1.2em]">
+                {loadingPlan === plans[0].name ? "Redirecting…" : plans[0].buttonText}
+              </p>
+              {loadingPlan !== plans[0].name && (
+                <img
+                  src="/assets/icons/arrow-top.svg"
+                  alt="arrow-top"
+                  loading="lazy"
+                  className="w-4 h-4"
+                />
+              )}
             </div>
           </button>
 
@@ -382,40 +362,20 @@ export const Pricing: React.FC = () => {
           <button
             onClick={() => handleCheckout(plans[1].name)}
             disabled={loadingPlan === plans[1].name}
-            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-2.5 px-[15px] cursor-pointer overflow-hidden relative group disabled:opacity-50 disabled:cursor-not-allowed"
+            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg py-2.5 px-[15px] cursor-pointer flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div className="h-[18px] relative overflow-hidden">
-              {/* Default state  */}
-              <div className="flex items-end justify-center gap-[5px] absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">
-                <p className="text-[15px] font-normal leading-[1.2em]">
-                  {loadingPlan === plans[1].name ? "Redirecting…" : plans[1].buttonText}
-                </p>
-
-                {loadingPlan !== plans[1].name && (
-                  <img
-                    src="/assets/icons/arrow-top.svg"
-                    alt="arrow-top"
-                    loading="lazy"
-                    className="w-4 h-4"
-                  />
-                )}
-              </div>
-
-              {/* Hover state  */}
-              <div className="flex items-end justify-center gap-[5px] absolute inset-0 translate-y-full opacity-0 transition-all duration-500 ease-in-out group-hover:translate-y-0 group-hover:opacity-100">
-                <p className="text-[15px] font-normal leading-[1.2em]">
-                  {loadingPlan === plans[1].name ? "Redirecting…" : plans[1].buttonText}
-                </p>
-
-                {loadingPlan !== plans[1].name && (
-                  <img
-                    src="/assets/icons/arrow-right.svg"
-                    alt="arrow-right"
-                    loading="lazy"
-                    className="w-4 h-4"
-                  />
-                )}
-              </div>
+            <div className="flex items-center justify-center gap-[5px]">
+              <p className="text-[15px] font-normal leading-[1.2em]">
+                {loadingPlan === plans[1].name ? "Redirecting…" : plans[1].buttonText}
+              </p>
+              {loadingPlan !== plans[1].name && (
+                <img
+                  src="/assets/icons/arrow-top.svg"
+                  alt="arrow-top"
+                  loading="lazy"
+                  className="w-4 h-4"
+                />
+              )}
             </div>
           </button>
 
@@ -492,36 +452,18 @@ export const Pricing: React.FC = () => {
           {/* CTA Button - Enterprise (opens Cal.com in new tab) */}
           <button 
             onClick={() => window.open('https://cal.com/thomas-guthrie/runwise-enterprise-consultation', '_blank')}
-            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-2.5 px-[15px] cursor-pointer overflow-hidden relative group"
+            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg py-2.5 px-[15px] cursor-pointer flex items-center justify-center"
           >
-            <div className="h-[18px] relative overflow-hidden">
-              {/* Default state  */}
-              <div className="flex items-end justify-center gap-[5px] absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">
-                <p className="text-[15px] font-normal leading-[1.2em]">
-                  {plans[2].buttonText}
-                </p>
-
-                <img
-                  src="/assets/icons/arrow-top.svg"
-                  alt="arrow-top"
-                  loading="lazy"
-                  className="w-4 h-4"
-                />
-              </div>
-
-              {/* Hover state  */}
-              <div className="flex items-end justify-center gap-[5px] absolute inset-0 translate-y-full opacity-0 transition-all duration-500 ease-in-out group-hover:translate-y-0 group-hover:opacity-100">
-                <p className="text-[15px] font-normal leading-[1.2em]">
-                  {plans[2].buttonText}
-                </p>
-
-                <img
-                  src="/assets/icons/arrow-right.svg"
-                  alt="arrow-right"
-                  loading="lazy"
-                  className="w-4 h-4"
-                />
-              </div>
+            <div className="flex items-center justify-center gap-[5px]">
+              <p className="text-[15px] font-normal leading-[1.2em]">
+                {plans[2].buttonText}
+              </p>
+              <img
+                src="/assets/icons/arrow-top.svg"
+                alt="arrow-top"
+                loading="lazy"
+                className="w-4 h-4"
+              />
             </div>
           </button>
 

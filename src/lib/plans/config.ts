@@ -12,7 +12,7 @@ export const PLAN_CONFIG: Record<PlanId, PlanLimits> = {
     aiCreditsPerMonth: 100,
     executionsPerMonth: 100, // "100+" interpreted as 100 minimum
     maxActiveWorkflows: 3,
-    maxStepsPerWorkflow: null, // unlimited
+    maxStepsPerWorkflow: 10, // 10 nodes max per workflow
   },
   professional: {
     aiCreditsPerMonth: 500,

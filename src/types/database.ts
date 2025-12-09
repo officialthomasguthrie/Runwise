@@ -27,6 +27,8 @@ export interface Database {
           credits_used_this_month: number
           credits_last_reset: string
           total_credits_used: number
+          executions_used_this_month: number
+          total_executions: number
           created_at: string
           updated_at: string
         }
@@ -73,6 +75,8 @@ export interface Database {
           credits_used_this_month?: number
           credits_last_reset?: string
           total_credits_used?: number
+          executions_used_this_month?: number
+          total_executions?: number
           created_at?: string
           updated_at?: string
         }

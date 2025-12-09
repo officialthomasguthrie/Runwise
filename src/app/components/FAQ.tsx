@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { motion, Variants } from "framer-motion";
+import { useAuth } from "@/contexts/auth-context";
+import { useRouter } from "next/navigation";
 
 type FAQItem = {
   question: string;
@@ -10,6 +12,8 @@ type FAQItem = {
 
 export const FAQ: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>();
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
   const faqs: FAQItem[] = [
     {
@@ -168,35 +172,28 @@ export const FAQ: React.FC = () => {
           {/* CTA Button */}
           <button 
             onClick={() => {
-              const pricingSection = document.getElementById("pricing");
-              if (pricingSection) {
-                const headerOffset = 80;
-                const elementPosition = pricingSection.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                window.scrollTo({
-                  top: offsetPosition,
-                  behavior: "smooth",
-                });
+              if (!loading && user) {
+                router.push("/dashboard");
+              } else {
+                const pricingSection = document.getElementById("pricing");
+                if (pricingSection) {
+                  const headerOffset = 80;
+                  const elementPosition = pricingSection.getBoundingClientRect().top;
+                  const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                  window.scrollTo({
+                    top: offsetPosition,
+                    behavior: "smooth",
+                  });
+                }
               }
             }}
-            className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[150.44px] whitespace-nowrap w-full rounded-lg py-2.5 px-[15px] cursor-pointer overflow-hidden relative group mt-6"
+            className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[150.44px] whitespace-nowrap w-full rounded-lg py-2.5 px-[15px] cursor-pointer flex items-center justify-center mt-6"
           >
-            <div className="h-[18px] relative overflow-hidden">
-              {/* default */}
-              <div className="flex items-end gap-[5px] absolute inset-0 transition-all duration-500 ease-in-out group-hover:-translate-y-full group-hover:opacity-0">
-                <p className="text-[15px] font-normal leading-[1.2em]">
-                  Start Free Trial
-                </p>
-                <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" />
-              </div>
-
-              {/* hover */}
-              <div className="flex items-end gap-[5px] absolute inset-0 translate-y-full opacity-0 transition-all duration-500 ease-in-out group-hover:translate-y-0 group-hover:opacity-100">
-                <p className="text-[15px] font-normal leading-[1.2em]">
-                  Start Free Trial
-                </p>
-                <img src="/assets/icons/arrow-right.svg" className="w-4 h-4" />
-              </div>
+            <div className="flex items-center justify-center gap-[5px]">
+              <p className="text-[15px] font-normal leading-[1.2em]">
+                {!loading && user ? "Go to Dashboard" : "Start Free Trial"}
+              </p>
+              <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" />
             </div>
           </button>
         </motion.div>

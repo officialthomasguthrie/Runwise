@@ -80,6 +80,25 @@ export const Footer: React.FC = () => {
             </li>
           </ul>
 
+          {/* Pages column */}
+          <ul className="flex flex-col gap-y-2.5 min-w-[140px]">
+            <li className="text-base font-normal -tracking-[.02em] leading-[1.4em] hover:text-white">
+              Pages
+            </li>
+            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+              <Link href="/">Home</Link>
+            </li>
+            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+              <Link href="/terms">Terms & Conditions</Link>
+            </li>
+            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+              <Link href="/privacy">Privacy Policy</Link>
+            </li>
+            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+              <Link href="/contact">Contact</Link>
+            </li>
+          </ul>
+
           {/* Contact column */}
           <ul className="flex flex-col gap-y-2.5 min-w-[180px]">
             <li className="text-base font-normal -tracking-[.02em] leading-[1.4em] hover:text-white">

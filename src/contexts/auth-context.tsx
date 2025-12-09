@@ -22,9 +22,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
+  
+  useEffect(() => {
+    // Only create Supabase client on client side
+    if (typeof window !== 'undefined') {
+      setSupabase(createClient());
+    }
+  }, []);
 
   useEffect(() => {
+    if (!supabase) return;
+    
     // Get initial session
     const getInitialSession = async () => {
       try {
@@ -52,9 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase.auth]);
+  }, [supabase]);
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+    if (!supabase) return { error: new Error('Supabase client not initialized') };
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -74,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    if (!supabase) return { error: new Error('Supabase client not initialized') };
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -82,8 +93,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    if (typeof window === 'undefined') {
-      return { error: new Error('Window is not available') };
+    if (typeof window === 'undefined' || !supabase) {
+      return { error: new Error('Window is not available or Supabase client not initialized') };
     }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -95,8 +106,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithMicrosoft = async () => {
-    if (typeof window === 'undefined') {
-      return { error: new Error('Window is not available') };
+    if (typeof window === 'undefined' || !supabase) {
+      return { error: new Error('Window is not available or Supabase client not initialized') };
     }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'azure',
@@ -108,12 +119,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
   };
 
   const refreshUser = async () => {
+    if (!supabase) return;
     try {
       const { data: { user: refreshedUser }, error } = await supabase.auth.getUser();
       if (!error && refreshedUser) {

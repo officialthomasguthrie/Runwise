@@ -224,17 +224,38 @@ async function logCreditUsage(
 ): Promise<void> {
   const adminSupabase = createAdminClient();
   
-  // Insert into credit_usage_logs table if it exists
-  // For now, we'll just log to console
-  console.log('Credit usage:', {
-    userId,
-    credits,
-    reason,
-    metadata,
-    timestamp: new Date().toISOString(),
-  });
-  
-  // TODO: Create credit_usage_logs table and insert here
+  try {
+    // Extract workflow_id and execution_id from metadata if present
+    const workflowId = metadata?.workflowId || metadata?.workflow_id || null;
+    const executionId = metadata?.executionId || metadata?.execution_id || null;
+    
+    // Prepare metadata without workflow/execution IDs (they're separate columns)
+    const logMetadata = { ...metadata };
+    if (logMetadata.workflowId) delete logMetadata.workflowId;
+    if (logMetadata.workflow_id) delete logMetadata.workflow_id;
+    if (logMetadata.executionId) delete logMetadata.executionId;
+    if (logMetadata.execution_id) delete logMetadata.execution_id;
+    
+    const { error } = await (adminSupabase
+      .from('credit_usage_logs') as any)
+      .insert({
+        user_id: userId,
+        credits: credits,
+        reason: reason,
+        metadata: logMetadata || {},
+        workflow_id: workflowId,
+        execution_id: executionId,
+        created_at: new Date().toISOString(),
+      });
+    
+    if (error) {
+      // Log error but don't throw - credit deduction already succeeded
+      console.error('Error logging credit usage:', error);
+    }
+  } catch (error: any) {
+    // Log error but don't throw - credit deduction already succeeded
+    console.error('Unexpected error logging credit usage:', error);
+  }
 }
 
 /**

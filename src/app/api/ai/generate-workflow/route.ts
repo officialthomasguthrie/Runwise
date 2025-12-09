@@ -5,6 +5,7 @@
 
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { createAdminClient } from '@/lib/supabase-admin';
 import {
   generateWorkflowFromPromptStreaming,
   getSimplifiedNodeList,
@@ -14,6 +15,7 @@ import type {
 } from '@/lib/ai/types';
 import { checkCreditsAvailable, deductCredits } from '@/lib/credits/tracker';
 import { calculateCreditsFromTokens, estimateWorkflowGenerationCredits } from '@/lib/credits/calculator';
+import { assertStepsLimit } from '@/lib/usage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -103,6 +105,34 @@ export async function POST(request: NextRequest) {
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             },
             onComplete: async (workflow: any, usage?: { inputTokens: number; outputTokens: number }) => {
+              // Check step limit based on user's plan
+              const adminSupabase = createAdminClient();
+              const { data: userRow } = await (adminSupabase as any)
+                .from('users')
+                .select('plan_id')
+                .eq('id', user.id)
+                .single();
+              const planId = (userRow as any)?.plan_id ?? 'personal';
+              
+              // Count nodes in generated workflow (excluding placeholder nodes)
+              const nodes = workflow.nodes || [];
+              const nodeCount = nodes.filter((node: any) => 
+                node.type !== 'placeholder' && node.data?.nodeId !== 'placeholder'
+              ).length;
+              
+              // Check step limit
+              try {
+                assertStepsLimit(planId, nodeCount);
+              } catch (limitError: any) {
+                const errorData = JSON.stringify({
+                  type: 'error',
+                  error: limitError.message,
+                });
+                controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+                controller.close();
+                return;
+              }
+              
               // Calculate exact credits from token usage
               let creditsUsed = estimatedCredits;
               
@@ -115,7 +145,6 @@ export async function POST(request: NextRequest) {
                 tokenUsage = usage; // Store for reference
               } else {
                 // Estimate based on workflow complexity
-                const nodeCount = workflow.nodes?.length || 0;
                 const hasCustomNodes = workflow.nodes?.some((n: any) => 
                   n.data?.nodeId === 'CUSTOM_GENERATED'
                 ) || false;
@@ -129,7 +158,7 @@ export async function POST(request: NextRequest) {
                 'workflow_generation',
                 {
                   workflowName: workflow.workflowName,
-                  nodeCount: workflow.nodes?.length || 0,
+                  nodeCount: nodeCount,
                   prompt: body.userPrompt.substring(0, 100), // First 100 chars
                 }
               );

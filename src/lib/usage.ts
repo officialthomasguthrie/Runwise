@@ -25,6 +25,7 @@ export async function getOrCreateActivePeriod(userId: string, nowIso?: string) {
   if (found) return found;
 
   // Fallback: create a naive monthly period starting now if none exists.
+  // When a new period starts, reset executions_used_this_month to 0
   const start = now;
   const end = new Date(start);
   end.setMonth(end.getMonth() + 1);
@@ -40,6 +41,16 @@ export async function getOrCreateActivePeriod(userId: string, nowIso?: string) {
     .select("*")
     .single();
   if (insertErr) throw insertErr;
+  
+  // Reset executions_used_this_month when a new billing period starts
+  await (supabase as any)
+    .from("users")
+    .update({
+      executions_used_this_month: 0,
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq("id", userId);
+  
   return created;
 }
 
@@ -107,6 +118,28 @@ export async function incrementUsage(
     ts: new Date().toISOString(),
     metadata: opts?.executionId ? { executionId: opts.executionId } : null,
   } as any);
+
+  // Update user table execution counts if this is an execution
+  if (metric === "executions") {
+    // Update executions_used_this_month from the counter we just updated
+    const currentMonthExecutions = newValue;
+    
+    // Get total executions count
+    const { count: totalCount } = await (supabase as any)
+      .from("workflow_executions")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId);
+
+    // Update users table
+    await (supabase as any)
+      .from("users")
+      .update({
+        executions_used_this_month: currentMonthExecutions,
+        total_executions: totalCount || 0,
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", userId);
+  }
 }
 
 export async function assertWithinLimit(

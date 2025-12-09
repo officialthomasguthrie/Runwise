@@ -9,7 +9,7 @@ type Status = 'loading' | 'ready' | 'submitting' | 'signed-in' | 'error';
 
 // Glass input wrapper component matching signup page
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-border bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
+  <div className="rounded-2xl border border-[#ffffff1a] bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
     {children}
   </div>
 );
@@ -177,7 +177,7 @@ function CheckoutSuccessContent() {
       {/* Go Back Button */}
       <button
         onClick={handleGoBack}
-        className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/50 backdrop-blur-sm"
+        className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground rounded-lg backdrop-blur-sm"
       >
         <ArrowLeft className="w-3 h-3" />
         Go Back
@@ -287,9 +287,14 @@ function CheckoutSuccessContent() {
                 <button
                   type="submit"
                   disabled={status === 'submitting'}
-                  className="animate-element animate-delay-700 w-full rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 py-1.5 font-medium text-white transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="animate-element animate-delay-700 w-full rounded-lg border border-[#ffffff1a] bg-[#bd28b3ba] py-1.5 cursor-pointer flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {status === 'submitting' ? 'Activating…' : 'Complete Setup'}
+                  <div className="flex items-center justify-center gap-[5px]">
+                    <span className="text-xs">{status === 'submitting' ? 'Activating…' : 'Complete Setup'}</span>
+                    {status !== 'submitting' && (
+                      <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" alt="arrow-top" />
+                    )}
+                  </div>
                 </button>
               </form>
             )}

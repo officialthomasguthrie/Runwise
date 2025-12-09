@@ -9,6 +9,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { hasScheduledTrigger, getScheduleConfig } from '@/lib/workflows/schedule-utils';
 import { scheduleWorkflowOnActivation } from '@/lib/workflows/schedule-scheduler';
 import { validateWorkflowConfiguration } from '@/lib/workflows/validation';
+import { assertStepsLimit } from '@/lib/usage';
 import type { Node } from '@xyflow/react';
 
 export async function PUT(
@@ -61,6 +62,32 @@ export async function PUT(
     // If activating, validate that all required configurations are set
     if (active && workflowRecord.workflow_data?.nodes) {
       const nodes = workflowRecord.workflow_data.nodes as Node[];
+      
+      // Check step limit based on user's plan
+      const { data: userRow } = await (adminSupabase as any)
+        .from('users')
+        .select('plan_id')
+        .eq('id', user.id)
+        .single();
+      const planId = (userRow as any)?.plan_id ?? 'personal';
+      
+      // Count nodes in workflow (excluding placeholder nodes)
+      const nodeCount = nodes.filter((node: any) => 
+        node.type !== 'placeholder' && node.data?.nodeId !== 'placeholder'
+      ).length;
+      
+      try {
+        assertStepsLimit(planId, nodeCount);
+      } catch (limitError: any) {
+        return NextResponse.json(
+          {
+            error: 'Cannot activate workflow',
+            message: limitError.message,
+          },
+          { status: 403 }
+        );
+      }
+      
       const validation = validateWorkflowConfiguration(nodes);
       
       if (!validation.valid) {

@@ -234,9 +234,9 @@ export const ReactFlowEditor = ({
       } else {
         // New node - ensure it has a label
         mergedData = {
-          ...node.data,
-          label: node.data?.label || node.data?.metadata?.name || 'Untitled Node',
-        };
+        ...node.data,
+        label: node.data?.label || node.data?.metadata?.name || 'Untitled Node',
+      };
       }
       
       return {

@@ -15,7 +15,7 @@ import {
   HelpCircle,
   Sun,
   Moon,
-  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -103,7 +103,7 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
       {/* Collapse button - center of right edge */}
       <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-50">
         <div className="flex h-6 w-6 items-center justify-center rounded-full border border-stone-200 dark:border-white/10 bg-background/95 backdrop-blur shadow-sm">
-          <ChevronLeft className="h-3 w-3 text-muted-foreground" />
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
         </div>
       </div>
       <div className="flex items-center justify-center px-2 py-4">
