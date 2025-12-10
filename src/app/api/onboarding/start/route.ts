@@ -59,18 +59,42 @@ export async function POST(request: NextRequest) {
       expiresAt = now + TOKEN_TTL_MS;
     }
 
-    const { error: updateError } = await (adminSupabase
+    const { data: updatedRecord, error: updateError } = await (adminSupabase
       .from('billing_onboarding_sessions') as any)
       .update({
         onboarding_token: token,
         onboarding_token_expires_at: new Date(expiresAt).toISOString(),
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', onboardingRecord.id);
+      .eq('id', onboardingRecord.id)
+      .select()
+      .single();
 
     if (updateError) {
-      console.error('Failed to update onboarding token:', updateError);
+      console.error('Failed to update onboarding token:', {
+        error: updateError,
+        onboardingRecordId: onboardingRecord.id,
+        token: token.substring(0, 8) + '...',
+        code: updateError.code,
+        message: updateError.message,
+        details: updateError.details,
+        hint: updateError.hint,
+      });
       return NextResponse.json(
         { error: 'Failed to refresh onboarding token.' },
+        { status: 500 },
+      );
+    }
+
+    // Verify the token was actually saved
+    if (!updatedRecord || updatedRecord.onboarding_token !== token) {
+      console.error('Token update verification failed:', {
+        updatedRecordToken: updatedRecord?.onboarding_token?.substring(0, 8) + '...',
+        expectedToken: token.substring(0, 8) + '...',
+        onboardingRecordId: onboardingRecord.id,
+      });
+      return NextResponse.json(
+        { error: 'Failed to save onboarding token. Please try again.' },
         { status: 500 },
       );
     }

@@ -14,6 +14,8 @@ interface AuthContextType {
   signInWithMicrosoft: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
+  updatePassword: (newPassword: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -142,6 +144,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    if (!supabase || typeof window === 'undefined') {
+      return { error: new Error('Supabase client not initialized or window not available') };
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+    });
+    return { error };
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    if (!supabase) return { error: new Error('Supabase client not initialized') };
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    return { error };
+  };
+
   const value = {
     user,
     session,
@@ -152,6 +172,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithMicrosoft,
     signOut,
     refreshUser,
+    resetPassword,
+    updatePassword,
   };
 
   return (

@@ -36,16 +36,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Trim the token to handle any whitespace issues
+    const trimmedToken = token.trim();
+
     const adminSupabase = createAdminClient();
 
     const { data: onboardingRecord, error: onboardingError } =
       await adminSupabase
         .from('billing_onboarding_sessions')
         .select('*')
-        .eq('onboarding_token', token)
+        .eq('onboarding_token', trimmedToken)
         .single<OnboardingRow>();
 
-    if (onboardingError || !onboardingRecord) {
+    if (onboardingError) {
+      console.error('Onboarding token lookup error:', {
+        error: onboardingError,
+        tokenPrefix: trimmedToken.substring(0, 8) + '...', // Log partial token for debugging
+        code: onboardingError.code,
+        message: onboardingError.message,
+        details: onboardingError.details,
+        hint: onboardingError.hint,
+      });
+      
+      // If it's a "not found" error (PGRST116), provide a more specific message
+      if (onboardingError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Invalid or expired onboarding token. The token may have expired or already been used. Please contact support if you believe this is an error.' },
+          { status: 400 },
+        );
+      }
+      
+      return NextResponse.json(
+        { error: 'Invalid or expired onboarding token.' },
+        { status: 400 },
+      );
+    }
+
+    if (!onboardingRecord) {
+      console.error('Onboarding token lookup returned no record:', {
+        tokenPrefix: trimmedToken.substring(0, 8) + '...',
+      });
       return NextResponse.json(
         { error: 'Invalid or expired onboarding token.' },
         { status: 400 },

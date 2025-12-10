@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { ForgotPasswordModal } from './forgot-password-modal';
 
 // --- HELPER COMPONENTS (ICONS) ---
 
@@ -60,6 +61,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   onGoBack,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [isForgotPasswordModalOpen, setIsForgotPasswordModalOpen] = useState(false);
 
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row font-geist w-[100dvw] relative bg-background text-foreground" suppressHydrationWarning={true}>
@@ -106,7 +108,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                   <input type="checkbox" name="rememberMe" className="custom-checkbox" />
                   <span className="text-foreground/90">Keep me signed in</span>
                 </label>
-                <a href="#" onClick={(e) => { e.preventDefault(); onResetPassword?.(); }} className="hover:underline text-pink-400 transition-colors">Reset password</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); setIsForgotPasswordModalOpen(true); }} className="hover:underline text-pink-400 transition-colors">Reset password</a>
               </div>
 
               <button type="submit" className="animate-element animate-delay-600 w-full rounded-lg border border-[#ffffff1a] bg-[#bd28b3ba] py-1.5 cursor-pointer flex items-center justify-center">
@@ -154,6 +156,16 @@ export const SignInPage: React.FC<SignInPageProps> = ({
           )}
         </section>
       )}
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={isForgotPasswordModalOpen}
+        onClose={() => setIsForgotPasswordModalOpen(false)}
+        onSuccess={() => {
+          // Optional: Call the original onResetPassword callback if provided
+          onResetPassword?.();
+        }}
+      />
     </div>
   );
 };
