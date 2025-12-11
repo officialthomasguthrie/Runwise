@@ -13,7 +13,7 @@ import { AnimatedGridPattern } from "@/components/ui/animated-grid-pattern";
 import { ButtonColorful } from "@/components/ui/button-colorful";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
-import { Workflow, Clock, ArrowRight, Trash2, X } from "lucide-react";
+import { Clock, ArrowRight, Trash2, X } from "lucide-react";
 import { Component as AILoader } from "@/components/ui/ai-loader";
 import TextType from "@/components/ui/text-type";
 
@@ -414,9 +414,6 @@ export default function DashboardPage() {
                             >
                               <div className="relative z-10">
                                 <div className="mb-3 flex items-center gap-3">
-                                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-pink-400 to-purple-400">
-                                    <Workflow className="h-4 w-4 text-white" />
-                                  </div>
                                   <div className="min-w-0 flex-1 text-left">
                                     {editingProjectId === p.id ? (
                                       <input

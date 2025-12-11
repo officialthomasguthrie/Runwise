@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { GridCard } from "@/components/ui/grid-card";
-import { Workflow, Clock, ArrowRight, Trash2, X } from "lucide-react";
+import { Clock, ArrowRight, Trash2, X } from "lucide-react";
 import type { Database } from "@/types/database";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
@@ -256,9 +256,7 @@ export default function WorkflowsPage() {
                     </div>
                   </div>
                 ) : workflows.length > 0 ? (
-                  <div className="max-w-full overflow-hidden">
-                    <div className="w-full" style={{ maxWidth: "1400px" }}>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="w-full max-w-[1600px] grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                         {workflows.map((w) => (
                           <div key={w.id} className="group relative">
                             <button
@@ -268,60 +266,57 @@ export default function WorkflowsPage() {
                                 e.stopPropagation();
                                 setConfirmDeleteId(w.id);
                               }}
-                              className="absolute right-2 top-2 z-20 inline-flex items-center justify-center rounded-md bg-background/80 border border-stone-200 dark:border-white/10 p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-background"
+                              className="absolute right-2 top-2 z-20 inline-flex items-center justify-center rounded-md border border-stone-200 dark:border-white/10 bg-background/80 p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-background"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
-                            <Link href={`/workspace/${w.id}`} className="block">
-                              <GridCard className="h-32 cursor-pointer hover:border-pink-400/50 transition-colors">
-                                <div className="relative z-10">
-                                  <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-8 h-8 bg-gradient-to-br from-pink-400 to-purple-400 rounded-lg flex items-center justify-center">
-                                      <Workflow className="w-4 h-4 text-white" />
+                            <GridCard
+                              className="h-32 cursor-pointer transition-colors hover:border-pink-400/50"
+                              onClick={() => router.push(`/workspace/${w.id}`)}
+                            >
+                              <div className="relative z-10">
+                                <div className="mb-3 flex items-center gap-3">
+                                  <div className="min-w-0 flex-1 text-left">
+                                    {editingWorkflowId === w.id ? (
+                                      <input
+                                        autoFocus
+                                        value={editingName}
+                                        onChange={(e) => setEditingName(e.target.value)}
+                                        onBlur={saveEditingName}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            (e.currentTarget as HTMLInputElement).blur();
+                                          } else if (e.key === "Escape") {
+                                            e.preventDefault();
+                                            cancelEditingName();
+                                          }
+                                        }}
+                                        className="w-full rounded-sm border border-stone-200 dark:border-white/10 bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-white/20"
+                                      />
+                                    ) : (
+                                      <button
+                                        className="group/title inline-flex w-full items-center justify-start gap-1 text-left font-medium text-foreground line-clamp-1 hover:text-foreground/90"
+                                        onClick={(e) => startEditingName(w.id, w.name, e)}
+                                      >
+                                        <span className="truncate">{w.name}</span>
+                                      </button>
+                                    )}
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                      <Clock className="h-3 w-3" />
+                                      <span>{new Date(w.updated_at).toLocaleString()}</span>
                                     </div>
-                                    <div className="min-w-0 flex-1 text-left">
-                                      {editingWorkflowId === w.id ? (
-                                        <input
-                                          autoFocus
-                                          value={editingName}
-                                          onChange={(e) => setEditingName(e.target.value)}
-                                          onBlur={saveEditingName}
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                              e.preventDefault();
-                                              (e.currentTarget as HTMLInputElement).blur();
-                                            } else if (e.key === "Escape") {
-                                              e.preventDefault();
-                                              cancelEditingName();
-                                            }
-                                          }}
-                                          className="w-full rounded-sm border border-stone-200 dark:border-white/10 bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-white/20"
-                                        />
-                                      ) : (
-                                        <button
-                                          className="group/title inline-flex items-center gap-1 font-medium text-foreground line-clamp-1 hover:text-foreground/90 w-full justify-start text-left"
-                                          onClick={(e) => startEditingName(w.id, w.name, e)}
-                                        >
-                                          <span className="truncate">{w.name}</span>
-                                        </button>
-                                      )}
-                                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                        <Clock className="w-3 h-3" />
-                                        <span>{new Date(w.updated_at).toLocaleString()}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="relative z-10 flex items-center justify-end">
-                                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
                                   </div>
                                 </div>
-                              </GridCard>
-                  </Link>
+                                <div className="relative z-10 flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground capitalize">{w.status}</span>
+                                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              </div>
+                            </GridCard>
                           </div>
-                ))}
-              </div>
-          </div>
-      </div>
+                        ))}
+                      </div>
                 ) : (
                   <div className="max-w-full overflow-hidden">
                     <div className="w-full" style={{ maxWidth: "calc(100vw - 200px)" }}>

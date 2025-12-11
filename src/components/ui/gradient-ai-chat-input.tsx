@@ -270,7 +270,7 @@ export function GradientAIChatInput({
                   "text-foreground placeholder:text-muted-foreground",
                   "text-base leading-6 py-2 px-0",
                   "focus:outline-none focus:ring-0 outline-none",
-                  "overflow-y-auto",
+                  "overflow-y-auto scrollbar-hide",
                   "transition-colors duration-200",
                   disabled && "opacity-50 cursor-not-allowed"
                 )}
@@ -278,8 +278,8 @@ export function GradientAIChatInput({
                   height: "100px",
                   outline: "none !important",
                   boxShadow: "none !important",
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "hsl(var(--muted)) transparent",
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
                 }}
               />
               {/* Custom placeholder component overlay */}

@@ -150,7 +150,28 @@
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
+  display: none !important;  /* Chrome, Safari and Opera */
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* Ensure scrollbar is hidden in dark mode too */
+.dark .scrollbar-hide::-webkit-scrollbar,
+.scrollbar-hide.dark::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* More specific rule for textareas in dark mode */
+.dark textarea.scrollbar-hide::-webkit-scrollbar,
+textarea.scrollbar-hide.dark::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 /* Dark mode dropdown options styling */

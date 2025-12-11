@@ -4,6 +4,7 @@ import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
+import { User } from "lucide-react";
 
 export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -176,53 +177,78 @@ export const Header: React.FC = () => {
                 ))}
               </div>
 
-              {/* Button - Desktop */}
-              <button
-                onClick={(event) => {
-                  event.preventDefault();
-                  if (isMounted && !loading && user && router) {
-                    router.push("/dashboard");
-                  } else {
-                    const pricingSection = document.getElementById("pricing");
-                    if (pricingSection) {
-                      const headerOffset = 80;
-                      const elementPosition = pricingSection.getBoundingClientRect().top;
-                      const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                      window.scrollTo({
-                        top: offsetPosition,
-                        behavior: "smooth",
-                      });
+              {/* Buttons - Desktop */}
+              <div className="hidden md:flex items-center gap-2 mr-2">
+                {/* Login Button */}
+                <button
+                  onClick={(event) => {
+                    event.preventDefault();
+                    if (router) {
+                      router.push("/login");
                     }
-                  }
-                }}
-                className={`border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg cursor-pointer flex items-center justify-center hidden md:block mr-2 ${
-                  isScrolled ? "h-[34px] w-[42px]" : "h-[38px] w-[142px]"
-                }`}
-              >
-                {!isScrolled && (
-                  <div className="flex items-center justify-center gap-[5px]">
-                    <p className="text-[15px] font-normal leading-[1.2em] whitespace-nowrap">
-                      {isMounted && !loading && user ? "Dashboard" : "Start Building"}
-                    </p>
-                    <img
-                      src="/assets/icons/arrow-top.svg"
-                      alt="arrow-top"
-                      loading="lazy"
-                      className="w-4 h-4"
-                    />
-                  </div>
-                )}
-                {isScrolled && (
-                  <div className="flex items-center justify-center w-full h-full">
-                    <img
-                      src="/assets/icons/arrow-top.svg"
-                      alt="arrow-top"
-                      loading="lazy"
-                      className="w-4 h-4"
-                    />
-                  </div>
-                )}
-              </button>
+                  }}
+                  className={`border border-[#ffffff30] bg-transparent text-white rounded-lg cursor-pointer flex items-center justify-center ${
+                    isScrolled ? "h-[34px] w-[34px]" : "h-[38px] px-4"
+                  }`}
+                >
+                  {!isScrolled && (
+                    <span className="text-[15px] font-normal leading-[1.2em] whitespace-nowrap">
+                      Login
+                    </span>
+                  )}
+                  {isScrolled && (
+                    <User className="w-4 h-4" />
+                  )}
+                </button>
+
+                {/* Start Building Button */}
+                <button
+                  onClick={(event) => {
+                    event.preventDefault();
+                    if (isMounted && !loading && user && router) {
+                      router.push("/dashboard");
+                    } else {
+                      const pricingSection = document.getElementById("pricing");
+                      if (pricingSection) {
+                        const headerOffset = 80;
+                        const elementPosition = pricingSection.getBoundingClientRect().top;
+                        const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                        window.scrollTo({
+                          top: offsetPosition,
+                          behavior: "smooth",
+                        });
+                      }
+                    }
+                  }}
+                  className={`border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg cursor-pointer flex items-center justify-center ${
+                    isScrolled ? "h-[34px] w-[42px]" : "h-[38px] w-[142px]"
+                  }`}
+                >
+                  {!isScrolled && (
+                    <div className="flex items-center justify-center gap-[5px]">
+                      <p className="text-[15px] font-normal leading-[1.2em] whitespace-nowrap">
+                        {isMounted && !loading && user ? "Dashboard" : "Start Building"}
+                      </p>
+                      <img
+                        src="/assets/icons/arrow-top.svg"
+                        alt="arrow-top"
+                        loading="lazy"
+                        className="w-4 h-4"
+                      />
+                    </div>
+                  )}
+                  {isScrolled && (
+                    <div className="flex items-center justify-center w-full h-full">
+                      <img
+                        src="/assets/icons/arrow-top.svg"
+                        alt="arrow-top"
+                        loading="lazy"
+                        className="w-4 h-4"
+                      />
+                    </div>
+                  )}
+                </button>
+              </div>
 
               {/* Hamburger/Close Menu Button - Mobile */}
               <button
@@ -287,38 +313,54 @@ export const Header: React.FC = () => {
             ))}
           </nav>
 
-          {/* Mobile Button */}
-          <button 
-            onClick={(event) => {
-              event.preventDefault();
-              if (isMounted && !loading && user && router) {
-                router.push("/dashboard");
-              } else {
-                const pricingSection = document.getElementById("pricing");
-                if (pricingSection) {
-                  const headerOffset = 80;
-                  const elementPosition = pricingSection.getBoundingClientRect().top;
-                  const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                  window.scrollTo({
-                    top: offsetPosition,
-                    behavior: "smooth",
-                  });
+          {/* Mobile Buttons */}
+          <div className="flex flex-col gap-2">
+            <button 
+              onClick={(event) => {
+                event.preventDefault();
+                if (router) {
+                  router.push("/login");
                 }
-              }
-              closeMenu();
-            }}
-            className="w-full border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center gap-2"
-          >
-            <span className="text-sm font-normal leading-[1.2em] text-white">
-              {isMounted && !loading && user ? "Dashboard" : "Start Building"}
-            </span>
-            <img
-              src="/assets/icons/arrow-top.svg"
-              alt="arrow-top"
-              loading="lazy"
-              className="w-4 h-4"
-            />
-          </button>
+                closeMenu();
+              }}
+              className="w-full border border-[#ffffff30] bg-transparent text-white rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center"
+            >
+              <span className="text-sm font-normal leading-[1.2em]">
+                Login
+              </span>
+            </button>
+            <button 
+              onClick={(event) => {
+                event.preventDefault();
+                if (isMounted && !loading && user && router) {
+                  router.push("/dashboard");
+                } else {
+                  const pricingSection = document.getElementById("pricing");
+                  if (pricingSection) {
+                    const headerOffset = 80;
+                    const elementPosition = pricingSection.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                    window.scrollTo({
+                      top: offsetPosition,
+                      behavior: "smooth",
+                    });
+                  }
+                }
+                closeMenu();
+              }}
+              className="w-full border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span className="text-sm font-normal leading-[1.2em] text-white">
+                {isMounted && !loading && user ? "Dashboard" : "Start Building"}
+              </span>
+              <img
+                src="/assets/icons/arrow-top.svg"
+                alt="arrow-top"
+                loading="lazy"
+                className="w-4 h-4"
+              />
+            </button>
+          </div>
         </div>
       </div>
     </>
