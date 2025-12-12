@@ -135,11 +135,18 @@ export const ReactFlowEditor = ({
   const reactFlowInstance = useRef<ReactFlowInstance<any, any> | null>(null);
   const [reactFlowKey, setReactFlowKey] = useState(0); // Force re-render key
   const [layoutDirection, setLayoutDirection] = useState<'LR' | 'TB'>('LR');
+  // Ref to track latest nodes for updateWorkflow (avoids stale closures)
+  const nodesRef = useRef<Node[]>(nodes);
   
   // Undo/Redo history
   const [history, setHistory] = useState<{ nodes: Node[]; edges: Edge[] }[]>([{ nodes: defaultNodes, edges: defaultEdges }]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const isUndoRedoOperation = useRef(false);
+  
+  // Keep nodesRef in sync with nodes state
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
   
   const orientEdges = useCallback(
     (edgeList: Edge[], direction: 'LR' | 'TB'): Edge[] => {
@@ -191,17 +198,14 @@ export const ReactFlowEditor = ({
 
   // Function to update workflow from external source (like AI generation)
   const updateWorkflow = useCallback((newNodes: Node[], newEdges: Edge[]) => {
-    // Capture current historyIndex at the time of call
-    const currentHistoryIndex = historyIndex;
     console.log('🔥 updateWorkflow called with:', newNodes.length, 'nodes and', newEdges.length, 'edges');
-    console.log('AI Nodes structure:', JSON.stringify(newNodes, null, 2));
-    console.log('AI Edges structure:', JSON.stringify(newEdges, null, 2));
     
-    // Get current nodes to preserve their data
-    // We need to access current nodes, so we'll use a ref pattern or get it synchronously
-    // For now, we'll merge in the flushSync block where we have access to current state
+    // Use ref to get latest nodes (avoids stale closure issues on subsequent calls)
+    const currentNodes = nodesRef.current;
+    console.log('🔥 Current nodes from ref:', currentNodes.length);
+    
     // Create a map of existing nodes by ID for merging
-    const existingNodesMap = new Map(nodes.map(n => [n.id, n]));
+    const existingNodesMap = new Map(currentNodes.map(n => [n.id, n]));
     
     // Transform nodes and merge with existing node data to preserve config, configSchema, customCode, etc.
     const transformedNodes = newNodes.map((node: any) => {
@@ -218,12 +222,18 @@ export const ReactFlowEditor = ({
           new: { config: node.data?.config, configSchema: node.data?.configSchema, customCode: !!node.data?.customCode }
         });
         
-        // Merge data: new data takes precedence for structure, but preserve existing config/configSchema/customCode
+        // Merge data: new data takes precedence for structure, but preserve existing configSchema/customCode
+        // IMPORTANT: Merge configs - new config values override existing ones (for AI configuration updates)
+        const existingConfig = existingData.config || {};
+        const newConfig = node.data?.config || {};
+        // Merge configs: new values override existing ones
+        const mergedConfig = { ...existingConfig, ...newConfig };
+        
         mergedData = {
-          ...existingData, // Start with existing data (preserves config, configSchema, customCode, etc.)
+          ...existingData, // Start with existing data (preserves configSchema, customCode, etc.)
           ...node.data,   // Override with new data (updates label, description, etc.)
-          // Explicitly preserve critical fields from existing node
-          config: existingData.config || node.data?.config || {},
+          // Use merged config (new values override existing)
+          config: mergedConfig,
           configSchema: existingData.configSchema || node.data?.configSchema,
           customCode: existingData.customCode || node.data?.customCode,
           metadata: existingData.metadata || node.data?.metadata,
@@ -234,9 +244,9 @@ export const ReactFlowEditor = ({
       } else {
         // New node - ensure it has a label
         mergedData = {
-        ...node.data,
-        label: node.data?.label || node.data?.metadata?.name || 'Untitled Node',
-      };
+          ...node.data,
+          label: node.data?.label || node.data?.metadata?.name || 'Untitled Node',
+        };
       }
       
       return {
@@ -256,16 +266,15 @@ export const ReactFlowEditor = ({
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
       transformedNodes,
       newEdges,
-      { direction: 'LR' } // Left-to-right layout
+      { direction: layoutDirection } // Use current layoutDirection
     );
     
     console.log('✨ Layout applied! New positions:', layoutedNodes.map(n => ({ 
       id: n.id, 
       position: n.position 
     })));
-    console.log('🔥 About to call setNodes and setEdges SYNCHRONOUSLY...');
     
-    // Use flushSync to force synchronous state updates BEFORE changing the key
+    // Use flushSync to force synchronous state updates
     flushSync(() => {
       const layoutedNodesWithDirection = layoutedNodes.map((node) => ({
         ...node,
@@ -274,31 +283,25 @@ export const ReactFlowEditor = ({
           layoutDirection,
         },
       }));
+      
+      // Update nodes and edges
       setNodes([...layoutedNodesWithDirection]);
       const orientedEdges = orientEdges(layoutedEdges, layoutDirection);
       setEdges([...orientedEdges]);
+      
       // Save to history when updating from external source (e.g., AI generation)
-      setHistory((prev) => {
-        const newHistory = prev.slice(0, currentHistoryIndex + 1);
-        newHistory.push({ nodes: layoutedNodesWithDirection, edges: orientedEdges });
-        return newHistory;
+      setHistoryIndex((currentHistoryIndex) => {
+        setHistory((prev) => {
+          const newHistory = prev.slice(0, currentHistoryIndex + 1);
+          newHistory.push({ nodes: layoutedNodesWithDirection, edges: orientedEdges });
+          return newHistory;
+        });
+        return currentHistoryIndex + 1;
       });
-      setHistoryIndex((prev) => prev + 1);
       setHasChanges(true);
     });
     
-    console.log('🔥 State updated synchronously! Now changing key...');
-    
-    // NOW change the key after state is guaranteed to be updated
-    flushSync(() => {
-      setReactFlowKey(prev => {
-        const newKey = prev + 1;
-        console.log('🔥 Key changed from', prev, 'to', newKey);
-        return newKey;
-      });
-    });
-    
-    console.log('🔥 React Flow should now re-mount with NEW nodes!');
+    console.log('🔥 State updated synchronously!');
     
     // Fit view to new nodes with multiple attempts to ensure visibility
     setTimeout(() => {
@@ -322,7 +325,7 @@ export const ReactFlowEditor = ({
         });
       }
     }, 500);
-  }, [historyIndex, layoutDirection, orientEdges, nodes]);
+  }, [layoutDirection, orientEdges]);
 
   // Register update callback with parent
   useEffect(() => {
@@ -1132,6 +1135,36 @@ export const ReactFlowEditor = ({
       setLocalConfig({});
     }
   }, [selectedNodeForConfig]);
+
+  // Update selectedNodeForConfig and localConfig when nodes are updated externally (e.g., via AI configuration)
+  // This ensures the config panel stays in sync with node updates
+  useEffect(() => {
+    if (selectedNodeForConfig) {
+      const updatedNode = nodes.find(n => n.id === selectedNodeForConfig.id);
+      if (updatedNode) {
+        const updatedConfig = (updatedNode.data ?? {} as any).config || {};
+        const selectedNodeConfig = (selectedNodeForConfig.data ?? {} as any).config || {};
+        
+        // Check if config actually changed by comparing selectedNode's config with updated node's config
+        const configChanged = JSON.stringify(selectedNodeConfig) !== JSON.stringify(updatedConfig);
+        
+        if (configChanged) {
+          console.log('🔧 Config changed for node', updatedNode.id);
+          console.log('  Old config:', selectedNodeConfig);
+          console.log('  New config:', updatedConfig);
+          // Update localConfig immediately to reflect changes in the form
+          setLocalConfig(updatedConfig);
+        }
+        
+        // Always update the reference to the latest node object to ensure sync
+        // This is safe because React Flow creates new objects on updates
+        if (updatedNode !== selectedNodeForConfig) {
+          console.log('🔄 Updating selectedNodeForConfig reference for node', updatedNode.id);
+          setSelectedNodeForConfig(updatedNode);
+        }
+      }
+    }
+  }, [nodes, selectedNodeForConfig]);
 
   const selectedRequiredFieldsCount = useMemo(() => {
     return Object.values(selectedConfigSchema).filter((schema: any) => schema.required).length;

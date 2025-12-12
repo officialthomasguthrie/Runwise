@@ -6,6 +6,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import OpenAI from 'openai';
+import { getNodeById } from '@/lib/nodes/registry';
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,15 +94,26 @@ If you need more information, set needsInput to true and provide clear instructi
     const workflowContext = `Current workflow nodes:
 ${currentWorkflow.nodes.map((node: any) => {
   const nodeData = node.data || {};
-  const configSchema = nodeData.configSchema || {};
+  const nodeId = nodeData.nodeId;
+  
+  // Get configSchema from node registry if it's a library node, otherwise use node data
+  let configSchema: Record<string, any> = {};
+  if (nodeId && nodeId !== 'CUSTOM_GENERATED') {
+    const nodeDefinition = getNodeById(nodeId);
+    configSchema = nodeDefinition?.configSchema || nodeData.configSchema || {};
+  } else {
+    // Custom generated node - use configSchema from node data
+    configSchema = nodeData.configSchema || {};
+  }
+  
   const fields = Object.keys(configSchema).map(key => {
-    const field = configSchema[key];
+    const field = configSchema[key] as any;
     return `  - ${key} (${field.type}${field.required ? ', required' : ''}): ${field.label || key} - ${field.description || ''}`;
   }).join('\n');
   
   return `Node ID: ${node.id}
-  Name: ${nodeData.label || nodeData.nodeId || 'Unknown'}
-  Type: ${nodeData.nodeId || 'unknown'}
+  Name: ${nodeData.label || nodeId || 'Unknown'}
+  Type: ${nodeId || 'unknown'}
   Current Config: ${JSON.stringify(nodeData.config || {})}
   Available Fields:
 ${fields}`;
@@ -127,7 +139,9 @@ ${fields}`;
     });
 
     const responseContent = completion.choices[0]?.message?.content || '{}';
+    console.log('🔧 OpenAI response content:', responseContent);
     const response = JSON.parse(responseContent);
+    console.log('🔧 Parsed response:', JSON.stringify(response, null, 2));
 
     return new Response(
       JSON.stringify(response),

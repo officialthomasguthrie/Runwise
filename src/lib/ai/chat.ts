@@ -50,23 +50,45 @@ When a user asks for help with a form field (e.g., "Help me with the [field name
 6. If you need clarification (the field name is ambiguous), briefly ask 1–2 clarifying questions before giving final recommendations.
 7. Always focus on being concise, actionable, and directly helping them complete the field correctly.
 
-When a user wants to create a workflow, you should:
-1. Acknowledge their request
-2. Summarize what workflow they want
-3. Ask: "Does this look correct? Click 'Generate Workflow' to create it, or let me know if you'd like any tweaks."
+When a user wants to create a workflow, you MUST respond with a confirmation message that includes:
+1. A clear acknowledgment of what workflow they want to create
+2. A detailed plan that describes:
+   - What trigger will start the workflow (e.g., "A scheduled trigger that runs daily at 9 AM")
+   - What actions will be performed (e.g., "An email action that sends a daily report")
+   - How the workflow will work step-by-step
+3. End with: "Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
 
-IMPORTANT: Do NOT automatically generate the workflow. Always wait for the user to click the "Generate Workflow" button. Your response should end with something like: "Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
+IMPORTANT RULES FOR WORKFLOW CONFIRMATION MESSAGES:
+- Do NOT use phrases like "the user" or "you will" - write directly and naturally
+- Describe the workflow as if it already exists: "This workflow will..." or "The workflow includes..."
+- Be specific about triggers, actions, and the flow between them
+- Keep the tone conversational but informative
+- Do NOT automatically generate the workflow - always wait for the button click
 
-When a user wants to configure a node (e.g., "Set the OpenAI API key to sk-12345" or "Make the trigger run every day at 9 AM" or "Generate a prompt for the AI node"), you should:
+Example of a good confirmation message:
+"I'll create a workflow that sends a daily email report. Here's the plan:
+
+**Trigger:** A scheduled trigger that runs every day at 9 AM
+**Action:** An email action that sends a formatted report to your specified email address
+**How it works:** The workflow will automatically run each morning, generate the report, and send it via email
+
+Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
+
+When a user wants to configure a node or fill out a field (e.g., "Set the OpenAI API key to sk-12345", "Fill out the email field with test@example.com", "Make the trigger run every day at 9 AM"), you should:
 1. Acknowledge what you're configuring
 2. Extract the values from their message
-3. If values are provided, confirm you'll configure it
+3. If values are provided, confirm that you're configuring it using phrases like:
+   - "I'll set the API key to sk-12345"
+   - "Configuring the email field with test@example.com"
+   - "Setting the trigger to run daily at 9 AM"
+   - "Updating the field with your value"
+   - "Filling out the [field name] with [value]"
 4. If values are missing, ask the user to provide them with clear instructions on how to get them (e.g., for API keys, explain where to find them)
-5. The system will automatically apply the configuration - you don't need to do anything special, just respond naturally
+5. IMPORTANT: When you use phrases like "I'll configure", "Setting", "Updating", or "Filling out", the system will automatically apply the configuration. Make sure to clearly indicate when you're actually configuring vs. just providing instructions.
 
-Be helpful, concise, and professional. If a user asks about creating a workflow, encourage them to describe it in detail so you can generate it accurately.
+For regular conversation (not workflow creation), respond naturally and helpfully.
 
-CRITICAL: Never use emojis in your responses. Use only plain text.`,
+CRITICAL: Never use emojis in your responses. Use only plain text. Never refer to "the user" in your responses - write directly to the person you're talking to.`,
       },
     ];
 
@@ -123,16 +145,25 @@ CRITICAL: Never use emojis in your responses. Use only plain text.`,
       outputTokens: completion.usage?.completion_tokens || 0,
     };
     console.log('AI response content length:', aiResponse.length);
-    // Check both user message and AI response for workflow intent
+    
+    // Strict workflow intent detection: Only trigger when:
+    // 1. User explicitly requests workflow creation
+    // 2. AI response contains confirmation message format (mentions trigger, action, plan, or "generate workflow" button)
     const userHasWorkflowIntent = detectWorkflowIntent(request.message);
-    const aiProposesWorkflow = detectWorkflowIntent(aiResponse) || 
-      aiResponse.toLowerCase().includes('generate workflow') ||
-      aiResponse.toLowerCase().includes('create workflow') ||
-      aiResponse.toLowerCase().includes('build workflow') ||
-      aiResponse.toLowerCase().includes('click') && aiResponse.toLowerCase().includes('generate');
-    const shouldGenerateWorkflow = userHasWorkflowIntent || aiProposesWorkflow;
+    const aiResponseLower = aiResponse.toLowerCase();
+    
+    // Check if AI response is a confirmation message proposing a workflow
+    // Must contain confirmation indicators: mentions of trigger/action/plan OR explicit "generate workflow" button text
+    const hasConfirmationFormat = 
+      (aiResponseLower.includes('trigger') && (aiResponseLower.includes('action') || aiResponseLower.includes('workflow'))) ||
+      (aiResponseLower.includes('plan') && (aiResponseLower.includes('workflow') || aiResponseLower.includes('trigger'))) ||
+      (aiResponseLower.includes('generate workflow') && aiResponseLower.includes('button')) ||
+      (aiResponseLower.includes('click') && aiResponseLower.includes('generate workflow'));
+    
+    // Only set shouldGenerateWorkflow if BOTH user requested workflow AND AI provided confirmation
+    const shouldGenerateWorkflow = userHasWorkflowIntent && hasConfirmationFormat;
     const workflowPrompt = shouldGenerateWorkflow
-      ? (extractWorkflowPrompt(request.message) || extractWorkflowPrompt(aiResponse) || request.message)
+      ? (extractWorkflowPrompt(request.message) || request.message)
       : undefined;
 
     // Generate suggestions for follow-up
@@ -220,23 +251,45 @@ When a user asks for help with a form field (e.g., "Help me with the [field name
 6. If you need clarification (the field name is ambiguous), briefly ask 1–2 clarifying questions before giving final recommendations.
 7. Always focus on being concise, actionable, and directly helping them complete the field correctly.
 
-When a user wants to create a workflow, you should:
-1. Acknowledge their request
-2. Summarize what workflow they want
-3. Ask: "Does this look correct? Click 'Generate Workflow' to create it, or let me know if you'd like any tweaks."
+When a user wants to create a workflow, you MUST respond with a confirmation message that includes:
+1. A clear acknowledgment of what workflow they want to create
+2. A detailed plan that describes:
+   - What trigger will start the workflow (e.g., "A scheduled trigger that runs daily at 9 AM")
+   - What actions will be performed (e.g., "An email action that sends a daily report")
+   - How the workflow will work step-by-step
+3. End with: "Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
 
-IMPORTANT: Do NOT automatically generate the workflow. Always wait for the user to click the "Generate Workflow" button. Your response should end with something like: "Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
+IMPORTANT RULES FOR WORKFLOW CONFIRMATION MESSAGES:
+- Do NOT use phrases like "the user" or "you will" - write directly and naturally
+- Describe the workflow as if it already exists: "This workflow will..." or "The workflow includes..."
+- Be specific about triggers, actions, and the flow between them
+- Keep the tone conversational but informative
+- Do NOT automatically generate the workflow - always wait for the button click
 
-When a user wants to configure a node (e.g., "Set the OpenAI API key to sk-12345" or "Make the trigger run every day at 9 AM" or "Generate a prompt for the AI node"), you should:
+Example of a good confirmation message:
+"I'll create a workflow that sends a daily email report. Here's the plan:
+
+**Trigger:** A scheduled trigger that runs every day at 9 AM
+**Action:** An email action that sends a formatted report to your specified email address
+**How it works:** The workflow will automatically run each morning, generate the report, and send it via email
+
+Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
+
+When a user wants to configure a node or fill out a field (e.g., "Set the OpenAI API key to sk-12345", "Fill out the email field with test@example.com", "Make the trigger run every day at 9 AM"), you should:
 1. Acknowledge what you're configuring
 2. Extract the values from their message
-3. If values are provided, confirm you'll configure it
+3. If values are provided, confirm that you're configuring it using phrases like:
+   - "I'll set the API key to sk-12345"
+   - "Configuring the email field with test@example.com"
+   - "Setting the trigger to run daily at 9 AM"
+   - "Updating the field with your value"
+   - "Filling out the [field name] with [value]"
 4. If values are missing, ask the user to provide them with clear instructions on how to get them (e.g., for API keys, explain where to find them)
-5. The system will automatically apply the configuration - you don't need to do anything special, just respond naturally
+5. IMPORTANT: When you use phrases like "I'll configure", "Setting", "Updating", or "Filling out", the system will automatically apply the configuration. Make sure to clearly indicate when you're actually configuring vs. just providing instructions.
 
-Be helpful, concise, and professional. If a user asks about creating a workflow, encourage them to describe it in detail so you can generate it accurately.
+For regular conversation (not workflow creation), respond naturally and helpfully.
 
-CRITICAL: Never use emojis in your responses. Use only plain text.`,
+CRITICAL: Never use emojis in your responses. Use only plain text. Never refer to "the user" in your responses - write directly to the person you're talking to.`,
       },
     ];
 
@@ -318,22 +371,30 @@ CRITICAL: Never use emojis in your responses. Use only plain text.`,
 
     console.log('Streaming complete, full message length:', fullMessage.length);
     
-    // Analyze both user message and AI response for workflow intent
+    // Strict workflow intent detection: Only trigger when:
+    // 1. User explicitly requests workflow creation
+    // 2. AI response contains confirmation message format (mentions trigger, action, plan, or "generate workflow" button)
     const userHasWorkflowIntent = detectWorkflowIntent(request.message);
-    const aiProposesWorkflow = detectWorkflowIntent(fullMessage) || 
-      fullMessage.toLowerCase().includes('generate workflow') ||
-      fullMessage.toLowerCase().includes('create workflow') ||
-      fullMessage.toLowerCase().includes('build workflow') ||
-      (fullMessage.toLowerCase().includes('click') && fullMessage.toLowerCase().includes('generate'));
-    const shouldGenerateWorkflow = userHasWorkflowIntent || aiProposesWorkflow;
+    const aiResponseLower = fullMessage.toLowerCase();
+    
+    // Check if AI response is a confirmation message proposing a workflow
+    // Must contain confirmation indicators: mentions of trigger/action/plan OR explicit "generate workflow" button text
+    const hasConfirmationFormat = 
+      (aiResponseLower.includes('trigger') && (aiResponseLower.includes('action') || aiResponseLower.includes('workflow'))) ||
+      (aiResponseLower.includes('plan') && (aiResponseLower.includes('workflow') || aiResponseLower.includes('trigger'))) ||
+      (aiResponseLower.includes('generate workflow') && aiResponseLower.includes('button')) ||
+      (aiResponseLower.includes('click') && aiResponseLower.includes('generate workflow'));
+    
+    // Only set shouldGenerateWorkflow if BOTH user requested workflow AND AI provided confirmation
+    const shouldGenerateWorkflow = userHasWorkflowIntent && hasConfirmationFormat;
     const workflowPrompt = shouldGenerateWorkflow
-      ? (extractWorkflowPrompt(request.message) || extractWorkflowPrompt(fullMessage) || request.message)
+      ? (extractWorkflowPrompt(request.message) || request.message)
       : undefined;
 
     console.log('🔍 Workflow intent analysis:', {
       userMessage: request.message.substring(0, 50),
       userHasWorkflowIntent,
-      aiProposesWorkflow,
+      hasConfirmationFormat,
       shouldGenerateWorkflow,
       workflowPrompt: workflowPrompt?.substring(0, 50),
       aiResponsePreview: fullMessage.substring(0, 100)

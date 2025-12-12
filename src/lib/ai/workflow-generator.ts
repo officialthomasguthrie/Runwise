@@ -625,38 +625,66 @@ export function getSimplifiedNodeList(): Array<{
 
 /**
  * Detect if a user message is requesting workflow generation
+ * Only matches explicit workflow creation requests, not general automation keywords
  */
 export function detectWorkflowIntent(message: string): boolean {
-  const workflowKeywords = [
-    'workflow',
-    'automate',
-    'when',
-    'trigger',
-    'then',
-    'action',
+  const lowerMessage = message.toLowerCase();
+  
+  // Explicit workflow creation phrases (must include "workflow" or "automate" with creation verbs)
+  const explicitPhrases = [
     'create workflow',
     'build workflow',
-    'make a workflow',
-    'set up',
-    'if',
-    'send',
-    'receive',
-    'form',
-    'email',
+    'make workflow',
     'generate workflow',
-    'click',
-    'button',
-    'propose',
-    'suggest',
-    'would you like',
-    'i can create',
-    'i can build',
-    'i\'ll create',
-    'i\'ll build',
+    'make a workflow',
+    'create a workflow',
+    'build a workflow',
+    'generate a workflow',
+    'set up workflow',
+    'set up a workflow',
+    'automate',
+    'create automation',
+    'build automation',
+    'make automation',
+    'i want to create',
+    'i want to build',
+    'i want to make',
+    'i need to create',
+    'i need to build',
+    'i need to make',
+    'i\'d like to create',
+    'i\'d like to build',
+    'i\'d like to make',
+    'can you create',
+    'can you build',
+    'can you make',
+    'help me create',
+    'help me build',
+    'help me make',
   ];
-
-  const lowerMessage = message.toLowerCase();
-  return workflowKeywords.some((keyword) => lowerMessage.includes(keyword));
+  
+  // Check for explicit phrases
+  const hasExplicitPhrase = explicitPhrases.some((phrase) => lowerMessage.includes(phrase));
+  
+  // Also check for "workflow" combined with creation verbs
+  const hasWorkflowWithVerb = lowerMessage.includes('workflow') && (
+    lowerMessage.includes('create') ||
+    lowerMessage.includes('build') ||
+    lowerMessage.includes('make') ||
+    lowerMessage.includes('generate') ||
+    lowerMessage.includes('set up')
+  );
+  
+  // Check for "automate" with object (e.g., "automate this", "automate sending emails")
+  const hasAutomateWithObject = lowerMessage.includes('automate') && (
+    lowerMessage.includes('this') ||
+    lowerMessage.includes('that') ||
+    lowerMessage.includes('sending') ||
+    lowerMessage.includes('process') ||
+    lowerMessage.includes('task')
+  );
+  
+  return hasExplicitPhrase || hasWorkflowWithVerb || hasAutomateWithObject;
 }
 
 /**

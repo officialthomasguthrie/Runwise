@@ -179,27 +179,29 @@ export const Header: React.FC = () => {
 
               {/* Buttons - Desktop */}
               <div className="hidden md:flex items-center gap-2 mr-2">
-                {/* Login Button */}
-                <button
-                  onClick={(event) => {
-                    event.preventDefault();
-                    if (router) {
-                      router.push("/login");
-                    }
-                  }}
-                  className={`border border-[#ffffff30] bg-transparent text-white rounded-lg cursor-pointer flex items-center justify-center ${
-                    isScrolled ? "h-[34px] w-[34px]" : "h-[38px] px-4"
-                  }`}
-                >
-                  {!isScrolled && (
-                    <span className="text-[15px] font-normal leading-[1.2em] whitespace-nowrap">
-                      Login
-                    </span>
-                  )}
-                  {isScrolled && (
-                    <User className="w-4 h-4" />
-                  )}
-                </button>
+                {/* Login Button - Only show if user is not logged in */}
+                {isMounted && !loading && !user && (
+                  <button
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (router) {
+                        router.push("/login");
+                      }
+                    }}
+                    className={`border border-[#ffffff30] bg-transparent text-white rounded-lg cursor-pointer flex items-center justify-center ${
+                      isScrolled ? "h-[34px] w-[34px]" : "h-[38px] px-4"
+                    }`}
+                  >
+                    {!isScrolled && (
+                      <span className="text-[15px] font-normal leading-[1.2em] whitespace-nowrap">
+                        Login
+                      </span>
+                    )}
+                    {isScrolled && (
+                      <User className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
 
                 {/* Start Building Button */}
                 <button
@@ -315,20 +317,23 @@ export const Header: React.FC = () => {
 
           {/* Mobile Buttons */}
           <div className="flex flex-col gap-2">
-            <button 
-              onClick={(event) => {
-                event.preventDefault();
-                if (router) {
-                  router.push("/login");
-                }
-                closeMenu();
-              }}
-              className="w-full border border-[#ffffff30] bg-transparent text-white rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center"
-            >
-              <span className="text-sm font-normal leading-[1.2em]">
-                Login
-              </span>
-            </button>
+            {/* Login Button - Only show if user is not logged in */}
+            {isMounted && !loading && !user && (
+              <button 
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (router) {
+                    router.push("/login");
+                  }
+                  closeMenu();
+                }}
+                className="w-full border border-[#ffffff30] bg-transparent text-white rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center"
+              >
+                <span className="text-sm font-normal leading-[1.2em]">
+                  Login
+                </span>
+              </button>
+            )}
             <button 
               onClick={(event) => {
                 event.preventDefault();

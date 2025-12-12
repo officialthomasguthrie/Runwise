@@ -519,29 +519,36 @@ export default function WorkspacePage() {
 
   // Handle workflow generation from AI
   const handleNodesConfigured = useCallback((configurations: Array<{ nodeId: string; config: Record<string, any> }>) => {
-    if (!updateWorkflowRef.current) return;
+    if (!updateWorkflowRef.current) {
+      console.error('❌ Cannot configure nodes - updateWorkflowRef is not registered');
+      return;
+    }
+    
+    console.log('🔧 handleNodesConfigured called with configurations:', configurations);
     
     // Get current workflow
     const currentWorkflow = getWorkflowRef.current ? getWorkflowRef.current() : { nodes: [], edges: [] };
+    console.log('🔧 Current workflow has', currentWorkflow.nodes.length, 'nodes');
     
     // Update nodes with new configurations
     const updatedNodes = currentWorkflow.nodes.map((node: any) => {
       const config = configurations.find(c => c.nodeId === node.id);
       if (config) {
+        const oldConfig = node.data?.config || {};
+        const newConfig = { ...oldConfig, ...config.config };
+        console.log('🔧 Updating node', node.id, 'config from', oldConfig, 'to', newConfig);
         return {
           ...node,
           data: {
             ...node.data,
-            config: {
-              ...node.data.config,
-              ...config.config,
-            },
+            config: newConfig,
           },
         };
       }
       return node;
     });
     
+    console.log('🔧 Calling updateWorkflowRef with', updatedNodes.length, 'updated nodes');
     // Update workflow
     updateWorkflowRef.current(updatedNodes, currentWorkflow.edges);
   }, []);
