@@ -405,7 +405,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                       // Only set workflowPrompt if:
                       // 1. shouldGenerateWorkflow is true (user requested workflow AND AI provided confirmation)
                       // 2. workflowPrompt exists
-                      // 3. AI response contains confirmation format (trigger/action/plan or "generate workflow" button)
+                      // The API already checks for confirmation format, so we trust its judgment
                       if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
                         const responseContent = fullMessage.toLowerCase();
                         const isFieldFillingQuestion = 
@@ -413,18 +413,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                           responseContent.includes('help me with') ||
                           responseContent.includes('fill out the');
                         
-                        // Verify AI response is actually a confirmation message
-                        const hasConfirmationFormat = 
-                          (responseContent.includes('trigger') && (responseContent.includes('action') || responseContent.includes('workflow'))) ||
-                          (responseContent.includes('plan') && (responseContent.includes('workflow') || responseContent.includes('trigger'))) ||
-                          (responseContent.includes('generate workflow') && responseContent.includes('button')) ||
-                          (responseContent.includes('click') && responseContent.includes('generate workflow'));
-                        
-                        if (!isFieldFillingQuestion && hasConfirmationFormat) {
+                        // Don't show workflow button if this is a field-filling question
+                        if (!isFieldFillingQuestion) {
                           setWorkflowPrompt(data.metadata.workflowPrompt);
                           console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
                         } else {
-                          console.log('🚫 Not a workflow confirmation message. Field-filling:', isFieldFillingQuestion, 'Has confirmation format:', hasConfirmationFormat);
+                          console.log('🚫 Not showing workflow button - this is a field-filling question');
                           setWorkflowPrompt(null);
                         }
                       } else {
@@ -718,7 +712,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                       // Only set workflowPrompt if:
                       // 1. shouldGenerateWorkflow is true (user requested workflow AND AI provided confirmation)
                       // 2. workflowPrompt exists
-                      // 3. AI response contains confirmation format (trigger/action/plan or "generate workflow" button)
+                      // The API already checks for confirmation format, so we trust its judgment
                       if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
                         const responseContent = fullMessage.toLowerCase();
                         // Don't show for field-filling questions (Ask AI button)
@@ -732,18 +726,11 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                             responseContent.includes('configuration')
                           ));
                         
-                        // Verify AI response is actually a confirmation message
-                        const hasConfirmationFormat = 
-                          (responseContent.includes('trigger') && (responseContent.includes('action') || responseContent.includes('workflow'))) ||
-                          (responseContent.includes('plan') && (responseContent.includes('workflow') || responseContent.includes('trigger'))) ||
-                          (responseContent.includes('generate workflow') && responseContent.includes('button')) ||
-                          (responseContent.includes('click') && responseContent.includes('generate workflow'));
-                        
-                        if (!isFieldFillingQuestion && hasConfirmationFormat) {
+                        if (!isFieldFillingQuestion) {
                           setWorkflowPrompt(data.metadata.workflowPrompt);
                           console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
                         } else {
-                          console.log('🚫 Not a workflow confirmation message. Field-filling:', isFieldFillingQuestion, 'Has confirmation format:', hasConfirmationFormat);
+                          console.log('🚫 Not showing workflow button - this is a field-filling question');
                           setWorkflowPrompt(null);
                         }
                       } else {
@@ -1358,24 +1345,19 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   console.log('🔧 Auto-configuring nodes based on user request');
                   handleNodeConfiguration(userMessage, fullMessage);
                 } else if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
-                  // New workflow creation - only show button if AI response is a confirmation message
+                  // New workflow creation - trust API's judgment on confirmation format
                   const responseContent = fullMessage.toLowerCase();
-                  const hasConfirmationFormat = 
-                    (responseContent.includes('trigger') && (responseContent.includes('action') || responseContent.includes('workflow'))) ||
-                    (responseContent.includes('plan') && (responseContent.includes('workflow') || responseContent.includes('trigger'))) ||
-                    (responseContent.includes('generate workflow') && responseContent.includes('button')) ||
-                    (responseContent.includes('click') && responseContent.includes('generate workflow'));
                   
                   // Check if this is just instructions (not a workflow confirmation)
                   const isInstructionOnly = fullMessage.toLowerCase().includes('help me fill out') ||
                     (fullMessage.toLowerCase().includes('help me with') && !hasValues) ||
                     (fullMessage.toLowerCase().includes('fill out the') && !hasValues && !aiSuggestsConfig);
                   
-                  if (!isInstructionOnly && hasConfirmationFormat) {
+                  if (!isInstructionOnly) {
                     setWorkflowPrompt(data.metadata.workflowPrompt);
                     console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
                   } else {
-                    console.log('🚫 Not a workflow confirmation message. Is instruction only:', isInstructionOnly, 'Has confirmation format:', hasConfirmationFormat);
+                    console.log('🚫 Not showing workflow button - this is an instruction-only message');
                     setWorkflowPrompt(null);
                   }
                 } else {
@@ -1593,19 +1575,19 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     console.log('🔧 Auto-configuring nodes based on user request');
                     handleNodeConfiguration(userMessage, fullMessage);
                   } else if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
-                    // New workflow creation - only show button if AI response is a confirmation message
+                    // New workflow creation - trust API's judgment on confirmation format
                     const responseContent = fullMessage.toLowerCase();
-                    const hasConfirmationFormat = 
-                      (responseContent.includes('trigger') && (responseContent.includes('action') || responseContent.includes('workflow'))) ||
-                      (responseContent.includes('plan') && (responseContent.includes('workflow') || responseContent.includes('trigger'))) ||
-                      (responseContent.includes('generate workflow') && responseContent.includes('button')) ||
-                      (responseContent.includes('click') && responseContent.includes('generate workflow'));
                     
-                    if (!isInstructionOnly && hasConfirmationFormat) {
+                    // Check if this is just instructions (not a workflow confirmation)
+                    const isInstructionOnly = fullMessage.toLowerCase().includes('help me fill out') ||
+                      (fullMessage.toLowerCase().includes('help me with') && !hasValues) ||
+                      (fullMessage.toLowerCase().includes('fill out the') && !hasValues && !aiSuggestsConfig);
+                    
+                    if (!isInstructionOnly) {
                       setWorkflowPrompt(data.metadata.workflowPrompt);
                       console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
                     } else {
-                      console.log('🚫 Not a workflow confirmation message. Is instruction only:', isInstructionOnly, 'Has confirmation format:', hasConfirmationFormat);
+                      console.log('🚫 Not showing workflow button - this is an instruction-only message');
                       setWorkflowPrompt(null);
                     }
                   } else {

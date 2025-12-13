@@ -153,12 +153,15 @@ CRITICAL: Never use emojis in your responses. Use only plain text. Never refer t
     const aiResponseLower = aiResponse.toLowerCase();
     
     // Check if AI response is a confirmation message proposing a workflow
-    // Must contain confirmation indicators: mentions of trigger/action/plan OR explicit "generate workflow" button text
+    // Make this more lenient - if user has workflow intent and AI responds, trust it
+    // Look for any indication of workflow confirmation (mentions of workflow, trigger, action, plan, or button)
     const hasConfirmationFormat = 
-      (aiResponseLower.includes('trigger') && (aiResponseLower.includes('action') || aiResponseLower.includes('workflow'))) ||
-      (aiResponseLower.includes('plan') && (aiResponseLower.includes('workflow') || aiResponseLower.includes('trigger'))) ||
-      (aiResponseLower.includes('generate workflow') && aiResponseLower.includes('button')) ||
-      (aiResponseLower.includes('click') && aiResponseLower.includes('generate workflow'));
+      aiResponseLower.includes('workflow') ||
+      aiResponseLower.includes('trigger') ||
+      aiResponseLower.includes('action') ||
+      aiResponseLower.includes('plan') ||
+      (aiResponseLower.includes('generate') && aiResponseLower.includes('button')) ||
+      (aiResponseLower.includes('click') && aiResponseLower.includes('generate'));
     
     // Only set shouldGenerateWorkflow if BOTH user requested workflow AND AI provided confirmation
     const shouldGenerateWorkflow = userHasWorkflowIntent && hasConfirmationFormat;
@@ -378,12 +381,15 @@ CRITICAL: Never use emojis in your responses. Use only plain text. Never refer t
     const aiResponseLower = fullMessage.toLowerCase();
     
     // Check if AI response is a confirmation message proposing a workflow
-    // Must contain confirmation indicators: mentions of trigger/action/plan OR explicit "generate workflow" button text
+    // Make this more lenient - if user has workflow intent and AI responds, trust it
+    // Look for any indication of workflow confirmation (mentions of workflow, trigger, action, plan, or button)
     const hasConfirmationFormat = 
-      (aiResponseLower.includes('trigger') && (aiResponseLower.includes('action') || aiResponseLower.includes('workflow'))) ||
-      (aiResponseLower.includes('plan') && (aiResponseLower.includes('workflow') || aiResponseLower.includes('trigger'))) ||
-      (aiResponseLower.includes('generate workflow') && aiResponseLower.includes('button')) ||
-      (aiResponseLower.includes('click') && aiResponseLower.includes('generate workflow'));
+      aiResponseLower.includes('workflow') ||
+      aiResponseLower.includes('trigger') ||
+      aiResponseLower.includes('action') ||
+      aiResponseLower.includes('plan') ||
+      (aiResponseLower.includes('generate') && aiResponseLower.includes('button')) ||
+      (aiResponseLower.includes('click') && aiResponseLower.includes('generate'));
     
     // Only set shouldGenerateWorkflow if BOTH user requested workflow AND AI provided confirmation
     const shouldGenerateWorkflow = userHasWorkflowIntent && hasConfirmationFormat;
