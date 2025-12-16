@@ -1,0 +1,14 @@
+name = "runwise-polling-triggers"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[triggers]
+crons = ["* * * * *"] # Every 1 minute
+
+[env.production]
+name = "runwise-polling-triggers"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+
+

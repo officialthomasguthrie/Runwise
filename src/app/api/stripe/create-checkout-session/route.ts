@@ -81,7 +81,9 @@ export async function POST(request: NextRequest) {
     };
 
     // Only add trial period if not skipping it (for plan switches from billing settings)
-    if (!skipTrial) {
+    // Personal plan does not have a free trial
+    const isPersonalPlan = selectedPlan.startsWith('personal-');
+    if (!skipTrial && !isPersonalPlan) {
       subscriptionData.trial_period_days = 7;
     }
 

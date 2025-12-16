@@ -59,10 +59,16 @@
   background: hsl(var(--card)) !important;
   border: 1px solid rgb(231 229 228) !important; /* stone-200 */
   display: flex !important;
-  flex-direction: row !important;
+  flex-direction: column !important;
   width: auto !important;
   height: auto !important;
   padding: 0 !important;
+}
+
+@media (min-width: 768px) {
+  .react-flow__controls {
+    flex-direction: row !important;
+  }
 }
 
 .dark .react-flow__controls {
@@ -72,7 +78,7 @@
 .react-flow__controls-button {
   background: hsl(var(--card)) !important;
   border-right: 1px solid rgb(231 229 228) !important; /* stone-200 */
-  border-bottom: none !important;
+  border-bottom: 1px solid rgb(231 229 228) !important; /* stone-200 */
   color: hsl(var(--foreground)) !important;
   width: 32px !important;
   min-width: 32px !important;
@@ -88,8 +94,21 @@
   box-sizing: border-box !important;
 }
 
+@media (min-width: 768px) {
+  .react-flow__controls-button {
+    border-bottom: none !important;
+  }
+}
+
 .dark .react-flow__controls-button {
   border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+@media (min-width: 768px) {
+  .dark .react-flow__controls-button {
+    border-bottom: none !important;
+  }
 }
 
 .react-flow__controls-button svg {
@@ -100,6 +119,13 @@
 
 .react-flow__controls-button:last-child {
   border-right: none !important;
+  border-bottom: none !important;
+}
+
+@media (min-width: 768px) {
+  .react-flow__controls-button:last-child {
+    border-bottom: none !important;
+  }
 }
 
 .react-flow__controls-button:hover {
@@ -118,6 +144,13 @@
   bottom: 8px !important;
   background: hsl(var(--card)) !important;
   border: 1px solid rgb(231 229 228) !important; /* stone-200 */
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .react-flow__minimap {
+    display: block !important;
+  }
 }
 
 .dark .react-flow__minimap {

@@ -389,7 +389,7 @@ export const BillingPricing: React.FC = () => {
       annualPrice: "$8",
       description:
         "Essential tools and features for starting your journey with ease.",
-      buttonText: "Start Free Trial",
+      buttonText: "Get Started",
       features: [
         "100 credits",
         "100+ executions",

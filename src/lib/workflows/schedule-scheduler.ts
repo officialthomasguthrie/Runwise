@@ -37,7 +37,9 @@ export function calculateNextRunTime(
 }
 
 /**
- * Schedules a workflow's next execution using Inngest delayed events
+ * Schedules a workflow's next execution using Inngest events with step.sleepUntil()
+ * This is the most efficient method - the function sleeps until execution time (free!)
+ * instead of using delayed events or cron polling
  */
 export async function scheduleNextWorkflowRun(
   workflowData: ScheduledWorkflowData
@@ -50,16 +52,15 @@ export async function scheduleNextWorkflowRun(
   // Only schedule if the next run time is in the future
   if (nextRunTime.getTime() <= Date.now()) {
     console.warn(
-      `Next run time for workflow ${workflowData.workflowId} is in the past, skipping schedule`
+      `[Schedule] Next run time for workflow ${workflowData.workflowId} is in the past, skipping schedule`
     );
     return;
   }
 
   try {
-    // Inngest supports delayed events using the 'ts' property (milliseconds since epoch)
-    // or by using step.sleepUntil() in the handler
-    // We'll use the ts property for scheduling
-    const eventPayload: any = {
+    // Send event immediately - the function will use step.sleepUntil() to wait
+    // This is more efficient than delayed events because sleepUntil() doesn't consume usage
+    await inngest.send({
       name: 'workflow/scheduled-trigger',
       data: {
         workflowId: workflowData.workflowId,
@@ -68,21 +69,17 @@ export async function scheduleNextWorkflowRun(
         userId: workflowData.userId,
         cronExpression: workflowData.cronExpression,
         timezone: workflowData.timezone,
+        nextRunTime: nextRunTime.toISOString(), // Pass as ISO string for step.sleepUntil()
       },
-    };
+    });
 
-    // Add timestamp for delayed execution (Inngest supports this)
-    // If ts doesn't work, we can use step.sleepUntil() in the handler instead
-    eventPayload.ts = nextRunTime.getTime();
-
-    await inngest.send(eventPayload);
-
+    const delaySeconds = Math.floor((nextRunTime.getTime() - Date.now()) / 1000);
     console.log(
-      `Scheduled workflow ${workflowData.workflowId} to run at ${nextRunTime.toISOString()}`
+      `[Schedule] Scheduled workflow ${workflowData.workflowId} to run at ${nextRunTime.toISOString()} (in ${delaySeconds}s)`
     );
   } catch (error: any) {
     console.error(
-      `Failed to schedule next run for workflow ${workflowData.workflowId}:`,
+      `[Schedule] Failed to schedule next run for workflow ${workflowData.workflowId}:`,
       error
     );
     throw error;

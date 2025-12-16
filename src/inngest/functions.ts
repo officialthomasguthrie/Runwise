@@ -321,9 +321,40 @@ export const scheduledWorkflowTrigger = inngest.createFunction(
       userId,
       cronExpression,
       timezone,
+      nextRunTime, // ISO string of when to execute
     } = event.data;
 
-    // Step 1: Verify workflow is still active before executing
+    // Step 1: Sleep until the scheduled time (EFFICIENT - doesn't consume usage while sleeping!)
+    // This is the key efficiency improvement - we sleep until the exact execution time
+    // If nextRunTime is not provided, calculate it from cron expression (backward compatibility)
+    let executionTime: Date;
+    if (nextRunTime) {
+      executionTime = new Date(nextRunTime);
+    } else {
+      // Fallback: calculate next run time from cron (for events sent without nextRunTime)
+      const { calculateNextRunTime } = await import('@/lib/workflows/schedule-scheduler');
+      executionTime = calculateNextRunTime(cronExpression, timezone);
+      console.log(
+        `[Scheduled Trigger] Workflow ${workflowId} - nextRunTime not provided, calculated: ${executionTime.toISOString()}`
+      );
+    }
+    
+    const now = new Date();
+    
+    // Only sleep if the time is in the future
+    if (executionTime.getTime() > now.getTime()) {
+      const sleepDuration = executionTime.getTime() - now.getTime();
+      console.log(
+        `[Scheduled Trigger] Workflow ${workflowId} sleeping for ${Math.floor(sleepDuration / 1000)}s until ${executionTime.toISOString()}`
+      );
+      await step.sleepUntil("wait-for-scheduled-time", executionTime);
+    } else {
+      console.log(
+        `[Scheduled Trigger] Workflow ${workflowId} scheduled time ${executionTime.toISOString()} is in the past, executing immediately`
+      );
+    }
+
+    // Step 2: Verify workflow is still active before executing
     const workflowStatus = await step.run("verify-workflow-active", async () => {
       const supabase = createAdminClient();
       const { data: workflow, error } = await (supabase as any)
@@ -343,7 +374,7 @@ export const scheduledWorkflowTrigger = inngest.createFunction(
     // If workflow is no longer active, don't execute or reschedule
     if (workflowStatus !== 'active') {
       console.log(
-        `Workflow ${workflowId} is not active (status: ${workflowStatus}), skipping execution and reschedule`
+        `[Scheduled Trigger] Workflow ${workflowId} is not active (status: ${workflowStatus}), skipping execution and reschedule`
       );
       return {
         skipped: true,
@@ -352,8 +383,9 @@ export const scheduledWorkflowTrigger = inngest.createFunction(
       };
     }
 
-    // Step 2: Trigger the workflow execution
+    // Step 3: Trigger the workflow execution
     await step.run("trigger-workflow-execution", async () => {
+      console.log(`[Scheduled Trigger] Executing workflow ${workflowId} at scheduled time`);
       await inngest.send({
         name: 'workflow/execute',
         data: {
@@ -371,7 +403,7 @@ export const scheduledWorkflowTrigger = inngest.createFunction(
       });
     });
 
-    // Step 3: Schedule the next occurrence
+    // Step 4: Schedule the next occurrence (self-scheduling for efficiency)
     await step.run("schedule-next-run", async () => {
       // Double-check workflow is still active before scheduling next run
       const supabase = createAdminClient();
@@ -382,17 +414,30 @@ export const scheduledWorkflowTrigger = inngest.createFunction(
         .single();
 
       if (workflow?.status === 'active') {
-        await scheduleNextWorkflowRun({
-          workflowId,
-          nodes,
-          edges,
-          userId,
-          cronExpression,
-          timezone,
+        // Calculate next run time and schedule it
+        const { calculateNextRunTime } = await import('@/lib/workflows/schedule-scheduler');
+        const nextRun = calculateNextRunTime(cronExpression, timezone);
+        
+        console.log(
+          `[Scheduled Trigger] Scheduling next run for workflow ${workflowId} at ${nextRun.toISOString()}`
+        );
+        
+        // Schedule the next execution using the same efficient method
+        await inngest.send({
+          name: 'workflow/scheduled-trigger',
+          data: {
+            workflowId,
+            nodes,
+            edges,
+            userId,
+            cronExpression,
+            timezone,
+            nextRunTime: nextRun.toISOString(), // Pass the next run time
+          },
         });
       } else {
         console.log(
-          `Workflow ${workflowId} is no longer active, not scheduling next run`
+          `[Scheduled Trigger] Workflow ${workflowId} is no longer active, not scheduling next run`
         );
       }
     });

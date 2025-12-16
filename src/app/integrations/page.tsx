@@ -276,7 +276,7 @@ export default function IntegrationsPage() {
         <main className="flex h-full grow flex-col overflow-auto relative scrollbar-hide">
           <div className="relative pb-48">
             <div className="relative z-10 px-4 sm:px-6 lg:px-8 pb-4">
-              <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7">
+              <h1 className="text-4xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7">
                 Integrations
               </h1>
             </div>
@@ -346,8 +346,9 @@ export default function IntegrationsPage() {
 
             {/* Discover Integrations */}
             <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
+              {/* Search bar - full width on mobile, positioned after header */}
+              <div className="mb-6">
+                <div className="hidden md:block mb-4">
                   <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">
                     Discover Integrations
                   </h2>
@@ -355,7 +356,7 @@ export default function IntegrationsPage() {
                     Popular integrations you can connect in seconds
                   </p>
                 </div>
-                <div className="flex-shrink-0">
+                <div className="w-full">
                   <SearchComponent value={searchQuery} onChange={setSearchQuery} placeholder="Search integrations..." />
                 </div>
               </div>

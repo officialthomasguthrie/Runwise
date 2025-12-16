@@ -33,10 +33,10 @@ export default function HelpCenterPage() {
         <main className="flex h-full grow flex-col overflow-auto relative scrollbar-hide">
           <div className="relative pb-12">
             <div className="relative z-10 px-4 sm:px-6 lg:px-8 pb-4">
-              <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7">
+              <h1 className="text-4xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7">
                 Help Center
               </h1>
-              <p className="text-sm md:text-base text-muted-foreground mt-2">
+              <p className="text-sm md:text-base text-muted-foreground mt-2 hidden md:block">
                 Find answers, guides, and support resources
               </p>
             </div>
@@ -45,7 +45,7 @@ export default function HelpCenterPage() {
               {/* Help Center Content */}
               {/* Quick Help Section */}
               <section className="relative z-10 pb-16">
-                <div className="mb-6">
+                <div className="mb-6 hidden md:block">
                   <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">Quick Help</h2>
                   <p className="text-sm md:text-base text-muted-foreground mt-2">Get started quickly with these common topics</p>
                 </div>
@@ -102,7 +102,7 @@ export default function HelpCenterPage() {
 
               {/* Documentation Section */}
               <section className="relative z-10 pb-16">
-                <div className="mb-6">
+                <div className="mb-6 hidden md:block">
                   <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">Documentation</h2>
                   <p className="text-sm md:text-base text-muted-foreground mt-2">Comprehensive guides and API documentation</p>
                 </div>
@@ -159,7 +159,7 @@ export default function HelpCenterPage() {
 
               {/* Support Options */}
               <section className="relative z-10 pb-16">
-                <div className="mb-6">
+                <div className="mb-6 hidden md:block">
                   <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">Support Options</h2>
                   <p className="text-sm md:text-base text-muted-foreground mt-2">Multiple ways to get help when you need it</p>
                 </div>

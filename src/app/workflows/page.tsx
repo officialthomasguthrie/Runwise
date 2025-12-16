@@ -228,14 +228,14 @@ export default function WorkflowsPage() {
         <main className="flex h-full grow flex-col overflow-auto relative scrollbar-hide">
             <div className="relative pb-12">
             <div className="relative z-10 px-4 sm:px-6 lg:px-8 pb-4">
-                <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7">
+                <h1 className="text-4xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7">
                 Workflows
               </h1>
             </div>
 
               {/* Recent Workflows */}
               <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
-                <div className="mb-6">
+                <div className="mb-6 hidden md:block">
                   <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">
                     Recent Workflows
                   </h2>

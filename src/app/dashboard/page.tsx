@@ -316,7 +316,7 @@ export default function DashboardPage() {
               >
                 <div className="mx-auto max-w-4xl text-center">
                   <motion.h1
-                    className="mx-auto mb-4 text-2xl font-geist tracking-tighter text-foreground leading-tight sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl"
+                    className="mx-auto mb-4 text-4xl font-geist tracking-tighter text-foreground leading-tight sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl"
                     variants={fadeInUp}
                     style={{ overflow: 'visible' }}
                   >
@@ -330,7 +330,7 @@ export default function DashboardPage() {
                   </motion.h1>
 
                   <motion.p
-                    className="mx-auto mb-6 max-w-2xl px-4 text-sm text-muted-foreground md:mb-8 md:text-lg"
+                    className="mx-auto mb-6 max-w-2xl px-2 text-sm text-muted-foreground hidden md:block md:mb-8 md:px-4 md:text-lg"
                     variants={fadeInUp}
                   >
                     Transform your ideas into powerful AI workflows with simple, natural language commands.
@@ -338,30 +338,32 @@ export default function DashboardPage() {
                   </motion.p>
 
                   <motion.div
-                    className="mt-6 flex justify-center px-4 md:mt-8"
+                    className="mt-6 flex justify-center px-1 md:mt-8 md:px-4"
                     variants={fadeInUp}
                   >
                     <GradientAIChatInput
                       placeholder={
-                        <TextType
-                          text={[
-                            "Send a welcome email when a user signs up",
-                            "Generate and post social media content every Monday",
-                            "Summarize daily sales data and send to my email",
-                            "Create Slack notifications for new customer feedback",
-                            "Automatically backup database files every week"
-                          ]}
-                          typingSpeed={40}
-                          deletingSpeed={25}
-                          pauseDuration={2000}
-                          loop={true}
-                          showCursor={true}
-                          cursorCharacter="|"
-                          className="text-muted-foreground"
-                        />
+                        <div className="text-left">
+                          <TextType
+                            text={[
+                              "Send a welcome email when a user signs up",
+                              "Generate and post social media content every Monday",
+                              "Summarize daily sales data and send to my email",
+                              "Create Slack notifications for new customer feedback",
+                              "Automatically backup database files every week"
+                            ]}
+                            typingSpeed={40}
+                            deletingSpeed={25}
+                            pauseDuration={2000}
+                            loop={true}
+                            showCursor={true}
+                            cursorCharacter="|"
+                            className="text-muted-foreground"
+                          />
+                        </div>
                       }
                       onSend={handleSend}
-                      className="w-full max-w-2xl"
+                      className="w-full max-w-full md:max-w-2xl"
                     />
                   </motion.div>
 

@@ -13,14 +13,14 @@ export interface ScheduleConfig {
  * Checks if a workflow has a scheduled trigger node
  */
 export function hasScheduledTrigger(nodes: Node[]): boolean {
-  return nodes.some(node => node.type === 'scheduled-time-trigger');
+  return nodes.some(node => node.data?.nodeId === 'scheduled-time-trigger');
 }
 
 /**
  * Extracts schedule configuration from workflow nodes
  */
 export function getScheduleConfig(nodes: Node[]): ScheduleConfig | null {
-  const scheduledTriggerNode = nodes.find(node => node.type === 'scheduled-time-trigger');
+  const scheduledTriggerNode = nodes.find(node => node.data?.nodeId === 'scheduled-time-trigger');
   
   if (!scheduledTriggerNode) {
     return null;

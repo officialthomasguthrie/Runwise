@@ -244,9 +244,9 @@ export const ReactFlowEditor = ({
       } else {
         // New node - ensure it has a label
         mergedData = {
-          ...node.data,
-          label: node.data?.label || node.data?.metadata?.name || 'Untitled Node',
-        };
+        ...node.data,
+        label: node.data?.label || node.data?.metadata?.name || 'Untitled Node',
+      };
       }
       
       return {
@@ -291,11 +291,11 @@ export const ReactFlowEditor = ({
       
       // Save to history when updating from external source (e.g., AI generation)
       setHistoryIndex((currentHistoryIndex) => {
-        setHistory((prev) => {
-          const newHistory = prev.slice(0, currentHistoryIndex + 1);
-          newHistory.push({ nodes: layoutedNodesWithDirection, edges: orientedEdges });
-          return newHistory;
-        });
+      setHistory((prev) => {
+        const newHistory = prev.slice(0, currentHistoryIndex + 1);
+        newHistory.push({ nodes: layoutedNodesWithDirection, edges: orientedEdges });
+        return newHistory;
+      });
         return currentHistoryIndex + 1;
       });
       setHasChanges(true);

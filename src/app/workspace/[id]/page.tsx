@@ -11,6 +11,7 @@ import { AIChatSidebar } from "@/components/ui/ai-chat-sidebar";
 import { ExecutionsView } from "@/components/ui/executions-view";
 import { SettingsView } from "@/components/ui/settings-view";
 import { saveWorkflowFromEditor } from "@/lib/workflows/client";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check, Link, Mail, Clock, MessageSquare, Table, FileCheck, CreditCard, GitBranch, FileText, Calendar, Smartphone, Upload, Database, MessageCircle, Equal, Minus, ArrowRight, ArrowLeft, Filter, Type, Code, Hourglass, Merge, Scissors, FileSpreadsheet, Sparkles, Calculator } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
 
@@ -56,7 +57,7 @@ function WorkflowToggle({ workflowId, initialActive, onToggle }: { workflowId: s
         />
         <div className={cn(
           "block h-6 w-12 rounded-full transition-colors",
-          isChecked ? "backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40" : "bg-stone-200/70 dark:bg-white/10",
+          isChecked ? "bg-primary" : "bg-stone-200/70 dark:bg-white/10",
           (!workflowId || isUpdating) && "opacity-50"
         )} />
         <div className={cn(
@@ -91,6 +92,7 @@ export default function WorkspacePage() {
   const [executionStatus, setExecutionStatus] = useState<'idle' | 'queued' | 'running' | 'success' | 'failed'>('idle');
   const [activeView, setActiveView] = useState<'workspace' | 'executions' | 'settings'>('workspace');
   const [isChatSidebarVisible, setIsChatSidebarVisible] = useState(true);
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const [isLeftSidebarVisible, setIsLeftSidebarVisible] = useState(false);
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
   const [isConfigPanelVisible, setIsConfigPanelVisible] = useState(false);
@@ -340,32 +342,33 @@ export default function WorkspacePage() {
   }, []);
 
   // Load workflow activation status
-  useEffect(() => {
-    const loadWorkflowStatus = async () => {
-      if (!actualWorkflowId) {
-        setIsLoadingWorkflowStatus(false);
-        return;
-      }
+  const loadWorkflowStatus = useCallback(async () => {
+    if (!actualWorkflowId) {
+      setIsLoadingWorkflowStatus(false);
+      return;
+    }
 
-      try {
-        const response = await fetch(`/api/workflow/${actualWorkflowId}/activate`);
-        if (response.ok) {
-          const data = await response.json();
-          setWorkflowActive(data.active);
-        } else {
-          console.error('Failed to load workflow status');
-          setWorkflowActive(false);
-        }
-      } catch (error) {
-        console.error('Error loading workflow status:', error);
+    try {
+      const response = await fetch(`/api/workflow/${actualWorkflowId}/activate`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[Status] Loaded workflow status:', data);
+        setWorkflowActive(data.active);
+      } else {
+        console.error('Failed to load workflow status');
         setWorkflowActive(false);
-      } finally {
-        setIsLoadingWorkflowStatus(false);
       }
-    };
-
-    loadWorkflowStatus();
+    } catch (error) {
+      console.error('Error loading workflow status:', error);
+      setWorkflowActive(false);
+    } finally {
+      setIsLoadingWorkflowStatus(false);
+    }
   }, [actualWorkflowId]);
+
+  useEffect(() => {
+    loadWorkflowStatus();
+  }, [loadWorkflowStatus]);
 
   // Handle workflow toggle
   const handleWorkflowToggle = useCallback(async (active: boolean) => {
@@ -401,12 +404,21 @@ export default function WorkspacePage() {
       }
 
       const data = await response.json();
-      setWorkflowActive(data.status === 'active');
+      console.log('[Toggle] Activation response:', data);
+      const isActive = data.status === 'active';
+      setWorkflowActive(isActive);
+      
+      // Refresh workflow status after a short delay to ensure it's updated
+      setTimeout(async () => {
+        await loadWorkflowStatus();
+      }, 500);
     } catch (error: any) {
       console.error('Error toggling workflow:', error);
+      // Reload status on error to get current state
+      loadWorkflowStatus();
       throw error; // Re-throw so toggle component can handle it
     }
-  }, [actualWorkflowId]);
+  }, [actualWorkflowId, loadWorkflowStatus]);
 
 
   const handleSave = useCallback(async () => {
@@ -619,16 +631,16 @@ export default function WorkspacePage() {
 
   return (
     <div className="flex h-screen w-screen bg-background">
-      <div className="relative z-50">
+      <div className="relative z-50 hidden md:block">
       <CollapsibleSidebar />
       </div>
       <div className="flex flex-1 flex-col bg-background relative">
         {/* Header with editable workspace name */}
         <header className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-stone-200 dark:border-white/10">
-          <div className="flex h-full items-center justify-between px-4 md:px-6">
+          <div className="flex h-full items-center justify-between px-2 md:px-4 lg:px-6">
             {/* Editable Workspace Name and Undo/Redo */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+              <div className="flex items-center min-w-0">
                 {isEditingName ? (
                   <input
                     autoFocus
@@ -644,23 +656,24 @@ export default function WorkspacePage() {
                         cancelEditingName();
                       }
                     }}
-                    className="px-2 py-1 rounded-sm border border-stone-200 dark:border-white/10 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-white/20 text-sm font-medium min-w-[200px] max-w-[400px]"
+                    className="px-2 py-1 rounded-sm border border-stone-200 dark:border-white/10 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-white/20 text-sm font-medium w-full max-w-[200px] md:min-w-[200px] md:max-w-[400px]"
                   />
                 ) : (
                   <button
                     onClick={startEditingName}
-                    className="px-2 py-1 rounded-sm hover:bg-accent transition-colors text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="px-2 py-1 rounded-sm hover:bg-accent transition-colors text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary truncate max-w-[120px] md:max-w-none"
+                    title={workflowName}
                   >
                     {workflowName}
                   </button>
                 )}
                 {isSavingName && (
-                  <span className="ml-2 text-xs text-muted-foreground">Saving...</span>
+                  <span className="ml-2 text-xs text-muted-foreground hidden md:inline">Saving...</span>
                 )}
               </div>
               
               {/* Undo/Redo Buttons */}
-              <div className="flex items-center gap-1 border-l border-stone-200 dark:border-white/10 pl-3">
+              <div className="hidden md:flex items-center gap-1 border-l border-stone-200 dark:border-white/10 pl-3">
                 <button
                   onClick={() => undoRef.current?.()}
                   disabled={!canUndo}
@@ -680,7 +693,7 @@ export default function WorkspacePage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 md:gap-4 flex-shrink-0">
               <WorkflowToggle 
                 workflowId={actualWorkflowId} 
                 initialActive={workflowActive}
@@ -690,7 +703,7 @@ export default function WorkspacePage() {
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving}
-                className="inline-flex items-center gap-1.5 rounded-sm border border-stone-200 dark:border-white/10 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="hidden md:inline-flex items-center gap-1.5 rounded-sm border border-stone-200 dark:border-white/10 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Save workflow"
               >
                 {isSaving ? (
@@ -710,9 +723,25 @@ export default function WorkspacePage() {
                   </>
                 )}
               </button>
+              {/* Mobile Save Button - Icon Only */}
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-sm border border-stone-200 dark:border-white/10 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="md:hidden inline-flex items-center justify-center p-2 rounded-sm border border-stone-200 dark:border-white/10 text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={isSaving ? "Saving..." : saveButtonText === 'Saved' ? "Saved" : "Save workflow"}
+              >
+                {isSaving ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current" />
+                ) : saveButtonText === 'Saved' ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                type="button"
+                className="hidden md:inline-flex items-center gap-1.5 rounded-sm border border-stone-200 dark:border-white/10 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/50"
                 title="Share workflow"
               >
                 <Share2 className="h-4 w-4" />
@@ -733,7 +762,7 @@ export default function WorkspacePage() {
                 type="button"
                 onClick={() => setIsChatSidebarVisible((prev) => !prev)}
                 className={cn(
-                  "inline-flex items-center p-2 text-muted-foreground transition-colors hover:text-foreground",
+                  "hidden md:inline-flex items-center p-2 text-muted-foreground transition-colors hover:text-foreground",
                   isChatSidebarVisible
                     ? "text-foreground"
                     : ""
@@ -744,7 +773,7 @@ export default function WorkspacePage() {
               </button>
               <button
                 type="button"
-                className="inline-flex items-center p-2 text-muted-foreground transition-colors hover:text-foreground"
+                className="hidden md:inline-flex items-center p-2 text-muted-foreground transition-colors hover:text-foreground"
                 title="More options"
               >
                 <MoreHorizontal className="h-4 w-4" />
@@ -755,11 +784,18 @@ export default function WorkspacePage() {
 
         {/* Main Content Area */}
         <div className="flex flex-1 overflow-hidden">
+          {/* Mobile Backdrop for Left Sidebar */}
+          {isLeftSidebarVisible && activeView === 'workspace' && (
+            <div
+              className="fixed inset-0 bg-black/50 z-20 md:hidden"
+              onClick={() => setIsLeftSidebarVisible(false)}
+            />
+          )}
           {/* Left Sidebar - appears when Plus button is clicked, ONLY in workspace view */}
           {isLeftSidebarVisible && activeView === 'workspace' && (
             <div
-              className="fixed left-16 top-16 bottom-0 z-30 bg-background border-r border-stone-200 dark:border-white/10 transition-all duration-200"
-              style={{ width: `${leftSidebarWidth}px` }}
+              className="fixed left-0 md:left-16 top-16 bottom-0 z-30 bg-background border-r border-stone-200 dark:border-white/10 transition-all duration-200 w-[min(90vw,320px)] md:w-auto md:max-w-none shadow-lg md:shadow-none"
+              style={{ width: isDesktop ? `${leftSidebarWidth}px` : undefined }}
             >
               <div className="flex h-full flex-col">
         {/* Header */}
@@ -933,27 +969,27 @@ export default function WorkspacePage() {
             className="flex h-full flex-1 flex-col overflow-hidden transition-[margin-right,margin-left] duration-200 relative"
             style={{ 
               marginRight: isDesktop && isChatSidebarVisible ? `${sidebarWidth}px` : '0px',
-              marginLeft: isLeftSidebarVisible 
+              marginLeft: isDesktop && isLeftSidebarVisible 
                 ? `${leftSidebarWidth + (isConfigPanelVisible ? 320 : 0)}px` 
-                : isConfigPanelVisible ? '320px' : '0px'
+                : isDesktop && isConfigPanelVisible ? '320px' : '0px'
             }}
           >
             {/* Hide Sidebar Button - top left of canvas area */}
             {isLeftSidebarVisible && activeView === 'workspace' && (
               <button
                 onClick={() => setIsLeftSidebarVisible(false)}
-                className="absolute top-4 left-4 z-20 inline-flex items-center justify-center rounded-sm p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/50 bg-background/95 backdrop-blur-sm border border-border/60"
+                className="absolute top-4 left-4 z-40 inline-flex items-center justify-center rounded-sm p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/50 bg-background/95 backdrop-blur-sm border border-border/60"
                 title="Hide sidebar"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
             )}
             {/* Top Center Navigation Bar and Run Button */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
-            <nav className="flex items-center gap-1 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl border border-white/40 dark:border-white/10 rounded-lg px-2 py-1.5 shadow-lg">
+            <div className="absolute top-2 md:top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 md:gap-3">
+            <nav className="flex items-center gap-0.5 md:gap-1 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl border border-white/40 dark:border-white/10 rounded-lg px-1 md:px-2 py-1 md:py-1.5 shadow-lg">
               <button
                 onClick={() => setActiveView('workspace')}
-                className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-all duration-200 border ${
+                className={`px-2 md:px-3 py-1 md:py-1.5 rounded-sm text-xs md:text-sm font-medium transition-all duration-200 border ${
                   activeView === 'workspace'
                     ? 'bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 border-stone-200 dark:border-white/20 shadow-sm text-foreground' 
                     : 'border-transparent text-foreground hover:bg-accent/50'
@@ -964,7 +1000,7 @@ export default function WorkspacePage() {
               <div className="h-4 w-px bg-stone-300 dark:bg-white/20" />
               <button
                 onClick={() => setActiveView('executions')}
-                className={`px-3 py-1.5 rounded-sm text-sm font-medium transition-all duration-200 border ${
+                className={`px-2 md:px-3 py-1 md:py-1.5 rounded-sm text-xs md:text-sm font-medium transition-all duration-200 border ${
                   activeView === 'executions'
                     ? 'bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 border-stone-200 dark:border-white/20 shadow-sm text-foreground' 
                     : 'border-transparent text-foreground hover:bg-accent/50'
@@ -976,7 +1012,7 @@ export default function WorkspacePage() {
             
             </div>
 
-            <div className="absolute top-4 right-4 z-20">
+            <div className="absolute top-2 md:top-4 right-2 md:right-4 z-20">
               {activeView === 'workspace' && (
                 <button
                   type="button"
@@ -985,23 +1021,33 @@ export default function WorkspacePage() {
                     setActivePlaceholderId(null);
                     setIsLeftSidebarVisible((prev) => !prev);
                   }}
-                  className="flex h-10 w-10 items-center justify-center rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 text-foreground shadow-sm transition-all hover:scale-[1.02] hover:bg-white dark:hover:bg-zinc-900"
+                  className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 text-foreground shadow-sm transition-all hover:scale-[1.02] hover:bg-white dark:hover:bg-zinc-900"
                   title={isLeftSidebarVisible ? "Close sidebar" : "Add Node"}
                 >
-                  <Plus className="h-5 w-5 stroke-[2.5]" />
+                  <Plus className="h-4 w-4 md:h-5 md:w-5 stroke-[2.5]" />
                 </button>
               )}
             </div>
 
             <div className="pointer-events-none absolute inset-0 z-10">
-              <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-3">
+              {/* Mobile AI Chat FAB */}
+              <button
+                onClick={() => setIsMobileChatOpen(true)}
+                className="md:hidden pointer-events-auto fixed bottom-24 right-4 z-30 h-12 w-12 rounded-full backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground flex items-center justify-center focus:ring-0 focus-visible:ring-0"
+                aria-label="Open AI Chat"
+              >
+                <Sparkles className="h-5 w-5" />
+              </button>
+
+              {/* Mobile: Vertical toolbar on right side */}
+              <div className="absolute right-2 md:right-4 bottom-4 md:bottom-6 flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-3 md:left-[calc(50%+60px)] md:-translate-x-1/2">
                 <button
                   type="button"
                   onClick={handleClearWorkflow}
-                  className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 text-foreground shadow-sm transition-colors hover:bg-white/40 dark:hover:bg-zinc-900/40"
+                  className="pointer-events-auto inline-flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 text-foreground shadow-sm transition-colors hover:bg-white/40 dark:hover:bg-zinc-900/40"
                   title="Clear workflow canvas"
                 >
-                  <Eraser className="h-5 w-5" />
+                  <Eraser className="h-4 w-4 md:h-5 md:w-5" />
                 </button>
                 <button
                   type="button"
@@ -1023,7 +1069,7 @@ export default function WorkspacePage() {
                     }
                   }}
                   disabled={!hasNodes || isExecuting}
-                  className="pointer-events-auto inline-flex items-center gap-2.5 rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 px-5 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-white/40 dark:hover:bg-zinc-900/40 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="pointer-events-auto inline-flex items-center gap-1.5 md:gap-2.5 rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-white/40 dark:hover:bg-zinc-900/40 disabled:cursor-not-allowed disabled:opacity-60"
                   title={
                     !hasNodes
                       ? 'Add nodes to test the workflow'
@@ -1034,7 +1080,7 @@ export default function WorkspacePage() {
                 >
                   {isExecuting ? (
                     <>
-                      <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-foreground" />
+                      <div className="h-3 w-3 md:h-4 md:w-4 animate-spin rounded-full border-b-2 border-foreground" />
                       <span>
                         {executionStatus === 'queued'
                           ? 'Queued'
@@ -1045,8 +1091,9 @@ export default function WorkspacePage() {
                     </>
                   ) : (
                     <>
-                      <FlaskConical className="h-5 w-5" />
-                      <span>Test Workflow</span>
+                      <FlaskConical className="h-4 w-4 md:h-5 md:w-5" />
+                      <span className="hidden sm:inline">Test Workflow</span>
+                      <span className="sm:hidden">Test</span>
                     </>
                   )}
                 </button>
@@ -1116,7 +1163,7 @@ export default function WorkspacePage() {
           </main>
               </div>
 
-        {/* AI Chat Sidebar - Full Height Overlay on Right (Below Header) */}
+        {/* AI Chat Sidebar - Full Height Overlay on Right (Below Header) - Desktop Only */}
         {isChatSidebarVisible && (
           <div className="hidden md:block">
             {/* Resize Handle */}
@@ -1150,6 +1197,36 @@ export default function WorkspacePage() {
             </div>
           </div>
         )}
+
+        {/* Mobile AI Chat Bottom Sheet */}
+        <Sheet open={isMobileChatOpen} onOpenChange={setIsMobileChatOpen}>
+          <SheetContent 
+            side="bottom" 
+            className="h-[90vh] max-h-[90vh] p-0 flex flex-col gap-0 rounded-t-2xl"
+            showClose={true}
+          >
+            <SheetTitle className="sr-only">AI Assistant</SheetTitle>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <AIChatSidebar 
+                externalMessage={externalChatMessage}
+                externalContext={externalChatContext}
+                onExternalMessageSent={() => {
+                  setExternalChatMessage(null);
+                  setExternalChatContext(null);
+                }} 
+                onWorkflowGenerated={handleWorkflowGenerated}
+                onNodesConfigured={handleNodesConfigured}
+                initialPrompt={initialPrompt}
+                getCurrentWorkflow={() => {
+                  if (getWorkflowRef.current) {
+                    return getWorkflowRef.current();
+                  }
+                  return { nodes: [], edges: [] };
+                }}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

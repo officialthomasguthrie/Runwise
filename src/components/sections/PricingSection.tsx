@@ -30,14 +30,14 @@ const PRICING_TIERS: PricingTier[] = [
       "Workflow templates",
       "Email support",
     ],
-    cta: "Start Free Trial",
+    cta: "Get Started",
     ctaSlot: (
       <ProCheckoutButton
         plan="personal-monthly"
         variant="outline"
         className="w-full gap-2 border-border text-foreground font-geist justify-center"
       >
-        Start Free Trial
+        Get Started
       </ProCheckoutButton>
     ),
   },

@@ -3,10 +3,11 @@
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import { LogOut, Search, X, Clock } from "lucide-react";
+import { LogOut, Search, X, Clock, Menu } from "lucide-react";
 import { useCallback, useId, useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
 interface BlankHeaderProps {
   className?: string;
@@ -35,6 +36,7 @@ export function BlankHeader({ className }: BlankHeaderProps) {
   const { signOut } = useAuth();
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const searchId = useId();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchablePage[]>([]);
@@ -42,6 +44,7 @@ export function BlankHeader({ className }: BlankHeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   // Load search history from localStorage
   useEffect(() => {
@@ -56,6 +59,27 @@ export function BlankHeader({ className }: BlankHeaderProps) {
       }
     }
   }, []);
+
+  // Toggle mobile menu
+  const toggleMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(prev => !prev);
+  }, []);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    if (isMobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isMobileMenuOpen]);
 
   // Save search history to localStorage
   const saveSearchHistory = useCallback((history: SearchablePage[]) => {
@@ -177,18 +201,110 @@ export function BlankHeader({ className }: BlankHeaderProps) {
   const showResults = searchQuery.trim() && searchResults.length > 0;
   const showNoResults = searchQuery.trim() && searchResults.length === 0;
 
-  return (
-    <div
-      className={cn(
-        "relative h-16 w-full shrink-0 border-b border-stone-200 dark:border-white/10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50",
-        className
-      )}
-    >
-      <div className="flex h-full w-full items-center px-4">
-        <div className="flex w-full items-center justify-between gap-4">
-          <div className="w-12" />
+  // Mobile menu pages
+  const mobileMenuPages = [
+    { label: 'Dashboard', href: '/dashboard' },
+    { label: 'Workflows', href: '/workflows' },
+    { label: 'Runs', href: '/runs' },
+    { label: 'Integrations', href: '/integrations' },
+    { label: 'Templates', href: '/templates' },
+    { label: 'Analytics', href: '/analytics' },
+    { label: 'Settings', href: '/settings' },
+    { label: 'Help', href: '/help' },
+  ];
 
-          <div className="flex flex-1 justify-center">
+  return (
+    <>
+      {/* Mobile Header - visible on mobile only */}
+      <div
+        className={cn(
+          "relative h-16 w-full shrink-0 border-b border-stone-200 dark:border-white/10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50 md:hidden",
+          className
+        )}
+        ref={mobileMenuRef}
+      >
+        <div className="flex h-full w-full items-center justify-between px-4">
+          <Link href="/dashboard" className="flex items-center">
+            <img
+              src="/logo.png"
+              alt="Runwise Logo"
+              className="h-8 w-auto object-contain"
+            />
+          </Link>
+          <div className="flex items-center gap-2">
+            {/* Hamburger Menu */}
+            <button
+              type="button"
+              onClick={toggleMobileMenu}
+              className="inline-flex items-center justify-center rounded-sm p-2 text-muted-foreground transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Menu Dropdown */}
+        <div
+          className={cn(
+            "absolute top-16 left-0 right-0 bg-background border-b border-stone-200 dark:border-white/10 overflow-hidden transition-all duration-300 ease-in-out transform",
+            isMobileMenuOpen 
+              ? "max-h-96 opacity-100 translate-y-0" 
+              : "max-h-0 opacity-0 -translate-y-4"
+          )}
+        >
+          <nav className="px-4 py-4">
+            <ul className="flex flex-col items-center gap-2">
+              {mobileMenuPages.map((page) => (
+                <li key={page.href} className="w-full">
+                  <Link
+                    href={page.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block w-full text-center px-4 py-2 rounded-md text-sm font-medium text-foreground transition-colors"
+                  >
+                    {page.label}
+                  </Link>
+                </li>
+              ))}
+              <li className="w-full pt-2 border-t border-stone-200 dark:border-white/10">
+                <button
+                  onClick={async () => {
+                    if (signingOut) return;
+                    setSigningOut(true);
+                    setIsMobileMenuOpen(false);
+                    try {
+                      await signOut();
+                      router.push("/login");
+                    } catch (error) {
+                      console.error("Failed to sign out:", error);
+                    } finally {
+                      setSigningOut(false);
+                    }
+                  }}
+                  disabled={signingOut}
+                  className="w-full text-center px-4 py-2 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent disabled:opacity-70 flex items-center justify-center gap-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign out</span>
+                </button>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+
+      {/* Desktop Header - visible on desktop only */}
+      <div
+        className={cn(
+          "relative h-16 w-full shrink-0 border-b border-stone-200 dark:border-white/10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50 hidden md:flex",
+          className
+        )}
+      >
+        <div className="flex h-full w-full items-center px-4">
+          <div className="flex w-full items-center justify-between gap-4">
+            <div className="w-12" />
+
+            <div className="flex flex-1 justify-center">
             <div className="w-full max-w-2xl space-y-1.5">
               <Label htmlFor={searchId} className="sr-only">
                 Search
@@ -281,7 +397,8 @@ export function BlankHeader({ className }: BlankHeaderProps) {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

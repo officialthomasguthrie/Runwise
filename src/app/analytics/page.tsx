@@ -43,7 +43,7 @@ export default function AnalyticsPage() {
         <main className="flex h-full grow flex-col overflow-auto relative scrollbar-hide">
           <div className="relative pb-48">
             <div className="relative z-10 px-4 sm:px-6 lg:px-8 pb-4">
-              <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7 mb-8">
+              <h1 className="text-4xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7 mb-8">
                 Analytics Coming Soon
               </h1>
 

@@ -284,7 +284,7 @@ export function GradientAIChatInput({
               />
               {/* Custom placeholder component overlay */}
               {!message && typeof placeholder !== 'string' && placeholder && (
-                <div className="absolute inset-0 pointer-events-none flex items-start py-2 text-base text-muted-foreground">
+                <div className="absolute inset-0 pointer-events-none flex items-start py-2 text-base text-muted-foreground text-left">
                   {placeholder}
                 </div>
               )}
