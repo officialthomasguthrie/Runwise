@@ -1,11 +1,87 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./components/Providers";
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  minimumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+};
+
 export const metadata: Metadata = {
-  title: "Runwise - AI-Powered Workflow Builder",
-  description: "Turn natural language prompts into fully functional and integrated workflows with Runwise AI platform.",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover",
+  metadataBase: new URL('https://runwiseai.app'),
+  title: {
+    default: "Runwise - AI-Powered Workflow Builder",
+    template: "%s | Runwise"
+  },
+  description: "Runwise AI is the best no-code automation platform. Create simple automations and workflows with AI-powered natural language. Build automation workflows without coding - the easiest way to automate your business processes.",
+  keywords: [
+    "Runwise",
+    "Runwise AI",
+    "automation",
+    "no code automation",
+    "simple automation",
+    "workflows",
+    "workflow automation",
+    "workflow builder",
+    "AI automation",
+    "no-code platform",
+    "business automation",
+    "process automation",
+    "automation tools",
+    "workflow software",
+    "automation platform",
+    "AI workflows",
+    "natural language automation",
+    "automation builder",
+    "workflow creator",
+    "automation software"
+  ],
+  authors: [{ name: "Runwise" }],
+  creator: "Runwise",
+  publisher: "Runwise",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://runwiseai.app",
+    siteName: "Runwise",
+    title: "Runwise - AI-Powered Workflow Builder",
+    description: "Create simple automations and workflows with AI-powered natural language. The easiest no-code automation platform for building workflows without coding.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Runwise - AI-Powered Workflow Builder",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Runwise - AI-Powered Workflow Builder",
+    description: "Create simple automations and workflows with AI-powered natural language. The easiest no-code automation platform.",
+    images: ["/og-image.png"],
+    creator: "@runwiseai", // Update with your Twitter handle if you have one
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   other: {
     'font-display': 'swap',
   },
@@ -15,6 +91,9 @@ export const metadata: Metadata = {
     ],
     shortcut: '/favicon.png',
     apple: '/favicon.png',
+  },
+  alternates: {
+    canonical: "https://runwiseai.app",
   },
 };
 

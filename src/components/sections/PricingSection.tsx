@@ -115,7 +115,7 @@ const PRICING_TIERS: PricingTier[] = [
         variant="secondary"
         className="w-full gap-2 justify-center font-geist"
       >
-        <Link href="/contact">Contact sales</Link>
+        <Link href="mailto:hello@runwiseai.app">Contact sales</Link>
       </Button>
     ),
   },

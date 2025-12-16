@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useMemo, useEffect, useState } from "react";
+import React from "react";
 import Marquee from "react-fast-marquee";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 
 export const Hero: React.FC = () => {
-  const [isStylesReady, setIsStylesReady] = useState(false);
-  const [isClient, setIsClient] = useState(false);
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -29,79 +27,6 @@ export const Hero: React.FC = () => {
     { src: "/assets/brands/hubspot.svg", name: "HubSpot", fontFamily: "'Inter', system-ui, sans-serif" },
   ];
 
-  // Dots logic (unchanged)
-  const dots = useMemo(() => {
-    const dotCount = 50;
-    return Array.from({ length: dotCount }, (_, i) => {
-      const startX = Math.random() * 100;
-      const startY = Math.random() * 100;
-      const direction = Math.floor(Math.random() * 5);
-
-      let moveX = 0;
-      let moveY = 0;
-
-      if (direction === 0) moveY = 100 - startY;
-      else if (direction === 1) moveY = -startY;
-      else if (direction === 2) moveX = 100 - startX;
-      else if (direction === 3) moveX = -startX;
-      else {
-        moveX = (Math.random() > 0.5 ? 100 : 0) - startX;
-        moveY = (Math.random() > 0.5 ? 100 : 0) - startY;
-      }
-
-      return {
-        id: i,
-        x: startX,
-        y: startY,
-        opacity: Math.random() * 0.5 + 0.3,
-        moveX,
-        moveY,
-        duration: Math.random() * 9 + 9,
-        delay: Math.random() * 2,
-      };
-    });
-  }, []);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!isClient) return;
-
-    const styleId = "floating-dots-animations";
-
-    const existingStyle = document.getElementById(styleId);
-    if (existingStyle) existingStyle.remove();
-
-    const styleElement = document.createElement("style");
-    styleElement.id = styleId;
-    styleElement.setAttribute("type", "text/css");
-
-    const keyframes = dots
-      .map((dot) => {
-        const moveXvw = (dot.moveX / 100) * 80;
-        const moveYvh = (dot.moveY / 100) * 80;
-        return `
-          @keyframes float-${dot.id} {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(${moveXvw}vw, ${moveYvh}vh); }
-          }
-        `;
-      })
-      .join("");
-
-    styleElement.textContent = keyframes;
-    document.head.appendChild(styleElement);
-
-    requestAnimationFrame(() => setIsStylesReady(true));
-
-    return () => {
-      const element = document.getElementById(styleId);
-      if (element) element.remove();
-    };
-  }, [dots, isClient]);
 
   return (
     <section
@@ -152,7 +77,7 @@ export const Hero: React.FC = () => {
             >
               <div className="flex items-center justify-center gap-[5px]">
                 <p className="text-sm">{!loading && user ? "Dashboard" : "Start Building"}</p>
-                <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" />
+                <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" alt="Arrow icon" />
               </div>
             </button>
 
@@ -215,8 +140,9 @@ export const Hero: React.FC = () => {
         transition={{ duration: 1, ease: "easeOut" }}
         viewport={{ once: true }}
         className="z-10 w-[1085px] h-[184px] absolute bottom-[30px] -right-[46px] overflow-hidden blur-[60px]"
+        aria-hidden="true"
       >
-        <img src="/assets/img1.svg" className="w-full h-full" />
+        <img src="/assets/img1.svg" className="w-full h-full" alt="" />
       </motion.div>
 
       <motion.div
@@ -225,31 +151,11 @@ export const Hero: React.FC = () => {
         transition={{ duration: 1, ease: "easeOut" }}
         viewport={{ once: true }}
         className="z-10 w-[1085px] h-[184px] absolute top-[30px] -left-[46px] overflow-hidden blur-[60px]"
+        aria-hidden="true"
       >
-        <img src="/assets/img2.svg" className="w-full h-full" />
+        <img src="/assets/img2.svg" className="w-full h-full" alt="" />
       </motion.div>
 
-      {/* Floating Dots */}
-      {isClient && (
-        <div className="absolute inset-0 w-full h-full pointer-events-none z-0 bg-black overflow-hidden">
-          {dots.map((dot) => (
-            <div
-              key={dot.id}
-              className="absolute rounded-full bg-white/80"
-              style={{
-                left: `${dot.x}%`,
-                top: `${dot.y}%`,
-                width: "3px",
-                height: "3px",
-                opacity: dot.opacity,
-                animation: isStylesReady
-                  ? `float-${dot.id} ${dot.duration}s ease-in-out ${dot.delay}s infinite alternate`
-                  : "none",
-              }}
-            />
-          ))}
-        </div>
-      )}
     </section>
   );
 };

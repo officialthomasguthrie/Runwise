@@ -1,7 +1,28 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 
 export const Footer: React.FC = () => {
+  const handleSmoothScroll = (
+    event: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
+    href: string
+  ) => {
+    event.preventDefault();
+    const targetId = href.replace("#", "");
+    const targetElement = document.getElementById(targetId);
+    if (!targetElement) return;
+
+    const headerOffset = 80;
+    const elementPosition = targetElement.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.scrollY - headerOffset;
+
+    window.scrollTo({
+      top: offsetPosition,
+      behavior: "smooth",
+    });
+  };
+
   return (
     <footer className="border-t border-[#ffffff1a] pt-[64px] pb-8 px-10 relative overflow-hidden">
       <div className="max-w-[1200px] w-full mx-auto flex gap-6 md:gap-8 flex-col md:flex-row md:justify-between relative z-30">
@@ -64,19 +85,27 @@ export const Footer: React.FC = () => {
               Navigation
             </li>
             <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-              <Link href="#process">Process</Link>
+              <Link href="#process" onClick={(e) => handleSmoothScroll(e, "#process")}>
+                Process
+              </Link>
             </li>
 
             <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-              <Link href="#possibilities">Services</Link>
+              <Link href="#possibilities" onClick={(e) => handleSmoothScroll(e, "#possibilities")}>
+                Services
+              </Link>
             </li>
 
             <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-              <Link href="#benefits">Benefits</Link>
+              <Link href="#benefits" onClick={(e) => handleSmoothScroll(e, "#benefits")}>
+                Benefits
+              </Link>
             </li>
 
             <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-              <Link href="#pricing">Plans</Link>
+              <Link href="#pricing" onClick={(e) => handleSmoothScroll(e, "#pricing")}>
+                Plans
+              </Link>
             </li>
           </ul>
 
@@ -93,9 +122,6 @@ export const Footer: React.FC = () => {
             </li>
             <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
               <Link href="/privacy">Privacy Policy</Link>
-            </li>
-            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-              <Link href="/contact">Contact</Link>
             </li>
           </ul>
 

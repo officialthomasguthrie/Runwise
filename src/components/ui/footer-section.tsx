@@ -76,20 +76,8 @@ function FooterSection() {
               <a href="/" className="block transition-colors hover:text-primary text-muted-foreground font-geist">
                 Home
               </a>
-              <a href="/about" className="block transition-colors hover:text-primary text-muted-foreground font-geist">
-                About
-              </a>
-                     <a href="/features" className="block transition-colors hover:text-primary text-muted-foreground font-geist">
-                       Features
-                     </a>
-                      <a href="/pricing" className="block transition-colors hover:text-primary text-muted-foreground font-geist" suppressHydrationWarning={true}>
-                        Pricing
-                      </a>
               <a href="#" className="block transition-colors hover:text-primary text-muted-foreground font-geist">
                 Documentation
-              </a>
-              <a href="/contact" className="block transition-colors hover:text-primary text-muted-foreground font-geist" suppressHydrationWarning={true}>
-                Contact
               </a>
             </nav>
           </div>
