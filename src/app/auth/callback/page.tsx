@@ -27,21 +27,52 @@ function AuthCallbackContent() {
         
         if (error) {
           console.error('Auth callback error:', error);
-          router.push('/login?error=auth_callback_failed');
+          window.location.href = '/login?error=auth_callback_failed';
           return;
         }
 
         if (data.session) {
-          // User is authenticated, redirect to dashboard
-          // Team creation will happen on dashboard if needed
-          router.push('/dashboard');
+          const userId = data.session.user.id;
+          
+          // Check if user exists in the users table (prevents new signups)
+          try {
+            const checkResponse = await fetch('/api/auth/check-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ userId }),
+            });
+
+            const checkData = await checkResponse.json();
+
+            if (!checkData.exists) {
+              // User doesn't exist in users table - this is a new signup attempt
+              // Sign them out and redirect to login with error
+              await supabase.auth.signOut();
+              // Use window.location to force a full page reload and clear session state
+              // This ensures middleware sees the user as unauthenticated
+              window.location.href = '/login?error=no_account';
+              return;
+            }
+
+            // User exists, proceed to dashboard
+            router.push('/dashboard');
+          } catch (checkError) {
+            console.error('Error checking user existence:', checkError);
+            // If check fails, sign out to be safe and redirect to login
+            await supabase.auth.signOut();
+            // Use window.location to force a full page reload and clear session state
+            window.location.href = '/login?error=account_check_failed';
+            return;
+          }
         } else {
           // No session found, redirect to login
           router.push('/login');
         }
       } catch (err) {
         console.error('Unexpected error in auth callback:', err);
-        router.push('/login?error=unexpected_error');
+        window.location.href = '/login?error=unexpected_error';
       }
     };
 

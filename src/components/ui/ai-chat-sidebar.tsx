@@ -47,6 +47,33 @@ interface AIChatSidebarProps {
 }
 
 /**
+ * Extract workflow prompt from AI response
+ * Looks for workflow descriptions or falls back to user's original message
+ */
+function extractWorkflowPromptFromResponse(aiResponse: string): string | null {
+  // Try to extract workflow description from AI response
+  // Look for patterns like "I'll create a workflow that..." or "This workflow will..."
+  const lowerResponse = aiResponse.toLowerCase();
+  
+  // If response mentions workflow creation, try to extract the description
+  if (lowerResponse.includes('workflow')) {
+    // Look for sentences that describe what the workflow does
+    const sentences = aiResponse.split(/[.!?]\s+/);
+    const workflowSentences = sentences.filter(s => 
+      s.toLowerCase().includes('workflow') || 
+      s.toLowerCase().includes('trigger') || 
+      s.toLowerCase().includes('action')
+    );
+    
+    if (workflowSentences.length > 0) {
+      return workflowSentences.join('. ').trim();
+    }
+  }
+  
+  return null;
+}
+
+/**
  * AI Chat Sidebar - Full Featured Chat Interface
  * 
  * Supports:
@@ -402,30 +429,50 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         fullMetadata: data.metadata
                       });
                       
-                      // Only set workflowPrompt if:
-                      // 1. shouldGenerateWorkflow is true (user requested workflow AND AI provided confirmation)
-                      // 2. workflowPrompt exists
-                      // The API already checks for confirmation format, so we trust its judgment
-                      if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
-                        const responseContent = fullMessage.toLowerCase();
-                        const isFieldFillingQuestion = 
-                          responseContent.includes('help me fill out') ||
-                          responseContent.includes('help me with') ||
-                          responseContent.includes('fill out the');
-                        
-                        // Don't show workflow button if this is a field-filling question
-                        if (!isFieldFillingQuestion) {
-                          setWorkflowPrompt(data.metadata.workflowPrompt);
-                          console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
-                        } else {
-                          console.log('🚫 Not showing workflow button - this is a field-filling question');
-                          setWorkflowPrompt(null);
-                        }
+                      // Set workflowPrompt if:
+                      // 1. API metadata indicates workflow generation, OR
+                      // 2. AI response content suggests proposing a workflow (fallback detection)
+                      const responseContent = fullMessage.toLowerCase();
+                      const isFieldFillingQuestion = 
+                        responseContent.includes('help me fill out') ||
+                        responseContent.includes('help me with') ||
+                        responseContent.includes('fill out the');
+                      
+                      // Check if AI is explicitly proposing a workflow (strict detection)
+                      // Look for explicit proposal language, especially near the end of the message
+                      const messageLength = fullMessage.length;
+                      const lastThird = responseContent.slice(Math.floor(messageLength * 0.7)); // Last 30% of message
+                      
+                      const hasStrongProposalIndicator = !isFieldFillingQuestion && (
+                        // Direct button mentions (most reliable)
+                        (lastThird.includes('generate workflow') && lastThird.includes('button')) ||
+                        (lastThird.includes('click') && lastThird.includes('generate') && lastThird.includes('button')) ||
+                        (lastThird.includes('generate workflow') && (lastThird.includes('below') || lastThird.includes('button')))
+                      );
+                      
+                      // Only trust metadata for workflow proposals (API has better detection)
+                      // Only use content analysis if metadata is missing but we have strong indicators
+                      const isProposingWorkflow = 
+                        (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) ||
+                        (hasStrongProposalIndicator && !data.metadata?.shouldGenerateWorkflow); // Only use as fallback if metadata doesn't indicate it
+                      
+                      if (isProposingWorkflow && !isFieldFillingQuestion) {
+                        // Use workflowPrompt from metadata if available, otherwise extract from message or use original user message
+                        const promptToUse = data.metadata?.workflowPrompt || 
+                                          extractWorkflowPromptFromResponse(fullMessage) || 
+                                          (messages.length > 1 ? messages[messages.length - 2]?.content : '');
+                        setWorkflowPrompt(promptToUse);
+                        console.log('🎯 Workflow generation ready. Setting workflowPrompt:', promptToUse);
                       } else {
-                        console.log('❌ No workflow intent detected:', {
-                          shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
-                          hasWorkflowPrompt: !!data.metadata?.workflowPrompt
-                        });
+                        if (isFieldFillingQuestion) {
+                          console.log('🚫 Not showing workflow button - this is a field-filling question');
+                        } else {
+                          console.log('❌ No workflow intent detected:', {
+                            shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                            hasWorkflowPrompt: !!data.metadata?.workflowPrompt,
+                            responsePreview: fullMessage.substring(0, 100)
+                          });
+                        }
                         setWorkflowPrompt(null);
                       }
                     } else if (data.type === 'error') {
@@ -709,35 +756,56 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         fullMetadata: data.metadata
                       });
                       
-                      // Only set workflowPrompt if:
-                      // 1. shouldGenerateWorkflow is true (user requested workflow AND AI provided confirmation)
-                      // 2. workflowPrompt exists
-                      // The API already checks for confirmation format, so we trust its judgment
-                      if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
-                        const responseContent = fullMessage.toLowerCase();
-                        // Don't show for field-filling questions (Ask AI button)
-                        const isFieldFillingQuestion = 
-                          responseContent.includes('help me fill out') ||
-                          responseContent.includes('help me with') ||
-                          responseContent.includes('fill out the') ||
-                          (externalMessage && (
-                            responseContent.includes('api key') ||
-                            responseContent.includes('field') ||
-                            responseContent.includes('configuration')
-                          ));
-                        
-                        if (!isFieldFillingQuestion) {
-                          setWorkflowPrompt(data.metadata.workflowPrompt);
-                          console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
-                        } else {
-                          console.log('🚫 Not showing workflow button - this is a field-filling question');
-                          setWorkflowPrompt(null);
-                        }
+                      // Set workflowPrompt if:
+                      // 1. API metadata indicates workflow generation (most reliable)
+                      // Only use content analysis as fallback if metadata is not available
+                      const responseContent = fullMessage.toLowerCase();
+                      // Don't show for field-filling questions (Ask AI button)
+                      const isFieldFillingQuestion = 
+                        responseContent.includes('help me fill out') ||
+                        responseContent.includes('help me with') ||
+                        responseContent.includes('fill out the') ||
+                        (externalMessage && (
+                          responseContent.includes('api key') ||
+                          responseContent.includes('field') ||
+                          responseContent.includes('configuration')
+                        ));
+                      
+                      // Check if AI is explicitly proposing a workflow (strict detection)
+                      // Look for explicit proposal language, especially near the end of the message
+                      const messageLength = fullMessage.length;
+                      const lastThird = responseContent.slice(Math.floor(messageLength * 0.7)); // Last 30% of message
+                      
+                      const hasStrongProposalIndicator = !isFieldFillingQuestion && (
+                        // Direct button mentions (most reliable)
+                        (lastThird.includes('generate workflow') && lastThird.includes('button')) ||
+                        (lastThird.includes('click') && lastThird.includes('generate') && lastThird.includes('button')) ||
+                        (lastThird.includes('generate workflow') && (lastThird.includes('below') || lastThird.includes('button')))
+                      );
+                      
+                      // Only trust metadata for workflow proposals (API has better detection)
+                      // Only use content analysis if metadata is missing but we have strong indicators
+                      const isProposingWorkflow = 
+                        (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) ||
+                        (hasStrongProposalIndicator && !data.metadata?.shouldGenerateWorkflow); // Only use as fallback if metadata doesn't indicate it
+                      
+                      if (isProposingWorkflow && !isFieldFillingQuestion) {
+                        // Use workflowPrompt from metadata if available, otherwise extract from message or use original user message
+                        const promptToUse = data.metadata?.workflowPrompt || 
+                                          extractWorkflowPromptFromResponse(fullMessage) || 
+                                          (messages.length > 1 ? messages[messages.length - 2]?.content : '');
+                        setWorkflowPrompt(promptToUse);
+                        console.log('🎯 Workflow generation ready. Setting workflowPrompt:', promptToUse);
                       } else {
-                        console.log('❌ No workflow intent detected (sendMessage):', {
-                          shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
-                          hasWorkflowPrompt: !!data.metadata?.workflowPrompt
-                        });
+                        if (isFieldFillingQuestion) {
+                          console.log('🚫 Not showing workflow button - this is a field-filling question');
+                        } else {
+                          console.log('❌ No workflow intent detected (sendMessage):', {
+                            shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                            hasWorkflowPrompt: !!data.metadata?.workflowPrompt,
+                            responsePreview: fullMessage.substring(0, 100)
+                          });
+                        }
                         setWorkflowPrompt(null);
                       }
                     } else if (data.type === 'error') {
@@ -1698,7 +1766,22 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   };
 
   const generateWorkflow = async () => {
-    if (!workflowPrompt || !user) return;
+    if (!user) return;
+    
+    // Get workflow prompt - use state if available, otherwise extract from last message
+    let promptToUse = workflowPrompt;
+    if (!promptToUse) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage?.content) {
+        promptToUse = extractWorkflowPromptFromResponse(lastMessage.content) || 
+                     (messages.length > 1 ? messages[messages.length - 2]?.content : '');
+      }
+    }
+    
+    if (!promptToUse) {
+      setError('Unable to determine workflow prompt. Please try again.');
+      return;
+    }
 
     setIsGeneratingWorkflow(true);
     setError(null);
@@ -1716,7 +1799,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userPrompt: workflowPrompt,
+          userPrompt: promptToUse,
           availableNodes: [], // API will fetch all available nodes
           currentWorkflow: currentWorkflow, // Send current workflow context
         }),
@@ -2217,24 +2300,50 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
           {/* Loading state is now handled by showing the streaming message */}
 
-          {/* Workflow Generation Button - Show ONLY after AI confirmation message, not after workflow generation */}
+          {/* Workflow Generation Button - Show when AI proposes a workflow */}
           {(() => {
             const lastMessage = messages[messages.length - 1];
-            // Show button only if:
-            // 1. workflowPrompt is set (AI has provided confirmation)
-            // 2. Not currently generating workflow
-            // 3. Last message exists and is from assistant
-            // 4. Last message is NOT a workflow generation message (success or explanation)
-            // 5. Last message is NOT marked as workflowGenerated (to avoid showing after generation)
+            // Show button if:
+            // 1. workflowPrompt is set (AI has provided confirmation), OR
+            // 2. Last message content suggests workflow proposal (fallback detection)
+            // 3. Not currently generating workflow
+            // 4. Last message exists and is from assistant
+            // 5. Last message is NOT a workflow generation message (success or explanation)
+            // 6. Last message is NOT marked as workflowGenerated (to avoid showing after generation)
             const isWorkflowMessage = lastMessage && (
               (lastMessage as any).workflowGeneratedSuccess || 
               (lastMessage as any).workflowGenerated
             );
-            const shouldShow = workflowPrompt && 
+            
+            // Check if last message explicitly proposes a workflow (strict detection)
+            // Only show button if AI explicitly mentions generating/creating workflow, especially near the end
+            const lastMessageContent = lastMessage?.content?.toLowerCase() || '';
+            const messageLength = lastMessage?.content?.length || 0;
+            const lastThird = lastMessageContent.slice(Math.floor(messageLength * 0.7)); // Last 30% of message
+            
+            // Explicit proposal indicators - must be clear proposal language, especially near the end
+            const proposesWorkflow = lastMessageContent && (
+              // Direct button mentions (most reliable)
+              (lastThird.includes('generate workflow') && lastThird.includes('button')) ||
+              (lastThird.includes('click') && lastThird.includes('generate') && lastThird.includes('button')) ||
+              (lastThird.includes('generate workflow') && (lastThird.includes('below') || lastThird.includes('button'))) ||
+              // Explicit creation statements near the end
+              (lastThird.includes('i\'ll create') && lastThird.includes('workflow')) ||
+              (lastThird.includes('i will create') && lastThird.includes('workflow')) ||
+              (lastThird.includes('i\'ll build') && lastThird.includes('workflow')) ||
+              (lastThird.includes('i will build') && lastThird.includes('workflow')) ||
+              (lastThird.includes('i\'ll generate') && lastThird.includes('workflow')) ||
+              (lastThird.includes('i will generate') && lastThird.includes('workflow'))
+            );
+            
+            // If proposesWorkflow but workflowPrompt not set, extract it for use in button click
+            // We'll use the extracted prompt directly in generateWorkflow function
+            const shouldShow = (workflowPrompt || proposesWorkflow) && 
                               !isGeneratingWorkflow && 
                               lastMessage && 
                               lastMessage.role === 'assistant' &&
                               !isWorkflowMessage;
+            
             return shouldShow;
           })() ? (
              <div className="flex justify-center py-2">

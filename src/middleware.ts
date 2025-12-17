@@ -59,12 +59,18 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from auth pages
+  // BUT allow login page if there's an error parameter (for OAuth signup prevention)
   if (request.nextUrl.pathname.startsWith('/login')) {
     if (user) {
-      // Redirect to dashboard if already authenticated
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
+      // Check if there's an error parameter - if so, allow access to show error message
+      const errorParam = request.nextUrl.searchParams.get('error');
+      if (!errorParam) {
+        // Redirect to dashboard if already authenticated (no error param)
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        return NextResponse.redirect(url)
+      }
+      // If there's an error param, allow access to login page to show error
     }
   }
 

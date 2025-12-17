@@ -3,7 +3,7 @@
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { User } from "lucide-react";
 
 export const Header: React.FC = () => {
@@ -15,6 +15,7 @@ export const Header: React.FC = () => {
   // Always call hooks unconditionally (React rules)
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   
   useEffect(() => {
     setIsMounted(true);
@@ -114,10 +115,39 @@ export const Header: React.FC = () => {
     });
   };
 
+  const handleNavClick = (
+    event: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
+    href: string
+  ) => {
+    const targetId = href.replace("#", "");
+
+    // If we're on a legal page, navigate back to the landing page section
+    if (pathname === "/terms" || pathname === "/privacy") {
+      event.preventDefault();
+      if (router) {
+        router.push(`/#${targetId}`);
+      }
+      return;
+    }
+
+    // Otherwise, smooth scroll within the current page (landing page)
+    handleSmoothScroll(event, href);
+  };
+
   const handleLogoClick = (
     event: React.MouseEvent<HTMLAnchorElement, MouseEvent>
   ) => {
     event.preventDefault();
+
+    // On legal pages, always go back to the home/landing page
+    if (pathname === "/terms" || pathname === "/privacy") {
+      if (router) {
+        router.push("/");
+      }
+      return;
+    }
+
+    // On the landing page, smooth scroll to top and set hero as active
     window.scrollTo({ top: 0, behavior: "smooth" });
     setActiveSection("hero");
   };
@@ -170,7 +200,7 @@ export const Header: React.FC = () => {
                         ? "bg-[#ffffff1a]"
                         : "hover:bg-[#ffffff1a]"
                     }`}
-                    onClick={(event) => handleSmoothScroll(event, link.href)}
+                    onClick={(event) => handleNavClick(event, link.href)}
                   >
                     {link.name}
                   </Link>
@@ -306,7 +336,7 @@ export const Header: React.FC = () => {
                     : "hover:bg-[#ffffff1a]"
                 }`}
                 onClick={(event) => {
-                  handleSmoothScroll(event, link.href);
+                      handleNavClick(event, link.href);
                   closeMenu();
                 }}
               >

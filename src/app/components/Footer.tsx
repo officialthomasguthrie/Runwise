@@ -2,8 +2,14 @@
 
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
 
 export const Footer: React.FC = () => {
+  const pathname = usePathname();
+  const { user } = useAuth();
+  const isLegalPage = pathname === "/terms" || pathname === "/privacy";
+
   const handleSmoothScroll = (
     event: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
     href: string
@@ -61,53 +67,41 @@ export const Footer: React.FC = () => {
                 />
               </Link>
             </li>
-
-            <li>
-              <Link
-                href="https://facebook.com"
-                target="_blank"
-                className="bg-transparent rounded-lg w-7.5 h-7.5 flex items-center justify-center"
-              >
-                <img
-                  src="/assets/icons/facebook.svg"
-                  alt="facebook"
-                  className="w-5 h-5"
-                />
-              </Link>
-            </li>
           </ul>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-8">
-          {/* Navigation column */}
-          <ul className="flex flex-col gap-y-2.5 min-w-[140px]">
-            <li className="text-base font-normal -tracking-[.02em] leading-[1.4em] hover:text-white">
-              Navigation
-            </li>
-            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-              <Link href="#process" onClick={(e) => handleSmoothScroll(e, "#process")}>
-                Process
-              </Link>
-            </li>
+          {/* Navigation column - hidden on Terms & Conditions and Privacy pages */}
+          {!isLegalPage && (
+            <ul className="flex flex-col gap-y-2.5 min-w-[140px]">
+              <li className="text-base font-normal -tracking-[.02em] leading-[1.4em] hover:text-white">
+                Navigation
+              </li>
+              <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+                <Link href="#process" onClick={(e) => handleSmoothScroll(e, "#process")}>
+                  Process
+                </Link>
+              </li>
 
-            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-              <Link href="#possibilities" onClick={(e) => handleSmoothScroll(e, "#possibilities")}>
-                Services
-              </Link>
-            </li>
+              <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+                <Link href="#possibilities" onClick={(e) => handleSmoothScroll(e, "#possibilities")}>
+                  Services
+                </Link>
+              </li>
 
-            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-              <Link href="#benefits" onClick={(e) => handleSmoothScroll(e, "#benefits")}>
-                Benefits
-              </Link>
-            </li>
+              <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+                <Link href="#benefits" onClick={(e) => handleSmoothScroll(e, "#benefits")}>
+                  Benefits
+                </Link>
+              </li>
 
-            <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
-              <Link href="#pricing" onClick={(e) => handleSmoothScroll(e, "#pricing")}>
-                Plans
-              </Link>
-            </li>
-          </ul>
+              <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+                <Link href="#pricing" onClick={(e) => handleSmoothScroll(e, "#pricing")}>
+                  Plans
+                </Link>
+              </li>
+            </ul>
+          )}
 
           {/* Pages column */}
           <ul className="flex flex-col gap-y-2.5 min-w-[140px]">
@@ -123,6 +117,15 @@ export const Footer: React.FC = () => {
             <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
               <Link href="/privacy">Privacy Policy</Link>
             </li>
+            {!user ? (
+              <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+                <Link href="/login">Login</Link>
+              </li>
+            ) : (
+              <li className="text-sm font-normal leading-[1.2em] text-[#ffffffb3] hover:text-white">
+                <Link href="/dashboard">Dashboard</Link>
+              </li>
+            )}
           </ul>
 
           {/* Contact column */}

@@ -146,27 +146,39 @@ CRITICAL: Never use emojis in your responses. Use only plain text. Never refer t
     };
     console.log('AI response content length:', aiResponse.length);
     
-    // Strict workflow intent detection: Only trigger when:
-    // 1. User explicitly requests workflow creation
-    // 2. AI response contains confirmation message format (mentions trigger, action, plan, or "generate workflow" button)
+    // Workflow intent detection: Check both user intent and AI response
     const userHasWorkflowIntent = detectWorkflowIntent(request.message);
     const aiResponseLower = aiResponse.toLowerCase();
     
-    // Check if AI response is a confirmation message proposing a workflow
-    // Make this more lenient - if user has workflow intent and AI responds, trust it
-    // Look for any indication of workflow confirmation (mentions of workflow, trigger, action, plan, or button)
-    const hasConfirmationFormat = 
-      aiResponseLower.includes('workflow') ||
-      aiResponseLower.includes('trigger') ||
-      aiResponseLower.includes('action') ||
-      aiResponseLower.includes('plan') ||
-      (aiResponseLower.includes('generate') && aiResponseLower.includes('button')) ||
-      (aiResponseLower.includes('click') && aiResponseLower.includes('generate'));
+    // Check if AI response is explicitly proposing a workflow
+    // Look for explicit proposal language, especially near the end of the message
+    const messageLength = aiResponse.length;
+    const lastThird = aiResponseLower.slice(Math.floor(messageLength * 0.7)); // Last 30% of message
     
-    // Only set shouldGenerateWorkflow if BOTH user requested workflow AND AI provided confirmation
-    const shouldGenerateWorkflow = userHasWorkflowIntent && hasConfirmationFormat;
+    // Explicit proposal indicators (must appear in the message)
+    const hasExplicitProposal = 
+      // Direct button mentions (most reliable indicator)
+      (lastThird.includes('generate workflow') && lastThird.includes('button')) ||
+      (lastThird.includes('click') && lastThird.includes('generate') && lastThird.includes('button')) ||
+      (lastThird.includes('generate workflow') && (lastThird.includes('below') || lastThird.includes('button'))) ||
+      // Explicit creation statements near the end
+      (lastThird.includes('i\'ll create') && lastThird.includes('workflow')) ||
+      (lastThird.includes('i will create') && lastThird.includes('workflow')) ||
+      (lastThird.includes('i\'ll build') && lastThird.includes('workflow')) ||
+      (lastThird.includes('i will build') && lastThird.includes('workflow')) ||
+      (lastThird.includes('i\'ll generate') && lastThird.includes('workflow')) ||
+      (lastThird.includes('i will generate') && lastThird.includes('workflow')) ||
+      // Confirmation format with button mention
+      (userHasWorkflowIntent && (
+        (aiResponseLower.includes('generate') && aiResponseLower.includes('button')) ||
+        (aiResponseLower.includes('click') && aiResponseLower.includes('generate') && aiResponseLower.includes('button'))
+      ));
+    
+    // Only set shouldGenerateWorkflow if there's an explicit proposal
+    const shouldGenerateWorkflow = hasExplicitProposal && userHasWorkflowIntent;
+    
     const workflowPrompt = shouldGenerateWorkflow
-      ? (extractWorkflowPrompt(request.message) || request.message)
+      ? (extractWorkflowPrompt(request.message) || extractWorkflowPrompt(aiResponse) || request.message)
       : undefined;
 
     // Generate suggestions for follow-up
@@ -374,33 +386,45 @@ CRITICAL: Never use emojis in your responses. Use only plain text. Never refer t
 
     console.log('Streaming complete, full message length:', fullMessage.length);
     
-    // Strict workflow intent detection: Only trigger when:
-    // 1. User explicitly requests workflow creation
-    // 2. AI response contains confirmation message format (mentions trigger, action, plan, or "generate workflow" button)
+    // Workflow intent detection: Check both user intent and AI response
     const userHasWorkflowIntent = detectWorkflowIntent(request.message);
     const aiResponseLower = fullMessage.toLowerCase();
     
-    // Check if AI response is a confirmation message proposing a workflow
-    // Make this more lenient - if user has workflow intent and AI responds, trust it
-    // Look for any indication of workflow confirmation (mentions of workflow, trigger, action, plan, or button)
-    const hasConfirmationFormat = 
-      aiResponseLower.includes('workflow') ||
-      aiResponseLower.includes('trigger') ||
-      aiResponseLower.includes('action') ||
-      aiResponseLower.includes('plan') ||
-      (aiResponseLower.includes('generate') && aiResponseLower.includes('button')) ||
-      (aiResponseLower.includes('click') && aiResponseLower.includes('generate'));
+    // Check if AI response is explicitly proposing a workflow
+    // Look for explicit proposal language, especially near the end of the message
+    const messageLength = fullMessage.length;
+    const lastThird = aiResponseLower.slice(Math.floor(messageLength * 0.7)); // Last 30% of message
     
-    // Only set shouldGenerateWorkflow if BOTH user requested workflow AND AI provided confirmation
-    const shouldGenerateWorkflow = userHasWorkflowIntent && hasConfirmationFormat;
+    // Explicit proposal indicators (must appear in the message)
+    const hasExplicitProposal = 
+      // Direct button mentions (most reliable indicator)
+      (lastThird.includes('generate workflow') && lastThird.includes('button')) ||
+      (lastThird.includes('click') && lastThird.includes('generate') && lastThird.includes('button')) ||
+      (lastThird.includes('generate workflow') && (lastThird.includes('below') || lastThird.includes('button'))) ||
+      // Explicit creation statements near the end
+      (lastThird.includes('i\'ll create') && lastThird.includes('workflow')) ||
+      (lastThird.includes('i will create') && lastThird.includes('workflow')) ||
+      (lastThird.includes('i\'ll build') && lastThird.includes('workflow')) ||
+      (lastThird.includes('i will build') && lastThird.includes('workflow')) ||
+      (lastThird.includes('i\'ll generate') && lastThird.includes('workflow')) ||
+      (lastThird.includes('i will generate') && lastThird.includes('workflow')) ||
+      // Confirmation format with button mention
+      (userHasWorkflowIntent && (
+        (aiResponseLower.includes('generate') && aiResponseLower.includes('button')) ||
+        (aiResponseLower.includes('click') && aiResponseLower.includes('generate') && aiResponseLower.includes('button'))
+      ));
+    
+    // Only set shouldGenerateWorkflow if there's an explicit proposal
+    const shouldGenerateWorkflow = hasExplicitProposal && userHasWorkflowIntent;
+    
     const workflowPrompt = shouldGenerateWorkflow
-      ? (extractWorkflowPrompt(request.message) || request.message)
+      ? (extractWorkflowPrompt(request.message) || extractWorkflowPrompt(fullMessage) || request.message)
       : undefined;
 
     console.log('🔍 Workflow intent analysis:', {
       userMessage: request.message.substring(0, 50),
       userHasWorkflowIntent,
-      hasConfirmationFormat,
+      hasExplicitProposal,
       shouldGenerateWorkflow,
       workflowPrompt: workflowPrompt?.substring(0, 50),
       aiResponsePreview: fullMessage.substring(0, 100)

@@ -3,7 +3,7 @@
 import { SignInPage, Testimonial } from "@/components/ui/sign-in";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const sampleTestimonials: Testimonial[] = [
   {
@@ -31,6 +31,27 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Check for error query parameter from auth callback
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const errorParam = searchParams.get('error');
+    
+    if (errorParam === 'no_account') {
+      setError('No account associated with that email. Please sign up through our checkout process.');
+      // Clean up URL
+      window.history.replaceState({}, '', '/login');
+    } else if (errorParam === 'account_check_failed') {
+      setError('Unable to verify account. Please try again.');
+      window.history.replaceState({}, '', '/login');
+    } else if (errorParam === 'auth_callback_failed') {
+      setError('Authentication failed. Please try again.');
+      window.history.replaceState({}, '', '/login');
+    } else if (errorParam === 'unexpected_error') {
+      setError('An unexpected error occurred. Please try again.');
+      window.history.replaceState({}, '', '/login');
+    }
+  }, []);
 
   const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
