@@ -110,7 +110,7 @@ export async function PUT(
     const { id } = await params;
     const paymentMethodId = id;
     const body = await request.json();
-    const { expiryMonth, expiryYear, isDefault } = body;
+    const { expiryMonth, expiryYear, isDefault, cardholderName } = body;
 
     if (!paymentMethodId) {
       return NextResponse.json(
@@ -136,16 +136,26 @@ export async function PUT(
     // For real payment methods, update in Stripe
     // Note: Stripe doesn't allow updating expiry dates directly on payment methods
     // You would need to create a new payment method with updated details
-    // For now, we'll just handle setting as default if needed
+    // But we can update billing details (including cardholder name)
+    if (cardholderName !== undefined) {
+      await stripe.paymentMethods.update(paymentMethodId, {
+        billing_details: {
+          name: cardholderName,
+        },
+      });
+    }
+
     if (isDefault !== undefined) {
-      // Get the customer ID from the user's record
+      // Get the customer ID and subscription ID from the user's record
       const { data: userData } = await supabase
         .from('users')
-        .select('stripe_customer_id')
+        .select('stripe_customer_id, stripe_subscription_id')
         .eq('id', user.id)
         .single();
 
       const stripeCustomerId = (userData as any)?.stripe_customer_id;
+      const stripeSubscriptionId = (userData as any)?.stripe_subscription_id;
+      
       if (stripeCustomerId && isDefault) {
         // Set this payment method as the default for the customer
         await stripe.customers.update(stripeCustomerId, {
@@ -153,6 +163,18 @@ export async function PUT(
             default_payment_method: paymentMethodId,
           },
         });
+
+        // Also update the subscription's default payment method if there's an active subscription
+        if (stripeSubscriptionId) {
+          try {
+            await stripe.subscriptions.update(stripeSubscriptionId, {
+              default_payment_method: paymentMethodId,
+            });
+          } catch (subError: any) {
+            // If subscription update fails (e.g., subscription is cancelled), that's okay
+            console.log('Could not update subscription default payment method:', subError.message);
+          }
+        }
       }
     }
 
@@ -169,12 +191,17 @@ export async function PUT(
     //   .eq('stripe_payment_method_id', paymentMethodId)
     //   .eq('user_id', user.id);
 
+    // Retrieve the updated payment method to return its details
+    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+    const card = paymentMethod.card;
+
     return NextResponse.json({ 
       success: true,
       paymentMethod: {
         id: paymentMethodId,
-        expiryMonth,
-        expiryYear,
+        expiryMonth: card?.exp_month || expiryMonth,
+        expiryYear: card?.exp_year || expiryYear,
+        cardholderName: paymentMethod.billing_details?.name || cardholderName || '',
         isDefault
       }
     });

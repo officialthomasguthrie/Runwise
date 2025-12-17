@@ -19,11 +19,54 @@ type Plan = {
   features: string[];
 };
 
-export const BillingPricing: React.FC = () => {
+interface BillingPricingProps {
+  subscriptionTier?: string | null;
+}
+
+export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier: subscriptionTierProp }) => {
   const { user } = useAuth();
-  // Determine current plan from user metadata or database
+  const [subscriptionTier, setSubscriptionTier] = useState<string | null>(subscriptionTierProp || null);
+  const supabase = createClient();
+
+  // Update subscription tier when prop changes (fallback if prop is not provided)
+  useEffect(() => {
+    if (subscriptionTierProp !== undefined) {
+      setSubscriptionTier(subscriptionTierProp);
+    }
+  }, [subscriptionTierProp]);
+
+  // Fetch subscription tier from database only if prop is not provided
+  useEffect(() => {
+    if (subscriptionTierProp !== undefined || !user) {
+      return;
+    }
+
+    const loadSubscriptionTier = async () => {
+      try {
+        const { data: userData, error } = await (supabase
+          .from('users') as any)
+          .select('subscription_tier')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error loading subscription tier:', error);
+          setSubscriptionTier('free');
+        } else {
+          setSubscriptionTier((userData as any)?.subscription_tier || 'free');
+        }
+      } catch (error) {
+        console.error('Error loading subscription tier:', error);
+        setSubscriptionTier('free');
+      }
+    };
+
+    loadSubscriptionTier();
+  }, [user, supabase, subscriptionTierProp]);
+
+  // Determine current plan from database subscription_tier
   // Map: free/personal -> personal, pro/professional -> professional, enterprise/enterprises -> enterprises
-  const userPlan = user?.user_metadata?.subscription_tier || "free";
+  const userPlan = subscriptionTier || "free";
   const currentPlan = 
     userPlan === "free" || userPlan === "personal" ? "personal" :
     userPlan === "pro" || userPlan === "professional" ? "professional" :
@@ -36,6 +79,7 @@ export const BillingPricing: React.FC = () => {
     brand: string;
     expiryMonth: number;
     expiryYear: number;
+    cardholderName?: string;
     isDefault: boolean;
   }
 
@@ -55,9 +99,10 @@ export const BillingPricing: React.FC = () => {
   } | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-  const supabase = createClient();
+  const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
+  const [showAddCardModal, setShowAddCardModal] = useState(false);
 
-  // Load payment methods
+  // Load payment methods from Stripe
   useEffect(() => {
     const loadPaymentMethods = async () => {
       if (!user) {
@@ -67,137 +112,27 @@ export const BillingPricing: React.FC = () => {
 
       try {
         setIsLoadingPaymentMethods(true);
-        // In a real app, this would fetch from your payment provider API (e.g., Stripe)
-        // For now, we'll check if user has a stripe_customer_id as an indicator
-        // This is a placeholder - you'd typically fetch from Stripe API
-        const { data: userData } = await supabase
-          .from('users')
-          .select('stripe_customer_id')
-          .eq('id', user.id)
-          .single();
+        const response = await fetch('/api/stripe/payment-methods', {
+          method: 'GET',
+        });
 
-        // If they have a customer ID, we could fetch payment methods
-        // TEMPORARY: Using mock data for UI testing
-        // Check localStorage for saved mock payment methods first
-        const savedMockMethods = localStorage.getItem('mock_payment_methods');
-        if (savedMockMethods) {
-          try {
-            const parsed = JSON.parse(savedMockMethods);
-            setPaymentMethods(parsed);
-          } catch (e) {
-            // If parsing fails, use default mock data
-            const defaultMockMethods = [
-              {
-                id: 'pm_test_1',
-                type: 'card',
-                last4: '4242',
-                brand: 'visa',
-                expiryMonth: 12,
-                expiryYear: 2025,
-                isDefault: true
-              },
-              {
-                id: 'pm_test_2',
-                type: 'card',
-                last4: '8888',
-                brand: 'mastercard',
-                expiryMonth: 6,
-                expiryYear: 2026,
-                isDefault: false
-              }
-            ];
-            setPaymentMethods(defaultMockMethods);
-            localStorage.setItem('mock_payment_methods', JSON.stringify(defaultMockMethods));
-          }
-        } else {
-          // No saved data, use default mock methods
-          const defaultMockMethods = [
-            {
-              id: 'pm_test_1',
-              type: 'card',
-              last4: '4242',
-              brand: 'visa',
-              expiryMonth: 12,
-              expiryYear: 2025,
-              isDefault: true
-            },
-            {
-              id: 'pm_test_2',
-              type: 'card',
-              last4: '8888',
-              brand: 'mastercard',
-              expiryMonth: 6,
-              expiryYear: 2026,
-              isDefault: false
-            }
-          ];
-          setPaymentMethods(defaultMockMethods);
-          localStorage.setItem('mock_payment_methods', JSON.stringify(defaultMockMethods));
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || 'Failed to load payment methods');
         }
+
+        const data = await response.json();
+        setPaymentMethods(data.paymentMethods || []);
       } catch (error) {
         console.error('Error loading payment methods:', error);
-        // TEMPORARY: Using mock data for UI testing even on error
-        // Check localStorage for saved mock payment methods
-        const savedMockMethods = localStorage.getItem('mock_payment_methods');
-        if (savedMockMethods) {
-          try {
-            const parsed = JSON.parse(savedMockMethods);
-            setPaymentMethods(parsed);
-          } catch (e) {
-            // If parsing fails, use default mock data
-            const defaultMockMethods = [
-              {
-                id: 'pm_test_1',
-                type: 'card',
-                last4: '4242',
-                brand: 'visa',
-                expiryMonth: 12,
-                expiryYear: 2025,
-                isDefault: true
-              },
-              {
-                id: 'pm_test_2',
-                type: 'card',
-                last4: '8888',
-                brand: 'mastercard',
-                expiryMonth: 6,
-                expiryYear: 2026,
-                isDefault: false
-              }
-            ];
-            setPaymentMethods(defaultMockMethods);
-          }
-        } else {
-          // No saved data, use default mock methods
-          const defaultMockMethods = [
-            {
-              id: 'pm_test_1',
-              type: 'card',
-              last4: '4242',
-              brand: 'visa',
-              expiryMonth: 12,
-              expiryYear: 2025,
-              isDefault: true
-            },
-            {
-              id: 'pm_test_2',
-              type: 'card',
-              last4: '8888',
-              brand: 'mastercard',
-              expiryMonth: 6,
-              expiryYear: 2026,
-              isDefault: false
-            }
-          ];
-          setPaymentMethods(defaultMockMethods);
-        }
+        setPaymentMethods([]);
       } finally {
         setIsLoadingPaymentMethods(false);
       }
     };
 
     loadPaymentMethods();
-  }, [user, supabase]);
+  }, [user]);
 
   // Handle delete payment method
   const handleDeleteClick = (method: PaymentMethod, e: React.MouseEvent) => {
@@ -230,11 +165,6 @@ export const BillingPricing: React.FC = () => {
       const updatedMethods = paymentMethods.filter(m => m.id !== paymentMethodToDelete.id);
       setPaymentMethods(updatedMethods);
       
-      // For mock cards, also remove from localStorage
-      if (paymentMethodToDelete.id.startsWith('pm_test_')) {
-        localStorage.setItem('mock_payment_methods', JSON.stringify(updatedMethods));
-      }
-      
       // Close modal
       setShowDeleteModal(false);
       setPaymentMethodToDelete(null);
@@ -252,7 +182,7 @@ export const BillingPricing: React.FC = () => {
     setEditingMethodId(method.id);
     setEditFormData({
       cardNumber: `•••• •••• •••• ${method.last4}`,
-      cardholderName: '',
+      cardholderName: method.cardholderName || '',
       expiryMonth: method.expiryMonth,
       expiryYear: method.expiryYear,
       brand: method.brand,
@@ -287,6 +217,7 @@ export const BillingPricing: React.FC = () => {
         body: JSON.stringify({
           expiryMonth: editFormData.expiryMonth,
           expiryYear: editFormData.expiryYear,
+          cardholderName: editFormData.cardholderName,
           isDefault: editFormData.isDefault,
         }),
       });
@@ -297,22 +228,27 @@ export const BillingPricing: React.FC = () => {
         throw new Error(data.error || 'Failed to save payment method');
       }
 
-      // Update local state
-      const updatedMethods = paymentMethods.map(m =>
-        m.id === editingMethodId
-          ? {
-              ...m,
-              expiryMonth: editFormData.expiryMonth,
-              expiryYear: editFormData.expiryYear,
-              isDefault: editFormData.isDefault,
-            }
-          : editFormData.isDefault ? { ...m, isDefault: false } : m
-      );
-      setPaymentMethods(updatedMethods);
+      // Reload payment methods to get updated data from Stripe
+      const reloadResponse = await fetch('/api/stripe/payment-methods', {
+        method: 'GET',
+      });
 
-      // For mock cards, also save to localStorage to persist across page refreshes
-      if (editingMethodId.startsWith('pm_test_')) {
-        localStorage.setItem('mock_payment_methods', JSON.stringify(updatedMethods));
+      if (reloadResponse.ok) {
+        const reloadData = await reloadResponse.json();
+        setPaymentMethods(reloadData.paymentMethods || []);
+      } else {
+        // If reload fails, update local state manually
+        const updatedMethods = paymentMethods.map(m =>
+          m.id === editingMethodId
+            ? {
+                ...m,
+                expiryMonth: editFormData.expiryMonth,
+                expiryYear: editFormData.expiryYear,
+                isDefault: editFormData.isDefault,
+              }
+            : editFormData.isDefault ? { ...m, isDefault: false } : m
+        );
+        setPaymentMethods(updatedMethods);
       }
 
       // Close edit form
@@ -323,6 +259,37 @@ export const BillingPricing: React.FC = () => {
       alert(error.message || 'Failed to save payment method. Please try again.');
     } finally {
       setIsSavingEdit(false);
+    }
+  };
+
+  // Handle adding a new payment method
+  const handleAddPaymentMethod = async () => {
+    setIsAddingPaymentMethod(true);
+    try {
+      // Create a setup intent for adding a payment method
+      const response = await fetch('/api/stripe/payment-methods', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          setAsDefault: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to create setup intent');
+      }
+
+      const data = await response.json();
+      
+      // Redirect to add card page with setup intent
+      window.location.href = `/settings/billing/add-card?setup_intent=${encodeURIComponent(data.clientSecret || '')}`;
+    } catch (error: any) {
+      console.error('Error adding payment method:', error);
+      alert(error.message || 'Failed to add payment method. Please try again.');
+      setIsAddingPaymentMethod(false);
     }
   };
 
@@ -768,6 +735,24 @@ export const BillingPricing: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-foreground">Billing Information</h3>
+            <Button
+              onClick={handleAddPaymentMethod}
+              className="bg-[#bd28b3ba] hover:bg-[#bd28b3da] text-white border-0"
+              size="sm"
+              disabled={isAddingPaymentMethod}
+            >
+              {isAddingPaymentMethod ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Add Payment Method
+                </>
+              )}
+            </Button>
           </div>
 
           {isLoadingPaymentMethods ? (
@@ -804,6 +789,11 @@ export const BillingPricing: React.FC = () => {
                             </span>
                           )}
                         </div>
+                        {method.cardholderName && (
+                          <p className="text-xs font-medium text-foreground">
+                            {method.cardholderName}
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           Expires {String(method.expiryMonth).padStart(2, '0')}/{method.expiryYear}
                         </p>
