@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState, FormEvent } from 'react';
+import { Suspense, useEffect, useMemo, useState, FormEvent, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
@@ -30,6 +30,7 @@ function CheckoutSuccessContent() {
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const retryCountRef = useRef(0);
 
   // Helper function to get plan display name
   const getPlanDisplayName = (planId: string | null): string => {
@@ -42,6 +43,10 @@ function CheckoutSuccessContent() {
   const planDisplayName = getPlanDisplayName(plan);
 
   useEffect(() => {
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds
+    retryCountRef.current = 0;
+
     async function hydrate() {
       if (!sessionId) {
         setStatus('error');
@@ -60,7 +65,19 @@ function CheckoutSuccessContent() {
 
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.error ?? 'Failed to look up onboarding session.');
+          const errorMessage = payload.error ?? 'Failed to look up onboarding session.';
+          
+          // If payment is still processing, retry a few times
+          if (
+            errorMessage.includes('Payment not yet completed') &&
+            retryCountRef.current < maxRetries
+          ) {
+            retryCountRef.current++;
+            setTimeout(hydrate, retryDelay);
+            return;
+          }
+          
+          throw new Error(errorMessage);
         }
 
         const payload = await response.json();
