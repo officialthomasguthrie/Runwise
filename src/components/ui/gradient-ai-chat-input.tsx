@@ -291,7 +291,7 @@ export function GradientAIChatInput({
             </div>
           </div>
 
-          {/* Send button - Bottom right corner circle */}
+          {/* Send button - Bottom right corner circle - Styled like homepage purple buttons */}
           <div className="absolute bottom-4 right-4">
             <motion.button
               type="submit"
@@ -300,7 +300,7 @@ export function GradientAIChatInput({
               className={cn(
                 "flex items-center justify-center",
                 "w-8 h-8 rounded-full",
-                "bg-black dark:bg-white",
+                "bg-[#bd28b3ba] border border-[#ffffff1a]",
                 "transition-all cursor-pointer",
                 (disabled || !message.trim()) && "opacity-50 cursor-not-allowed"
               )}
@@ -312,7 +312,7 @@ export function GradientAIChatInput({
                 damping: 25,
               }}
             >
-              <ArrowUp className="w-5 h-5 text-white dark:text-black" />
+              <ArrowUp className="w-5 h-5 text-white" />
             </motion.button>
           </div>
 

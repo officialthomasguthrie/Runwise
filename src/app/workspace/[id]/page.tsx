@@ -978,7 +978,7 @@ export default function WorkspacePage() {
             {isLeftSidebarVisible && activeView === 'workspace' && (
               <button
                 onClick={() => setIsLeftSidebarVisible(false)}
-                className="absolute top-4 left-4 z-40 inline-flex items-center justify-center rounded-sm p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/50 bg-background/95 backdrop-blur-sm border border-border/60"
+                className="absolute top-4 left-4 z-40 inline-flex items-center justify-center rounded-sm p-1.5 text-muted-foreground transition-colors bg-background/95 backdrop-blur-sm border border-border/60"
                 title="Hide sidebar"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -992,7 +992,7 @@ export default function WorkspacePage() {
                 className={`px-2 md:px-3 py-1 md:py-1.5 rounded-sm text-xs md:text-sm font-medium transition-all duration-200 border ${
                   activeView === 'workspace'
                     ? 'bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 border-stone-200 dark:border-white/20 shadow-sm text-foreground' 
-                    : 'border-transparent text-foreground hover:bg-accent/50'
+                    : 'border-transparent text-foreground'
                 }`}
               >
                 Workspace
@@ -1003,7 +1003,7 @@ export default function WorkspacePage() {
                 className={`px-2 md:px-3 py-1 md:py-1.5 rounded-sm text-xs md:text-sm font-medium transition-all duration-200 border ${
                   activeView === 'executions'
                     ? 'bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 border-stone-200 dark:border-white/20 shadow-sm text-foreground' 
-                    : 'border-transparent text-foreground hover:bg-accent/50'
+                    : 'border-transparent text-foreground'
                 }`}
               >
                 Executions

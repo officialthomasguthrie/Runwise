@@ -113,7 +113,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
               <button type="submit" className="animate-element animate-delay-600 w-full rounded-lg border border-[#ffffff1a] bg-[#bd28b3ba] py-1.5 cursor-pointer flex items-center justify-center">
                 <div className="flex items-center justify-center gap-[5px]">
-                  <span className="text-xs">Sign In</span>
+                  <span className="text-xs text-white">Sign In</span>
                   <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" alt="arrow-top" />
                 </div>
               </button>

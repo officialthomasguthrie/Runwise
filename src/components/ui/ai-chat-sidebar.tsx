@@ -12,7 +12,8 @@ import {
   MessageSquare,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ArrowUp
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -184,6 +185,17 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       editingTextareaRef.current.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
     }
   }, [editingMessageContent, editingMessageId]);
+
+  // Auto-resize main input textarea based on content (max 2.5x default height)
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      const defaultHeight = 75; // Default height in pixels
+      const maxHeight = defaultHeight * 2.5; // 2.5x max height
+      textareaRef.current.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+    }
+  }, [inputValue]);
 
   // Check for text overflow in message boxes
   useEffect(() => {
@@ -1988,7 +2000,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   };
 
   return (
-    <div className="h-full w-full max-w-full flex flex-col bg-background/95 backdrop-blur-sm overflow-x-hidden min-w-0">
+    <div className="h-full w-full max-w-full flex flex-col bg-transparent overflow-x-hidden min-w-0">
       {/* Top Bar - Action Icons */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-stone-200 dark:border-white/10 bg-background/50">
         {/* Header / Tabs */}
@@ -2091,7 +2103,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
       {/* Chat History Panel - Full Screen */}
       {showChatHistory ? (
-        <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-background/50 overflow-x-hidden">
+        <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-transparent overflow-x-hidden">
           <ScrollArea className="flex-1 h-full overflow-y-auto overflow-x-hidden max-w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <div className="flex-1 min-h-[320px] px-3 py-4 space-y-2">
               {isLoadingConversations ? (
@@ -2154,8 +2166,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       ) : (
         <>
           {/* Main Chat Area */}
-          <ScrollArea className="flex-1 px-4" ref={scrollAreaRef}>
-        <div className="py-4 space-y-4">
+          <ScrollArea className="flex-1 px-4 bg-transparent" ref={scrollAreaRef}>
+        <div className="py-4 space-y-4 bg-transparent">
           {messages.length === 0 && (
             null
           )}
@@ -2185,7 +2197,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                 setEditingMessageContent(message.content);
                               }
                             }}
-                            className="w-full bg-muted/50 border border-stone-200 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-12 focus:border-stone-300 dark:focus:border-white/30 focus:ring-0 transition-all scrollbar-hide overflow-y-auto"
+                            className="w-full bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-14 focus:border-white/80 dark:focus:border-white/20 focus:ring-0 transition-all scrollbar-hide overflow-y-auto"
                             style={{
                               minHeight: '48px',
                               maxHeight: '85px',
@@ -2195,23 +2207,25 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                             }}
                             autoFocus
                           />
-                          <Button
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEditAndSend(message.id, editingMessageContent, message.timestamp);
                             }}
-                            size="icon"
-                            variant="ghost"
-                            className="absolute right-2 bottom-2 h-8 w-8 text-foreground hover:text-foreground hover:bg-transparent disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="Send Message"
                             disabled={!editingMessageContent.trim() || isLoading}
+                            className={`absolute right-2 bottom-3 flex items-center justify-center w-7 h-7 rounded-full border transition-all ${
+                              !editingMessageContent.trim() || isLoading
+                                ? 'opacity-50 cursor-not-allowed'
+                                : 'cursor-pointer hover:scale-110 active:scale-95'
+                            } bg-[#bd28b3ba] border-[#ffffff1a]`}
+                            title="Send Message"
                           >
                             {isLoading ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
                             ) : (
-                              <Send className="h-4 w-4" />
+                              <ArrowUp className="h-3.5 w-3.5 text-white" />
                             )}
-                          </Button>
+                          </button>
                         </div>
                       ) : (
                         <div
@@ -2226,7 +2240,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                             setEditingMessageId(message.id);
                             setEditingMessageContent(message.content);
                           }}
-                          className="w-full bg-muted/50 border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl rounded-lg px-4 py-3 cursor-text transition-all duration-300 overflow-hidden relative"
+                          className="w-full bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-lg px-4 py-3 cursor-text transition-all duration-300 overflow-hidden relative hover:bg-white/80 dark:hover:bg-white/5 active:bg-white/80 dark:active:bg-white/5"
                           style={{ 
                             maxHeight: '85px',
                             minHeight: '48px',
@@ -2350,7 +2364,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                <Button
                  onClick={generateWorkflow}
                  variant="outline"
-                 className="gap-2 bg-background text-foreground border-stone-200 dark:border-white/10 hover:bg-accent hover:text-foreground px-10"
+                 className="gap-2 bg-background text-foreground border-stone-200 dark:border-white/10 hover:bg-accent hover:text-foreground px-10 dark:backdrop-blur-xl dark:bg-white/5 dark:border-white/10 dark:hover:bg-white/10 dark:shadow-[0_4px_10px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] transition-all duration-300 active:scale-[0.98]"
                  size="lg"
                >
                  Generate Workflow
@@ -2382,46 +2396,57 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         </div>
       </ScrollArea>
 
-      {/* Input Area - Positioned at bottom */}
-      <div className="border-t border-stone-200 dark:border-white/10 bg-background/50 backdrop-blur-sm">
-        <div className="p-4">
-          {/* Input Box */}
-          <div className="relative">
-            <div className="flex items-end gap-2 rounded-lg transition-all">
-              <div className="flex-1 relative">
-                <textarea
-                  ref={textareaRef}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask me anything..."
-                  disabled={isLoading}
-                  className="w-full bg-transparent border border-stone-200 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground/60 py-3 px-4 pr-12 focus:border-stone-300 dark:focus:border-white/30 focus:ring-0 transition-all scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto"
-                  rows={1}
-                  style={{
-                    height: '75px',
-                    lineHeight: '1.5',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none'
-                  }}
-                />
-                
-                {/* Send Button - Positioned inside textarea */}
-                <Button
-                  onClick={sendMessage}
-                  size="icon"
-                  variant="ghost"
-                  className="absolute right-2 bottom-2 h-8 w-8 text-foreground hover:text-foreground hover:bg-transparent disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Send Message"
-                  disabled={!inputValue.trim() || isLoading}
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
+      {/* Input Area - Positioned at bottom - Fully transparent container */}
+      <div className="p-4 bg-transparent">
+        {/* Input Box - Matches chat bubble styling */}
+        <div className="relative">
+          <div className="flex items-end gap-2 rounded-lg transition-all">
+            <div className="flex-1 relative">
+              <textarea
+                ref={textareaRef}
+                value={inputValue}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  // Auto-resize textarea
+                  if (textareaRef.current) {
+                    textareaRef.current.style.height = 'auto';
+                    const scrollHeight = textareaRef.current.scrollHeight;
+                    const defaultHeight = 75; // Default height in pixels
+                    const maxHeight = defaultHeight * 2.5; // 2.5x max height
+                    textareaRef.current.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+                  }
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask me anything..."
+                disabled={isLoading}
+                className="w-full bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground/60 py-3 px-4 pr-14 focus:border-white/80 dark:focus:border-white/20 focus:ring-0 transition-all scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto"
+                rows={1}
+                style={{
+                  minHeight: '75px',
+                  maxHeight: '187.5px', // 2.5x default height
+                  lineHeight: '1.5',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none'
+                }}
+              />
+              
+              {/* Send Button - Circular arrow button styled like homepage purple buttons - Evenly spaced from corners */}
+              <button
+                onClick={sendMessage}
+                disabled={!inputValue.trim() || isLoading}
+                className={`absolute right-2 bottom-3 flex items-center justify-center w-7 h-7 rounded-full border transition-all ${
+                  !inputValue.trim() || isLoading
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'cursor-pointer hover:scale-110 active:scale-95'
+                } bg-[#bd28b3ba] border-[#ffffff1a]`}
+                title="Send Message"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
+                ) : (
+                  <ArrowUp className="h-3.5 w-3.5 text-white" />
+                )}
+              </button>
             </div>
           </div>
         </div>
