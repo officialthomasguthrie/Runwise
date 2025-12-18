@@ -28,6 +28,39 @@ export async function POST(request: NextRequest) {
 
     console.log('User authenticated:', user.id);
 
+    // Enforce subscription requirement for AI usage
+    try {
+      const { data: userRow, error: userError } = await (supabase as any)
+        .from('users')
+        .select('subscription_tier')
+        .eq('id', user.id)
+        .single();
+
+      const subscriptionTier = userError
+        ? 'free'
+        : ((userRow as any)?.subscription_tier || 'free');
+
+      if (subscriptionTier === 'free') {
+        return new Response(
+          JSON.stringify({
+            error: 'Subscription required to use AI chat',
+            requiresSubscription: true,
+          }),
+          { status: 402, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    } catch (subError) {
+      console.error('Error checking subscription tier in /api/ai/chat:', subError);
+      // Fail safe: treat as free account and block AI usage
+      return new Response(
+        JSON.stringify({
+          error: 'Subscription required to use AI chat',
+          requiresSubscription: true,
+        }),
+        { status: 402, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY is not configured in environment variables');

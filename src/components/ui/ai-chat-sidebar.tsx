@@ -36,6 +36,7 @@ import {
   deleteAllConversationsForCurrentUser,
   deleteMessagesAfter
 } from '@/lib/ai/chat-persistence';
+import { UpgradeRequiredModal } from '@/components/ui/upgrade-required-modal';
 
 interface AIChatSidebarProps {
   onWorkflowGenerated?: (workflow: { nodes: any[]; edges: any[]; workflowName?: string }) => void;
@@ -93,7 +94,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   externalContext,
   onExternalMessageSent
 }) => {
-  const { user } = useAuth();
+  const { user, subscriptionTier } = useAuth();
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -150,6 +151,9 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   const hasProcessedInitialPrompt = useRef(false);
   const titleGeneratedRef = useRef(false);
   const shortTitleGeneratedRef = useRef(false);
+
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const isFreePlan = !subscriptionTier || subscriptionTier === 'free';
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -259,8 +263,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     };
   }, [activeConversationId]);
 
-  // Auto-send initial prompt from dashboard
+  // Auto-send initial prompt from dashboard (disabled for free plans)
   useEffect(() => {
+    if (isFreePlan) {
+      // Don't auto-send for free users; instead, just show paywall when they try to interact
+      return;
+    }
     if (initialPrompt && user && !hasProcessedInitialPrompt.current && !isLoading) {
       console.log('🚀 Auto-sending initial prompt:', initialPrompt);
       hasProcessedInitialPrompt.current = true;
@@ -270,7 +278,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       setTimeout(() => {
         // Manually trigger the send
         const sendInitialPrompt = async () => {
-          if (!user) return;
+          if (!user || !ensureCanUseAI()) return;
 
           const userMessage: ChatMessage = {
             id: `msg_${Date.now()}`,
@@ -524,14 +532,20 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         sendInitialPrompt();
       }, 100);
     }
-  }, [initialPrompt, user, isLoading]);
+  }, [initialPrompt, user, isLoading, isFreePlan]);
 
-  // Handle external messages from Ask AI button
+  // Handle external messages from Ask AI button (disabled for free plans)
   const hasProcessedExternalMessage = useRef<string | null>(null);
   useEffect(() => {
     // Reset ref when external message is cleared
     if (!externalMessage) {
       hasProcessedExternalMessage.current = null;
+      return;
+    }
+    
+    if (isFreePlan) {
+      // For free users, just show the upgrade modal when Ask AI is triggered
+      setShowUpgradeModal(true);
       return;
     }
     
@@ -591,7 +605,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       setInputValue(messageContent);
       setTimeout(() => {
         const sendExternalMsg = async () => {
-          if (!user) return;
+          if (!user || !ensureCanUseAI()) return;
 
           const userMessage: ChatMessage = {
             id: `msg_${Date.now()}`,
@@ -1190,8 +1204,17 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     setOpenTabs(prev => prev.map(t => t.id === conversationId ? { ...t, title } : t));
   };
 
+  const ensureCanUseAI = () => {
+    if (!user || isFreePlan) {
+      setShowUpgradeModal(true);
+      return false;
+    }
+    return true;
+  };
+
   const sendMessage = async () => {
-    if (!inputValue.trim() || isLoading || !user) return;
+    if (!inputValue.trim() || isLoading) return;
+    if (!ensureCanUseAI()) return;
 
     const userMessage: ChatMessage = {
       id: `msg_${Date.now()}`,
@@ -1219,7 +1242,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     const isFirstMessage = isNewConversation.current;
 
     // Ensure the conversation exists before saving the first message (RLS requires it)
-    if (isFirstMessage) {
+    if (isFirstMessage && user) {
       const conversationTitle = 'New Chat';
       const { success, error } = await saveConversation(
         activeConversationId,
@@ -1482,7 +1505,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   };
 
   const handleEditAndSend = async (messageId: string, newContent: string, timestamp: string) => {
-    if (!newContent.trim() || isLoading || !user) return;
+    if (!newContent.trim() || isLoading) return;
+    if (!ensureCanUseAI()) return;
     
     setIsLoading(true);
     setEditingMessageId(null);
@@ -2448,7 +2472,13 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 )}
               </button>
             </div>
-          </div>
+      </div>
+
+      <UpgradeRequiredModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        source="ai-prompt"
+      />
         </div>
       </div>
         </>

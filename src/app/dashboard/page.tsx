@@ -16,6 +16,7 @@ import { BlankHeader } from "@/components/ui/blank-header";
 import { Clock, ArrowRight, Trash2, X } from "lucide-react";
 import { Component as AILoader } from "@/components/ui/ai-loader";
 import TextType from "@/components/ui/text-type";
+import { UpgradeRequiredModal } from "@/components/ui/upgrade-required-modal";
 
 // Animation variants matching the AI textbox
 const fadeInUp = {
@@ -39,7 +40,7 @@ const staggerContainer = {
 };
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, subscriptionTier } = useAuth();
   const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
   const [projects, setProjects] = useState<Array<{ id: string; name: string; status: string; updated_at: string }>>([]);
@@ -49,6 +50,9 @@ export default function DashboardPage() {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
   const [isSavingName, setIsSavingName] = useState<boolean>(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const isFreePlan = !subscriptionTier || subscriptionTier === "free";
 
   // Compute next unique "Untitled" project name for the current user
   const getNextUntitledName = async (): Promise<string> => {
@@ -157,6 +161,10 @@ export default function DashboardPage() {
   }, [user, loading, router]);
 
   const handleSend = async (message: string) => {
+    if (isFreePlan) {
+      setShowUpgradeModal(true);
+      return;
+    }
     console.log("Message sent:", message);
     
     // Create a new project row in Supabase and get its ID
@@ -193,6 +201,10 @@ export default function DashboardPage() {
   };
 
   const handleNewRun = async () => {
+    if (isFreePlan) {
+      setShowUpgradeModal(true);
+      return;
+    }
     // Create a new blank workflow and navigate to it in a new tab
     let workflowId: string | null = null;
     try {
@@ -522,6 +534,13 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Upgrade required modal for free users */}
+      <UpgradeRequiredModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        source="ai-prompt"
+      />
   </>
   );
 }

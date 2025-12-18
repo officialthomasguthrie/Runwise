@@ -24,6 +24,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Enforce subscription requirement for workflow execution
+    try {
+      const { data: userRow, error: userError } = await (supabase as any)
+        .from('users')
+        .select('subscription_tier')
+        .eq('id', user.id)
+        .single();
+
+      const subscriptionTier = userError
+        ? 'free'
+        : ((userRow as any)?.subscription_tier || 'free');
+
+      if (subscriptionTier === 'free') {
+        return NextResponse.json(
+          {
+            error: 'Subscription required to execute workflows',
+            requiresSubscription: true,
+          },
+          { status: 402 }
+        );
+      }
+    } catch (subError) {
+      console.error('Error checking subscription tier in /api/workflow/execute:', subError);
+      return NextResponse.json(
+        {
+          error: 'Subscription required to execute workflows',
+          requiresSubscription: true,
+        },
+        { status: 402 }
+      );
+    }
+
     // Parse request body
     const body: ExecuteWorkflowRequest = await request.json();
 

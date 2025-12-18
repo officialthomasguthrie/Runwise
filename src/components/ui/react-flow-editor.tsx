@@ -121,7 +121,7 @@ export const ReactFlowEditor = ({
   onConfigPanelVisibilityChange,
   onAskAI,
 }: ReactFlowEditorProps = {}) => {
-  const { user } = useAuth();
+  const { user, subscriptionTier } = useAuth();
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
@@ -142,6 +142,7 @@ export const ReactFlowEditor = ({
   const [history, setHistory] = useState<{ nodes: Node[]; edges: Edge[] }[]>([{ nodes: defaultNodes, edges: defaultEdges }]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const isUndoRedoOperation = useRef(false);
+  const isFreePlan = !subscriptionTier || subscriptionTier === 'free';
   
   // Keep nodesRef in sync with nodes state
   useEffect(() => {
@@ -863,6 +864,12 @@ export const ReactFlowEditor = ({
     
     if (!user || isExecuting || nodes.length === 0) {
       console.log('❌ Execution blocked:', { user: !!user, isExecuting, nodeCount: nodes.length });
+      return;
+    }
+
+    if (isFreePlan) {
+      // Execution is gated for free plans; handled on the dashboard/AI side
+      alert('You need a paid plan to execute workflows. Please upgrade in Settings → Billing.');
       return;
     }
 

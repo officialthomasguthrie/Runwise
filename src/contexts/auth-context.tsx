@@ -8,12 +8,15 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  // Subscription tier from public.users (e.g. 'free', 'pro', 'enterprise')
+  subscriptionTier: string | null;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
   signInWithMicrosoft: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  refreshSubscription: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
 }
@@ -25,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
   
   useEffect(() => {
     // Only create Supabase client on client side
@@ -36,12 +40,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!supabase) return;
     
+    const loadSubscriptionTier = async (currentUser: User | null) => {
+      if (!currentUser) {
+        setSubscriptionTier(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await (supabase
+          .from('users') as any)
+          .select('subscription_tier')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (error) {
+          console.error('Auth: Error loading subscription tier:', error);
+          setSubscriptionTier('free');
+          return;
+        }
+
+        setSubscriptionTier((data as any)?.subscription_tier || 'free');
+      } catch (error) {
+        console.error('Auth: Unexpected error loading subscription tier:', error);
+        setSubscriptionTier('free');
+      }
+    };
+    
     // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         setUser(session?.user ?? null);
+        await loadSubscriptionTier(session?.user ?? null);
       } catch (error) {
         console.error('Auth: Error in getInitialSession:', error);
       } finally {
@@ -56,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        await loadSubscriptionTier(session?.user ?? null);
         setLoading(false);
       }
     );
@@ -138,9 +170,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (refreshedSession) {
           setSession(refreshedSession);
         }
+        // Refresh subscription tier from users table
+        try {
+          const { data, error: tierError } = await (supabase
+            .from('users') as any)
+            .select('subscription_tier')
+            .eq('id', refreshedUser.id)
+            .single();
+
+          if (tierError) {
+            console.error('Auth: Error refreshing subscription tier:', tierError);
+          } else {
+            setSubscriptionTier((data as any)?.subscription_tier || 'free');
+          }
+        } catch (tierError) {
+          console.error('Auth: Unexpected error refreshing subscription tier:', tierError);
+        }
       }
     } catch (error) {
       console.error('Error refreshing user:', error);
+    }
+  };
+
+  const refreshSubscription = async () => {
+    if (!supabase) return;
+    try {
+      const { data: { user: currentUser }, error } = await supabase.auth.getUser();
+      if (error || !currentUser) {
+        console.error('Auth: Error getting user for refreshSubscription:', error);
+        return;
+      }
+      const { data, error: tierError } = await (supabase
+        .from('users') as any)
+        .select('subscription_tier')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (tierError) {
+        console.error('Auth: Error in refreshSubscription:', tierError);
+      } else {
+        setSubscriptionTier((data as any)?.subscription_tier || 'free');
+      }
+    } catch (error) {
+      console.error('Auth: Unexpected error in refreshSubscription:', error);
     }
   };
 
@@ -166,12 +238,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     loading,
+    subscriptionTier,
     signUp,
     signIn,
     signInWithGoogle,
     signInWithMicrosoft,
     signOut,
     refreshUser,
+    refreshSubscription,
     resetPassword,
     updatePassword,
   };
