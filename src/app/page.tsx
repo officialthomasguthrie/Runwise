@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect } from "react";
 import { Benefits } from "./components/Benefits";
 import { FAQ } from "./components/FAQ";
 import { Footer } from "./components/Footer";
@@ -9,6 +12,18 @@ import { Process } from "./components/Process/Process";
 import { WhoWeAre } from "./components/WhoWeAre";
 
 export default function Home() {
+  // Scroll to top on page load
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      // Also set scroll position directly as fallback
+      if (typeof window !== 'undefined') {
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+    });
+  }, []);
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
