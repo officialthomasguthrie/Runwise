@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Plus, 
   Clock, 
@@ -95,6 +96,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   onExternalMessageSent
 }) => {
   const { user, subscriptionTier } = useAuth();
+  const router = useRouter();
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -153,6 +155,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   const shortTitleGeneratedRef = useRef(false);
 
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [hasReachedFreeLimit, setHasReachedFreeLimit] = useState(false);
   const isFreePlan = !subscriptionTier || subscriptionTier === 'free';
 
   // Auto-scroll to bottom when messages change
@@ -228,6 +231,28 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     }
   }, [user]);
 
+  // Check if free user has reached workflow limit
+  useEffect(() => {
+    const checkFreeLimit = async () => {
+      if (!user || !isFreePlan) {
+        setHasReachedFreeLimit(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/workflows/check-free-limit');
+        if (response.ok) {
+          const data = await response.json();
+          setHasReachedFreeLimit(data.hasReachedLimit || false);
+        }
+      } catch (error) {
+        console.error('Error checking free limit:', error);
+      }
+    };
+
+    checkFreeLimit();
+  }, [user, isFreePlan]);
+
   // Cleanup: Delete empty conversations when navigating away or unmounting
   const previousConversationIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -263,10 +288,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     };
   }, [activeConversationId]);
 
-  // Auto-send initial prompt from dashboard (disabled for free plans)
+  // Auto-send initial prompt from dashboard (allowed for free users until they hit limit)
   useEffect(() => {
-    if (isFreePlan) {
-      // Don't auto-send for free users; instead, just show paywall when they try to interact
+    if (isFreePlan && hasReachedFreeLimit) {
+      // Don't auto-send for free users who have reached limit
       return;
     }
     if (initialPrompt && user && !hasProcessedInitialPrompt.current && !isLoading) {
@@ -534,7 +559,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     }
   }, [initialPrompt, user, isLoading, isFreePlan]);
 
-  // Handle external messages from Ask AI button (disabled for free plans)
+  // Handle external messages from Ask AI button (disabled only if free user has reached limit)
   const hasProcessedExternalMessage = useRef<string | null>(null);
   useEffect(() => {
     // Reset ref when external message is cleared
@@ -543,8 +568,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       return;
     }
     
-    if (isFreePlan) {
-      // For free users, just show the upgrade modal when Ask AI is triggered
+    if (isFreePlan && hasReachedFreeLimit) {
+      // For free users who have reached limit, just show the upgrade modal when Ask AI is triggered
       setShowUpgradeModal(true);
       return;
     }
@@ -1205,15 +1230,28 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   };
 
   const ensureCanUseAI = () => {
-    if (!user || isFreePlan) {
-      setShowUpgradeModal(true);
+    if (!user) {
       return false;
     }
+    // Only block if free user has reached their workflow limit
+    if (isFreePlan && hasReachedFreeLimit) {
+      // Don't show modal here, paywall message is already shown in chat
+      return false;
+    }
+    // Allow free users to chat (they just can't generate workflows after limit)
     return true;
   };
 
   const sendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
+    if (!user) return;
+    
+    // Only block if free user has reached their workflow limit
+    if (isFreePlan && hasReachedFreeLimit) {
+      // Paywall is active, don't allow sending messages
+      return;
+    }
+    
     if (!ensureCanUseAI()) return;
 
     const userMessage: ChatMessage = {
@@ -1804,6 +1842,22 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   const generateWorkflow = async () => {
     if (!user) return;
     
+    // Check if free user has reached limit before generating
+    if (isFreePlan) {
+      try {
+        const limitResponse = await fetch('/api/workflows/check-free-limit');
+        if (limitResponse.ok) {
+          const limitData = await limitResponse.json();
+          if (limitData.hasReachedLimit) {
+            // Already reached limit, don't allow generation
+            return;
+          }
+        }
+      } catch (limitError) {
+        console.error('Error checking limit before generation:', limitError);
+      }
+    }
+    
     // Get workflow prompt - use state if available, otherwise extract from last message
     let promptToUse = workflowPrompt;
     if (!promptToUse) {
@@ -1996,6 +2050,39 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       }
       
       setWorkflowPrompt(null);
+
+      // Check if free user has now reached the limit after generating workflow
+      if (isFreePlan) {
+        try {
+          const limitResponse = await fetch('/api/workflows/check-free-limit');
+          if (limitResponse.ok) {
+            const limitData = await limitResponse.json();
+            if (limitData.hasReachedLimit) {
+              setHasReachedFreeLimit(true);
+              
+              // Add paywall message
+              const paywallMsg: ChatMessage = {
+                id: `msg_${Date.now() + 2}`,
+                role: 'assistant',
+                content: 'Your workflow is ready. Upgrade to continue.',
+                timestamp: new Date().toISOString(),
+                isPaywallMessage: true,
+              };
+              
+              setMessages((prev) => [...prev, paywallMsg]);
+              
+              // Save paywall message
+              try {
+                await saveMessage(paywallMsg, activeConversationId);
+              } catch (saveError) {
+                console.error('Error saving paywall message:', saveError);
+              }
+            }
+          }
+        } catch (limitError) {
+          console.error('Error checking limit after workflow generation:', limitError);
+        }
+      }
     } catch (err: any) {
       console.error('Error generating workflow:', err);
       setError(err.message || 'Failed to generate workflow');
@@ -2236,7 +2323,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                               e.stopPropagation();
                               handleEditAndSend(message.id, editingMessageContent, message.timestamp);
                             }}
-                            disabled={!editingMessageContent.trim() || isLoading}
+                            disabled={!editingMessageContent.trim() || isLoading || (isFreePlan && hasReachedFreeLimit)}
                             className={`absolute right-2 bottom-3 flex items-center justify-center w-7 h-7 rounded-full border transition-all ${
                               !editingMessageContent.trim() || isLoading
                                 ? 'opacity-50 cursor-not-allowed'
@@ -2317,6 +2404,48 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         <p className="text-xs text-muted-foreground/70 italic whitespace-pre-wrap">
                           {message.content}
                         </p>
+                      ) : (message as any).isPaywallMessage ? (
+                        <div className="space-y-3">
+                          <p className="text-sm whitespace-pre-wrap">
+                            {message.content}
+                          </p>
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => router.push('/settings?tab=billing')}
+                              className="w-full rounded-lg border border-[#ffffff1a] bg-[#bd28b3ba] py-2 px-4 cursor-pointer flex items-center justify-center gap-2 hover:bg-[#bd28b3da] transition-all"
+                            >
+                              <span className="text-xs text-white font-medium">See Plans</span>
+                              <img src="/assets/icons/arrow-top.svg" className="w-3 h-3 brightness-0 invert" alt="arrow" />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch('/api/stripe/create-checkout-session', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      plan: 'pro-monthly',
+                                      skipTrial: false,
+                                      cancelUrl: window.location.href,
+                                      source: 'ai-prompt',
+                                    }),
+                                  });
+                                  if (response.ok) {
+                                    const data = await response.json();
+                                    if (data.url) {
+                                      window.location.href = data.url;
+                                    }
+                                  }
+                                } catch (error) {
+                                  console.error('Error starting checkout:', error);
+                                }
+                              }}
+                              className="w-full rounded-lg border border-white/20 bg-white/10 dark:bg-white/5 py-2 px-4 cursor-pointer flex items-center justify-center hover:bg-white/20 dark:hover:bg-white/10 transition-all"
+                            >
+                              <span className="text-xs text-foreground font-medium">Upgrade</span>
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <p className="text-sm whitespace-pre-wrap">
                           {message.content.split(/(\*\*.*?\*\*)/g).map((part, index) => {
@@ -2380,7 +2509,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                               !isGeneratingWorkflow && 
                               lastMessage && 
                               lastMessage.role === 'assistant' &&
-                              !isWorkflowMessage;
+                              !isWorkflowMessage &&
+                              !hasReachedFreeLimit; // Don't show if paywall is active
             
             return shouldShow;
           })() ? (
@@ -2441,8 +2571,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   }
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask me anything..."
-                disabled={isLoading}
+                placeholder={hasReachedFreeLimit ? "Upgrade to continue chatting..." : "Ask me anything..."}
+                disabled={isLoading || hasReachedFreeLimit}
                 className="w-full bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground/60 py-3 px-4 pr-14 focus:border-white/80 dark:focus:border-white/20 focus:ring-0 transition-all scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto"
                 rows={1}
                 style={{
@@ -2457,7 +2587,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
               {/* Send Button - Circular arrow button styled like homepage purple buttons - Evenly spaced from corners */}
               <button
                 onClick={sendMessage}
-                disabled={!inputValue.trim() || isLoading}
+                disabled={!inputValue.trim() || isLoading || hasReachedFreeLimit}
                 className={`absolute right-2 bottom-3 flex items-center justify-center w-7 h-7 rounded-full border transition-all ${
                   !inputValue.trim() || isLoading
                     ? 'opacity-50 cursor-not-allowed'

@@ -37,6 +37,25 @@ export async function POST(request: NextRequest) {
         : ((userRow as any)?.subscription_tier || 'free');
 
       if (subscriptionTier === 'free') {
+        // Check if free user has generated a workflow (they can only generate one)
+        const { count, error: countError } = await supabase
+          .from('workflows')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('ai_generated', true);
+        
+        if (!countError && count && count >= 1) {
+          // Free user has generated a workflow, block execution
+          return NextResponse.json(
+            {
+              error: 'You have reached your free limit. Upgrade to continue.',
+              requiresSubscription: true,
+            },
+            { status: 402 }
+          );
+        }
+        
+        // Free user hasn't generated a workflow yet, but still block execution
         return NextResponse.json(
           {
             error: 'Subscription required to execute workflows',

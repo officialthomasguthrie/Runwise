@@ -65,12 +65,13 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
   }, [user, supabase, subscriptionTierProp]);
 
   // Determine current plan from database subscription_tier
-  // Map: free/personal -> personal, pro/professional -> professional, enterprise/enterprises -> enterprises
+  // Map: free -> null (no current plan), personal -> personal, pro/professional -> professional, enterprise/enterprises -> enterprises
   const userPlan = subscriptionTier || "free";
   const currentPlan = 
-    userPlan === "free" || userPlan === "personal" ? "personal" :
+    userPlan === "free" ? null :
+    userPlan === "personal" ? "personal" :
     userPlan === "pro" || userPlan === "professional" ? "professional" :
-    userPlan === "enterprise" || userPlan === "enterprises" ? "enterprises" : "personal";
+    userPlan === "enterprise" || userPlan === "enterprises" ? "enterprises" : null;
 
   interface PaymentMethod {
     id: string;
@@ -606,7 +607,7 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
             >
               <div className="flex items-end justify-center gap-1">
                 <p className="text-xs font-normal leading-[1.2em] text-white">
-                  {loadingPlan === plans[1].name ? 'Redirecting...' : 'Switch to Professional'}
+                  {loadingPlan === plans[1].name ? 'Redirecting...' : currentPlan === null ? 'Start Free Trial' : 'Switch to Professional'}
                 </p>
 
                 {loadingPlan !== plans[1].name && (

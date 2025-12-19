@@ -239,17 +239,8 @@ export const Header: React.FC = () => {
                     event.preventDefault();
                     if (isMounted && !loading && user && router) {
                       router.push("/dashboard");
-                    } else {
-                      const pricingSection = document.getElementById("pricing");
-                      if (pricingSection) {
-                        const headerOffset = 80;
-                        const elementPosition = pricingSection.getBoundingClientRect().top;
-                        const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                        window.scrollTo({
-                          top: offsetPosition,
-                          behavior: "smooth",
-                        });
-                      }
+                    } else if (typeof window !== "undefined") {
+                      window.open("/signup", "_blank", "noopener,noreferrer");
                     }
                   }}
                   className={`border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg cursor-pointer flex items-center justify-center ${

@@ -19,8 +19,9 @@ import {
   Sun,
   Moon,
   History,
+  User,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -154,8 +155,15 @@ export function DashboardSidebar() {
                       className="flex w-full items-center justify-start gap-2 px-2 hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-pink-500/10 rounded-md transition" 
                     >
                       <Avatar className={`rounded ${SIDEBAR_CONSTANTS.AVATAR_SIZE}`}>
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-purple-600 text-white text-xs font-medium flex items-center justify-center">
-                          {getUserInitials()}
+                        {user?.user_metadata?.avatar_url ? (
+                          <AvatarImage 
+                            src={user.user_metadata.avatar_url} 
+                            alt="User avatar" 
+                            key={user.user_metadata.avatar_url}
+                          />
+                        ) : null}
+                        <AvatarFallback className="bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center">
+                          <User className="h-4 w-4" />
                         </AvatarFallback>
                       </Avatar>
                       <motion.li
@@ -176,8 +184,15 @@ export function DashboardSidebar() {
                   <DropdownMenuContent align="start" className="w-56">
                     <div className="flex flex-row items-center gap-3 p-3">
                       <Avatar className="size-10">
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-purple-600 text-white text-base font-medium flex items-center justify-center">
-                          {getUserInitials()}
+                        {user?.user_metadata?.avatar_url ? (
+                          <AvatarImage 
+                            src={user.user_metadata.avatar_url} 
+                            alt="User avatar" 
+                            key={user.user_metadata.avatar_url}
+                          />
+                        ) : null}
+                        <AvatarFallback className="bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center">
+                          <User className="h-5 w-5" />
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col text-left">

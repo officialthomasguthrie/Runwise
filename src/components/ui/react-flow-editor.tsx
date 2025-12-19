@@ -914,6 +914,13 @@ export const ReactFlowEditor = ({
 
       if (!response.ok) {
         const errorData = await response.json();
+        if (response.status === 402 && errorData.requiresSubscription) {
+          // Show upgrade modal or alert with upgrade option
+          alert(errorData.error || 'You have reached your free limit. Upgrade to continue.');
+          setIsExecuting(false);
+          setExecutionStatus('idle');
+          return;
+        }
         throw new Error(errorData.error || 'Failed to execute workflow');
       }
 

@@ -117,9 +117,8 @@ export default function LoginPage() {
   };
 
   const handleCreateAccount = () => {
-    // Users create accounts after payment through checkout flow
-    // Redirect to pricing section on landing page
-    router.push('/#pricing');
+    // Send users to the dedicated signup page to create a free account
+    router.push('/signup');
   };
 
   const handleGoBack = () => {

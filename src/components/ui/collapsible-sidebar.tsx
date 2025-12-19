@@ -16,6 +16,7 @@ import {
   Sun,
   Moon,
   ChevronRight,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -52,8 +53,8 @@ function UserProfileAvatar({ user }: { user: any }) {
             key={avatarUrl}
           />
         ) : null}
-        <AvatarFallback className="text-xs">
-          {getInitials(user)}
+        <AvatarFallback className="bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center">
+          <User className="h-4 w-4" />
         </AvatarFallback>
       </Avatar>
     </Link>

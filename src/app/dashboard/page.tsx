@@ -51,8 +51,33 @@ export default function DashboardPage() {
   const [editingName, setEditingName] = useState<string>("");
   const [isSavingName, setIsSavingName] = useState<boolean>(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [hasReachedFreeLimit, setHasReachedFreeLimit] = useState(false);
+  const [upgradeModalTitle, setUpgradeModalTitle] = useState("Upgrade to run workflows");
+  const [upgradeModalMessage, setUpgradeModalMessage] = useState("You're currently on the Free plan. To run workflows and use AI-powered automation, you'll need an active subscription.");
 
   const isFreePlan = !subscriptionTier || subscriptionTier === "free";
+
+  // Check if free user has reached workflow limit
+  useEffect(() => {
+    const checkFreeLimit = async () => {
+      if (!user || !isFreePlan) {
+        setHasReachedFreeLimit(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/workflows/check-free-limit');
+        if (response.ok) {
+          const data = await response.json();
+          setHasReachedFreeLimit(data.hasReachedLimit || false);
+        }
+      } catch (error) {
+        console.error('Error checking free limit:', error);
+      }
+    };
+
+    checkFreeLimit();
+  }, [user, isFreePlan]);
 
   // Compute next unique "Untitled" project name for the current user
   const getNextUntitledName = async (): Promise<string> => {
@@ -161,10 +186,14 @@ export default function DashboardPage() {
   }, [user, loading, router]);
 
   const handleSend = async (message: string) => {
-    if (isFreePlan) {
+    if (isFreePlan && hasReachedFreeLimit) {
+      // Only block if they've reached the limit
+      setUpgradeModalTitle("You have reached your free limit");
+      setUpgradeModalMessage("You have reached your free limit. Upgrade to continue.");
       setShowUpgradeModal(true);
       return;
     }
+    // Free users can generate workflows until they hit the limit
     console.log("Message sent:", message);
     
     // Create a new project row in Supabase and get its ID
@@ -540,6 +569,9 @@ export default function DashboardPage() {
         open={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         source="ai-prompt"
+        title={upgradeModalTitle}
+        message={upgradeModalMessage}
+        upgradePlan={hasReachedFreeLimit ? "pro-monthly" : "personal-monthly"}
       />
   </>
   );

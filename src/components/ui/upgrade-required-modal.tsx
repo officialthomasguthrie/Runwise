@@ -9,12 +9,18 @@ interface UpgradeRequiredModalProps {
   open: boolean;
   onClose: () => void;
   source?: "ai-prompt" | "workflow-run" | "node-config" | "other";
+  title?: string;
+  message?: string;
+  upgradePlan?: string; // Plan to upgrade to (default: "personal-monthly")
 }
 
 export function UpgradeRequiredModal({
   open,
   onClose,
   source = "other",
+  title = "Upgrade to run workflows",
+  message = "You're currently on the Free plan. To run workflows and use AI-powered automation, you'll need an active subscription.",
+  upgradePlan = "personal-monthly",
 }: UpgradeRequiredModalProps) {
   const router = useRouter();
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
@@ -35,8 +41,8 @@ export function UpgradeRequiredModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          plan: "personal-monthly",
-          skipTrial: false,
+          plan: upgradePlan,
+          skipTrial: upgradePlan === "pro-monthly" ? false : false,
           cancelUrl: "/dashboard",
           source,
         }),
@@ -78,11 +84,10 @@ export function UpgradeRequiredModal({
 
         <div className="space-y-3">
           <h2 className="text-xl font-semibold text-foreground">
-            Upgrade to run workflows
+            {title}
           </h2>
           <p className="text-sm text-muted-foreground">
-            You&apos;re currently on the Free plan. To run workflows and use
-            AI-powered automation, you&apos;ll need an active subscription.
+            {message}
           </p>
 
           <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
@@ -99,7 +104,7 @@ export function UpgradeRequiredModal({
             className="sm:min-w-[120px]"
             disabled={isCheckoutLoading}
           >
-            View Plans
+            See Plans
           </Button>
           <Button
             onClick={handleUpgradeNow}
@@ -112,7 +117,7 @@ export function UpgradeRequiredModal({
                 Redirecting...
               </>
             ) : (
-              <>Upgrade Now</>
+              <>Upgrade</>
             )}
           </Button>
         </div>

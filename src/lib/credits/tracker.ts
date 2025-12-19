@@ -52,6 +52,17 @@ export async function checkCreditsAvailable(
   userId: string,
   requiredCredits: number
 ): Promise<{ available: boolean; balance: number; message?: string }> {
+  const adminSupabase = createAdminClient();
+  
+  // Get user's subscription tier to check if they're free
+  const { data: user, error: userError } = await (adminSupabase
+    .from('users') as any)
+    .select('subscription_tier')
+    .eq('id', userId)
+    .single();
+  
+  const subscriptionTier = userError ? 'free' : ((user as any)?.subscription_tier || 'free');
+  
   const balance = await getCreditBalance(userId);
   
   if (!balance) {
@@ -63,30 +74,33 @@ export async function checkCreditsAvailable(
   }
   
   // Check if we need to reset credits (monthly reset)
-  const now = new Date();
-  const lastReset = new Date(balance.lastReset);
-  const shouldReset = now > new Date(balance.nextReset);
-  
-  if (shouldReset) {
-    await resetMonthlyCredits(userId);
-    // Re-fetch balance after reset
-    const newBalance = await getCreditBalance(userId);
-    if (!newBalance) {
-      return {
-        available: false,
-        balance: 0,
-        message: 'Unable to check credit balance after reset',
-      };
-    }
+  // Skip reset for free users - they never get reset (one-time 5 credits only)
+  if (subscriptionTier !== 'free') {
+    const now = new Date();
+    const lastReset = new Date(balance.lastReset);
+    const shouldReset = now > new Date(balance.nextReset);
     
-    if (newBalance.balance >= requiredCredits) {
-      return { available: true, balance: newBalance.balance };
-    } else {
-      return {
-        available: false,
-        balance: newBalance.balance,
-        message: `Insufficient credits. You need ${requiredCredits} credits but only have ${newBalance.balance} remaining.`,
-      };
+    if (shouldReset) {
+      await resetMonthlyCredits(userId);
+      // Re-fetch balance after reset
+      const newBalance = await getCreditBalance(userId);
+      if (!newBalance) {
+        return {
+          available: false,
+          balance: 0,
+          message: 'Unable to check credit balance after reset',
+        };
+      }
+      
+      if (newBalance.balance >= requiredCredits) {
+        return { available: true, balance: newBalance.balance };
+      } else {
+        return {
+          available: false,
+          balance: newBalance.balance,
+          message: `Insufficient credits. You need ${requiredCredits} credits but only have ${newBalance.balance} remaining.`,
+        };
+      }
     }
   }
   
@@ -174,6 +188,7 @@ export async function deductCredits(
 
 /**
  * Reset monthly credits for a user
+ * Free users are skipped - they never get reset (one-time 5 credits only)
  */
 export async function resetMonthlyCredits(userId: string): Promise<boolean> {
   const adminSupabase = createAdminClient();
@@ -190,7 +205,13 @@ export async function resetMonthlyCredits(userId: string): Promise<boolean> {
     return false;
   }
   
-  const monthlyAllocation = getMonthlyCreditAllocation(user.subscription_tier || 'free');
+  // Skip free users - they never get reset (one-time 5 credits only)
+  const subscriptionTier = user.subscription_tier || 'free';
+  if (subscriptionTier === 'free') {
+    return true; // Successfully skipped (no reset needed)
+  }
+  
+  const monthlyAllocation = getMonthlyCreditAllocation(subscriptionTier);
   const now = new Date().toISOString();
   const nextReset = new Date();
   nextReset.setMonth(nextReset.getMonth() + 1);
@@ -260,9 +281,17 @@ async function logCreditUsage(
 
 /**
  * Initialize credits for a new user based on their subscription tier
+ * Free users get 5 credits (one-time only, set by handle_new_user trigger)
+ * This function should only be used for paid users
  */
 export async function initializeUserCredits(userId: string, subscriptionTier: string): Promise<boolean> {
   const adminSupabase = createAdminClient();
+  
+  // Free users get 5 credits from handle_new_user trigger, don't override
+  if (subscriptionTier === 'free') {
+    return true; // Successfully skipped (credits already set by trigger)
+  }
+  
   const monthlyAllocation = getMonthlyCreditAllocation(subscriptionTier);
   const now = new Date().toISOString();
   

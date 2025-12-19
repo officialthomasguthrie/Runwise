@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { MenuIcon } from 'lucide-react';
+import { MenuIcon, User } from 'lucide-react';
 import { Sheet, SheetContent, SheetFooter } from '@/components/ui/sheet';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTheme } from 'next-themes';
 
 export function FloatingHeader() {
@@ -138,8 +138,15 @@ export function FloatingHeader() {
 							onClick={() => router.push('/dashboard')}
 						>
 							<Avatar className="h-6 w-6">
-								<AvatarFallback className="bg-gradient-to-br from-purple-500 to-purple-600 text-white text-xs font-medium">
-									{getUserInitials()}
+								{user?.user_metadata?.avatar_url ? (
+									<AvatarImage 
+										src={user.user_metadata.avatar_url} 
+										alt="User avatar" 
+										key={user.user_metadata.avatar_url}
+									/>
+								) : null}
+								<AvatarFallback className="bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center">
+									<User className="h-3 w-3" />
 								</AvatarFallback>
 							</Avatar>
 							<span className="hidden sm:inline text-sm font-medium text-foreground">
@@ -193,8 +200,15 @@ export function FloatingHeader() {
 										<div className="flex flex-col gap-2 w-full">
 											<div className="flex items-center gap-2 px-3 py-2">
 												<Avatar className="h-6 w-6">
-													<AvatarFallback className="bg-gradient-to-br from-purple-500 to-purple-600 text-white text-xs font-medium">
-														{getUserInitials()}
+													{user?.user_metadata?.avatar_url ? (
+														<AvatarImage 
+															src={user.user_metadata.avatar_url} 
+															alt="User avatar" 
+															key={user.user_metadata.avatar_url}
+														/>
+													) : null}
+													<AvatarFallback className="bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center">
+														<User className="h-3 w-3" />
 													</AvatarFallback>
 												</Avatar>
 												<span className="text-sm font-medium text-foreground">

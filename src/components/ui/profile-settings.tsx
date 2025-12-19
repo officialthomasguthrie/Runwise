@@ -369,15 +369,14 @@ export function ProfileSettings() {
               />
             )}
             <AvatarFallback 
-              className={`bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xl transition-opacity duration-200 ${
+              className={`bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center transition-opacity duration-200 ${
                 (profileData.avatarUrl || user?.user_metadata?.avatar_url) && avatarLoaded 
                   ? 'opacity-0' 
                   : 'opacity-100'
               }`}
             >
-              {profileData.firstName[0] || user?.user_metadata?.first_name?.[0] || ""}
-              {profileData.lastName[0] || user?.user_metadata?.last_name?.[0] || ""}
-              </AvatarFallback>
+              <User className="h-8 w-8" />
+            </AvatarFallback>
             </Avatar>
           {/* Loading overlay for avatar upload */}
           {isUploadingAvatar && (

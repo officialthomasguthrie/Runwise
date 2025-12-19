@@ -40,6 +40,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if free user has reached workflow generation limit
+    try {
+      const { data: userRow, error: userError } = await (supabase as any)
+        .from('users')
+        .select('subscription_tier')
+        .eq('id', user.id)
+        .single();
+
+      const subscriptionTier = userError
+        ? 'free'
+        : ((userRow as any)?.subscription_tier || 'free');
+
+      if (subscriptionTier === 'free') {
+        // Check if free user has already generated a workflow
+        const { count, error: countError } = await supabase
+          .from('workflows')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('ai_generated', true);
+        
+        if (!countError && count && count >= 1) {
+          // Free user has generated a workflow, block generation
+          return new Response(
+            JSON.stringify({
+              error: 'You have reached your free limit. Upgrade to continue.',
+              requiresSubscription: true,
+            }),
+            { status: 402, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        // Free user hasn't generated a workflow yet, allow generation
+      }
+    } catch (limitError) {
+      console.error('Error checking free limit in workflow generation:', limitError);
+      // On error, allow the request to proceed (fail open)
+    }
+
     // Parse request body
     const body = await request.json();
 

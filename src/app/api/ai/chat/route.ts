@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     console.log('User authenticated:', user.id);
 
-    // Enforce subscription requirement for AI usage
+    // Check subscription tier - free users can chat, but check if they've reached workflow limit
     try {
       const { data: userRow, error: userError } = await (supabase as any)
         .from('users')
@@ -40,25 +40,30 @@ export async function POST(request: NextRequest) {
         ? 'free'
         : ((userRow as any)?.subscription_tier || 'free');
 
+      // Free users can chat, but check if they've reached their workflow generation limit
       if (subscriptionTier === 'free') {
-        return new Response(
-          JSON.stringify({
-            error: 'Subscription required to use AI chat',
-            requiresSubscription: true,
-          }),
-          { status: 402, headers: { 'Content-Type': 'application/json' } }
-        );
+        // Check if free user has generated a workflow
+        const { count, error: countError } = await supabase
+          .from('workflows')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('ai_generated', true);
+        
+        if (!countError && count && count >= 1) {
+          // Free user has generated a workflow, block AI chat
+          return new Response(
+            JSON.stringify({
+              error: 'You have reached your free limit. Upgrade to continue.',
+              requiresSubscription: true,
+            }),
+            { status: 402, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        // Free user hasn't generated a workflow yet, allow chat
       }
     } catch (subError) {
       console.error('Error checking subscription tier in /api/ai/chat:', subError);
-      // Fail safe: treat as free account and block AI usage
-      return new Response(
-        JSON.stringify({
-          error: 'Subscription required to use AI chat',
-          requiresSubscription: true,
-        }),
-        { status: 402, headers: { 'Content-Type': 'application/json' } }
-      );
+      // On error, allow the request to proceed (fail open for chat)
     }
 
     // Check if OpenAI API key is configured

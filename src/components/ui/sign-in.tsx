@@ -31,6 +31,18 @@ interface SignInPageProps {
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
   <div className="rounded-2xl border border-[#ffffff1a] bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
+    <style jsx>{`
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover,
+      input:-webkit-autofill:focus,
+      input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px transparent inset !important;
+        -webkit-text-fill-color: inherit !important;
+        background-color: transparent !important;
+        background-clip: content-box !important;
+        transition: background-color 5000s ease-in-out 0s;
+      }
+    `}</style>
     {children}
   </div>
 );
@@ -87,7 +99,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               <div className="animate-element animate-delay-300" suppressHydrationWarning={true}>
                 <label className="text-xs font-medium text-muted-foreground">Email Address</label>
                 <GlassInputWrapper>
-                  <input name="email" type="email" placeholder="Enter your email address" className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" />
+                  <input name="email" type="email" placeholder="Enter your email address" autoComplete="off" className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" />
                 </GlassInputWrapper>
               </div>
 
@@ -95,7 +107,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 <label className="text-xs font-medium text-muted-foreground">Password</label>
                 <GlassInputWrapper>
                   <div className="relative" suppressHydrationWarning={true}>
-                    <input name="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" className="w-full bg-transparent text-xs p-1.5 pr-7 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" />
+                    <input name="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" autoComplete="new-password" className="w-full bg-transparent text-xs p-1.5 pr-7 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-1.5 flex items-center">
                       {showPassword ? <EyeOff className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />}
                     </button>
@@ -137,7 +149,17 @@ export const SignInPage: React.FC<SignInPageProps> = ({
             </div>
 
             <p className="animate-element animate-delay-1100 text-center text-xs text-muted-foreground">
-              New to our platform? <a href="#" onClick={(e) => { e.preventDefault(); onCreateAccount?.(); }} className="text-pink-400 hover:underline transition-colors">Create Account</a>
+              Don&apos;t have an account?{" "}
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onCreateAccount?.();
+                }}
+                className="text-pink-400 hover:underline transition-colors"
+              >
+                Sign up
+              </a>
             </p>
           </div>
         </div>

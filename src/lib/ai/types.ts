@@ -63,6 +63,7 @@ export interface ChatMessage {
   workflowGenerated?: boolean; // If this message generated a workflow
   workflowGeneratedSuccess?: boolean; // If this is the "Workflow Generated Successfully" message (for styling)
   workflowId?: string; // ID of generated workflow
+  isPaywallMessage?: boolean; // If this is a paywall message
 }
 
 /**

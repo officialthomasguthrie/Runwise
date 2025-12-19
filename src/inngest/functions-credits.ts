@@ -17,11 +17,12 @@ export const monthlyCreditReset = inngest.createFunction(
     const { getMonthlyCreditAllocation } = await import('@/lib/credits/calculator');
     const adminSupabase = createAdminClient();
 
-    // Get all active users
+    // Get all active users (excluding free users - they never get reset)
     const { data: users, error } = await (adminSupabase
       .from('users') as any)
       .select('id, subscription_tier')
-      .eq('subscription_status', 'active');
+      .eq('subscription_status', 'active')
+      .neq('subscription_tier', 'free'); // Exclude free users - they never get reset
 
     if (error) {
       console.error('Error fetching users for credit reset:', error);
@@ -36,7 +37,7 @@ export const monthlyCreditReset = inngest.createFunction(
     let successCount = 0;
     let errorCount = 0;
 
-    // Reset credits for each user
+    // Reset credits for each user (free users are already excluded)
     for (const user of users) {
       try {
         const monthlyAllocation = getMonthlyCreditAllocation(user.subscription_tier || 'free');
