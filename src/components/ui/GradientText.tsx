@@ -7,6 +7,7 @@ interface GradientTextProps {
   colors?: string[];
   animationSpeed?: number;
   showBorder?: boolean;
+  style?: React.CSSProperties;
 }
 
 export default function GradientText({
@@ -14,7 +15,8 @@ export default function GradientText({
   className = '',
   colors = ['#40ffaa', '#4079ff', '#40ffaa', '#4079ff', '#40ffaa'],
   animationSpeed = 8,
-  showBorder = false
+  showBorder = false,
+  style
 }: GradientTextProps) {
   const gradientStyle = {
     backgroundImage: `linear-gradient(to right, ${colors.join(', ')})`,
@@ -22,7 +24,7 @@ export default function GradientText({
   };
 
   return (
-    <span className={`animated-gradient-text ${className}`} suppressHydrationWarning={true}>
+    <span className={`animated-gradient-text ${className}`} style={style} suppressHydrationWarning={true}>
       {showBorder && <span className="gradient-overlay" style={gradientStyle} suppressHydrationWarning={true}></span>}
       <span className="text-content" style={gradientStyle} suppressHydrationWarning={true}>
         {children}

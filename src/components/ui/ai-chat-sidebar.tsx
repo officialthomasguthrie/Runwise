@@ -1991,10 +1991,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       // First message: "Workflow Generated Successfully" in italic gray
       const successMsg: ChatMessage = {
         id: `msg_${now}`,
-        role: 'assistant',
+            role: 'assistant',
         content: 'Workflow Generated Successfully',
-        timestamp: new Date().toISOString(),
-        workflowGenerated: true,
+            timestamp: new Date().toISOString(),
+            workflowGenerated: true,
         workflowGeneratedSuccess: true, // Mark for italic gray styling
       };
       
@@ -2091,12 +2091,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       // Add error message
       setMessages((prev) => [
         ...prev,
-        {
-          id: `msg_${Date.now()}`,
-          role: 'assistant',
-          content: `Sorry, I couldn't generate the workflow: ${err.message}`,
-          timestamp: new Date().toISOString(),
-        },
+          {
+            id: `msg_${Date.now()}`,
+            role: 'assistant',
+            content: `Sorry, I couldn't generate the workflow: ${err.message}`,
+            timestamp: new Date().toISOString(),
+          },
       ]);
     } finally {
       setIsGeneratingWorkflow(false);
@@ -2553,12 +2553,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       {/* Input Area - Positioned at bottom - Fully transparent container */}
       <div className="p-4 bg-transparent">
         {/* Input Box - Matches chat bubble styling */}
-        <div className="relative">
-          <div className="flex items-end gap-2 rounded-lg transition-all">
-            <div className="flex-1 relative">
-              <textarea
-                ref={textareaRef}
-                value={inputValue}
+          <div className="relative">
+            <div className="flex items-end gap-2 rounded-lg transition-all">
+              <div className="flex-1 relative">
+                <textarea
+                  ref={textareaRef}
+                  value={inputValue}
                 onChange={(e) => {
                   setInputValue(e.target.value);
                   // Auto-resize textarea
@@ -2570,39 +2570,39 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     textareaRef.current.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
                   }
                 }}
-                onKeyDown={handleKeyDown}
+                  onKeyDown={handleKeyDown}
                 placeholder={hasReachedFreeLimit ? "Upgrade to continue chatting..." : "Ask me anything..."}
                 disabled={isLoading || hasReachedFreeLimit}
                 className="w-full bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground/60 py-3 px-4 pr-14 focus:border-white/80 dark:focus:border-white/20 focus:ring-0 transition-all scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto"
-                rows={1}
-                style={{
+                  rows={1}
+                  style={{
                   minHeight: '75px',
                   maxHeight: '187.5px', // 2.5x default height
-                  lineHeight: '1.5',
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none'
-                }}
-              />
-              
+                    lineHeight: '1.5',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none'
+                  }}
+                />
+                
               {/* Send Button - Circular arrow button styled like homepage purple buttons - Evenly spaced from corners */}
               <button
-                onClick={sendMessage}
+                  onClick={sendMessage}
                 disabled={!inputValue.trim() || isLoading || hasReachedFreeLimit}
                 className={`absolute right-2 bottom-3 flex items-center justify-center w-7 h-7 rounded-full border transition-all ${
                   !inputValue.trim() || isLoading
                     ? 'opacity-50 cursor-not-allowed'
                     : 'cursor-pointer hover:scale-110 active:scale-95'
                 } bg-[#bd28b3ba] border-[#ffffff1a]`}
-                title="Send Message"
-              >
-                {isLoading ? (
+                  title="Send Message"
+                >
+                  {isLoading ? (
                   <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
-                ) : (
+                  ) : (
                   <ArrowUp className="h-3.5 w-3.5 text-white" />
-                )}
+                  )}
               </button>
+              </div>
             </div>
-      </div>
 
       <UpgradeRequiredModal
         open={showUpgradeModal}

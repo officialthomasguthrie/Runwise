@@ -193,66 +193,12 @@ export function GradientAIChatInput({
         mass: 0.8,
       }}
     >
-      {/* Main container with complex multi-layer gradient border */}
-      <div className="relative">
-        {/* Outer thin border (0.5px) - darker gradient */}
-        <div className="absolute inset-0 rounded-[16px] p-[0.5px]"
-             style={{
-               background: `conic-gradient(from 0deg at 50% 50%,
-                 ${currentOuterGradient.topLeft} 0deg,     /* Top left - darker version */
-                 ${currentOuterGradient.topRight} 90deg,    /* Top right - darker version */
-                 ${currentOuterGradient.bottomRight} 180deg,   /* Bottom right - darker version */
-                 ${currentOuterGradient.bottomLeft} 270deg,   /* Bottom left - darker version */
-                 ${currentOuterGradient.topLeft} 360deg    /* Back to top left */
-               )`
-             }}>
-          
-          {/* Main thick border (2px) - primary gradient */}
-          <div className="h-full w-full rounded-[15.5px] p-[2px]"
-               style={{
-                 background: `conic-gradient(from 0deg at 50% 50%,
-                   ${currentMainGradient.topLeft} 0deg,     /* Top left */
-                   ${currentMainGradient.topRight} 90deg,    /* Top right */
-                   ${currentMainGradient.bottomRight} 180deg,   /* Bottom right - deeper side */
-                   ${currentMainGradient.bottomLeft} 270deg,   /* Bottom left */
-                   ${currentMainGradient.topLeft} 360deg    /* Back to top left */
-                 )`
-               }}>
-            
-            {/* Inner container with background */}
-            <div className="h-full w-full rounded-[13.5px] bg-background relative">
-              
-              {/* Inner thin border (0.5px) - configurable opacity darker gradient */}
-              <div className="absolute inset-0 rounded-[13.5px] p-[0.5px]"
-                   style={{
-                     background: `conic-gradient(from 0deg at 50% 50%,
-                       ${hexToRgba(currentOuterGradient.topLeft, innerGradientOpacity)} 0deg,
-                       ${hexToRgba(currentOuterGradient.topRight, innerGradientOpacity)} 90deg,
-                       ${hexToRgba(currentOuterGradient.bottomRight, innerGradientOpacity)} 180deg,
-                       ${hexToRgba(currentOuterGradient.bottomLeft, innerGradientOpacity)} 270deg,
-                       ${hexToRgba(currentOuterGradient.topLeft, innerGradientOpacity)} 360deg
-                     )`
-                   }}>
-                <div className="h-full w-full rounded-[13px] bg-background"></div>
-              </div>
-
-              {/* Yellow/orange highlight on top edge */}
-              <div
-                className="absolute top-0 left-4 right-4 h-[0.5px] bg-gradient-to-r from-transparent via-[var(--top-highlight)]/30 to-transparent"
-                style={{ '--top-highlight': currentMainGradient.topLeft } as React.CSSProperties}
-              />
-
-              {/* Darker bottom edge */}
-              <div
-                className="absolute bottom-0 left-4 right-4 h-[0.5px] bg-gradient-to-r from-transparent via-[var(--bottom-highlight)]/20 to-transparent"
-                style={{ '--bottom-highlight': currentMainGradient.bottomRight } as React.CSSProperties}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Content container - Two row layout */}
-        <div className="relative p-4">
+      {/* Main container with border matching submit button */}
+      <div className="relative rounded-[16px] bg-[#bd28b3] border border-[#ffffff1a] p-[1px]">
+        {/* Inner container with background */}
+        <div className="h-full w-full rounded-[15px] bg-background relative">
+          {/* Content container - Two row layout */}
+          <div className="relative p-4">
 
           {/* Top row: Text input */}
           <div className="flex items-start gap-3 mb-3">
@@ -390,7 +336,7 @@ export function GradientAIChatInput({
 
           </div>
         </div>
-
+        </div>
 
         {/* Enhanced shadow system for both light and dark modes */}
         {enableShadows && (

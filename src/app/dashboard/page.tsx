@@ -348,23 +348,25 @@ export default function DashboardPage() {
             </div>
             
             {/* Dashboard Hero Section */}
-            <section className="relative pt-6 pb-48 z-10">
+            <section className="relative pt-6 pb-48 z-10" style={{ overflow: 'visible' }}>
               <motion.div
                 className="relative z-10 p-8 pb-12"
                 variants={staggerContainer}
                 initial="initial"
                 animate="animate"
+                style={{ overflow: 'visible' }}
               >
-                <div className="mx-auto max-w-4xl text-center">
+                <div className="mx-auto max-w-4xl text-center px-4" style={{ overflow: 'visible' }}>
                   <motion.h1
                     className="mx-auto mb-4 text-4xl font-geist tracking-tighter text-foreground leading-tight sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl"
                     variants={fadeInUp}
-                    style={{ overflow: 'visible' }}
+                    style={{ overflow: 'visible', textOverflow: 'clip', whiteSpace: 'normal', wordBreak: 'normal' }}
                   >
                     What would you like to <GradientText
                       colors={['#a855f7', '#ec4899', '#a855f7', '#ec4899', '#a855f7']}
                       animationSpeed={6}
                       className="inline"
+                      style={{ overflow: 'visible' }}
                     >
                       automate
                     </GradientText> today?
