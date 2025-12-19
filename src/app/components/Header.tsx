@@ -209,8 +209,8 @@ export const Header: React.FC = () => {
 
               {/* Buttons - Desktop */}
               <div className="hidden md:flex items-center gap-2 mr-2">
-                {/* Login Button - Only show if user is not logged in */}
-                {!user && (
+                {/* Login Button - Show when user is not logged in (same condition as Start Building button) */}
+                {!(isMounted && !loading && user) && (
                   <button
                     onClick={(event) => {
                       event.preventDefault();
@@ -338,8 +338,8 @@ export const Header: React.FC = () => {
 
           {/* Mobile Buttons */}
           <div className="flex flex-col gap-2">
-            {/* Login Button - Only show if user is not logged in */}
-            {!user && (
+            {/* Login Button - Show when user is not logged in (same condition as Start Building button) */}
+            {!(isMounted && !loading && user) && (
               <button 
                 onClick={(event) => {
                   event.preventDefault();
