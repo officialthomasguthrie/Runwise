@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
@@ -26,18 +28,6 @@ interface SignUpPageProps {
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
   <div className="rounded-2xl border border-[#ffffff1a] bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
-    <style jsx>{`
-      input:-webkit-autofill,
-      input:-webkit-autofill:hover,
-      input:-webkit-autofill:focus,
-      input:-webkit-autofill:active {
-        -webkit-box-shadow: 0 0 0 30px transparent inset !important;
-        -webkit-text-fill-color: inherit !important;
-        background-color: transparent !important;
-        background-clip: content-box !important;
-        transition: background-color 5000s ease-in-out 0s;
-      }
-    `}</style>
     {children}
   </div>
 );
@@ -86,7 +76,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
       <section className="flex-1 flex items-center justify-center p-3" suppressHydrationWarning={true}>
         <div className="w-full max-w-xs" suppressHydrationWarning={true}>
           <div className="flex flex-col gap-2" suppressHydrationWarning={true}>
-            <h1 className="animate-element animate-delay-100 text-xl md:text-2xl font-semibold leading-tight">{title}</h1>
+            <h1 className="animate-element animate-delay-100 text-xl md:text-2xl leading-tight">{title}</h1>
             <p className="animate-element animate-delay-200 text-xs text-muted-foreground">{description}</p>
 
             <form className="space-y-2" onSubmit={onSignUp} suppressHydrationWarning={true}>
