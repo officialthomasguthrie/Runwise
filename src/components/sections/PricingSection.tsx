@@ -1,10 +1,14 @@
+"use client"
+
 import Link from "next/link"
+import { useMemo } from "react"
 
 import { ProCheckoutButton } from "@/components/billing/pro-checkout-button"
 import type { PricingTier } from "@/components/ui/pricing-card"
 import FadeContent from "@/components/ui/FadeContent"
 import { PricingSection as PricingSectionBlock } from "@/components/ui/pricing-section"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/contexts/auth-context"
 
 const PAYMENT_FREQUENCIES = ["monthly", "yearly"]
 const YEARLY_DISCOUNT_MULTIPLIER = 0.8
@@ -12,116 +16,144 @@ const YEARLY_DISCOUNT_MULTIPLIER = 0.8
 const discountMonthlyPrice = (price: number) =>
   Number((price * YEARLY_DISCOUNT_MULTIPLIER).toFixed(2))
 
-const PRICING_TIERS: PricingTier[] = [
-  {
-    id: "personal",
-    name: "Personal",
-    price: {
-      monthly: 9,
-      yearly: discountMonthlyPrice(9),
-    },
-    description: "Solo builders automating personal stacks with AI copilots.",
-    features: [
-      "2.5k workflow executions",
-      "100 credits",
-      "5 live workflows",
-      "100+ integrations",
-      "Webhook + API triggers",
-      "Workflow templates",
-      "Email support",
-    ],
-    cta: "Get Started",
-    ctaSlot: (
-      <ProCheckoutButton
-        plan="personal-monthly"
-        variant="outline"
-        className="w-full gap-2 border-border text-foreground font-geist justify-center"
-      >
-        Get Started
-      </ProCheckoutButton>
-    ),
-  },
-  {
-    id: "professional",
-    name: "Professional",
-    price: {
-      monthly: 29,
-      yearly: discountMonthlyPrice(29),
-    },
-    description: "Scaling teams orchestrating GTM, ops, and product workflows.",
-    features: [
-      "Everything in Personal",
-      "10k workflow executions",
-      "300 credits",
-      "20 live workflows",
-      "Analytics",
-      "Semi-priority chat support",
-    ],
-    cta: "Start Free Trial",
-    popular: true,
-    ctaSlot: (
-      <ProCheckoutButton
-        plan="pro-monthly"
-        className="w-full gap-2 justify-center font-geist"
-      >
-        Start Free Trial
-      </ProCheckoutButton>
-    ),
-  },
-  {
-    id: "advanced",
-    name: "Advanced",
-    price: {
-      monthly: 99,
-      yearly: discountMonthlyPrice(99),
-    },
-    description: "Ops-heavy teams orchestrating advanced AI workflows at scale.",
-    features: [
-      "Everything in Professional",
-      "40k workflow executions",
-      "Unlimited credits",
-      "Unlimited live workflows",
-      "Priority chat support",
-      "Dedicated solution engineer",
-    ],
-    cta: "Start Free Trial",
-    ctaSlot: (
-      <ProCheckoutButton
-        plan="pro-monthly"
-        variant="outline"
-        className="w-full gap-2 border-border text-foreground font-geist justify-center"
-      >
-        Start Free Trial
-      </ProCheckoutButton>
-    ),
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    price: {
-      monthly: "Custom",
-      yearly: "Custom",
-    },
-    description: "Security, SLAs, and white-glove onboarding for your org.",
-    features: [
-      "Everything in Advanced",
-      "You choose what features to add here",
-    ],
-    cta: "Contact sales",
-    highlighted: true,
-    ctaSlot: (
-      <Button
-        asChild
-        variant="secondary"
-        className="w-full gap-2 justify-center font-geist"
-      >
-        <Link href="mailto:hello@runwiseai.app">Contact sales</Link>
-      </Button>
-    ),
-  },
-]
+// Current Plan button component (matches billing tab styling)
+const CurrentPlanButton = () => (
+  <button 
+    disabled 
+    className="border border-gray-300 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-xl w-full rounded-lg py-1.5 px-3 cursor-not-allowed text-xs font-normal text-foreground opacity-60 transition-all"
+  >
+    Current Plan
+  </button>
+)
 
 export default function PricingSection() {
+  const { subscriptionTier } = useAuth()
+
+  // Determine current plan from subscription tier
+  // Map: personal -> "personal", pro/professional -> "professional", enterprise/enterprises -> "enterprise"
+  const currentPlan = useMemo(() => {
+    if (!subscriptionTier || subscriptionTier === "free") return null
+    if (subscriptionTier === "personal") return "personal"
+    if (subscriptionTier === "pro" || subscriptionTier === "professional") return "professional"
+    if (subscriptionTier === "enterprise" || subscriptionTier === "enterprises") return "enterprise"
+    return null
+  }, [subscriptionTier])
+
+  const PRICING_TIERS: PricingTier[] = useMemo(() => [
+    {
+      id: "personal",
+      name: "Personal",
+      price: {
+        monthly: 9,
+        yearly: discountMonthlyPrice(9),
+      },
+      description: "Solo builders automating personal stacks with AI copilots.",
+      features: [
+        "2.5k workflow executions",
+        "100 credits",
+        "5 live workflows",
+        "100+ integrations",
+        "Webhook + API triggers",
+        "Workflow templates",
+        "Email support",
+      ],
+      cta: "Get Started",
+      ctaSlot: currentPlan === "personal" ? (
+        <CurrentPlanButton />
+      ) : (
+        <ProCheckoutButton
+          plan="personal-monthly"
+          variant="outline"
+          className="w-full gap-2 border-border text-foreground font-geist justify-center"
+        >
+          Get Started
+        </ProCheckoutButton>
+      ),
+    },
+    {
+      id: "professional",
+      name: "Professional",
+      price: {
+        monthly: 29,
+        yearly: discountMonthlyPrice(29),
+      },
+      description: "Scaling teams orchestrating GTM, ops, and product workflows.",
+      features: [
+        "Everything in Personal",
+        "10k workflow executions",
+        "300 credits",
+        "20 live workflows",
+        "Analytics",
+        "Semi-priority chat support",
+      ],
+      cta: "Start Free Trial",
+      popular: true,
+      ctaSlot: currentPlan === "professional" ? (
+        <CurrentPlanButton />
+      ) : (
+        <ProCheckoutButton
+          plan="pro-monthly"
+          className="w-full gap-2 justify-center font-geist"
+        >
+          Start Free Trial
+        </ProCheckoutButton>
+      ),
+    },
+    {
+      id: "advanced",
+      name: "Advanced",
+      price: {
+        monthly: 99,
+        yearly: discountMonthlyPrice(99),
+      },
+      description: "Ops-heavy teams orchestrating advanced AI workflows at scale.",
+      features: [
+        "Everything in Professional",
+        "40k workflow executions",
+        "Unlimited credits",
+        "Unlimited live workflows",
+        "Priority chat support",
+        "Dedicated solution engineer",
+      ],
+      cta: "Start Free Trial",
+      ctaSlot: (
+        <ProCheckoutButton
+          plan="pro-monthly"
+          variant="outline"
+          className="w-full gap-2 border-border text-foreground font-geist justify-center"
+        >
+          Start Free Trial
+        </ProCheckoutButton>
+      ),
+    },
+    {
+      id: "enterprise",
+      name: "Enterprise",
+      price: {
+        monthly: "Custom",
+        yearly: "Custom",
+      },
+      description: "Security, SLAs, and white-glove onboarding for your org.",
+      features: [
+        "Everything in Advanced",
+        "You choose what features to add here",
+      ],
+      cta: "Contact sales",
+      highlighted: true,
+      ctaSlot: currentPlan === "enterprise" ? (
+        <CurrentPlanButton />
+      ) : (
+        <Button
+          asChild
+          variant="secondary"
+          className="w-full gap-2 justify-center font-geist"
+        >
+          <Link href="mailto:hello@runwiseai.app">Contact sales</Link>
+        </Button>
+      ),
+    },
+  ], [currentPlan])
+
   return (
     <FadeContent delay={200} duration={1000}>
           <div
