@@ -10,6 +10,7 @@ import { hasScheduledTrigger, getScheduleConfig } from '@/lib/workflows/schedule
 import { scheduleWorkflowOnActivation } from '@/lib/workflows/schedule-scheduler';
 import { validateWorkflowConfiguration } from '@/lib/workflows/validation';
 import { assertStepsLimit } from '@/lib/usage';
+import { getPlanLimits, subscriptionTierToPlanId } from '@/lib/plans/config';
 import type { Node } from '@xyflow/react';
 
 export async function PUT(
@@ -63,14 +64,54 @@ export async function PUT(
     if (active && workflowRecord.workflow_data?.nodes) {
       const nodes = workflowRecord.workflow_data.nodes as Node[];
       
-      // Check step limit based on user's plan
+      // Get user's subscription tier and map to planId
       const { data: userRow } = await (adminSupabase as any)
         .from('users')
-        .select('plan_id')
+        .select('subscription_tier')
         .eq('id', user.id)
         .single();
-      const planId = (userRow as any)?.plan_id ?? 'personal';
+      const subscriptionTier = (userRow as any)?.subscription_tier || 'free';
+      const planId = subscriptionTierToPlanId(subscriptionTier);
       
+      // Check active workflow limit BEFORE activating
+      const limits = getPlanLimits(planId);
+      if (limits.maxActiveWorkflows != null) {
+        // Check if this workflow is already active (don't count it if it is)
+        const isCurrentlyActive = workflowRecord.status === 'active';
+        
+        const { count, error: countErr } = await (adminSupabase as any)
+          .from('workflows')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('status', 'active');
+        
+        if (countErr) {
+          console.error('Error checking active workflows:', countErr);
+          return NextResponse.json(
+            {
+              error: 'Cannot activate workflow',
+              message: 'Failed to validate active workflows limit',
+            },
+            { status: 500 }
+          );
+        }
+        
+        const activeCount = count || 0;
+        // If this workflow is already active, don't count it
+        const countToCheck = isCurrentlyActive ? activeCount - 1 : activeCount;
+        
+        if (countToCheck >= limits.maxActiveWorkflows) {
+          return NextResponse.json(
+            {
+              error: 'Cannot activate workflow',
+              message: `Plan limit reached: Up to ${limits.maxActiveWorkflows} active workflows on your plan.`,
+            },
+            { status: 403 }
+          );
+        }
+      }
+      
+      // Check step limit based on user's plan
       // Count nodes in workflow (excluding placeholder nodes)
       const nodeCount = nodes.filter((node: any) => 
         node.type !== 'placeholder' && node.data?.nodeId !== 'placeholder'

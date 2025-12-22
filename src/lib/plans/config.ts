@@ -39,4 +39,23 @@ export function getPlanLimits(planId: PlanId | null | undefined): PlanLimits {
   return PLAN_CONFIG[planId] ?? PLAN_CONFIG.personal;
 }
 
+/**
+ * Maps subscription_tier from database to planId for plan limits
+ * Database uses: 'free', 'personal', 'pro', 'professional', 'enterprise', 'enterprises'
+ * Plan config uses: 'personal', 'professional', 'advanced', 'custom'
+ */
+export function subscriptionTierToPlanId(subscriptionTier: string | null | undefined): PlanId | null {
+  if (!subscriptionTier) return 'personal';
+  
+  const tier = subscriptionTier.toLowerCase();
+  
+  if (tier === 'personal') return 'personal';
+  if (tier === 'pro' || tier === 'professional') return 'professional';
+  if (tier === 'enterprise' || tier === 'enterprises') return 'custom'; // Enterprise maps to custom plan
+  if (tier === 'free') return 'personal'; // Free users get personal limits
+  
+  // Default to personal if unknown
+  return 'personal';
+}
+
 

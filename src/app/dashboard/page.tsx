@@ -17,6 +17,7 @@ import { Clock, ArrowRight, Trash2, X } from "lucide-react";
 import { Component as AILoader } from "@/components/ui/ai-loader";
 import TextType from "@/components/ui/text-type";
 import { UpgradeRequiredModal } from "@/components/ui/upgrade-required-modal";
+import { Button } from "@/components/ui/button";
 
 // Animation variants matching the AI textbox
 const fadeInUp = {
@@ -54,6 +55,7 @@ export default function DashboardPage() {
   const [hasReachedFreeLimit, setHasReachedFreeLimit] = useState(false);
   const [upgradeModalTitle, setUpgradeModalTitle] = useState("Upgrade to run workflows");
   const [upgradeModalMessage, setUpgradeModalMessage] = useState("You're currently on the Free plan. To run workflows and use AI-powered automation, you'll need an active subscription.");
+  const [showBanner, setShowBanner] = useState(true);
 
   const isFreePlan = !subscriptionTier || subscriptionTier === "free";
 
@@ -330,6 +332,49 @@ export default function DashboardPage() {
         <CollapsibleSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <BlankHeader />
+          {/* Free Plan Banner */}
+          {isFreePlan && showBanner && (
+            <div className="relative z-10 border-b border-stone-200 dark:border-white/10 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 px-4 py-3">
+              <div className="container mx-auto max-w-7xl flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="flex-shrink-0">
+                    <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {hasReachedFreeLimit ? (
+                        <>
+                          You've used your <span className="font-semibold text-purple-600 dark:text-purple-400">free workflow</span>. Upgrade to unlock full features.
+                        </>
+                      ) : (
+                        <>
+                          You're on the Free plan. You can generate <span className="font-semibold text-purple-600 dark:text-purple-400">1 workflow</span> with AI. Upgrade to unlock full features.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button
+                    onClick={() => router.push('/settings?tab=billing')}
+                    size="sm"
+                    className="border border-[#ffffff1a] bg-[#bd28b3ba] hover:bg-[#bd28b3da] text-white rounded-lg py-1.5 px-3 cursor-pointer flex items-center justify-center transition-all"
+                  >
+                    Upgrade
+                  </Button>
+                  <button
+                    onClick={() => setShowBanner(false)}
+                    className="text-muted-foreground hover:text-foreground p-1"
+                    aria-label="Dismiss banner"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <main className="flex h-full grow flex-col overflow-y-auto relative scrollbar-hide">
             {/* Animated Grid Pattern - Full Dashboard Background */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">

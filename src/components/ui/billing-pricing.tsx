@@ -517,7 +517,7 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
             >
               <div className="flex items-end justify-center gap-1">
                 <p className="text-xs font-normal leading-[1.2em] text-white">
-                  {loadingPlan === plans[0].name ? 'Redirecting...' : plans[0].buttonText}
+                  {loadingPlan === plans[0].name ? 'Redirecting...' : currentPlan ? 'Switch to Personal' : plans[0].buttonText}
                 </p>
 
                 {loadingPlan !== plans[0].name && (

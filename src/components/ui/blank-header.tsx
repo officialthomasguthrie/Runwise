@@ -339,7 +339,7 @@ export function BlankHeader({ className }: BlankHeaderProps) {
                           <button
                             key={page.href}
                             onClick={() => handleResultClick(page)}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent text-left transition-colors"
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors"
                           >
                             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
                             <span className="flex-1 text-sm text-foreground">{page.label}</span>
@@ -358,7 +358,7 @@ export function BlankHeader({ className }: BlankHeaderProps) {
                           <div
                             key={page.href}
                             onClick={() => handleResultClick(page)}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent text-left transition-colors group cursor-pointer"
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors group cursor-pointer"
                           >
                             <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                             <span className="flex-1 text-sm text-foreground">{page.label}</span>

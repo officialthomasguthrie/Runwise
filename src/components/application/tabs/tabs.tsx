@@ -75,9 +75,9 @@ const TabsItem = ({
     <AriaTab
       id={id}
       className={cn(
-        "relative flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
+        "relative flex items-center gap-2 rounded-md px-3 py-2 text-sm font-normal transition-colors cursor-pointer",
         "hover:bg-white/20 dark:hover:bg-zinc-900/20",
-        "data-[selected]:backdrop-blur-xl data-[selected]:bg-white/40 data-[selected]:dark:bg-zinc-900/40 data-[selected]:border data-[selected]:border-stone-200 data-[selected]:dark:border-white/10 data-[selected]:shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] data-[selected]:text-foreground",
+        "data-[selected]:font-semibold",
         "data-[focus-visible]:outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring data-[focus-visible]:ring-offset-2",
         "disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed",
         className

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, Variants } from "framer-motion";
+import { useAuth } from "@/contexts/auth-context";
 
 type Plan = {
   icon: string;
@@ -15,8 +16,19 @@ type Plan = {
 };
 
 export const Pricing: React.FC = () => {
+  const { subscriptionTier } = useAuth();
   const [isAnnual, setIsAnnual] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  // Determine current plan from subscription tier
+  // Map: personal -> "personal", pro/professional -> "professional", enterprise/enterprises -> "enterprises"
+  const currentPlan = useMemo(() => {
+    if (!subscriptionTier || subscriptionTier === "free") return null;
+    if (subscriptionTier === "personal") return "personal";
+    if (subscriptionTier === "pro" || subscriptionTier === "professional") return "professional";
+    if (subscriptionTier === "enterprise" || subscriptionTier === "enterprises") return "enterprises";
+    return null;
+  }, [subscriptionTier]);
 
   const handleCheckout = async (planName: string) => {
     // Map plan names to plan IDs
@@ -268,25 +280,34 @@ export const Pricing: React.FC = () => {
           </div>
 
           {/* CTA Button */}
-          <button
-            onClick={() => handleCheckout(plans[0].name)}
-            disabled={loadingPlan === plans[0].name}
-            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg py-2.5 px-[15px] cursor-pointer flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="flex items-center justify-center gap-[5px]">
-              <p className="text-[15px] font-normal leading-[1.2em]">
-                {loadingPlan === plans[0].name ? "Redirecting…" : plans[0].buttonText}
-              </p>
-              {loadingPlan !== plans[0].name && (
-                <img
-                  src="/assets/icons/arrow-top.svg"
-                  alt="arrow-top"
-                  loading="lazy"
-                  className="w-4 h-4"
-                />
-              )}
-            </div>
-          </button>
+          {currentPlan === "personal" ? (
+            <button
+              disabled
+              className="border border-gray-300 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-xl w-full rounded-lg py-2.5 px-[15px] cursor-not-allowed text-[15px] font-normal text-foreground opacity-60 transition-all flex items-center justify-center"
+            >
+              Current Plan
+            </button>
+          ) : (
+            <button
+              onClick={() => handleCheckout(plans[0].name)}
+              disabled={loadingPlan === plans[0].name}
+              className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg py-2.5 px-[15px] cursor-pointer flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center justify-center gap-[5px]">
+                <p className="text-[15px] font-normal leading-[1.2em]">
+                  {loadingPlan === plans[0].name ? "Redirecting…" : currentPlan ? "Switch to Personal" : plans[0].buttonText}
+                </p>
+                {loadingPlan !== plans[0].name && (
+                  <img
+                    src="/assets/icons/arrow-top.svg"
+                    alt="arrow-top"
+                    loading="lazy"
+                    className="w-4 h-4"
+                  />
+                )}
+              </div>
+            </button>
+          )}
 
           {/* Features */}
           <ul className="space-y-3 pt-2">
@@ -359,25 +380,34 @@ export const Pricing: React.FC = () => {
           </div>
 
           {/* CTA Button */}
-          <button
-            onClick={() => handleCheckout(plans[1].name)}
-            disabled={loadingPlan === plans[1].name}
-            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg py-2.5 px-[15px] cursor-pointer flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="flex items-center justify-center gap-[5px]">
-              <p className="text-[15px] font-normal leading-[1.2em]">
-                {loadingPlan === plans[1].name ? "Redirecting…" : plans[1].buttonText}
-              </p>
-              {loadingPlan !== plans[1].name && (
-                <img
-                  src="/assets/icons/arrow-top.svg"
-                  alt="arrow-top"
-                  loading="lazy"
-                  className="w-4 h-4"
-                />
-              )}
-            </div>
-          </button>
+          {currentPlan === "professional" ? (
+            <button
+              disabled
+              className="border border-gray-300 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-xl w-full rounded-lg py-2.5 px-[15px] cursor-not-allowed text-[15px] font-normal text-foreground opacity-60 transition-all flex items-center justify-center"
+            >
+              Current Plan
+            </button>
+          ) : (
+            <button
+              onClick={() => handleCheckout(plans[1].name)}
+              disabled={loadingPlan === plans[1].name}
+              className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg py-2.5 px-[15px] cursor-pointer flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center justify-center gap-[5px]">
+                <p className="text-[15px] font-normal leading-[1.2em]">
+                  {loadingPlan === plans[1].name ? "Redirecting…" : currentPlan ? "Switch to Professional" : plans[1].buttonText}
+                </p>
+                {loadingPlan !== plans[1].name && (
+                  <img
+                    src="/assets/icons/arrow-top.svg"
+                    alt="arrow-top"
+                    loading="lazy"
+                    className="w-4 h-4"
+                  />
+                )}
+              </div>
+            </button>
+          )}
 
           {/* Features */}
           <ul className="space-y-3 pt-2">
@@ -450,22 +480,31 @@ export const Pricing: React.FC = () => {
           </div>
 
           {/* CTA Button - Enterprise (opens Cal.com in new tab) */}
-          <button 
-            onClick={() => window.open('https://cal.com/thomas-guthrie/runwise-enterprise-consultation', '_blank')}
-            className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg py-2.5 px-[15px] cursor-pointer flex items-center justify-center"
-          >
-            <div className="flex items-center justify-center gap-[5px]">
-              <p className="text-[15px] font-normal leading-[1.2em]">
-                {plans[2].buttonText}
-              </p>
-              <img
-                src="/assets/icons/arrow-top.svg"
-                alt="arrow-top"
-                loading="lazy"
-                className="w-4 h-4"
-              />
-            </div>
-          </button>
+          {currentPlan === "enterprises" ? (
+            <button
+              disabled
+              className="border border-gray-300 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-xl w-full rounded-lg py-2.5 px-[15px] cursor-not-allowed text-[15px] font-normal text-foreground opacity-60 transition-all flex items-center justify-center"
+            >
+              Current Plan
+            </button>
+          ) : (
+            <button 
+              onClick={() => window.open('https://cal.com/thomas-guthrie/runwise-enterprise-consultation', '_blank')}
+              className="border border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg py-2.5 px-[15px] cursor-pointer flex items-center justify-center"
+            >
+              <div className="flex items-center justify-center gap-[5px]">
+                <p className="text-[15px] font-normal leading-[1.2em]">
+                  {plans[2].buttonText}
+                </p>
+                <img
+                  src="/assets/icons/arrow-top.svg"
+                  alt="arrow-top"
+                  loading="lazy"
+                  className="w-4 h-4"
+                />
+              </div>
+            </button>
+          )}
 
           {/* Features */}
           <ul className="space-y-3 pt-2">

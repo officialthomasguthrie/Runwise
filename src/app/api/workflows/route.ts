@@ -9,7 +9,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { validateWorkflowData } from '@/lib/workflows/utils';
 import type { CreateWorkflowInput } from '@/lib/workflows/types';
 import { assertStepsLimit } from '@/lib/usage';
-import { getPlanLimits } from '@/lib/plans/config';
+import { getPlanLimits, subscriptionTierToPlanId } from '@/lib/plans/config';
 
 // GET /api/workflows - List all workflows for the authenticated user
 export async function GET(request: NextRequest) {
@@ -106,10 +106,11 @@ export async function POST(request: NextRequest) {
     const adminSupabase = createAdminClient();
     const { data: userRow } = await (adminSupabase as any)
       .from('users')
-      .select('plan_id')
+      .select('subscription_tier')
       .eq('id', user.id)
       .single();
-    const planId = (userRow as any)?.plan_id ?? 'personal';
+    const subscriptionTier = (userRow as any)?.subscription_tier || 'free';
+    const planId = subscriptionTierToPlanId(subscriptionTier);
     
     // Count nodes in workflow (excluding placeholder nodes)
     const nodes = body.workflow_data?.nodes || [];

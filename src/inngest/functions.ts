@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase-admin";
 import type { Database } from "@/types/database";
 import type { Node, Edge } from "@xyflow/react";
 import { assertWithinLimit, incrementUsage } from "@/lib/usage";
-import { getPlanLimits } from "@/lib/plans/config";
+import { getPlanLimits, subscriptionTierToPlanId } from "@/lib/plans/config";
 import { hasScheduledTrigger, getScheduleConfig } from "@/lib/workflows/schedule-utils";
 // @ts-ignore - cron-parser has incorrect type definitions
 import parseExpression from "cron-parser";
@@ -175,7 +175,7 @@ export const workflowExecutor = inngest.createFunction(
         const supabaseForPlan = createAdminClient();
         const { data: userRow, error: userError } = await supabaseForPlan
           .from("users")
-          .select("id, plan_id")
+          .select("id, subscription_tier")
           .eq("id", userId)
           .single();
         
@@ -185,7 +185,8 @@ export const workflowExecutor = inngest.createFunction(
           return { planId: "personal" };
         }
         
-        const planId = (userRow as any)?.plan_id ?? "personal";
+        const subscriptionTier = (userRow as any)?.subscription_tier || "free";
+        const planId = subscriptionTierToPlanId(subscriptionTier);
 
         // Enforce executions limit (pre-check)
         try {

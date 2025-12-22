@@ -16,6 +16,7 @@ import type {
 import { checkCreditsAvailable, deductCredits } from '@/lib/credits/tracker';
 import { calculateCreditsFromTokens, estimateWorkflowGenerationCredits } from '@/lib/credits/calculator';
 import { assertStepsLimit } from '@/lib/usage';
+import { subscriptionTierToPlanId } from '@/lib/plans/config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -146,10 +147,11 @@ export async function POST(request: NextRequest) {
               const adminSupabase = createAdminClient();
               const { data: userRow } = await (adminSupabase as any)
                 .from('users')
-                .select('plan_id')
+                .select('subscription_tier')
                 .eq('id', user.id)
                 .single();
-              const planId = (userRow as any)?.plan_id ?? 'personal';
+              const subscriptionTier = (userRow as any)?.subscription_tier || 'free';
+              const planId = subscriptionTierToPlanId(subscriptionTier);
               
               // Count nodes in generated workflow (excluding placeholder nodes)
               const nodes = workflow.nodes || [];

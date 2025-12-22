@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { validateWorkflowData } from '@/lib/workflows/utils';
 import type { UpdateWorkflowInput } from '@/lib/workflows/types';
-import { getPlanLimits } from '@/lib/plans/config';
+import { getPlanLimits, subscriptionTierToPlanId } from '@/lib/plans/config';
 import { assertStepsLimit } from '@/lib/usage';
 
 // GET /api/workflows/[id] - Get a single workflow
@@ -98,10 +98,11 @@ export async function PUT(
       const adminSupabase = createAdminClient();
       const { data: userRow } = await (adminSupabase as any)
         .from('users')
-        .select('plan_id')
+        .select('subscription_tier')
         .eq('id', user.id)
         .single();
-      const planId = (userRow as any)?.plan_id ?? 'personal';
+      const subscriptionTier = (userRow as any)?.subscription_tier || 'free';
+      const planId = subscriptionTierToPlanId(subscriptionTier);
       
       // Count nodes in workflow (excluding placeholder nodes)
       const nodes = body.workflow_data?.nodes || [];
@@ -145,17 +146,21 @@ export async function PUT(
     
     // If activating, enforce active workflow cap based on plan
     if (body.status === 'active') {
-      // Fetch user's plan
+      // Fetch user's subscription tier
       const { data: userRow } = await supabase
         .from('users')
-        .select('plan_id')
+        .select('subscription_tier')
         .eq('id', user.id)
         .single();
-      const planId = (userRow as any)?.plan_id ?? 'personal';
+      const subscriptionTier = (userRow as any)?.subscription_tier || 'free';
+      const planId = subscriptionTierToPlanId(subscriptionTier);
       const limits = getPlanLimits(planId);
       
       if (limits.maxActiveWorkflows != null) {
-        const { data: countRows, error: countErr } = await supabase
+        // Check if this workflow is already active (don't count it if it is)
+        const isCurrentlyActive = existingWorkflow && (existingWorkflow as any).status === 'active';
+        
+        const { count, error: countErr } = await supabase
           .from('workflows')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id)
@@ -166,8 +171,11 @@ export async function PUT(
             { status: 500 }
           );
         }
-        const activeCount = (countRows as any)?.length ?? (countRows as any)?.count ?? 0;
-        if (activeCount >= limits.maxActiveWorkflows) {
+        const activeCount = count || 0;
+        // If this workflow is already active, don't count it
+        const countToCheck = isCurrentlyActive ? activeCount - 1 : activeCount;
+        
+        if (countToCheck >= limits.maxActiveWorkflows) {
           return NextResponse.json(
             { error: `Plan limit reached: Up to ${limits.maxActiveWorkflows} active workflows on your plan.` },
             { status: 403 }

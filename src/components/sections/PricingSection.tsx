@@ -66,7 +66,7 @@ export default function PricingSection() {
           variant="outline"
           className="w-full gap-2 border-border text-foreground font-geist justify-center"
         >
-          Get Started
+          {currentPlan ? "Switch to Personal" : "Get Started"}
         </ProCheckoutButton>
       ),
     },
@@ -95,7 +95,7 @@ export default function PricingSection() {
           plan="pro-monthly"
           className="w-full gap-2 justify-center font-geist"
         >
-          Start Free Trial
+          {currentPlan ? "Switch to Professional" : "Start Free Trial"}
         </ProCheckoutButton>
       ),
     },
@@ -138,7 +138,7 @@ export default function PricingSection() {
         "Everything in Advanced",
         "You choose what features to add here",
       ],
-      cta: "Contact sales",
+      cta: "Schedule a call",
       highlighted: true,
       ctaSlot: currentPlan === "enterprise" ? (
         <CurrentPlanButton />
@@ -148,7 +148,7 @@ export default function PricingSection() {
           variant="secondary"
           className="w-full gap-2 justify-center font-geist"
         >
-          <Link href="mailto:hello@runwiseai.app">Contact sales</Link>
+          <Link href="mailto:hello@runwiseai.app">Schedule a call</Link>
         </Button>
       ),
     },
