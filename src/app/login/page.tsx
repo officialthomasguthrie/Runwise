@@ -27,10 +27,22 @@ const sampleTestimonials: Testimonial[] = [
 ];
 
 export default function LoginPage() {
-  const { signIn, signInWithGoogle, signInWithMicrosoft } = useAuth();
+  const { signIn, signInWithGoogle, signInWithMicrosoft, user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Redirect to dashboard if user is already authenticated (unless there's an error to show)
+  useEffect(() => {
+    if (!authLoading && user) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const errorParam = searchParams.get('error');
+      // Only redirect if there's no error to show
+      if (!errorParam) {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, authLoading, router]);
 
   // Check for error query parameter from auth callback
   useEffect(() => {

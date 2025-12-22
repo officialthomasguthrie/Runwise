@@ -310,6 +310,13 @@ export default function DashboardPage() {
     loadProjects();
   }, [user, loading]);
 
+  // Redirect to login if not authenticated (after loading completes)
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
   // Keep a single conditional return to avoid altering hooks order between renders
   if (loading) {
     return (
@@ -322,6 +329,7 @@ export default function DashboardPage() {
     );
   }
 
+  // Show nothing while redirecting (or if no user after loading)
   if (!user) {
     return null;
   }

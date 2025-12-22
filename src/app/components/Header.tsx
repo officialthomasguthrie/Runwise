@@ -10,16 +10,11 @@ export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("");
-  const [isMounted, setIsMounted] = useState(false);
   
   // Always call hooks unconditionally (React rules)
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -209,8 +204,8 @@ export const Header: React.FC = () => {
 
               {/* Buttons - Desktop */}
               <div className="hidden md:flex items-center gap-2 mr-2">
-                {/* Login Button - Show when user is not logged in (same condition as Start Building button) */}
-                {!(isMounted && !loading && user) && (
+                {/* Login Button - Show when user is not logged in (after loading completes) */}
+                {!loading && !user && (
                   <button
                     onClick={(event) => {
                       event.preventDefault();
@@ -233,44 +228,46 @@ export const Header: React.FC = () => {
                   </button>
                 )}
 
-                {/* Start Building Button */}
-                <button
-                  onClick={(event) => {
-                    event.preventDefault();
-                    if (isMounted && !loading && user && router) {
-                      router.push("/dashboard");
-                    } else if (typeof window !== "undefined") {
-                      window.open("/signup", "_blank", "noopener,noreferrer");
-                    }
-                  }}
-                  className={`border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg cursor-pointer flex items-center justify-center ${
-                    isScrolled ? "h-[34px] w-[42px]" : "h-[38px] w-[142px]"
-                  }`}
-                >
-                  {!isScrolled && (
-                    <div className="flex items-center justify-center gap-[5px]">
-                      <p className="text-[15px] font-normal leading-[1.2em] whitespace-nowrap">
-                        {isMounted && !loading && user ? "Dashboard" : "Start Building"}
-                      </p>
-                      <img
-                        src="/assets/icons/arrow-top.svg"
-                        alt="arrow-top"
-                        loading="lazy"
-                        className="w-4 h-4"
-                      />
-                    </div>
-                  )}
-                  {isScrolled && (
-                    <div className="flex items-center justify-center w-full h-full">
-                      <img
-                        src="/assets/icons/arrow-top.svg"
-                        alt="arrow-top"
-                        loading="lazy"
-                        className="w-4 h-4"
-                      />
-                    </div>
-                  )}
-                </button>
+                {/* Dashboard/Start Building Button - Only show after loading completes */}
+                {!loading && (
+                  <button
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (user && router) {
+                        router.push("/dashboard");
+                      } else if (typeof window !== "undefined") {
+                        window.open("/signup", "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                    className={`border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg cursor-pointer flex items-center justify-center ${
+                      isScrolled ? "h-[34px] w-[42px]" : "h-[38px] w-[142px]"
+                    }`}
+                  >
+                    {!isScrolled && (
+                      <div className="flex items-center justify-center gap-[5px]">
+                        <p className="text-[15px] font-normal leading-[1.2em] whitespace-nowrap">
+                          {user ? "Dashboard" : "Start Building"}
+                        </p>
+                        <img
+                          src="/assets/icons/arrow-top.svg"
+                          alt="arrow-top"
+                          loading="lazy"
+                          className="w-4 h-4"
+                        />
+                      </div>
+                    )}
+                    {isScrolled && (
+                      <div className="flex items-center justify-center w-full h-full">
+                        <img
+                          src="/assets/icons/arrow-top.svg"
+                          alt="arrow-top"
+                          loading="lazy"
+                          className="w-4 h-4"
+                        />
+                      </div>
+                    )}
+                  </button>
+                )}
               </div>
 
               {/* Hamburger/Close Menu Button - Mobile */}
@@ -338,8 +335,8 @@ export const Header: React.FC = () => {
 
           {/* Mobile Buttons */}
           <div className="flex flex-col gap-2">
-            {/* Login Button - Show when user is not logged in (same condition as Start Building button) */}
-            {!(isMounted && !loading && user) && (
+            {/* Login Button - Show when user is not logged in (after loading completes) */}
+            {!loading && !user && (
               <button 
                 onClick={(event) => {
                   event.preventDefault();
@@ -355,37 +352,40 @@ export const Header: React.FC = () => {
                 </span>
               </button>
             )}
-            <button 
-              onClick={(event) => {
-                event.preventDefault();
-                if (isMounted && !loading && user && router) {
-                  router.push("/dashboard");
-                } else {
-                  const pricingSection = document.getElementById("pricing");
-                  if (pricingSection) {
-                    const headerOffset = 80;
-                    const elementPosition = pricingSection.getBoundingClientRect().top;
-                    const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                    window.scrollTo({
-                      top: offsetPosition,
-                      behavior: "smooth",
-                    });
+            {/* Dashboard/Start Building Button - Only show after loading completes */}
+            {!loading && (
+              <button 
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (user && router) {
+                    router.push("/dashboard");
+                  } else {
+                    const pricingSection = document.getElementById("pricing");
+                    if (pricingSection) {
+                      const headerOffset = 80;
+                      const elementPosition = pricingSection.getBoundingClientRect().top;
+                      const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                      window.scrollTo({
+                        top: offsetPosition,
+                        behavior: "smooth",
+                      });
+                    }
                   }
-                }
-                closeMenu();
-              }}
-              className="w-full border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center gap-2"
-            >
-              <span className="text-sm font-normal leading-[1.2em] text-white">
-                {isMounted && !loading && user ? "Dashboard" : "Start Building"}
-              </span>
-              <img
-                src="/assets/icons/arrow-top.svg"
-                alt="arrow-top"
-                loading="lazy"
-                className="w-4 h-4"
-              />
-            </button>
+                  closeMenu();
+                }}
+                className="w-full border border-[#ffffff1a] bg-[#bd28b3ba] rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span className="text-sm font-normal leading-[1.2em] text-white">
+                  {user ? "Dashboard" : "Start Building"}
+                </span>
+                <img
+                  src="/assets/icons/arrow-top.svg"
+                  alt="arrow-top"
+                  loading="lazy"
+                  className="w-4 h-4"
+                />
+              </button>
+            )}
           </div>
         </div>
       </div>

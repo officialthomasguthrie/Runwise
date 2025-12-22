@@ -55,22 +55,24 @@ export const Hero: React.FC = () => {
           </p>
 
           <div className="flex items-center justify-center gap-[15px] mt-8">
-            {/* Start Building BTN */}
-            <button 
-              onClick={() => {
-                if (!loading && user) {
-                  router.push("/dashboard");
-                } else if (typeof window !== "undefined") {
-                  window.open("/signup", "_blank", "noopener,noreferrer");
-                }
-              }}
-              className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[140.77px] w-full min-h-[38px] py-2.5 rounded-lg px-[15px] cursor-pointer flex items-center justify-center"
-            >
-              <div className="flex items-center justify-center gap-[5px]">
-                <p className="text-sm">{!loading && user ? "Dashboard" : "Start Building"}</p>
-                <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" alt="Arrow icon" />
-              </div>
-            </button>
+            {/* Start Building/Dashboard BTN - Only show after loading completes */}
+            {!loading && (
+              <button 
+                onClick={() => {
+                  if (user) {
+                    router.push("/dashboard");
+                  } else if (typeof window !== "undefined") {
+                    window.open("/signup", "_blank", "noopener,noreferrer");
+                  }
+                }}
+                className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[140.77px] w-full min-h-[38px] py-2.5 rounded-lg px-[15px] cursor-pointer flex items-center justify-center"
+              >
+                <div className="flex items-center justify-center gap-[5px]">
+                  <p className="text-sm">{user ? "Dashboard" : "Start Building"}</p>
+                  <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" alt="Arrow icon" />
+                </div>
+              </button>
+            )}
 
             {/* See Plans BTN */}
             <button 

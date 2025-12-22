@@ -66,16 +66,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     
-    // Get initial session
+    // Get initial session - set user/session immediately, load subscription tier in background
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        // Set user and session immediately so UI can render
         setSession(session);
         setUser(session?.user ?? null);
-        await loadSubscriptionTier(session?.user ?? null);
+        // Set loading to false immediately so buttons show right away
+        setLoading(false);
+        // Load subscription tier in background (don't block on it)
+        loadSubscriptionTier(session?.user ?? null).catch(err => {
+          console.error('Auth: Error loading subscription tier in background:', err);
+        });
       } catch (error) {
         console.error('Auth: Error in getInitialSession:', error);
-      } finally {
         setLoading(false);
       }
     };
@@ -85,10 +90,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Set user and session immediately
         setSession(session);
         setUser(session?.user ?? null);
-        await loadSubscriptionTier(session?.user ?? null);
+        // Set loading to false immediately
         setLoading(false);
+        // Load subscription tier in background (don't block on it)
+        loadSubscriptionTier(session?.user ?? null).catch(err => {
+          console.error('Auth: Error loading subscription tier in background:', err);
+        });
       }
     );
 
