@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, Variants } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { CreditCard, Edit, Trash2, AlertCircle, Loader2, Save, X, CreditCard as CreditCardIcon, Calendar } from "lucide-react";
@@ -24,54 +24,23 @@ interface BillingPricingProps {
 }
 
 export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier: subscriptionTierProp }) => {
-  const { user } = useAuth();
-  const [subscriptionTier, setSubscriptionTier] = useState<string | null>(subscriptionTierProp || null);
+  const { user, subscriptionTier: authSubscriptionTier } = useAuth();
   const supabase = createClient();
 
-  // Update subscription tier when prop changes (fallback if prop is not provided)
-  useEffect(() => {
-    if (subscriptionTierProp !== undefined) {
-      setSubscriptionTier(subscriptionTierProp);
-    }
-  }, [subscriptionTierProp]);
+  // Use subscription tier from auth context (most reliable source), fallback to prop, then to 'free'
+  // This ensures we always have a value and it's always up-to-date
+  const subscriptionTier = authSubscriptionTier ?? subscriptionTierProp ?? 'free';
 
-  // Fetch subscription tier from database only if prop is not provided
-  useEffect(() => {
-    if (subscriptionTierProp !== undefined || !user) {
-      return;
-    }
-
-    const loadSubscriptionTier = async () => {
-      try {
-        const { data: userData, error } = await (supabase
-          .from('users') as any)
-          .select('subscription_tier')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error loading subscription tier:', error);
-          setSubscriptionTier('free');
-        } else {
-          setSubscriptionTier((userData as any)?.subscription_tier || 'free');
-        }
-      } catch (error) {
-        console.error('Error loading subscription tier:', error);
-        setSubscriptionTier('free');
-      }
-    };
-
-    loadSubscriptionTier();
-  }, [user, supabase, subscriptionTierProp]);
-
-  // Determine current plan from database subscription_tier
+  // Determine current plan from subscription_tier (memoized for stability)
   // Map: free -> null (no current plan), personal -> personal, pro/professional -> professional, enterprise/enterprises -> enterprises
-  const userPlan = subscriptionTier || "free";
-  const currentPlan = 
-    userPlan === "free" ? null :
-    userPlan === "personal" ? "personal" :
-    userPlan === "pro" || userPlan === "professional" ? "professional" :
-    userPlan === "enterprise" || userPlan === "enterprises" ? "enterprises" : null;
+  const currentPlan = useMemo(() => {
+    const userPlan = subscriptionTier || "free";
+    if (userPlan === "free") return null;
+    if (userPlan === "personal") return "personal";
+    if (userPlan === "pro" || userPlan === "professional") return "professional";
+    if (userPlan === "enterprise" || userPlan === "enterprises") return "enterprises";
+    return null;
+  }, [subscriptionTier]);
 
   interface PaymentMethod {
     id: string;

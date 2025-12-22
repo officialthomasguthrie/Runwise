@@ -15,7 +15,6 @@ import { IntegrationsSettings } from "@/components/ui/integrations-settings";
 import { AuthenticationSettings } from "@/components/ui/authentication-settings";
 import { NotificationsSettings } from "@/components/ui/notifications-settings";
 import { ExportSettings } from "@/components/ui/export-settings";
-import { createClient } from "@/lib/supabase-client";
 
 const tabs = [
   { id: "profile", label: "Profile" },
@@ -28,48 +27,15 @@ const tabs = [
 ];
 
 function SettingsPageContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, subscriptionTier } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
-  const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
-  const supabase = createClient();
   
   // Initialize tab from URL or default to profile
   const [selectedTabIndex, setSelectedTabIndex] = useState<Key>(
     (tabFromUrl && tabs.some(t => t.id === tabFromUrl)) ? tabFromUrl : "profile"
   );
-
-  // Fetch subscription tier early so it's available when billing tab opens
-  useEffect(() => {
-    const loadSubscriptionTier = async () => {
-      if (!user) {
-        return;
-      }
-
-      try {
-        const { data: userData, error } = await (supabase
-          .from('users') as any)
-          .select('subscription_tier')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error loading subscription tier:', error);
-          setSubscriptionTier('free');
-        } else {
-          setSubscriptionTier((userData as any)?.subscription_tier || 'free');
-        }
-      } catch (error) {
-        console.error('Error loading subscription tier:', error);
-        setSubscriptionTier('free');
-      }
-    };
-
-    if (user) {
-      loadSubscriptionTier();
-    }
-  }, [user, supabase]);
 
   // Update tab when URL changes
   useEffect(() => {
@@ -134,7 +100,7 @@ function SettingsPageContent() {
                       <AuthenticationSettings />
                     </Tabs.Panel>
                     <Tabs.Panel id="billing">
-                      <BillingPricing subscriptionTier={subscriptionTier} />
+                      <BillingPricing />
                     </Tabs.Panel>
                     <Tabs.Panel id="integrations">
                       <IntegrationsSettings />
