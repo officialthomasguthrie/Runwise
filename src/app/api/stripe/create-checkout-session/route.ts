@@ -80,10 +80,13 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // Only add trial period if not skipping it (for plan switches from billing settings)
-    // Personal plan does not have a free trial
+    // Only add trial period if:
+    // 1. Not explicitly skipping it (for plan switches from billing settings)
+    // 2. User is NOT logged in (new signups get trial, existing users switching plans don't)
+    // 3. It's not a personal plan (personal doesn't have trial)
     const isPersonalPlan = selectedPlan.startsWith('personal-');
-    if (!skipTrial && !isPersonalPlan) {
+    const isLoggedInUser = user !== null;
+    if (!skipTrial && !isPersonalPlan && !isLoggedInUser) {
       subscriptionData.trial_period_days = 7;
     }
 
