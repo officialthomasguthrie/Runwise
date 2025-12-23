@@ -220,15 +220,84 @@ select option {
 }
 
 /* Dark mode select dropdown background - ensure proper contrast */
-/* Exclude node dropdowns that have their own styling */
-.dark select:not(.nodrag) {
+/* Exclude node dropdowns and schedule inputs that have their own styling */
+.dark select:not(.nodrag):not([class*="backdrop-blur"]) {
   background-color: hsl(var(--background)) !important;
   color: hsl(var(--foreground)) !important;
 }
 
-.dark select:not(.nodrag):focus {
+.dark select:not(.nodrag):not([class*="backdrop-blur"]):focus {
   background-color: hsl(var(--background)) !important;
   color: hsl(var(--foreground)) !important;
+}
+
+/* All dropdown items - gray hover (not blue) - override any accent colors */
+[data-radix-select-item] {
+  transition: background-color 0.15s ease !important;
+}
+
+/* Gray hover for all dropdown items - override blue accent */
+[data-radix-select-item][data-highlighted],
+[data-radix-select-item][data-highlighted]:hover,
+[data-radix-select-item]:hover[data-highlighted] {
+  background-color: rgb(243, 244, 246) !important; /* gray-100 */
+  color: inherit !important;
+  --tw-bg-opacity: 1 !important;
+}
+
+.dark [data-radix-select-item][data-highlighted],
+.dark [data-radix-select-item][data-highlighted]:hover,
+.dark [data-radix-select-item]:hover[data-highlighted] {
+  background-color: rgb(31, 41, 55) !important; /* gray-800 */
+  color: inherit !important;
+  --tw-bg-opacity: 1 !important;
+}
+
+/* Liquid glass dropdown items - gray hover with opacity */
+[class*="backdrop-blur-xl"] [data-radix-select-item][data-highlighted],
+[class*="backdrop-blur-xl"] [data-radix-select-item][data-highlighted]:hover {
+  background-color: rgba(107, 114, 128, 0.15) !important; /* gray-500 with opacity */
+  color: inherit !important;
+}
+
+.dark [class*="backdrop-blur-xl"] [data-radix-select-item][data-highlighted],
+.dark [class*="backdrop-blur-xl"] [data-radix-select-item][data-highlighted]:hover {
+  background-color: rgba(107, 114, 128, 0.2) !important; /* gray-500 with opacity */
+  color: inherit !important;
+}
+
+/* Override default focus styling for all dropdowns - remove blue */
+[data-radix-select-item]:focus,
+[data-radix-select-item]:focus-visible {
+  background-color: rgb(243, 244, 246) !important; /* gray-100 */
+  color: inherit !important;
+  outline: none !important;
+}
+
+.dark [data-radix-select-item]:focus,
+.dark [data-radix-select-item]:focus-visible {
+  background-color: rgb(31, 41, 55) !important; /* gray-800 */
+  color: inherit !important;
+  outline: none !important;
+}
+
+/* Override default focus styling for liquid glass dropdowns */
+[class*="backdrop-blur-xl"] [data-radix-select-item]:focus,
+[class*="backdrop-blur-xl"] [data-radix-select-item]:focus-visible {
+  background-color: rgba(107, 114, 128, 0.15) !important;
+  outline: none !important;
+}
+
+.dark [class*="backdrop-blur-xl"] [data-radix-select-item]:focus,
+.dark [class*="backdrop-blur-xl"] [data-radix-select-item]:focus-visible {
+  background-color: rgba(107, 114, 128, 0.2) !important;
+  outline: none !important;
+}
+
+/* Remove any blue ring or accent colors */
+[data-radix-select-item][data-highlighted] *,
+[data-radix-select-item]:focus * {
+  color: inherit !important;
 }
 
 /* Additional styling for better dark mode dropdown appearance */

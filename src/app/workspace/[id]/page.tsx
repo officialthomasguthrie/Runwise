@@ -95,9 +95,9 @@ export default function WorkspacePage() {
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const [isLeftSidebarVisible, setIsLeftSidebarVisible] = useState(false);
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
-  const [isConfigPanelVisible, setIsConfigPanelVisible] = useState(false);
+  // Config panel state removed - using in-node expansion now
   const [externalChatMessage, setExternalChatMessage] = useState<string | null>(null);
-  const [externalChatContext, setExternalChatContext] = useState<{ fieldName?: string; nodeType?: string; nodeId?: string; workflowName?: string } | null>(null);
+  const [externalChatContext, setExternalChatContext] = useState<{ fieldName?: string; nodeType?: string; nodeId?: string; nodeLabel?: string; nodeDescription?: string; workflowName?: string } | null>(null);
   const [workflowActive, setWorkflowActive] = useState(false);
   const [isLoadingWorkflowStatus, setIsLoadingWorkflowStatus] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
@@ -970,8 +970,8 @@ export default function WorkspacePage() {
             style={{ 
               marginRight: isDesktop && isChatSidebarVisible ? `${sidebarWidth}px` : '0px',
               marginLeft: isDesktop && isLeftSidebarVisible 
-                ? `${leftSidebarWidth + (isConfigPanelVisible ? 320 : 0)}px` 
-                : isDesktop && isConfigPanelVisible ? '320px' : '0px'
+                ? `${leftSidebarWidth}px` 
+                : '0px'
             }}
           >
             {/* Hide Sidebar Button - top left of canvas area */}
@@ -1126,13 +1126,7 @@ export default function WorkspacePage() {
                 onExecutionStateChange={handleExecutionStateChange}
                 onRegisterUndoRedoCallbacks={handleRegisterUndoRedoCallbacks}
                 onRegisterSaveCallback={handleRegisterSaveCallback}
-                onConfigPanelVisibilityChange={(isVisible) => {
-                  setIsConfigPanelVisible(isVisible);
-                  // Hide add node sidebar when config panel opens
-                  if (isVisible && isLeftSidebarVisible) {
-                    setIsLeftSidebarVisible(false);
-                  }
-                }}
+                // Config panel visibility callback removed - using in-node expansion now
                 onAskAI={(fieldName: string, nodeId: string, nodeType: string) => {
                   // Open chat if it's closed
                   if (!isChatSidebarVisible) {
@@ -1144,6 +1138,41 @@ export default function WorkspacePage() {
                     fieldName,
                     nodeType,
                     nodeId,
+                    workflowName: workflowName,
+                  });
+                }}
+                onAskNodeInfo={(nodeId: string, nodeLabel: string, nodeType: string, nodeDescription?: string) => {
+                  // Open chat sidebar if it's not open
+                  if (!isChatSidebarVisible) {
+                    setIsChatSidebarVisible(true);
+                  }
+                  
+                  // Get current workflow for context
+                  const currentWorkflow = getWorkflowRef.current ? getWorkflowRef.current() : { nodes: [], edges: [] };
+                  
+                  // Find the specific node in the workflow
+                  const targetNode = currentWorkflow.nodes.find((n: any) => n.id === nodeId);
+                  
+                  // Build a comprehensive prompt that asks the AI to analyze the workflow
+                  let prompt = `What does the "${nodeLabel}" node do in this workflow? `;
+                  
+                  if (nodeDescription) {
+                    prompt += `The node has this description: "${nodeDescription}". `;
+                  }
+                  
+                  prompt += `Please analyze the entire workflow structure, including all nodes and their connections, and explain: `;
+                  prompt += `1. What specific role this node plays in the workflow automation, `;
+                  prompt += `2. How it connects to and interacts with other nodes, `;
+                  prompt += `3. What data or actions flow through this node, and `;
+                  prompt += `4. Why this node is important for the overall workflow functionality. `;
+                  
+                  // Send the message to the chat with context
+                  setExternalChatMessage(prompt);
+                  setExternalChatContext({
+                    nodeId,
+                    nodeLabel,
+                    nodeType,
+                    nodeDescription,
                     workflowName: workflowName,
                   });
                 }}

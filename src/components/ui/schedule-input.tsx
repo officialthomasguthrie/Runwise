@@ -5,115 +5,196 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { scheduleToCron, cronToSchedule, formatTime, getDayName, type ScheduleConfig } from '@/lib/utils/schedule-converter';
 import { ChevronDown } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-// Time Input Component - Typeable with auto-formatting
+// Time Input Component - Improved and easier to use
 function TimeInput({ hour, minute, onChange, isPM }: { hour: number; minute: number; onChange: (hour: number, minute: number) => void; isPM: boolean }) {
   const displayHour = hour % 12 || 12;
   const [displayValue, setDisplayValue] = useState(() => {
     return `${displayHour}:${minute.toString().padStart(2, '0')}`;
   });
   const inputRef = useRef<HTMLInputElement>(null);
+  const isEditingRef = useRef(false);
 
   useEffect(() => {
-    const h = hour % 12 || 12;
-    setDisplayValue(`${h}:${minute.toString().padStart(2, '0')}`);
+    // Only update if user is not actively editing
+    if (!isEditingRef.current) {
+      const h = hour % 12 || 12;
+      setDisplayValue(`${h}:${minute.toString().padStart(2, '0')}`);
+    }
   }, [hour, minute]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/[^\d:]/g, ''); // Only allow digits and colon
+  const parseAndValidate = (value: string): { hour: number; minute: number } | null => {
+    // Remove all non-digit and non-colon characters
+    let cleaned = value.replace(/[^\d:]/g, '');
     
-    // Auto-format as user types
-    if (value.length === 1 && /^\d$/.test(value)) {
-      // Single digit - wait for more input
-      setDisplayValue(value);
-      return;
-    } else if (value.length === 2 && !value.includes(':')) {
-      // Two digits without colon - add colon and move to minutes
-      const h = parseInt(value, 10);
-      if (h > 12) {
-        // If > 12, treat as hour:minute (e.g., "15" -> "1:5")
-        const firstDigit = Math.floor(h / 10);
-        const secondDigit = h % 10;
-        setDisplayValue(`${firstDigit}:${secondDigit}`);
-        // Convert to 24-hour based on AM/PM
-        let newHour = firstDigit;
-        if (isPM && firstDigit !== 12) newHour = firstDigit + 12;
-        if (!isPM && firstDigit === 12) newHour = 0;
-        onChange(newHour, secondDigit);
-        // Focus minutes part
-        setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.setSelectionRange(3, 4);
-          }
-        }, 0);
-        return;
-      }
-      setDisplayValue(`${value}:`);
-      // Move cursor to minutes
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.setSelectionRange(3, 3);
+    // Handle empty or invalid input
+    if (!cleaned || cleaned === ':') {
+      return null;
+    }
+
+    // Split by colon
+    const parts = cleaned.split(':');
+    
+    // If no colon, try to parse as HHMM or HMM
+    if (parts.length === 1) {
+      const digits = parts[0];
+      if (digits.length === 0) return null;
+      
+      // If 1-2 digits, treat as hour
+      if (digits.length <= 2) {
+        const h = parseInt(digits, 10);
+        if (h >= 1 && h <= 12) {
+          return { hour: h, minute: 0 };
         }
-      }, 0);
-      return;
-    } else if (value.length >= 3 && !value.includes(':')) {
-      // Three or more digits without colon - treat as hour:minute (e.g., "753" -> "7:53")
-      const firstDigit = parseInt(value[0], 10);
-      const remaining = value.slice(1);
-      const minutes = parseInt(remaining.slice(0, 2), 10);
-      
-      if (firstDigit >= 1 && firstDigit <= 12 && minutes >= 0 && minutes <= 59) {
-        setDisplayValue(`${firstDigit}:${minutes.toString().padStart(2, '0')}`);
-        // Convert to 24-hour format based on AM/PM
-        let newHour = firstDigit;
-        if (isPM && firstDigit !== 12) newHour = firstDigit + 12;
-        if (!isPM && firstDigit === 12) newHour = 0;
-        onChange(newHour, minutes);
-        return;
+        return null;
       }
-    } else if (value.includes(':')) {
-      const parts = value.split(':');
-      let h = parseInt(parts[0] || '0', 10);
-      let m = parseInt(parts[1] || '0', 10);
       
-      // Limit hour to 1-12
-      if (h > 12) h = 12;
-      if (h < 1) h = 1;
+      // If 3-4 digits, parse as HHMM or HMM
+      if (digits.length === 3) {
+        const h = parseInt(digits[0], 10);
+        const m = parseInt(digits.slice(1), 10);
+        if (h >= 1 && h <= 12 && m >= 0 && m <= 59) {
+          return { hour: h, minute: m };
+        }
+      } else if (digits.length === 4) {
+        const h = parseInt(digits.slice(0, 2), 10);
+        const m = parseInt(digits.slice(2), 10);
+        if (h >= 1 && h <= 12 && m >= 0 && m <= 59) {
+          return { hour: h, minute: m };
+        }
+      }
+      return null;
+    }
+    
+    // Has colon - parse hour and minute
+    const hourStr = parts[0] || '';
+    const minuteStr = parts[1] || '';
+    
+    if (!hourStr) return null;
+    
+    let h = parseInt(hourStr, 10);
+    let m = minuteStr ? parseInt(minuteStr, 10) : 0;
+    
+    // Validate and clamp values
+    if (isNaN(h) || h < 1) h = 1;
+    if (h > 12) h = 12;
+    if (isNaN(m) || m < 0) m = 0;
+    if (m > 59) m = 59;
+    
+    return { hour: h, minute: m };
+  };
+
+  const formatValue = (h: number, m: number): string => {
+    return `${h}:${m.toString().padStart(2, '0')}`;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    isEditingRef.current = true;
+    const value = e.target.value;
+    
+    // Allow empty input while typing
+    if (value === '') {
+      setDisplayValue('');
+      return;
+    }
+    
+    const parsed = parseAndValidate(value);
+    
+    if (parsed) {
+      const formatted = formatValue(parsed.hour, parsed.minute);
+      setDisplayValue(formatted);
       
-      // Limit minute to 0-59
-      if (m > 59) m = 59;
-      if (m < 0) m = 0;
+      // Convert to 24-hour format
+      let newHour = parsed.hour;
+      if (isPM && parsed.hour !== 12) newHour = parsed.hour + 12;
+      if (!isPM && parsed.hour === 12) newHour = 0;
       
-      // Format with leading zero for minutes if needed
-      const formattedM = m.toString().padStart(2, '0');
-      setDisplayValue(`${h}:${formattedM}`);
-      
-      // Convert to 24-hour format based on AM/PM
-      let newHour = h;
-      if (isPM && h !== 12) newHour = h + 12;
-      if (!isPM && h === 12) newHour = 0;
-      
-      onChange(newHour, m);
+      onChange(newHour, parsed.minute);
     } else {
+      // Allow partial input while typing
       setDisplayValue(value);
     }
   };
 
-  const handleBlur = () => {
-    // Ensure proper formatting on blur
-    if (!displayValue.includes(':')) {
-      const num = parseInt(displayValue, 10);
-      if (num > 0 && num <= 12) {
-        setDisplayValue(`${num}:00`);
-        let newHour = num;
-        if (isPM && num !== 12) newHour = num + 12;
-        if (!isPM && num === 12) newHour = 0;
-        onChange(newHour, 0);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const cursorPos = input.selectionStart || 0;
+    const value = input.value;
+    const colonIndex = value.indexOf(':');
+    
+    // Arrow up/down to increment/decrement
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      
+      const parsed = parseAndValidate(value);
+      if (!parsed) return;
+      
+      const isHour = cursorPos <= colonIndex || colonIndex === -1;
+      const delta = e.key === 'ArrowUp' ? 1 : -1;
+      
+      if (isHour) {
+        let newHour = parsed.hour + delta;
+        if (newHour < 1) newHour = 12;
+        if (newHour > 12) newHour = 1;
+        parsed.hour = newHour;
       } else {
-        // Reset to current hour:minute
-        const h = hour % 12 || 12;
-        setDisplayValue(`${h}:${minute.toString().padStart(2, '0')}`);
+        let newMinute = parsed.minute + delta;
+        if (newMinute < 0) newMinute = 59;
+        if (newMinute > 59) newMinute = 0;
+        parsed.minute = newMinute;
       }
+      
+      const formatted = formatValue(parsed.hour, parsed.minute);
+      setDisplayValue(formatted);
+      
+      // Convert to 24-hour format
+      let newHour = parsed.hour;
+      if (isPM && parsed.hour !== 12) newHour = parsed.hour + 12;
+      if (!isPM && parsed.hour === 12) newHour = 0;
+      
+      onChange(newHour, parsed.minute);
+      
+      // Maintain cursor position
+      setTimeout(() => {
+        if (inputRef.current) {
+          const newColonIndex = formatted.indexOf(':');
+          if (isHour) {
+            inputRef.current.setSelectionRange(0, newColonIndex);
+          } else {
+            inputRef.current.setSelectionRange(newColonIndex + 1, formatted.length);
+          }
+        }
+      }, 0);
+    }
+  };
+
+  const handleBlur = () => {
+    isEditingRef.current = false;
+    
+    // Validate and format on blur
+    const parsed = parseAndValidate(displayValue);
+    
+    if (parsed) {
+      const formatted = formatValue(parsed.hour, parsed.minute);
+      setDisplayValue(formatted);
+      
+      // Convert to 24-hour format
+      let newHour = parsed.hour;
+      if (isPM && parsed.hour !== 12) newHour = parsed.hour + 12;
+      if (!isPM && parsed.hour === 12) newHour = 0;
+      
+      onChange(newHour, parsed.minute);
+    } else {
+      // Reset to current time if invalid
+      const h = hour % 12 || 12;
+      setDisplayValue(`${h}:${minute.toString().padStart(2, '0')}`);
     }
   };
 
@@ -123,10 +204,12 @@ function TimeInput({ hour, minute, onChange, isPM }: { hour: number; minute: num
       type="text"
       value={displayValue}
       onChange={handleChange}
+      onKeyDown={handleKeyDown}
       onBlur={handleBlur}
+      onFocus={() => { isEditingRef.current = true; }}
       placeholder="9:00"
       maxLength={5}
-      className="flex-1 text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+      className="flex-1 min-w-0 text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
     />
   );
 }
@@ -136,8 +219,8 @@ function AMPMSelector({ hour, onChange }: { hour: number; onChange: (hour: numbe
   const isPM = hour >= 12;
   const displayHour = hour % 12 || 12;
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const isPM = e.target.value === 'PM';
+  const handleChange = (value: string) => {
+    const isPM = value === 'PM';
     let newHour = displayHour;
     if (isPM && displayHour !== 12) {
       newHour = displayHour + 12;
@@ -152,14 +235,18 @@ function AMPMSelector({ hour, onChange }: { hour: number; onChange: (hour: numbe
   };
 
   return (
-    <select
+    <Select
       value={isPM ? 'PM' : 'AM'}
-      onChange={handleChange}
-      className="nodrag text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+      onValueChange={handleChange}
     >
-      <option value="AM">AM</option>
-      <option value="PM">PM</option>
-    </select>
+      <SelectTrigger className="nodrag w-auto min-w-[70px] text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 h-auto text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-lg">
+        <SelectItem value="AM">AM</SelectItem>
+        <SelectItem value="PM">PM</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -259,16 +346,20 @@ export function ScheduleInput({ value, onChange, placeholder, className }: Sched
       {/* Frequency Selector */}
       <div className="space-y-2">
         <label className="text-xs text-muted-foreground">Frequency</label>
-        <select
+        <Select
           value={config.frequency}
-          onChange={(e) => handleFrequencyChange(e.target.value as ScheduleConfig['frequency'])}
-          className="nodrag w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+          onValueChange={(value) => handleFrequencyChange(value as ScheduleConfig['frequency'])}
         >
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-          <option value="custom">Custom Cron Expression</option>
-        </select>
+          <SelectTrigger className="nodrag w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 h-auto text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-lg">
+            <SelectItem value="daily">Daily</SelectItem>
+            <SelectItem value="weekly">Weekly</SelectItem>
+            <SelectItem value="monthly">Monthly</SelectItem>
+            <SelectItem value="custom">Custom Cron Expression</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Custom Cron Input */}
@@ -319,17 +410,21 @@ export function ScheduleInput({ value, onChange, placeholder, className }: Sched
           {config.frequency === 'weekly' && (
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground">Day of Week</label>
-              <select
-                value={config.dayOfWeek ?? 0}
-                onChange={(e) => handleDayOfWeekChange(parseInt(e.target.value, 10))}
-                className="nodrag w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+              <Select
+                value={String(config.dayOfWeek ?? 0)}
+                onValueChange={(value) => handleDayOfWeekChange(parseInt(value, 10))}
               >
-                {Array.from({ length: 7 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {getDayName(i)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="nodrag w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 h-auto text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-lg">
+                  {Array.from({ length: 7 }, (_, i) => (
+                    <SelectItem key={i} value={String(i)}>
+                      {getDayName(i)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -337,17 +432,21 @@ export function ScheduleInput({ value, onChange, placeholder, className }: Sched
           {config.frequency === 'monthly' && (
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground">Day of Month</label>
-              <select
-                value={config.dayOfMonth ?? 1}
-                onChange={(e) => handleDayOfMonthChange(parseInt(e.target.value, 10))}
-                className="nodrag w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+              <Select
+                value={String(config.dayOfMonth ?? 1)}
+                onValueChange={(value) => handleDayOfMonthChange(parseInt(value, 10))}
               >
-                {Array.from({ length: 31 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="nodrag w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 h-auto text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-lg max-h-[300px]">
+                  {Array.from({ length: 31 }, (_, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)}>
+                      {i + 1}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

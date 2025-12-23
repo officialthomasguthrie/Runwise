@@ -98,6 +98,7 @@ interface ReactFlowEditorProps {
   onOpenAddNodeSidebar?: (placeholderId?: string) => void; // Optional: callback to open the add node sidebar
   onConfigPanelVisibilityChange?: (isVisible: boolean) => void; // Optional: callback when config panel visibility changes
   onAskAI?: (fieldName: string, nodeId: string, nodeType: string) => void; // Optional: callback when Ask AI button is clicked
+  onAskNodeInfo?: (nodeId: string, nodeLabel: string, nodeType: string, nodeDescription?: string) => void; // Optional: callback when node info icon is clicked
 }
 
 export const ReactFlowEditor = ({
@@ -120,6 +121,7 @@ export const ReactFlowEditor = ({
   onOpenAddNodeSidebar,
   onConfigPanelVisibilityChange,
   onAskAI,
+  onAskNodeInfo,
 }: ReactFlowEditorProps = {}) => {
   const { user, subscriptionTier } = useAuth();
   const router = useRouter();
@@ -180,11 +182,8 @@ export const ReactFlowEditor = ({
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Configuration panel state
-  const [selectedNodeForConfig, setSelectedNodeForConfig] = useState<Node | null>(null);
-  const [showConfigPanel, setShowConfigPanel] = useState(false);
-  const [localConfig, setLocalConfig] = useState<Record<string, any>>({});
-  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  // Node expansion state (for in-node configuration)
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
 
   const defaultEdgeOptions = useMemo(
     () => ({
@@ -371,12 +370,7 @@ export const ReactFlowEditor = ({
     }
   }, [isExecuting, executionStatus, nodes.length, onExecutionStateChange]);
 
-  // Notify config panel visibility changes
-  useEffect(() => {
-    if (onConfigPanelVisibilityChange) {
-      onConfigPanelVisibilityChange(showConfigPanel);
-    }
-  }, [showConfigPanel, onConfigPanelVisibilityChange]);
+  // Note: Config panel visibility callback removed - we're using in-node expansion now, no sidebar
 
   // Notify configuration status changes
   const lastConfigStatus = useRef({ unconfiguredCount: 0, configuredCount: 0, totalCount: 0 });
@@ -813,12 +807,37 @@ export const ReactFlowEditor = ({
     return { valid: true };
   }, [nodes]);
 
-  // Open config panel for a node
+  // Toggle node expansion for configuration
   const openNodeConfig = (node: Node) => {
-    setSelectedNodeForConfig(node);
-    setShowConfigPanel(true);
-    setIsSavingConfig(false);
+    if (expandedNodeId === node.id) {
+      // Close if already expanded
+      setExpandedNodeId(null);
+    } else {
+      // Expand this node (closes any other expanded node)
+      setExpandedNodeId(node.id);
+    }
   };
+
+  // Handle node configuration update
+  const handleNodeConfigUpdate = useCallback((nodeId: string, config: Record<string, any>) => {
+    setNodes((prevNodes) =>
+      prevNodes.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              config,
+            },
+          };
+        }
+        return node;
+      })
+    );
+    setHasChanges(true);
+    // Auto-save workflow when config changes (if auto-save is enabled)
+    // Note: Actual save is handled by auto-save interval if enabled
+  }, [setNodes]);
 
   // Poll for execution status
   const pollExecutionStatus = useCallback(async (executionId: string) => {
@@ -1089,18 +1108,22 @@ export const ReactFlowEditor = ({
     setCurrentExecutionId(null);
   }, [currentWorkflowId]);
 
-  // Inject onConfigure callback into all nodes
+  // Inject callbacks into all nodes
   const nodesWithCallbacks = useMemo(() => {
     return nodes.map(node => ({
       ...node,
       data: {
         ...node.data,
         layoutDirection,
+        isExpanded: expandedNodeId === node.id,
         onConfigure: () => openNodeConfig(node),
+        onConfigUpdate: handleNodeConfigUpdate,
+        onAskAI: onAskAI,
+        onAskNodeInfo: onAskNodeInfo,
         onOpenAddNodeSidebar: onOpenAddNodeSidebar, // Pass sidebar opener to placeholder nodes
       }
     }));
-  }, [nodes, layoutDirection, onOpenAddNodeSidebar]);
+  }, [nodes, layoutDirection, expandedNodeId, handleNodeConfigUpdate, onAskAI, onAskNodeInfo, onOpenAddNodeSidebar]);
 
   useEffect(() => {
     setNodes((prev) => {
@@ -1132,89 +1155,7 @@ export const ReactFlowEditor = ({
   // Expose save function via ref or return it
   // For now, we'll just handle auto-save and manual save can be added via a button
 
-  // Derived data for configuration sidebar
-  const selectedNodeData = (selectedNodeForConfig?.data ?? {}) as any;
-  const selectedNodeDefinition = selectedNodeData.nodeId ? getNodeById(selectedNodeData.nodeId) : null;
-  // Use custom node's configSchema if it's a CUSTOM_GENERATED node, otherwise use registry schema
-  const selectedConfigSchema = selectedNodeData.nodeId === 'CUSTOM_GENERATED' && selectedNodeData.configSchema
-    ? selectedNodeData.configSchema
-    : selectedNodeDefinition?.configSchema || {};
-
-  // Keep localConfig in sync when opening a different node
-  useEffect(() => {
-    if (selectedNodeForConfig) {
-      const data = (selectedNodeForConfig.data ?? {}) as any;
-      setLocalConfig(data.config || {});
-    } else {
-      setLocalConfig({});
-    }
-  }, [selectedNodeForConfig]);
-
-  // Update selectedNodeForConfig and localConfig when nodes are updated externally (e.g., via AI configuration)
-  // This ensures the config panel stays in sync with node updates
-  useEffect(() => {
-    if (selectedNodeForConfig) {
-      const updatedNode = nodes.find(n => n.id === selectedNodeForConfig.id);
-      if (updatedNode) {
-        const updatedConfig = (updatedNode.data ?? {} as any).config || {};
-        const selectedNodeConfig = (selectedNodeForConfig.data ?? {} as any).config || {};
-        
-        // Check if config actually changed by comparing selectedNode's config with updated node's config
-        const configChanged = JSON.stringify(selectedNodeConfig) !== JSON.stringify(updatedConfig);
-        
-        if (configChanged) {
-          console.log('🔧 Config changed for node', updatedNode.id);
-          console.log('  Old config:', selectedNodeConfig);
-          console.log('  New config:', updatedConfig);
-          // Update localConfig immediately to reflect changes in the form
-          setLocalConfig(updatedConfig);
-        }
-        
-        // Always update the reference to the latest node object to ensure sync
-        // This is safe because React Flow creates new objects on updates
-        if (updatedNode !== selectedNodeForConfig) {
-          console.log('🔄 Updating selectedNodeForConfig reference for node', updatedNode.id);
-          setSelectedNodeForConfig(updatedNode);
-        }
-      }
-    }
-  }, [nodes, selectedNodeForConfig]);
-
-  const selectedRequiredFieldsCount = useMemo(() => {
-    return Object.values(selectedConfigSchema).filter((schema: any) => schema.required).length;
-  }, [selectedConfigSchema]);
-
-  const selectedConfiguredFieldsCount = useMemo(() => {
-    return Object.entries(selectedConfigSchema).filter(([key, schema]: [string, any]) => {
-      return (schema as any).required && localConfig[key];
-    }).length;
-  }, [selectedConfigSchema, localConfig]);
-
-  const handleConfigFieldChange = useCallback(
-    (key: string, value: any) => {
-      setLocalConfig((prev) => {
-        const updated = { ...prev, [key]: value };
-        // Persist into the selected node's data.config so validation works
-        setNodes((nds) =>
-          nds.map((node) => {
-            if (selectedNodeForConfig && node.id === selectedNodeForConfig.id) {
-              return {
-                ...node,
-                data: {
-                  ...(node.data ?? {}),
-                  config: updated,
-                },
-              };
-            }
-            return node;
-          })
-        );
-        setHasChanges(true);
-        return updated;
-      });
-    },
-    [selectedNodeForConfig, setNodes]
-  );
+  // Note: Configuration is now handled in-node with expansion, not in a sidebar
 
   if (isLoading) {
     return (
@@ -1333,244 +1274,6 @@ export const ReactFlowEditor = ({
         <MiniMap />
       </ReactFlow>
 
-      {/* Node Configuration Sidebar */}
-      {showConfigPanel && selectedNodeForConfig && (
-        <>
-          <div
-            className="fixed left-16 top-16 bottom-0 w-[320px] bg-background border-r border-stone-200 dark:border-white/10 z-30 animate-in slide-in-from-left duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex h-full flex-col">
-              <div className="flex-1 px-4 py-5 space-y-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                {/* Node name */}
-                <div className="space-y-1">
-                  <h2 className="text-lg font-semibold text-foreground">
-                    {selectedNodeData.label || 'Node'}
-                  </h2>
-                  {/* Node description */}
-                  {(selectedNodeDefinition?.description || selectedNodeData.description) && (
-                    <p className="text-sm text-muted-foreground">
-                      {selectedNodeDefinition?.description || selectedNodeData.description}
-                    </p>
-                  )}
-                  {/* Configuration required summary */}
-                  {selectedRequiredFieldsCount > 0 && (
-                    <p className="text-xs text-muted-foreground/70">
-                      Configuration required: {selectedConfiguredFieldsCount}/{selectedRequiredFieldsCount} fields
-                    </p>
-                  )}
-                </div>
-
-                {/* Configuration fields */}
-                <div className="space-y-4">
-                  {Object.entries(selectedConfigSchema).map(([key, schema]: [string, any]) => (
-                    <div key={key} className="space-y-1.5">
-                      {/* Subheading */}
-                      <label className="text-xs font-medium text-muted-foreground">
-                        {schema.label || key}
-                        {schema.required && <span className="text-red-500 ml-1">*</span>}
-                      </label>
-
-                      {/* Schedule Input (for schedule fields) */}
-                      {key === 'schedule' && schema.type === 'string' && (
-                        <ScheduleInput
-                          value={localConfig[key] ?? ''}
-                          onChange={(cron) => handleConfigFieldChange(key, cron)}
-                          placeholder={schema.placeholder || schema.description}
-                        />
-                      )}
-
-                      {/* Timezone Dropdown */}
-                      {key === 'timezone' && schema.type === 'string' && (
-                        <select
-                          value={localConfig[key] ?? schema.default ?? 'UTC'}
-                          onChange={(e) => handleConfigFieldChange(key, e.target.value)}
-                          className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
-                        >
-                          <option value="UTC">UTC</option>
-                          <option value="America/New_York">Eastern Time (ET)</option>
-                          <option value="America/Chicago">Central Time (CT)</option>
-                          <option value="America/Denver">Mountain Time (MT)</option>
-                          <option value="America/Los_Angeles">Pacific Time (PT)</option>
-                          <option value="America/Phoenix">Arizona Time</option>
-                          <option value="America/Anchorage">Alaska Time</option>
-                          <option value="Pacific/Honolulu">Hawaii Time</option>
-                          <option value="Europe/London">London (GMT)</option>
-                          <option value="Europe/Paris">Paris (CET)</option>
-                          <option value="Europe/Berlin">Berlin (CET)</option>
-                          <option value="Europe/Rome">Rome (CET)</option>
-                          <option value="Europe/Madrid">Madrid (CET)</option>
-                          <option value="Europe/Amsterdam">Amsterdam (CET)</option>
-                          <option value="Europe/Stockholm">Stockholm (CET)</option>
-                          <option value="Europe/Zurich">Zurich (CET)</option>
-                          <option value="Asia/Tokyo">Tokyo (JST)</option>
-                          <option value="Asia/Shanghai">Shanghai (CST)</option>
-                          <option value="Asia/Hong_Kong">Hong Kong (HKT)</option>
-                          <option value="Asia/Singapore">Singapore (SGT)</option>
-                          <option value="Asia/Dubai">Dubai (GST)</option>
-                          <option value="Asia/Kolkata">Mumbai (IST)</option>
-                          <option value="Australia/Sydney">Sydney (AEST)</option>
-                          <option value="Australia/Melbourne">Melbourne (AEST)</option>
-                          <option value="Australia/Brisbane">Brisbane (AEST)</option>
-                          <option value="Pacific/Auckland">Auckland (NZST)</option>
-                          <option value="America/Toronto">Toronto (EST)</option>
-                          <option value="America/Vancouver">Vancouver (PST)</option>
-                          <option value="America/Mexico_City">Mexico City (CST)</option>
-                          <option value="America/Sao_Paulo">São Paulo (BRT)</option>
-                          <option value="America/Buenos_Aires">Buenos Aires (ART)</option>
-                        </select>
-                      )}
-
-                      {/* String input + Ask AI (small textboxes) */}
-                      {schema.type === 'string' && !schema.options && key !== 'schedule' && key !== 'timezone' && (
-                        <div className="relative">
-                          <Input
-                            type="text"
-                            value={localConfig[key] ?? ''}
-                            onChange={(e) => handleConfigFieldChange(key, e.target.value)}
-                            placeholder={(() => {
-                              let placeholderText = schema.placeholder || schema.description || '';
-                              
-                              // Remove "(e.g." and everything after it
-                              const eGIndex = placeholderText.toLowerCase().indexOf('(e.g.');
-                              if (eGIndex !== -1) {
-                                placeholderText = placeholderText.substring(0, eGIndex).trim();
-                              }
-                              
-                              // Also remove "(e.g" without the period
-                              const eGIndex2 = placeholderText.toLowerCase().indexOf('(e.g');
-                              if (eGIndex2 !== -1) {
-                                placeholderText = placeholderText.substring(0, eGIndex2).trim();
-                              }
-                              
-                              return placeholderText;
-                            })()}
-                            className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 pr-24 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => {
-                              if (onAskAI && selectedNodeForConfig) {
-                                onAskAI(schema.label || key, selectedNodeForConfig.id, selectedNodeData.nodeId || '');
-                              }
-                            }}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs inline-flex items-center justify-center gap-1 backdrop-blur-xl bg-neutral-200/70 text-foreground active:scale-[0.98] dark:bg-white/5 dark:border-white/10 dark:text-foreground dark:shadow-[0_4px_10px_rgba(0,0,0,0.1)] dark:hover:bg-white/10"
-                          >
-                            <Sparkles className="h-3 w-3" />
-                            Ask AI
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Textarea + Ask AI (large textboxes) */}
-                      {schema.type === 'textarea' && (
-                        <div className="relative">
-                          <Textarea
-                            value={localConfig[key] ?? ''}
-                            onChange={(e) => handleConfigFieldChange(key, e.target.value)}
-                            placeholder={schema.placeholder || schema.description}
-                            rows={3}
-                            className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 pb-10 text-foreground placeholder:text-muted-foreground shadow-none resize-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => {
-                              if (onAskAI && selectedNodeForConfig) {
-                                onAskAI(schema.label || key, selectedNodeForConfig.id, selectedNodeData.nodeId || '');
-                              }
-                            }}
-                            className="absolute bottom-2 right-2 h-7 px-2 text-xs inline-flex items-center justify-center gap-1 backdrop-blur-xl bg-neutral-200/70 text-foreground active:scale-[0.98] dark:bg-white/5 dark:border-white/10 dark:text-foreground dark:shadow-[0_4px_10px_rgba(0,0,0,0.1)] dark:hover:bg-white/10"
-                          >
-                            <Sparkles className="h-3 w-3" />
-                            Ask AI
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Number input */}
-                      {schema.type === 'number' && (
-                        <Input
-                          type="number"
-                          value={
-                            localConfig[key] ??
-                            schema.default ??
-                            ''
-                          }
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            handleConfigFieldChange(key, v === '' ? undefined : Number(v));
-                          }}
-                          placeholder={schema.placeholder || schema.description}
-                          className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
-                        />
-                      )}
-
-                      {/* Select */}
-                      {schema.type === 'select' && schema.options && (
-                        <select
-                          value={localConfig[key] ?? schema.default ?? ''}
-                          onChange={(e) => handleConfigFieldChange(key, e.target.value)}
-                          className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
-                        >
-                          <option value="">
-                            {schema.placeholder || `Select ${schema.label || key}`}
-                          </option>
-                          {schema.options.map((opt: any) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Save Configuration button pinned to bottom, matching node Configure styling */}
-              <div className="px-4 pb-4 pt-2 border-t border-stone-200 dark:border-white/10">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
-                  onClick={() => {
-                    if (isSavingConfig || !selectedNodeForConfig) return;
-                    setIsSavingConfig(true);
-                    // Config is already synced live via localConfig; this is a UI save confirmation.
-                    setTimeout(() => {
-                      setIsSavingConfig(false);
-            setShowConfigPanel(false);
-            setSelectedNodeForConfig(null);
-                    }, 700);
-          }}
-                >
-                  {isSavingConfig ? (
-                    <>
-                      <div className="h-4 w-4 mr-2 animate-spin rounded-full border-b-2 border-current" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <span>Save Configuration</span>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-          {/* Close Config Sidebar Button – matches Add Node close button styling */}
-          <button
-            onClick={() => {
-              setShowConfigPanel(false);
-              setSelectedNodeForConfig(null);
-            }}
-            className="absolute top-4 left-4 z-40 inline-flex items-center justify-center rounded-sm p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/50 bg-background/95 backdrop-blur-sm border border-stone-200 dark:border-white/10"
-            title="Hide config sidebar"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-        </>
-      )}
 
       {/* Execution Status Indicator */}
       {(isExecuting || executionStatus === 'queued' || executionStatus === 'running') && !executionResult && (

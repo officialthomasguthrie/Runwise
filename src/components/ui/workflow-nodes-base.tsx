@@ -9,7 +9,7 @@ import {
   BaseNodeHeader,
   BaseNodeHeaderTitle,
 } from "@/components/base-node";
-import { Mail, Zap, CheckCircle, Trash2 } from "lucide-react";
+import { Mail, Zap, CheckCircle, Trash2, Info } from "lucide-react";
 
 // Trigger Node Component
 export const TriggerNodeBase = memo(({ data, id }: { data: any; id: string }) => {
@@ -39,14 +39,23 @@ export const TriggerNodeBase = memo(({ data, id }: { data: any; id: string }) =>
           <Mail className="size-4 text-primary" />
           <BaseNodeHeaderTitle>Email Received</BaseNodeHeaderTitle>
         </div>
-        <Button
-          onClick={handleDelete}
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6 opacity-70 hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-transparent"
+          >
+            <Info className="h-3 w-3" />
+          </Button>
+          <Button
+            onClick={handleDelete}
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 opacity-70 hover:opacity-100 hover:text-destructive hover:bg-transparent"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
       </BaseNodeHeader>
       <BaseNodeContent>
         <h3 className="text-lg font-bold">Email Trigger</h3>
@@ -108,14 +117,23 @@ export const ActionNodeBase = memo(({ data, id }: { data: any; id: string }) => 
           <Zap className="size-4 text-primary" />
           <BaseNodeHeaderTitle>{nodeTitle}</BaseNodeHeaderTitle>
         </div>
-        <Button
-          onClick={handleDelete}
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6 opacity-70 hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-transparent"
+          >
+            <Info className="h-3 w-3" />
+          </Button>
+          <Button
+            onClick={handleDelete}
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 opacity-70 hover:opacity-100 hover:text-destructive hover:bg-transparent"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
       </BaseNodeHeader>
       <BaseNodeContent>
         <h3 className="text-lg font-bold">{nodeTitle}</h3>
@@ -163,14 +181,23 @@ export const EndNodeBase = memo(({ data, id }: { data: any; id: string }) => {
           <CheckCircle className="size-4 text-primary" />
           <BaseNodeHeaderTitle>Reply Sent</BaseNodeHeaderTitle>
         </div>
-        <Button
-          onClick={handleDelete}
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6 opacity-70 hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-transparent"
+          >
+            <Info className="h-3 w-3" />
+          </Button>
+          <Button
+            onClick={handleDelete}
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 opacity-70 hover:opacity-100 hover:text-destructive hover:bg-transparent"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
       </BaseNodeHeader>
       <BaseNodeContent>
         <h3 className="text-lg font-bold">Workflow Complete</h3>
