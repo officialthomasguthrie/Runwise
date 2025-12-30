@@ -9,6 +9,7 @@ import type { Node, Edge } from '@xyflow/react';
  * Execution context provided to nodes during execution
  */
 export interface ExecutionContext {
+  userId: string; // User ID for fetching integration tokens
   auth: {
     [service: string]: {
       token?: string;

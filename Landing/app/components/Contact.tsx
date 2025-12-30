@@ -79,7 +79,7 @@ export const Contact: React.FC = () => {
 
               <span className="text-[#ffffffb3] text-base -tracking-[.02em] leading-[1.2em] font-light hover:text-white">
                 <Link href="mailto:mail@test.com" target="_blank">
-                  ello@runwiseai.app
+                  hello@runwiseai.app
                 </Link>
               </span>
             </li>

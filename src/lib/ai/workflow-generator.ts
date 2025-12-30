@@ -11,6 +11,7 @@ import type {
   WorkflowGenerationResponse,
 } from './types';
 import { nodeRegistry } from '@/lib/nodes';
+import { formatIntegrationContextForPrompt } from '@/lib/integrations/ai-context';
 
 /**
  * Generate a workflow from a natural language prompt with streaming support
@@ -29,7 +30,9 @@ export async function generateWorkflowFromPromptStreaming(
     });
     
     // Build the system prompt with available nodes (same as non-streaming version)
-    const availableNodesList = request.availableNodes
+    // Filter nodes to only include those with available integrations
+    const filteredNodes = filterNodesByAvailableIntegrations(request.availableNodes);
+    const availableNodesList = filteredNodes
       .map((node) => {
         const nodeDef = nodeRegistry[node.id];
         const configFields = nodeDef
@@ -51,6 +54,14 @@ ${configFields}`;
       .join('\n\n');
 
     const systemPrompt = `You are an expert workflow automation AI. Your task is to analyze natural language prompts and generate complete, functional workflows using BOTH library nodes AND custom code.
+
+INTEGRATION GUIDANCE:
+- Prefer library nodes when available (they're pre-tested and secure)
+- Available library integrations: Google (Sheets, Calendar, Drive, Gmail, Forms), Slack, GitHub, Notion, Airtable, Trello, OpenAI, SendGrid, Twilio, Stripe, Discord, Twitter/X, PayPal
+- If a service isn't in the library, generate a custom node with customCode to call the API directly
+- Custom nodes can integrate with ANY service via HTTP requests - use context.http.get/post/put/delete
+- Users can provide API keys and credentials through the configSchema you define
+- Always generate workflows when possible - use custom nodes to bridge any gaps
 
 HYBRID WORKFLOW GENERATION (Library + Custom Nodes):
 1. Analyze the user's request and break it into logical steps
@@ -144,6 +155,18 @@ EDGE CONNECTIONS:
 - All edges use type: "buttonedge"
 - All edges have animated: true
 - All edges have style: { stroke: "hsl(var(--primary))", strokeWidth: 2 }
+- Connect nodes in logical order: trigger → transform → action
+
+OUTPUT MAPPING (CRITICAL):
+- When a node receives input from a previous node, use template syntax to map outputs to inputs
+- Template format: {{inputData.fieldName}} where fieldName is an output from the previous node
+- Example: If "Summarize Email" node outputs {summary: "..."}, then "Send Email" body should be "{{inputData.summary}}"
+- Always map outputs to inputs in the config when nodes are connected:
+  * If node-2 follows node-1, and node-1 outputs {text, result}, then node-2's config should use {{inputData.text}} or {{inputData.result}}
+  * For email workflows: body should use {{inputData.summary}} or {{inputData.reply}} from previous nodes
+  * For AI workflows: input should use {{inputData.content}} or {{inputData.text}} from previous nodes
+- When generating config values, use template syntax for fields that should come from previous nodes
+- Only use static values for fields that don't depend on previous nodes (like API keys, static text, etc.)
 
 DECISION TREE FOR NODE SELECTION:
 1. Check if library has exact match → Use library node
@@ -192,8 +215,7 @@ Return a JSON object with this exact structure:
       }
     }
   ],
-  "reasoning": "Explanation of why this workflow structure was chosen and which nodes are custom vs library",
-  "missingNodes": [],
+  "reasoning": "Explanation of why this workflow structure was chosen and which nodes are custom vs library.",
   "workflowName": "Suggested name for the workflow"
 }
 
@@ -202,7 +224,9 @@ CRITICAL RULES:
 2. For CUSTOM_GENERATED nodes, you MUST include a "configSchema" object that defines ALL configuration fields the node needs
 3. The configSchema must match every config value used in the customCode (e.g., if code uses config.apiKey, schema must have apiKey field)
 4. DO NOT include "config" objects with actual values - users will fill these in through the configuration UI
-5. Users will fill in API keys, credentials, and other settings after generation using the configSchema you provide`;
+5. Users will fill in API keys, credentials, and other settings after generation using the configSchema you provide
+6. Always try to generate a workflow - use custom nodes with HTTP requests to integrate with any service
+7. Only return empty nodes array if the request is truly impossible or nonsensical (very rare cases)`;
 
     const userPrompt = request.userPrompt;
 
@@ -337,7 +361,9 @@ export async function generateWorkflowFromPrompt(
       apiKey: process.env.OPENAI_API_KEY,
     });
     // Build the system prompt with available nodes
-    const availableNodesList = request.availableNodes
+    // Filter nodes to only include those with available integrations
+    const filteredNodes = filterNodesByAvailableIntegrations(request.availableNodes);
+    const availableNodesList = filteredNodes
       .map((node) => {
         const nodeDef = nodeRegistry[node.id];
         const configFields = nodeDef
@@ -359,6 +385,14 @@ ${configFields}`;
       .join('\n\n');
 
     const systemPrompt = `You are an expert workflow automation AI. Your task is to analyze natural language prompts and generate complete, functional workflows using BOTH library nodes AND custom code.
+
+INTEGRATION GUIDANCE:
+- Prefer library nodes when available (they're pre-tested and secure)
+- Available library integrations: Google (Sheets, Calendar, Drive, Gmail, Forms), Slack, GitHub, Notion, Airtable, Trello, OpenAI, SendGrid, Twilio, Stripe, Discord, Twitter/X, PayPal
+- If a service isn't in the library, generate a custom node with customCode to call the API directly
+- Custom nodes can integrate with ANY service via HTTP requests - use context.http.get/post/put/delete
+- Users can provide API keys and credentials through the configSchema you define
+- Always generate workflows when possible - use custom nodes to bridge any gaps
 
 HYBRID WORKFLOW GENERATION (Library + Custom Nodes):
 1. Analyze the user's request and break it into logical steps
@@ -452,6 +486,18 @@ EDGE CONNECTIONS:
 - All edges use type: "buttonedge"
 - All edges have animated: true
 - All edges have style: { stroke: "hsl(var(--primary))", strokeWidth: 2 }
+- Connect nodes in logical order: trigger → transform → action
+
+OUTPUT MAPPING (CRITICAL):
+- When a node receives input from a previous node, use template syntax to map outputs to inputs
+- Template format: {{inputData.fieldName}} where fieldName is an output from the previous node
+- Example: If "Summarize Email" node outputs {summary: "..."}, then "Send Email" body should be "{{inputData.summary}}"
+- Always map outputs to inputs in the config when nodes are connected:
+  * If node-2 follows node-1, and node-1 outputs {text, result}, then node-2's config should use {{inputData.text}} or {{inputData.result}}
+  * For email workflows: body should use {{inputData.summary}} or {{inputData.reply}} from previous nodes
+  * For AI workflows: input should use {{inputData.content}} or {{inputData.text}} from previous nodes
+- When generating config values, use template syntax for fields that should come from previous nodes
+- Only use static values for fields that don't depend on previous nodes (like API keys, static text, etc.)
 
 DECISION TREE FOR NODE SELECTION:
 1. Check if library has exact match → Use library node
@@ -500,8 +546,7 @@ Return a JSON object with this exact structure:
       }
     }
   ],
-  "reasoning": "Explanation of why this workflow structure was chosen and which nodes are custom vs library",
-  "missingNodes": [],
+  "reasoning": "Explanation of why this workflow structure was chosen and which nodes are custom vs library.",
   "workflowName": "Suggested name for the workflow"
 }
 
@@ -510,7 +555,9 @@ CRITICAL RULES:
 2. For CUSTOM_GENERATED nodes, you MUST include a "configSchema" object that defines ALL configuration fields the node needs
 3. The configSchema must match every config value used in the customCode (e.g., if code uses config.apiKey, schema must have apiKey field)
 4. DO NOT include "config" objects with actual values - users will fill these in through the configuration UI
-5. Users will fill in API keys, credentials, and other settings after generation using the configSchema you provide`;
+5. Users will fill in API keys, credentials, and other settings after generation using the configSchema you provide
+6. Always try to generate a workflow - use custom nodes with HTTP requests to integrate with any service
+7. Only return empty nodes array if the request is truly impossible or nonsensical (very rare cases)`;
 
     const userPrompt = request.userPrompt;
 
@@ -603,7 +650,131 @@ Please generate a workflow that builds upon or replaces this existing workflow b
 }
 
 /**
+ * Get which integration service a node requires (if any)
+ */
+function getNodeIntegrationRequirement(nodeId: string): string | null {
+  // Google nodes (OAuth)
+  if (['new-row-in-google-sheet', 'new-email-received', 'create-calendar-event', 
+       'upload-file-to-google-drive', 'new-form-submission', 'file-uploaded'].includes(nodeId)) {
+    return 'google';
+  }
+  
+  // Slack nodes (OAuth)
+  if (['post-to-slack-channel', 'new-message-in-slack'].includes(nodeId)) {
+    return 'slack';
+  }
+  
+  // GitHub nodes (OAuth)
+  if (['new-github-issue'].includes(nodeId)) {
+    return 'github';
+  }
+  
+  // Notion nodes (API token)
+  if (['create-notion-page'].includes(nodeId)) {
+    return 'notion';
+  }
+  
+  // Airtable nodes (API token)
+  if (['update-airtable-record'].includes(nodeId)) {
+    return 'airtable';
+  }
+  
+  // Trello nodes (API key + token)
+  if (['create-trello-card'].includes(nodeId)) {
+    return 'trello';
+  }
+  
+  // OpenAI nodes (API key)
+  if (['generate-summary-with-ai', 'generate-ai-content'].includes(nodeId)) {
+    return 'openai';
+  }
+  
+  // SendGrid nodes (API key)
+  if (['send-email'].includes(nodeId)) {
+    return 'sendgrid';
+  }
+  
+  // Twilio nodes (Account SID + Auth Token)
+  if (['send-sms-via-twilio'].includes(nodeId)) {
+    return 'twilio';
+  }
+  
+  // Stripe nodes (Secret Key)
+  if (['create-stripe-customer', 'create-stripe-charge', 'new-stripe-payment'].includes(nodeId)) {
+    return 'stripe';
+  }
+  
+  // Discord nodes (OAuth or Bot Token)
+  if (['send-discord-message', 'new-discord-message'].includes(nodeId)) {
+    return 'discord';
+  }
+  
+  // Twitter/X nodes (OAuth)
+  if (['post-to-x'].includes(nodeId)) {
+    return 'twitter';
+  }
+  
+  // PayPal nodes (OAuth)
+  if (['new-paypal-payment'].includes(nodeId)) {
+    return 'paypal';
+  }
+  
+  return null; // No integration required
+}
+
+/**
+ * List of integrations that are currently set up and available
+ */
+const AVAILABLE_INTEGRATIONS = [
+  'google',
+  'slack',
+  'github',
+  'notion',
+  'airtable',
+  'trello',
+  'openai',
+  'sendgrid',
+  'twilio',
+  'stripe',
+  'discord',
+  'twitter',
+  'paypal'
+];
+
+/**
+ * Filter nodes to only include those that use available integrations
+ */
+function filterNodesByAvailableIntegrations(
+  nodes: Array<{
+    id: string;
+    name: string;
+    type: 'trigger' | 'action' | 'transform';
+    description: string;
+    category: string;
+    configSchema: Record<string, any>;
+  }>
+): Array<{
+  id: string;
+  name: string;
+  type: 'trigger' | 'action' | 'transform';
+  description: string;
+  category: string;
+  configSchema: Record<string, any>;
+}> {
+  return nodes.filter((node) => {
+    const requiredIntegration = getNodeIntegrationRequirement(node.id);
+    // If node doesn't require an integration, include it
+    if (!requiredIntegration) {
+      return true;
+    }
+    // If node requires an integration, only include if that integration is available
+    return AVAILABLE_INTEGRATIONS.includes(requiredIntegration);
+  });
+}
+
+/**
  * Get a simplified list of available nodes for the AI prompt
+ * Only includes nodes that use integrations that are set up
  */
 export function getSimplifiedNodeList(): Array<{
   id: string;
@@ -613,7 +784,7 @@ export function getSimplifiedNodeList(): Array<{
   category: string;
   configSchema: Record<string, any>;
 }> {
-  return Object.values(nodeRegistry).map((node) => ({
+  const allNodes = Object.values(nodeRegistry).map((node) => ({
     id: node.id,
     name: node.name,
     type: node.type,
@@ -621,6 +792,9 @@ export function getSimplifiedNodeList(): Array<{
     category: node.category,
     configSchema: node.configSchema,
   }));
+  
+  // Filter out nodes that require integrations that aren't set up
+  return filterNodesByAvailableIntegrations(allNodes);
 }
 
 /**

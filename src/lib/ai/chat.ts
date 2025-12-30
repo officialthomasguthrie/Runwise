@@ -6,6 +6,7 @@
 import OpenAI from 'openai';
 import type { ChatRequest, ChatResponse } from './types';
 import { detectWorkflowIntent, extractWorkflowPrompt } from './workflow-generator';
+import { formatIntegrationContextForPrompt } from '@/lib/integrations/ai-context';
 
 /**
  * Generate a chat response from the AI
@@ -118,6 +119,15 @@ CRITICAL: Never use emojis in your responses. Use only plain text. Never refer t
       messages.push({
         role: 'system',
         content: `Context: The user is ${contextParts.join(', ')}.`,
+      });
+    }
+    
+    // Add integration context if provided
+    if (request.integrationContext) {
+      const integrationInfo = formatIntegrationContextForPrompt(request.integrationContext);
+      messages.push({
+        role: 'system',
+        content: `User's Connected Integrations:\n${integrationInfo}\n\nWhen suggesting workflows or helping with configuration, you can reference the user's available resources (spreadsheets, channels, etc.) if they have integrations connected.`,
       });
     }
 

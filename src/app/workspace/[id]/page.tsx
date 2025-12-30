@@ -12,8 +12,10 @@ import { ExecutionsView } from "@/components/ui/executions-view";
 import { SettingsView } from "@/components/ui/settings-view";
 import { saveWorkflowFromEditor } from "@/lib/workflows/client";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check, Link, Mail, Clock, MessageSquare, Table, FileCheck, CreditCard, GitBranch, FileText, Calendar, Smartphone, Upload, Database, MessageCircle, Equal, Minus, ArrowRight, ArrowLeft, Filter, Type, Code, Hourglass, Merge, Scissors, FileSpreadsheet, Sparkles, Calculator } from "lucide-react";
+import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check, Link, Mail, Clock, MessageSquare, Table, FileCheck, CreditCard, GitBranch, FileText, Calendar, Smartphone, Upload, Database, MessageCircle, Equal, Minus, ArrowRight, ArrowLeft, Hourglass, Sparkles, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
+import { nodeRegistry } from "@/lib/nodes/registry";
+import * as LucideIcons from "lucide-react";
 
 function WorkflowToggle({ workflowId, initialActive, onToggle }: { workflowId: string | null; initialActive: boolean; onToggle: (active: boolean) => Promise<void> }) {
   const [isChecked, setIsChecked] = useState(initialActive);
@@ -103,49 +105,60 @@ export default function WorkspacePage() {
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     triggers: true,
     actions: true,
-    conditions: false,
+    transforms: false,
+    ai: false,
+    database: false,
+    files: false,
     utilities: false,
     integrations: false,
   });
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Node registry for search - maps node IDs to their display names
-  // This must match the actual node IDs in src/lib/nodes/registry.ts
-  const nodeRegistry: Record<string, { name: string; category: string }> = {
-    // Triggers (from registry)
-    'webhook-trigger': { name: 'Webhook Trigger', category: 'triggers' },
-    'scheduled-time-trigger': { name: 'Scheduled Time', category: 'triggers' },
-    'new-email-received': { name: 'New Email', category: 'triggers' },
-    'new-message-in-slack': { name: 'New Slack Message', category: 'triggers' },
-    'new-row-in-google-sheet': { name: 'New Sheet Row', category: 'triggers' },
-    'new-form-submission': { name: 'Form Submission', category: 'triggers' },
-    'new-github-issue': { name: 'New GitHub Issue', category: 'triggers' },
-    'payment-completed': { name: 'Payment Completed', category: 'triggers' },
-    'new-discord-message': { name: 'New Discord Message', category: 'triggers' },
-    'file-uploaded': { name: 'File Uploaded', category: 'triggers' },
-    // Actions (from registry)
-    'send-email': { name: 'Send Email', category: 'actions' },
-    'post-to-slack-channel': { name: 'Post to Slack', category: 'actions' },
-    'send-discord-message': { name: 'Send Discord', category: 'actions' },
-    'create-notion-page': { name: 'Create Notion Page', category: 'actions' },
-    'add-row-to-google-sheet': { name: 'Add Sheet Row', category: 'actions' },
-    'create-calendar-event': { name: 'Create Calendar Event', category: 'actions' },
-    'send-sms-via-twilio': { name: 'Send SMS', category: 'actions' },
-    'upload-file-to-google-drive': { name: 'Upload to Drive', category: 'actions' },
-    'update-airtable-record': { name: 'Update Airtable', category: 'actions' },
-    'create-trello-card': { name: 'Create Trello Card', category: 'actions' },
-    // Conditions (from registry - only filter-data exists)
-    'filter-data': { name: 'Filter Data', category: 'conditions' },
-    // Utilities (from registry)
-    'format-text': { name: 'Format Text', category: 'utilities' },
-    'parse-json': { name: 'Parse JSON', category: 'utilities' },
-    'delay-execution': { name: 'Delay Execution', category: 'utilities' },
-    'merge-data-objects': { name: 'Merge Objects', category: 'utilities' },
-    'split-string': { name: 'Split String', category: 'utilities' },
-    'convert-to-csv': { name: 'Convert to CSV', category: 'utilities' },
-    'extract-email-addresses': { name: 'Extract Emails', category: 'utilities' },
-    'generate-summary-with-ai': { name: 'AI Summary', category: 'utilities' },
-    'calculate-numeric-values': { name: 'Calculate', category: 'utilities' },
+  // Icon name mappings for icons that don't exist or have different names in lucide-react
+  const iconMappings: Record<string, string> = {
+    'Table': 'Table2',
+    'Trello': 'LayoutGrid',
+    'Webhook': 'Link',
+    'Merge': 'GitMerge',
+    'FileSpreadsheet': 'FileSpreadsheet',
+    'FileCheck': 'FileCheck2',
+    'Smartphone': 'Phone',
+  };
+  
+  // Get Lucide icon component by name with fallbacks
+  const getIcon = (iconName: string) => {
+    const mappedName = iconMappings[iconName] || iconName;
+    let IconComponent = (LucideIcons as any)[mappedName];
+    if (!IconComponent) {
+      IconComponent = (LucideIcons as any)[`${mappedName}2`];
+    }
+    if (!IconComponent) {
+      IconComponent = Zap;
+    }
+    return IconComponent;
+  };
+  
+  // Map registry node categories to sidebar categories
+  // Use the node's category field from the registry, which provides more granular organization
+  const getSidebarCategory = (nodeId: string, node: typeof nodeRegistry[string]): string => {
+    // Map registry categories to sidebar categories
+    const categoryMap: Record<string, string> = {
+      'trigger': 'triggers',
+      'action': 'actions',
+      'transform': 'transforms',
+      'ai': 'ai',
+      'utilities': 'utilities',
+      'communication': 'actions',
+      'productivity': 'actions',
+      'data': 'database',
+      'storage': 'files',
+      'social': 'actions',
+      'payment': 'actions',
+    };
+    
+    // Use the node's category field, fallback to type if category doesn't exist
+    const nodeCategory = node.category || node.type || 'utilities';
+    return categoryMap[nodeCategory] || 'utilities';
   };
   
   // Function to check if a node matches the search query
@@ -155,6 +168,7 @@ export default function WorkspacePage() {
     if (!node) return false;
     const query = searchQuery.toLowerCase();
     return node.name.toLowerCase().includes(query) || 
+           node.description.toLowerCase().includes(query) ||
            node.category.toLowerCase().includes(query) ||
            nodeId.toLowerCase().includes(query);
   };
@@ -163,8 +177,16 @@ export default function WorkspacePage() {
   const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
 
   // Helper function to render a node card if it matches search
-  const renderNodeIfMatches = (nodeId: string, icon: React.ReactNode, name: string) => {
+  const renderNode = (nodeId: string) => {
+    const node = nodeRegistry[nodeId];
+    if (!node) {
+      console.warn(`Node not found in registry: ${nodeId}`);
+      return null;
+    }
     if (!nodeMatchesSearch(nodeId)) return null;
+    
+    const IconComponent = getIcon(node.icon);
+    
     return (
       <div
         key={nodeId}
@@ -201,10 +223,10 @@ export default function WorkspacePage() {
         className="flex items-center gap-2.5 p-2.5 rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl transition-all duration-300 cursor-pointer cursor-grab active:cursor-grabbing text-foreground"
       >
         <div className="flex items-center justify-center w-8 h-8 rounded-md bg-background/50 border border-stone-200 dark:border-white/10">
-          {icon}
+          <IconComponent className="h-4 w-4 text-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium text-foreground">{name}</h3>
+          <h3 className="text-sm font-medium text-foreground">{node.name}</h3>
         </div>
       </div>
     );
@@ -819,148 +841,77 @@ export default function WorkspacePage() {
                   {[
                     { id: 'triggers', label: 'Triggers' },
                     { id: 'actions', label: 'Actions' },
-                    { id: 'conditions', label: 'Conditions' },
+                    { id: 'transforms', label: 'Transforms' },
+                    { id: 'ai', label: 'AI/ML' },
+                    { id: 'database', label: 'Database' },
+                    { id: 'files', label: 'Files' },
                     { id: 'utilities', label: 'Utilities' },
                     { id: 'integrations', label: 'Integrations' },
                   ].map((category) => {
-                    // Filter nodes in this category based on search query
-                    // For integrations, include all integration-related nodes (nodes that use 3rd party services)
-                    // Only include nodes that actually exist in the registry
-                    const integrationNodeIds = [
-                      'webhook-trigger', 'new-email-received', 'new-message-in-slack', 'new-row-in-google-sheet',
-                      'new-form-submission', 'new-github-issue', 'payment-completed', 'new-discord-message',
-                      'file-uploaded', 'send-email', 'post-to-slack-channel', 'send-discord-message',
-                      'create-notion-page', 'add-row-to-google-sheet', 'create-calendar-event',
-                      'send-sms-via-twilio', 'upload-file-to-google-drive', 'update-airtable-record',
-                      'create-trello-card', 'generate-summary-with-ai'
-                    ];
-                    
-                    const categoryNodes = category.id === 'integrations'
-                      ? integrationNodeIds.filter(nodeId => nodeMatchesSearch(nodeId))
-                      : Object.entries(nodeRegistry)
-                          .filter(([nodeId, node]) => node.category === category.id && nodeMatchesSearch(nodeId))
-                          .map(([nodeId]) => nodeId);
-                    
-                    // Auto-expand categories when searching, or use manual state
-                    const isExpanded = searchQuery.trim().length > 0 
-                      ? categoryNodes.length > 0 
-                      : expandedCategories[category.id];
-                    
-                    // Only show category if it has matching nodes or search is empty
-                    const shouldShowCategory = categoryNodes.length > 0 || !searchQuery.trim();
-                    
-                    if (!shouldShowCategory) return null;
-                    
-                    return (
-                      <div key={category.id}>
-                        {/* Category Header */}
-                        <button
-                          onClick={() => {
-                            if (searchQuery.trim().length === 0) {
-                              setExpandedCategories(prev => ({
-                                ...prev,
-                                [category.id]: !prev[category.id]
-                              }));
-                            }
-                          }}
-                          className="w-full flex items-center justify-between px-4 py-3 text-left"
-                        >
-                          <span className="text-sm font-medium text-foreground">{category.label}</span>
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </button>
-                        {/* Category Content */}
-                        {isExpanded && (
-                          <div className="px-4 pb-3 space-y-2">
-                            {category.id === 'triggers' && (
-                              <>
-                                {renderNodeIfMatches('webhook-trigger', <Link className="h-4 w-4 text-foreground" />, 'Webhook Trigger')}
-                                {renderNodeIfMatches('scheduled-time-trigger', <Clock className="h-4 w-4 text-foreground" />, 'Scheduled Time')}
-                                {renderNodeIfMatches('new-email-received', <Mail className="h-4 w-4 text-foreground" />, 'New Email')}
-                                {renderNodeIfMatches('new-message-in-slack', <MessageSquare className="h-4 w-4 text-foreground" />, 'New Slack Message')}
-                                {renderNodeIfMatches('new-row-in-google-sheet', <Table className="h-4 w-4 text-foreground" />, 'New Sheet Row')}
-                                {renderNodeIfMatches('new-form-submission', <FileCheck className="h-4 w-4 text-foreground" />, 'Form Submission')}
-                                {renderNodeIfMatches('new-github-issue', <GitBranch className="h-4 w-4 text-foreground" />, 'New GitHub Issue')}
-                                {renderNodeIfMatches('payment-completed', <CreditCard className="h-4 w-4 text-foreground" />, 'Payment Completed')}
-                                {renderNodeIfMatches('new-discord-message', <MessageCircle className="h-4 w-4 text-foreground" />, 'New Discord Message')}
-                                {renderNodeIfMatches('file-uploaded', <Upload className="h-4 w-4 text-foreground" />, 'File Uploaded')}
-                              </>
-                            )}
-                            {category.id === 'actions' && (
-                              <>
-                                {renderNodeIfMatches('send-email', <Mail className="h-4 w-4 text-foreground" />, 'Send Email')}
-                                {renderNodeIfMatches('post-to-slack-channel', <MessageSquare className="h-4 w-4 text-foreground" />, 'Post to Slack')}
-                                {renderNodeIfMatches('send-discord-message', <MessageCircle className="h-4 w-4 text-foreground" />, 'Send Discord')}
-                                {renderNodeIfMatches('create-notion-page', <FileText className="h-4 w-4 text-foreground" />, 'Create Notion Page')}
-                                {renderNodeIfMatches('add-row-to-google-sheet', <Table className="h-4 w-4 text-foreground" />, 'Add Sheet Row')}
-                                {renderNodeIfMatches('create-calendar-event', <Calendar className="h-4 w-4 text-foreground" />, 'Create Calendar Event')}
-                                {renderNodeIfMatches('send-sms-via-twilio', <Smartphone className="h-4 w-4 text-foreground" />, 'Send SMS')}
-                                {renderNodeIfMatches('upload-file-to-google-drive', <Upload className="h-4 w-4 text-foreground" />, 'Upload to Drive')}
-                                {renderNodeIfMatches('update-airtable-record', <Database className="h-4 w-4 text-foreground" />, 'Update Airtable')}
-                                {renderNodeIfMatches('create-trello-card', <Table className="h-4 w-4 text-foreground" />, 'Create Trello Card')}
-                              </>
-                            )}
-                            {category.id === 'conditions' && (
-                              <>
-                                {renderNodeIfMatches('filter-data', <Filter className="h-4 w-4 text-foreground" />, 'Filter Data')}
-                              </>
-                            )}
-                            {category.id === 'utilities' && (
-                              <>
-                                {renderNodeIfMatches('format-text', <Type className="h-4 w-4 text-foreground" />, 'Format Text')}
-                                {renderNodeIfMatches('parse-json', <Code className="h-4 w-4 text-foreground" />, 'Parse JSON')}
-                                {renderNodeIfMatches('delay-execution', <Hourglass className="h-4 w-4 text-foreground" />, 'Delay Execution')}
-                                {renderNodeIfMatches('merge-data-objects', <Merge className="h-4 w-4 text-foreground" />, 'Merge Objects')}
-                                {renderNodeIfMatches('split-string', <Scissors className="h-4 w-4 text-foreground" />, 'Split String')}
-                                {renderNodeIfMatches('convert-to-csv', <FileSpreadsheet className="h-4 w-4 text-foreground" />, 'Convert to CSV')}
-                                {renderNodeIfMatches('extract-email-addresses', <Mail className="h-4 w-4 text-foreground" />, 'Extract Emails')}
-                                {renderNodeIfMatches('generate-summary-with-ai', <Sparkles className="h-4 w-4 text-foreground" />, 'AI Summary')}
-                                {renderNodeIfMatches('calculate-numeric-values', <Calculator className="h-4 w-4 text-foreground" />, 'Calculate')}
-                              </>
-                            )}
-                            {category.id === 'integrations' && (
-                              <>
-                                {/* Google Services */}
-                                {renderNodeIfMatches('new-row-in-google-sheet', <Table className="h-4 w-4 text-foreground" />, 'New Sheet Row')}
-                                {renderNodeIfMatches('add-row-to-google-sheet', <Table className="h-4 w-4 text-foreground" />, 'Add Sheet Row')}
-                                {renderNodeIfMatches('new-email-received', <Mail className="h-4 w-4 text-foreground" />, 'New Email')}
-                                {renderNodeIfMatches('send-email', <Mail className="h-4 w-4 text-foreground" />, 'Send Email')}
-                                {renderNodeIfMatches('create-calendar-event', <Calendar className="h-4 w-4 text-foreground" />, 'Create Calendar Event')}
-                                {renderNodeIfMatches('upload-file-to-google-drive', <Upload className="h-4 w-4 text-foreground" />, 'Upload to Drive')}
-                                {renderNodeIfMatches('new-form-submission', <FileCheck className="h-4 w-4 text-foreground" />, 'Form Submission')}
-                                {/* Slack */}
-                                {renderNodeIfMatches('new-message-in-slack', <MessageSquare className="h-4 w-4 text-foreground" />, 'New Slack Message')}
-                                {renderNodeIfMatches('post-to-slack-channel', <MessageSquare className="h-4 w-4 text-foreground" />, 'Post to Slack')}
-                                {/* Discord */}
-                                {renderNodeIfMatches('send-discord-message', <MessageCircle className="h-4 w-4 text-foreground" />, 'Send Discord')}
-                                {/* Notion */}
-                                {renderNodeIfMatches('create-notion-page', <FileText className="h-4 w-4 text-foreground" />, 'Create Notion Page')}
-                                {/* Airtable */}
-                                {renderNodeIfMatches('update-airtable-record', <Database className="h-4 w-4 text-foreground" />, 'Update Airtable')}
-                                {/* Trello */}
-                                {renderNodeIfMatches('create-trello-card', <Table className="h-4 w-4 text-foreground" />, 'Create Trello Card')}
-                                {/* Twilio */}
-                                {renderNodeIfMatches('send-sms-via-twilio', <Smartphone className="h-4 w-4 text-foreground" />, 'Send SMS')}
-                                {/* GitHub */}
-                                {renderNodeIfMatches('new-github-issue', <GitBranch className="h-4 w-4 text-foreground" />, 'New GitHub Issue')}
-                                {/* OpenAI */}
-                                {renderNodeIfMatches('generate-summary-with-ai', <Sparkles className="h-4 w-4 text-foreground" />, 'AI Summary')}
-                                {/* Payment */}
-                                {renderNodeIfMatches('payment-completed', <CreditCard className="h-4 w-4 text-foreground" />, 'Payment Completed')}
-                                {/* Webhook */}
-                                {renderNodeIfMatches('webhook-trigger', <Link className="h-4 w-4 text-foreground" />, 'Webhook Trigger')}
-                                {renderNodeIfMatches('new-discord-message', <MessageCircle className="h-4 w-4 text-foreground" />, 'New Discord Message')}
-                                {renderNodeIfMatches('file-uploaded', <Upload className="h-4 w-4 text-foreground" />, 'File Uploaded')}
-                              </>
+                        // Get all nodes that belong to this sidebar category
+                        // For integrations, show nodes that require external services
+                        const integrationNodeIds = [
+                          'new-email-received', 'new-message-in-slack', 'new-row-in-google-sheet',
+                          'new-form-submission', 'new-github-issue', 'file-uploaded', 
+                          'post-to-slack-channel', 'create-notion-page', 'create-calendar-event',
+                          'upload-file-to-google-drive', 'update-airtable-record', 'create-trello-card',
+                          'send-email', 'send-discord-message', 'send-sms-via-twilio',
+                          'new-stripe-payment', 'new-paypal-payment', 'new-discord-message'
+                        ];
+                        
+                        const categoryNodes = category.id === 'integrations'
+                          ? integrationNodeIds.filter(nodeId => {
+                              const node = nodeRegistry[nodeId];
+                              return node && nodeMatchesSearch(nodeId);
+                            })
+                          : Object.entries(nodeRegistry)
+                              .filter(([nodeId, node]) => {
+                                if (!node) return false;
+                                const sidebarCategory = getSidebarCategory(nodeId, node);
+                                return sidebarCategory === category.id && nodeMatchesSearch(nodeId);
+                              })
+                              .map(([nodeId]) => nodeId);
+                        
+                        // Auto-expand categories when searching, or use manual state
+                        const isExpanded = searchQuery.trim().length > 0 
+                          ? categoryNodes.length > 0 
+                          : (expandedCategories[category.id] ?? false);
+                        
+                        // Only show category if it has matching nodes or search is empty
+                        const shouldShowCategory = categoryNodes.length > 0 || !searchQuery.trim();
+                        
+                        if (!shouldShowCategory) return null;
+                        
+                        return (
+                          <div key={category.id}>
+                            {/* Category Header */}
+                            <button
+                              onClick={() => {
+                                if (searchQuery.trim().length === 0) {
+                                  setExpandedCategories(prev => ({
+                                    ...prev,
+                                    [category.id]: !(prev[category.id] ?? false)
+                                  }));
+                                }
+                              }}
+                              className="w-full flex items-center justify-between px-4 py-3 text-left"
+                            >
+                              <span className="text-sm font-medium text-foreground">{category.label}</span>
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </button>
+                            {/* Category Content */}
+                            {isExpanded && (
+                              <div className="px-4 pb-3 space-y-2">
+                                {categoryNodes.map(nodeId => renderNode(nodeId))}
+                              </div>
                             )}
                           </div>
-                        )}
-    </div>
-  );
-                  })}
+                        );
+                      })}
                 </div>
               </div>
             </div>

@@ -33,15 +33,21 @@ export function ExecutionsView({ workflowId, className }: ExecutionsViewProps) {
       const { executions: execs, error: err } = await loadUserExecutions();
       
       if (err) {
+        console.error('Error loading executions:', err);
         setError(err);
+        setExecutions([]);
       } else {
         // Filter by workflowId if provided
         const filtered = workflowId 
           ? execs.filter(e => e.workflow_id === workflowId)
           : execs;
         setExecutions(filtered);
+        setError(null); // Clear any previous errors
       }
     } catch (err: any) {
+      console.error('Unexpected error loading executions:', err);
+      setError(err?.message || 'An unexpected error occurred');
+      setExecutions([]);
       setError(err.message || 'Failed to load executions');
     } finally {
       setIsLoading(false);

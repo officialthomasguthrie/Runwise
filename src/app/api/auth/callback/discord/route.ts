@@ -1,0 +1,130 @@
+/**
+ * Discord OAuth Callback Route
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase-server';
+import { storeUserIntegration } from '@/lib/integrations/service';
+import { validateStateToken, getDiscordOAuthConfig } from '@/lib/integrations/oauth';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const error = searchParams.get('error');
+    
+    if (error) {
+      console.error('Discord OAuth error:', error);
+      return NextResponse.redirect(
+        new URL('/settings?tab=integrations&error=oauth_error', request.url)
+      );
+    }
+    
+    if (!code || !state) {
+      return NextResponse.redirect(
+        new URL('/settings?tab=integrations&error=missing_code', request.url)
+      );
+    }
+    
+    const storedState = request.cookies.get('oauth_state')?.value;
+    const userId = request.cookies.get('oauth_user_id')?.value;
+    
+    if (!storedState || !validateStateToken(state, storedState)) {
+      return NextResponse.redirect(
+        new URL('/settings?tab=integrations&error=invalid_state', request.url)
+      );
+    }
+    
+    if (!userId) {
+      return NextResponse.redirect(
+        new URL('/settings?tab=integrations&error=no_user', request.url)
+      );
+    }
+    
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user || user.id !== userId) {
+      return NextResponse.redirect(
+        new URL('/settings?tab=integrations&error=unauthorized', request.url)
+      );
+    }
+    
+    // Exchange code for tokens
+    const config = getDiscordOAuthConfig();
+    
+    const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: config.redirectUri
+      })
+    });
+    
+    if (!tokenResponse.ok) {
+      const error = await tokenResponse.text();
+      console.error('Token exchange error:', error);
+      return NextResponse.redirect(
+        new URL('/settings?tab=integrations&error=token_exchange_failed', request.url)
+      );
+    }
+    
+    const data = await tokenResponse.json();
+    
+    if (data.error) {
+      console.error('Discord API error:', data.error);
+      return NextResponse.redirect(
+        new URL('/settings?tab=integrations&error=discord_api_error', request.url)
+      );
+    }
+    
+    const accessToken = data.access_token;
+    const refreshToken = data.refresh_token;
+    const expiresIn = data.expires_in;
+    
+    const expiresAt = expiresIn
+      ? new Date(Date.now() + expiresIn * 1000)
+      : undefined;
+    
+    await storeUserIntegration(
+      user.id,
+      'discord',
+      {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_at: expiresAt
+      },
+      {
+        scope: data.scope,
+        token_type: data.token_type
+      }
+    );
+    
+    // Get return URL from cookie, default to settings page
+    const returnUrl = request.cookies.get('oauth_return_url')?.value;
+    const redirectUrl = returnUrl 
+      ? decodeURIComponent(returnUrl) + (returnUrl.includes('?') ? '&' : '?') + 'integration_connected=discord'
+      : '/settings?tab=integrations&success=discord_connected';
+    
+    const response = NextResponse.redirect(new URL(redirectUrl, request.url));
+    
+    response.cookies.delete('oauth_state');
+    response.cookies.delete('oauth_user_id');
+    response.cookies.delete('oauth_return_url');
+    
+    return response;
+  } catch (error: any) {
+    console.error('Error in Discord OAuth callback:', error);
+    return NextResponse.redirect(
+      new URL('/settings?tab=integrations&error=callback_error', request.url)
+    );
+  }
+}
+

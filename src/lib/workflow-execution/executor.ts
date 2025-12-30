@@ -12,6 +12,7 @@ import type {
   WorkflowExecutionResult,
   LogEntry,
 } from './types';
+import { resolveConfigTemplates } from './template-resolver';
 
 /**
  * Executes a complete workflow
@@ -28,8 +29,8 @@ export async function executeWorkflow(
   const nodeResults: NodeExecutionResult[] = [];
   const logs: LogEntry[] = [];
   
-  // Create execution context
-  const context = createExecutionContext(userId, logs);
+  // Create execution context (async to load integration tokens)
+  const context = await createExecutionContext(userId, logs);
 
   try {
     // Validate workflow has nodes
@@ -128,8 +129,33 @@ export async function executeWorkflow(
           });
         }
 
-        // Execute the node
-        const nodeOutput = await executeNode(node, inputData, context);
+        // Resolve templates in config before execution
+        const nodeData = (node.data ?? {}) as Record<string, any>;
+        const originalConfig = nodeData.config || {};
+        
+        // Build previous outputs map for template resolution
+        const previousOutputs: Record<string, any> = {};
+        sourceNodeIds.forEach((sourceId) => {
+          const output = nodeOutputs.get(sourceId);
+          if (output !== undefined) {
+            previousOutputs[sourceId] = output;
+          }
+        });
+        
+        // Resolve templates in config
+        const resolvedConfig = resolveConfigTemplates(originalConfig, inputData, previousOutputs);
+        
+        // Update node data with resolved config for execution
+        const nodeWithResolvedConfig = {
+          ...node,
+          data: {
+            ...nodeData,
+            config: resolvedConfig
+          }
+        };
+        
+        // Execute the node with resolved config
+        const nodeOutput = await executeNode(nodeWithResolvedConfig, inputData, context);
 
         const duration = Date.now() - nodeStartTime;
 
@@ -330,13 +356,90 @@ async function executeLibraryNode(
 
 /**
  * Creates execution context for nodes
+ * Loads integration tokens from database
  */
-function createExecutionContext(userId: string, logs: LogEntry[]): ExecutionContext {
+async function createExecutionContext(userId: string, logs: LogEntry[]): Promise<ExecutionContext> {
+  // Load integration tokens
+  const { loadIntegrationTokensForExecution } = await import('@/lib/integrations/execution-tokens');
+  const integrationTokens = await loadIntegrationTokensForExecution(userId);
+  
+  // Build auth object with integration tokens
+  const auth: ExecutionContext['auth'] = {};
+  
+  // Add Google integration token if available
+  if (integrationTokens.google) {
+    auth.google = {
+      token: integrationTokens.google.access_token
+    };
+  }
+  
+  // Add Slack integration token if available
+  if (integrationTokens.slack) {
+    auth.slack = {
+      token: integrationTokens.slack.access_token
+    };
+  }
+  
+  // Add GitHub integration token if available
+  if (integrationTokens.github) {
+    auth.github = {
+      token: integrationTokens.github.access_token
+    };
+  }
+  
+  // Add OpenAI API key if available
+  if (integrationTokens.openai) {
+    auth.openai = {
+      apiKey: integrationTokens.openai.access_token
+    };
+  }
+  
+  // Add SendGrid API key if available
+  if (integrationTokens.sendgrid) {
+    auth.sendgrid = {
+      apiKey: integrationTokens.sendgrid.access_token
+    };
+  }
+  
+  // Add Twilio credentials if available
+  if (integrationTokens.twilio) {
+    auth.twilio = {
+      accountSid: integrationTokens.twilio.access_token,
+      authToken: integrationTokens.twilio.refresh_token || ''
+    };
+  }
+  
+  // Add Stripe API key if available
+  if (integrationTokens.stripe) {
+    auth.stripe = {
+      secretKey: integrationTokens.stripe.access_token
+    };
+  }
+  
+  // Add Discord token if available
+  if (integrationTokens.discord) {
+    auth.discord = {
+      token: integrationTokens.discord.access_token
+    };
+  }
+  
+  // Add Twitter token if available
+  if (integrationTokens.twitter) {
+    auth.twitter = {
+      token: integrationTokens.twitter.access_token
+    };
+  }
+  
+  // Add PayPal token if available
+  if (integrationTokens.paypal) {
+    auth.paypal = {
+      token: integrationTokens.paypal.access_token
+    };
+  }
+  
   return {
-    auth: {
-      // In production, fetch user's API keys from database
-      // For now, use placeholder
-    },
+    userId,
+    auth,
     http: {
       get: async (url: string, options?: any) => {
         logs.push({

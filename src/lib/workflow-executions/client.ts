@@ -46,15 +46,22 @@ export async function loadWorkflowExecutions(
     const supabase = createClient();
     
     // First, load executions without join
+    // Use explicit column selection to avoid relationship inference issues
     const { data, error } = await supabase
       .from('workflow_executions')
-      .select('*')
+      .select('id, workflow_id, user_id, status, trigger_type, trigger_data, input_data, output_data, error_message, execution_time_ms, started_at, completed_at, created_at')
       .eq('workflow_id', workflowId)
       .order('started_at', { ascending: false });
 
     if (error) {
-      console.error('Error loading executions:', error);
-      return { executions: [], error: error.message || 'Failed to load executions' };
+      console.error('Error loading executions:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        fullError: error
+      });
+      return { executions: [], error: error.message || error.details || 'Failed to load executions' };
     }
 
     // Load workflow name separately
@@ -112,33 +119,55 @@ export async function loadUserExecutions(): Promise<{
     }
 
     // First, load executions without join (simpler and more reliable)
+    // Use explicit column selection to avoid relationship inference issues
     const { data, error } = await supabase
       .from('workflow_executions')
-      .select('*')
+      .select('id, workflow_id, user_id, status, trigger_type, trigger_data, input_data, output_data, error_message, execution_time_ms, started_at, completed_at, created_at')
       .eq('user_id', user.id)
       .order('started_at', { ascending: false })
       .limit(100); // Limit to most recent 100
 
     if (error) {
-      console.error('Error loading executions:', error);
-      return { executions: [], error: error.message || 'Failed to load executions' };
+      console.error('Error loading executions:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        fullError: error
+      });
+      return { executions: [], error: error.message || error.details || 'Failed to load executions' };
     }
 
     // Load workflow names separately if needed
-    const workflowIds = [...new Set((data || []).map((exec: any) => exec.workflow_id))];
+    const workflowIds = [...new Set((data || []).map((exec: any) => exec.workflow_id).filter(Boolean))];
     const workflowNames: Record<string, string> = {};
     
     if (workflowIds.length > 0) {
-      type WorkflowNameWithIdRow = Pick<Database['public']['Tables']['workflows']['Row'], 'id' | 'name'>;
-      const { data: workflows } = await supabase
-        .from('workflows')
-        .select('id, name')
-        .in('id', workflowIds);
-      
-      if (workflows) {
-        (workflows as WorkflowNameWithIdRow[]).forEach((wf) => {
-          workflowNames[wf.id] = wf.name;
-        });
+      try {
+        // Convert all workflow_ids to strings to handle both UUID and TEXT types
+        const workflowIdStrings = workflowIds.map(id => String(id));
+        
+        type WorkflowNameWithIdRow = Pick<Database['public']['Tables']['workflows']['Row'], 'id' | 'name'>;
+        const { data: workflows, error: workflowError } = await supabase
+          .from('workflows')
+          .select('id, name')
+          .in('id', workflowIdStrings);
+        
+        if (workflowError) {
+          // Log but don't fail - workflow names are optional
+          console.warn('Could not load workflow names (non-critical):', {
+            message: workflowError.message,
+            details: workflowError.details,
+            hint: workflowError.hint
+          });
+        } else if (workflows) {
+          (workflows as WorkflowNameWithIdRow[]).forEach((wf) => {
+            workflowNames[String(wf.id)] = wf.name;
+          });
+        }
+      } catch (workflowNameError: any) {
+        // Don't fail the whole request if workflow names can't be loaded
+        console.warn('Error loading workflow names (non-critical):', workflowNameError);
       }
     }
 
@@ -156,7 +185,7 @@ export async function loadUserExecutions(): Promise<{
       started_at: exec.started_at,
       completed_at: exec.completed_at,
       created_at: exec.created_at,
-      workflow_name: workflowNames[exec.workflow_id] || 'Untitled Workflow',
+      workflow_name: workflowNames[String(exec.workflow_id)] || 'Untitled Workflow',
     }));
 
     return { executions };

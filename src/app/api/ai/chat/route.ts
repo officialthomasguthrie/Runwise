@@ -9,6 +9,7 @@ import { generateStreamingChatResponse } from '@/lib/ai/chat';
 import type { ChatRequest } from '@/lib/ai/types';
 import { checkCreditsAvailable, deductCredits } from '@/lib/credits/tracker';
 import { calculateCreditsFromTokens, estimateChatResponseCredits } from '@/lib/credits/calculator';
+import { getIntegrationContextForAI } from '@/lib/integrations/ai-context';
 
 export async function POST(request: NextRequest) {
   try {
@@ -138,12 +139,16 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          // Get user's integration context for AI
+          const integrationContext = await getIntegrationContextForAI(user.id);
+          
           // Generate streaming chat response
           await generateStreamingChatResponse({
             message: body.message,
             chatId: body.chatId,
             conversationHistory: body.conversationHistory || [],
             context: body.context,
+            integrationContext,
             onChunk: (chunk: string, isComplete: boolean, metadata?: any) => {
               const data = JSON.stringify({
                 type: 'chunk',

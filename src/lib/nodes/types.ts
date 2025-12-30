@@ -14,22 +14,26 @@ export interface NodeInputSchema {
 
 export interface NodeOutputSchema {
   name: string;
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any';
   description: string;
 }
 
 export interface NodeConfigSchema {
   [key: string]: {
-    type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'select' | 'textarea';
+    type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'select' | 'textarea' | 'integration';
     label: string;
     description: string;
     required?: boolean;
     default?: any;
     options?: Array<{ label: string; value: string }>; // For select type
+    serviceName?: string; // For integration type
+    resourceType?: string; // For integration type
+    integrationType?: string; // For integration type
   };
 }
 
 export interface ExecutionContext {
+  userId: string;
   auth: {
     [service: string]: {
       token?: string;
@@ -48,6 +52,7 @@ export interface ExecutionContext {
     info: (message: string, data?: any) => void;
     error: (message: string, error?: any) => void;
     warn: (message: string, data?: any) => void;
+    debug: (message: string, data?: any) => void;
   };
 }
 

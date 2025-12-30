@@ -10,6 +10,7 @@ import {
   generateWorkflowFromPromptStreaming,
   getSimplifiedNodeList,
 } from '@/lib/ai/workflow-generator';
+import { getIntegrationContextForAI } from '@/lib/integrations/ai-context';
 import type {
   WorkflowGenerationRequest,
 } from '@/lib/ai/types';
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get available nodes (use provided or fetch all)
+    // getSimplifiedNodeList() already filters out nodes that require unavailable integrations
     const availableNodes =
       body.availableNodes && body.availableNodes.length > 0
         ? body.availableNodes
@@ -98,6 +100,9 @@ export async function POST(request: NextRequest) {
     // Extract existing nodes/edges from currentWorkflow if provided
     const existingNodes = body.currentWorkflow?.nodes || body.existingNodes || [];
     const existingEdges = body.currentWorkflow?.edges || body.existingEdges || [];
+
+    // Get user's integration context for AI
+    const integrationContext = await getIntegrationContextForAI(user.id);
 
     // Estimate credits needed (we'll calculate exact amount after generation)
     const estimatedCredits = estimateWorkflowGenerationCredits(
@@ -134,6 +139,7 @@ export async function POST(request: NextRequest) {
             availableNodes,
             existingNodes,
             existingEdges,
+            integrationContext,
             onChunk: (jsonChunk: string, isComplete: boolean) => {
               const data = JSON.stringify({
                 type: 'json-chunk',

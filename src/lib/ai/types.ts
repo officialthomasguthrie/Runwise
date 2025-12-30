@@ -50,6 +50,16 @@ export interface WorkflowGenerationRequest {
   }>;
   existingNodes?: Node[]; // If modifying existing workflow
   existingEdges?: Edge[]; // If modifying existing workflow
+  integrationContext?: {
+    google?: {
+      connected: boolean;
+      spreadsheets?: Array<{ id: string; name: string }>;
+    };
+    slack?: {
+      connected: boolean;
+      channels?: Array<{ id: string; name: string }>;
+    };
+  }; // User's connected integrations and available resources
 }
 
 /**
@@ -80,6 +90,16 @@ export interface ChatRequest {
     nodeType?: string;
     nodeId?: string;
   };
+  integrationContext?: {
+    google?: {
+      connected: boolean;
+      spreadsheets?: Array<{ id: string; name: string }>;
+    };
+    slack?: {
+      connected: boolean;
+      channels?: Array<{ id: string; name: string }>;
+    };
+  }; // User's connected integrations and available resources
 }
 
 /**

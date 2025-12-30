@@ -1186,14 +1186,22 @@ export const ReactFlowEditor = ({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={(event, node) => {
-          // Check if the click target is a button or inside a button
+          // Check if the click target is a button, input, textarea, or inside one
           const target = event.target as HTMLElement;
           const isButton = target.tagName === 'BUTTON' || 
                           target.closest('button') !== null ||
                           target.closest('[role="button"]') !== null;
+          const isInput = target.tagName === 'INPUT' || 
+                          target.tagName === 'TEXTAREA' ||
+                          target.closest('input') !== null ||
+                          target.closest('textarea') !== null;
           
-          // Only open config if not clicking on a button
-          if (!isButton) {
+          // Check if user has selected text (text selection means they were selecting, not clicking to close)
+          const selection = window.getSelection();
+          const hasSelection = selection && selection.toString().length > 0;
+          
+          // Only open config if not clicking on a button, input, textarea, or if text is selected
+          if (!isButton && !isInput && !hasSelection) {
             event.preventDefault();
             openNodeConfig(node);
           }
