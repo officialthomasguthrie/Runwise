@@ -8,8 +8,8 @@ You need to add the following environment variables to your `.env.local` file fo
 
 ### Google Integration
 ```env
-GOOGLE_INTEGRATION_CLIENT_ID=your-google-integration-client-id.apps.googleusercontent.com
-GOOGLE_INTEGRATION_CLIENT_SECRET=GOCSPX-your-google-integration-client-secret
+GOOGLE_INTEGRATION_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_INTEGRATION_CLIENT_SECRET=your-google-client-secret
 ```
 
 **Note:** These are different from `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` which are used for user login.

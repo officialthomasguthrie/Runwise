@@ -46,17 +46,22 @@ export async function createCustomer(
 ): Promise<StripeCustomer> {
   const apiKey = await getStripeApiKey(userId);
   
+  const bodyParams: Record<string, string> = {};
+  if (params.email) bodyParams.email = params.email;
+  if (params.name) bodyParams.name = params.name;
+  if (params.metadata) {
+    Object.entries(params.metadata).forEach(([k, v]) => {
+      bodyParams[`metadata[${k}]`] = String(v);
+    });
+  }
+  
   const response = await fetch('https://api.stripe.com/v1/customers', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/x-www-form-urlencoded'
     },
-    body: new URLSearchParams({
-      ...(params.email && { email: params.email }),
-      ...(params.name && { name: params.name }),
-      ...(params.metadata && Object.entries(params.metadata).map(([k, v]) => [`metadata[${k}]`, v]))
-    }).toString()
+    body: new URLSearchParams(bodyParams).toString()
   });
   
   if (!response.ok) {
@@ -90,14 +95,20 @@ export async function createCharge(
 ): Promise<StripeCharge> {
   const apiKey = await getStripeApiKey(userId);
   
-  const formData = new URLSearchParams({
+  const bodyParams: Record<string, string> = {
     amount: params.amount.toString(),
-    currency: params.currency,
-    ...(params.customer && { customer: params.customer }),
-    ...(params.source && { source: params.source }),
-    ...(params.description && { description: params.description }),
-    ...(params.metadata && Object.entries(params.metadata).map(([k, v]) => [`metadata[${k}]`, v]))
-  });
+    currency: params.currency
+  };
+  if (params.customer) bodyParams.customer = params.customer;
+  if (params.source) bodyParams.source = params.source;
+  if (params.description) bodyParams.description = params.description;
+  if (params.metadata) {
+    Object.entries(params.metadata).forEach(([k, v]) => {
+      bodyParams[`metadata[${k}]`] = v;
+    });
+  }
+  
+  const formData = new URLSearchParams(bodyParams);
   
   const response = await fetch('https://api.stripe.com/v1/charges', {
     method: 'POST',

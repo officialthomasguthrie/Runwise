@@ -50,7 +50,6 @@ export function IntegrationsSettings() {
   const [credentialInput2, setCredentialInput2] = useState<string>('');
   const [savingCredential, setSavingCredential] = useState<boolean>(false);
   const [credentialError, setCredentialError] = useState<string | null>(null);
-  const [oauthError, setOauthError] = useState<string | null>(null);
 
   // Fix hydration mismatch for theme
   useEffect(() => {
@@ -320,91 +319,6 @@ export function IntegrationsSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
 
-  // Check for OAuth errors in URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const errorParam = urlParams.get('error');
-    
-    if (errorParam) {
-      // Decode and display error message
-      const decodedError = decodeURIComponent(errorParam);
-      setOauthError(decodedError);
-      
-      // Clear error from URL after displaying
-      urlParams.delete('error');
-      window.history.replaceState({}, '', window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : ''));
-      
-      // Auto-hide error after 10 seconds
-      setTimeout(() => {
-        setOauthError(null);
-      }, 10000);
-    }
-  }, []);
-
-  // Refresh integrations when returning from OAuth
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('integration_connected') || urlParams.get('success')) {
-      // Reload integrations after a short delay
-      setTimeout(() => {
-        const loadIntegrations = async () => {
-          try {
-            const response = await fetch('/api/integrations/status');
-            if (!response.ok) return;
-            
-            const data = await response.json();
-            const connectedServices = data.integrations || [];
-            
-            const mappedIntegrations = connectedServices
-              .filter((integration: any) => integration.connected)
-              .map((integration: any) => {
-                const serviceName = integration.service;
-                const matchingIntegration = allIntegrations.find(
-                  (int) => int.serviceName === serviceName
-                );
-                
-                if (matchingIntegration) {
-                  return {
-                    id: `connected-${serviceName}`,
-                    name: matchingIntegration.name,
-                    description: matchingIntegration.description,
-                    icon: matchingIntegration.icon,
-                    slug: matchingIntegration.slug,
-                    gradient: matchingIntegration.gradient,
-                    iconColor: matchingIntegration.iconColor,
-                    status: 'active',
-                    serviceName: serviceName
-                  };
-                }
-                
-                return {
-                  id: `connected-${serviceName}`,
-                  name: serviceName.charAt(0).toUpperCase() + serviceName.slice(1),
-                  description: 'Connected integration',
-                  icon: Plug,
-                  gradient: 'from-gray-500/20 to-slate-500/20',
-                  iconColor: 'text-gray-400',
-                  status: 'active',
-                  serviceName: serviceName
-                };
-              });
-            
-            setConfiguredIntegrations(mappedIntegrations);
-            
-            // Clear the parameter from URL
-            urlParams.delete('integration_connected');
-            urlParams.delete('success');
-            window.history.replaceState({}, '', window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : ''));
-          } catch (error) {
-            console.error('Error refreshing integrations:', error);
-          }
-        };
-        
-        loadIntegrations();
-      }, 1000);
-    }
-  }, []);
-
   // Check if an integration is connected
   const isIntegrationConnected = (serviceName?: string): boolean => {
     if (!serviceName) return false;
@@ -435,11 +349,9 @@ export function IntegrationsSettings() {
   // Handle connect
   const handleConnect = (serviceName: string) => {
     // OAuth services redirect to OAuth flow
-    const oauthServices = ['google', 'slack', 'github', 'discord', 'twitter', 'paypal'];
+    const oauthServices = ['google', 'slack', 'github'];
     if (oauthServices.includes(serviceName)) {
-      // Get current URL to return to after OAuth
-      const returnUrl = encodeURIComponent(window.location.href);
-      window.location.href = `/api/auth/connect/${serviceName}?returnUrl=${returnUrl}`;
+      window.location.href = `/api/auth/connect/${serviceName}`;
     } else {
       // Credential-based services open dialog
       setSelectedServiceForCredentials(serviceName);
@@ -667,36 +579,6 @@ export function IntegrationsSettings() {
 
   return (
     <>
-      {/* OAuth Error Display */}
-      {oauthError && (
-        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-md">
-          <div className="flex items-start gap-3">
-            <div className="flex-1">
-              <h4 className="text-sm font-semibold text-red-500 mb-1">Integration Connection Failed</h4>
-              <p className="text-sm text-red-400">
-                {oauthError.includes('Database schema error') ? (
-                  <>
-                    {oauthError.split('Please run')[0]}
-                    <br />
-                    <br />
-                    <strong>Solution:</strong> Please run the migration SQL from <code className="bg-red-500/20 px-1 rounded">INTEGRATIONS_COMPLETE_GUIDE.md</code> in your Supabase SQL Editor to add the required columns to the <code className="bg-red-500/20 px-1 rounded">user_integrations</code> table.
-                  </>
-                ) : (
-                  oauthError
-                )}
-              </p>
-            </div>
-            <button
-              onClick={() => setOauthError(null)}
-              className="text-red-400 hover:text-red-300 text-xl leading-none"
-              aria-label="Close error"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
-      
       {/* Configured Integrations Section */}
       <div className="mb-8">
         <div className="mb-4">

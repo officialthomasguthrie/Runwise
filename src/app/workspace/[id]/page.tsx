@@ -12,9 +12,10 @@ import { ExecutionsView } from "@/components/ui/executions-view";
 import { SettingsView } from "@/components/ui/settings-view";
 import { saveWorkflowFromEditor } from "@/lib/workflows/client";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check, Link, Mail, Clock, MessageSquare, Table, FileCheck, CreditCard, GitBranch, FileText, Calendar, Smartphone, Upload, Database, MessageCircle, Equal, Minus, ArrowRight, ArrowLeft, Hourglass, Sparkles, Zap } from "lucide-react";
+import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check, Zap, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
 import { nodeRegistry } from "@/lib/nodes/registry";
+import type { NodeDefinition } from "@/lib/nodes/types";
 import * as LucideIcons from "lucide-react";
 
 function WorkflowToggle({ workflowId, initialActive, onToggle }: { workflowId: string | null; initialActive: boolean; onToggle: (active: boolean) => Promise<void> }) {
@@ -102,18 +103,24 @@ export default function WorkspacePage() {
   const [externalChatContext, setExternalChatContext] = useState<{ fieldName?: string; nodeType?: string; nodeId?: string; nodeLabel?: string; nodeDescription?: string; workflowName?: string } | null>(null);
   const [workflowActive, setWorkflowActive] = useState(false);
   const [isLoadingWorkflowStatus, setIsLoadingWorkflowStatus] = useState(true);
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-    triggers: true,
-    actions: true,
-    transforms: false,
-    ai: false,
-    database: false,
-    files: false,
-    utilities: false,
-    integrations: false,
-  });
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Category metadata for display (labels and ordering)
+  const CATEGORY_META: Record<string, { label: string; order: number }> = {
+    trigger: { label: 'Triggers', order: 1 },
+    communication: { label: 'Communication', order: 2 },
+    ai: { label: 'AI / ML', order: 3 },
+    transform: { label: 'Transform', order: 4 },
+    data: { label: 'Data', order: 5 },
+    database: { label: 'Database', order: 6 },
+    storage: { label: 'File & Storage', order: 7 },
+    utility: { label: 'Utilities', order: 8 },
+    productivity: { label: 'Productivity', order: 9 },
+    social: { label: 'Social', order: 10 },
+    payment: { label: 'Payment', order: 11 },
+  };
+
   // Icon name mappings for icons that don't exist or have different names in lucide-react
   const iconMappings: Record<string, string> = {
     'Table': 'Table2',
@@ -124,75 +131,132 @@ export default function WorkspacePage() {
     'FileCheck': 'FileCheck2',
     'Smartphone': 'Phone',
   };
-  
-  // Get Lucide icon component by name with fallbacks
-  const getIcon = (iconName: string) => {
+
+  /**
+   * Get Lucide icon component by name with fallbacks
+   */
+  const getIconComponent = (iconName: string): React.ComponentType<{ className?: string }> => {
     const mappedName = iconMappings[iconName] || iconName;
     let IconComponent = (LucideIcons as any)[mappedName];
+    
     if (!IconComponent) {
       IconComponent = (LucideIcons as any)[`${mappedName}2`];
     }
     if (!IconComponent) {
+      IconComponent = (LucideIcons as any)[iconName.replace(/([A-Z])/g, '$1')];
+    }
+    
+    if (!IconComponent) {
       IconComponent = Zap;
     }
+    
     return IconComponent;
   };
-  
-  // Map registry node categories to sidebar categories
-  // Use the node's category field from the registry, which provides more granular organization
-  const getSidebarCategory = (nodeId: string, node: typeof nodeRegistry[string]): string => {
-    // Map registry categories to sidebar categories
-    const categoryMap: Record<string, string> = {
-      'trigger': 'triggers',
-      'action': 'actions',
-      'transform': 'transforms',
-      'ai': 'ai',
-      'utilities': 'utilities',
-      'communication': 'actions',
-      'productivity': 'actions',
-      'data': 'database',
-      'storage': 'files',
-      'social': 'actions',
-      'payment': 'actions',
-    };
+
+  /**
+   * Group nodes by category from the registry
+   */
+  const getNodesByCategory = useCallback(() => {
+    const grouped: Record<string, NodeDefinition[]> = {};
     
-    // Use the node's category field, fallback to type if category doesn't exist
-    const nodeCategory = node.category || node.type || 'utilities';
-    return categoryMap[nodeCategory] || 'utilities';
-  };
+    Object.values(nodeRegistry).forEach((node) => {
+      const category = node.category || 'utility';
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(node);
+    });
+    
+    return grouped;
+  }, []);
   
-  // Function to check if a node matches the search query
-  const nodeMatchesSearch = (nodeId: string): boolean => {
-    if (!searchQuery.trim()) return true;
-    const node = nodeRegistry[nodeId];
-    if (!node) return false;
-    const query = searchQuery.toLowerCase();
-    return node.name.toLowerCase().includes(query) || 
-           node.description.toLowerCase().includes(query) ||
-           node.category.toLowerCase().includes(query) ||
-           nodeId.toLowerCase().includes(query);
-  };
+  /**
+   * Filter nodes by search query
+   */
+  const filterNodesBySearch = useCallback((nodes: NodeDefinition[], query: string): NodeDefinition[] => {
+    if (!query.trim()) return nodes;
+    
+    const lowerQuery = query.toLowerCase();
+    return nodes.filter((node) => {
+      return (
+        node.name.toLowerCase().includes(lowerQuery) ||
+        node.description.toLowerCase().includes(lowerQuery) ||
+        node.category.toLowerCase().includes(lowerQuery) ||
+        node.id.toLowerCase().includes(lowerQuery)
+      );
+    });
+  }, []);
+
+  /**
+   * Get sorted categories with their nodes
+   */
+  const getSortedCategories = useCallback(() => {
+    const grouped = getNodesByCategory();
+    const filtered = searchQuery.trim() 
+      ? Object.fromEntries(
+          Object.entries(grouped).map(([category, nodes]) => [
+            category,
+            filterNodesBySearch(nodes, searchQuery)
+          ])
+        )
+      : grouped;
+    
+    // Filter out empty categories when searching
+    const categoriesWithNodes = Object.entries(filtered).filter(([_, nodes]) => nodes.length > 0);
+    
+    // Sort by category metadata order, then alphabetically
+    return categoriesWithNodes.sort(([catA, nodesA], [catB, nodesB]) => {
+      const metaA = CATEGORY_META[catA];
+      const metaB = CATEGORY_META[catB];
+      
+      if (metaA && metaB) {
+        return metaA.order - metaB.order;
+      }
+      if (metaA) return -1;
+      if (metaB) return 1;
+      return catA.localeCompare(catB);
+    });
+  }, [getNodesByCategory, filterNodesBySearch, searchQuery]);
   
   // Store the ID of the placeholder node that triggered the sidebar
   const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
 
-  // Helper function to render a node card if it matches search
-  const renderNode = (nodeId: string) => {
-    const node = nodeRegistry[nodeId];
-    if (!node) {
-      console.warn(`Node not found in registry: ${nodeId}`);
-      return null;
-    }
-    if (!nodeMatchesSearch(nodeId)) return null;
+  // Helper function to safely parse JSON from response
+  const safeParseJSON = async (response: Response): Promise<any> => {
+    const contentType = response.headers.get('content-type');
+    const text = await response.text();
     
-    const IconComponent = getIcon(node.icon);
+    // If response is empty, return error
+    if (!text || text.trim().length === 0) {
+      return { error: 'Empty response from server' };
+    }
+    
+    // If response is not JSON, return error object with text
+    if (!contentType || !contentType.includes('application/json')) {
+      return { error: text || 'Invalid response format' };
+    }
+    
+    // Try to parse as JSON
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      // If parsing fails, return the text as error
+      return { error: text || 'Failed to parse response' };
+    }
+  };
+
+  /**
+   * Render a single node item
+   */
+  const renderNodeItem = (node: NodeDefinition) => {
+    const IconComponent = getIconComponent(node.icon);
     
     return (
       <div
-        key={nodeId}
+        key={node.id}
         draggable
         onDragStart={(e) => {
-          e.dataTransfer.setData('application/reactflow-node-id', nodeId);
+          e.dataTransfer.setData('application/reactflow-node-id', node.id);
           e.dataTransfer.effectAllowed = 'move';
           
           // Create custom drag image for semi-transparent effect
@@ -211,9 +275,9 @@ export default function WorkspacePage() {
         onClick={() => {
           // If there's an active placeholder, replace it with this node
           if (activePlaceholderId) {
-            console.log('🔄 Replacing placeholder:', activePlaceholderId, 'with node:', nodeId);
+            console.log('🔄 Replacing placeholder:', activePlaceholderId, 'with node:', node.id);
             const event = new CustomEvent('replace-placeholder', { 
-              detail: { placeholderId: activePlaceholderId, nodeType: nodeId } 
+              detail: { placeholderId: activePlaceholderId, nodeType: node.id } 
             });
             window.dispatchEvent(event);
             setIsLeftSidebarVisible(false);
@@ -373,9 +437,14 @@ export default function WorkspacePage() {
     try {
       const response = await fetch(`/api/workflow/${actualWorkflowId}/activate`);
       if (response.ok) {
-        const data = await response.json();
+        const data = await safeParseJSON(response);
+        if (data.error) {
+          console.error('Failed to parse workflow status:', data.error);
+          setWorkflowActive(false);
+        } else {
         console.log('[Status] Loaded workflow status:', data);
         setWorkflowActive(data.active);
+        }
       } else {
         console.error('Failed to load workflow status');
         setWorkflowActive(false);
@@ -409,7 +478,7 @@ export default function WorkspacePage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await safeParseJSON(response);
         const errorMessage = errorData.message || errorData.error || 'Failed to toggle workflow';
         
         // Show user-friendly error message
@@ -425,7 +494,10 @@ export default function WorkspacePage() {
         throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      const data = await safeParseJSON(response);
+      if (data.error) {
+        throw new Error(data.error);
+      }
       console.log('[Toggle] Activation response:', data);
       const isActive = data.status === 'active';
       setWorkflowActive(isActive);
@@ -837,81 +909,46 @@ export default function WorkspacePage() {
                 </div>
                 {/* Sidebar Content */}
                 <div className="flex-1 overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                  {/* Expandable Categories */}
-                  {[
-                    { id: 'triggers', label: 'Triggers' },
-                    { id: 'actions', label: 'Actions' },
-                    { id: 'transforms', label: 'Transforms' },
-                    { id: 'ai', label: 'AI/ML' },
-                    { id: 'database', label: 'Database' },
-                    { id: 'files', label: 'Files' },
-                    { id: 'utilities', label: 'Utilities' },
-                    { id: 'integrations', label: 'Integrations' },
-                  ].map((category) => {
-                        // Get all nodes that belong to this sidebar category
-                        // For integrations, show nodes that require external services
-                        const integrationNodeIds = [
-                          'new-email-received', 'new-message-in-slack', 'new-row-in-google-sheet',
-                          'new-form-submission', 'new-github-issue', 'file-uploaded', 
-                          'post-to-slack-channel', 'create-notion-page', 'create-calendar-event',
-                          'upload-file-to-google-drive', 'update-airtable-record', 'create-trello-card',
-                          'send-email', 'send-discord-message', 'send-sms-via-twilio',
-                          'new-stripe-payment', 'new-paypal-payment', 'new-discord-message'
-                        ];
-                        
-                        const categoryNodes = category.id === 'integrations'
-                          ? integrationNodeIds.filter(nodeId => {
-                              const node = nodeRegistry[nodeId];
-                              return node && nodeMatchesSearch(nodeId);
-                            })
-                          : Object.entries(nodeRegistry)
-                              .filter(([nodeId, node]) => {
-                                if (!node) return false;
-                                const sidebarCategory = getSidebarCategory(nodeId, node);
-                                return sidebarCategory === category.id && nodeMatchesSearch(nodeId);
-                              })
-                              .map(([nodeId]) => nodeId);
-                        
-                        // Auto-expand categories when searching, or use manual state
-                        const isExpanded = searchQuery.trim().length > 0 
-                          ? categoryNodes.length > 0 
-                          : (expandedCategories[category.id] ?? false);
-                        
-                        // Only show category if it has matching nodes or search is empty
-                        const shouldShowCategory = categoryNodes.length > 0 || !searchQuery.trim();
-                        
-                        if (!shouldShowCategory) return null;
-                        
-                        return (
-                          <div key={category.id}>
-                            {/* Category Header */}
-                            <button
-                              onClick={() => {
-                                if (searchQuery.trim().length === 0) {
-                                  setExpandedCategories(prev => ({
-                                    ...prev,
-                                    [category.id]: !(prev[category.id] ?? false)
-                                  }));
-                                }
-                              }}
-                              className="w-full flex items-center justify-between px-4 py-3 text-left"
-                            >
-                              <span className="text-sm font-medium text-foreground">{category.label}</span>
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </button>
-                            {/* Category Content */}
-                            {isExpanded && (
-                              <div className="px-4 pb-3 space-y-2">
-                                {categoryNodes.map(nodeId => renderNode(nodeId))}
-                              </div>
-                            )}
+                  {/* Dynamically rendered categories from registry */}
+                  {getSortedCategories().map(([categoryId, nodes]) => {
+                    const categoryMeta = CATEGORY_META[categoryId];
+                    const categoryLabel = categoryMeta?.label || categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
+                    
+                    // Auto-expand categories when searching, or use manual state
+                    const isExpanded = searchQuery.trim().length > 0 
+                      ? nodes.length > 0 
+                      : expandedCategories[categoryId] ?? (categoryMeta?.order <= 2); // Auto-expand first 2 categories by default
+                    
+                    return (
+                      <div key={categoryId}>
+                        {/* Category Header */}
+                        <button
+                          onClick={() => {
+                            if (searchQuery.trim().length === 0) {
+                              setExpandedCategories(prev => ({
+                                ...prev,
+                                [categoryId]: !prev[categoryId]
+                              }));
+                            }
+                          }}
+                          className="w-full flex items-center justify-between px-4 py-3 text-left"
+                        >
+                          <span className="text-sm font-medium text-foreground">{categoryLabel}</span>
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </button>
+                        {/* Category Content - Dynamically render all nodes in this category */}
+                        {isExpanded && (
+                          <div className="px-4 pb-3 space-y-2">
+                            {nodes.map((node) => renderNodeItem(node))}
                           </div>
-                        );
-                      })}
+                        )}
+    </div>
+  );
+                  })}
                 </div>
               </div>
             </div>

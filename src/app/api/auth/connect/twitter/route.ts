@@ -18,10 +18,6 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Get return URL from query params
-    const { searchParams } = new URL(request.url);
-    const returnUrl = searchParams.get('returnUrl');
-    
     const state = generateStateToken();
     const response = NextResponse.redirect(getTwitterAuthUrl(state));
     
@@ -38,16 +34,6 @@ export async function GET(request: NextRequest) {
       sameSite: 'lax',
       maxAge: 600
     });
-    
-    // Store return URL if provided
-    if (returnUrl) {
-      response.cookies.set('oauth_return_url', returnUrl, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 600
-      });
-    }
     
     return response;
   } catch (error: any) {

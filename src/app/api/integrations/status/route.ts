@@ -26,16 +26,14 @@ export async function GET(request: NextRequest) {
     const status: Array<{
       service: string;
       connected: boolean;
-      expiresAt?: string | Date | null;
-      createdAt?: string | Date | null;
-    }> = integrations
-      .filter(integration => integration.service_name) // Filter out null/empty service names
-      .map(integration => ({
-        service: integration.service_name!,
-        connected: true,
-        expiresAt: integration.token_expires_at || undefined,
-        createdAt: integration.created_at || undefined
-      }));
+      expiresAt: string | null | undefined;
+      createdAt: string | null | undefined;
+    }> = integrations.map(integration => ({
+      service: integration.service_name,
+      connected: true,
+      expiresAt: integration.token_expires_at,
+      createdAt: integration.created_at
+    }));
     
     // Check credential-based integrations (Notion, Airtable, Trello, OpenAI, SendGrid, Twilio, Stripe, Discord)
     const credentialServices = ['notion', 'airtable', 'trello', 'openai', 'sendgrid', 'twilio', 'stripe', 'discord'];
@@ -108,8 +106,8 @@ export async function GET(request: NextRequest) {
         status.push({
           service: 'paypal',
           connected: true,
-          expiresAt: paypalIntegration.token_expires_at || undefined,
-          createdAt: paypalIntegration.created_at || undefined
+          expiresAt: paypalIntegration.token_expires_at,
+          createdAt: paypalIntegration.created_at
         });
       }
     }

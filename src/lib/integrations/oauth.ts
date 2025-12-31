@@ -22,45 +22,9 @@ export function validateStateToken(state: string, storedState: string): boolean 
 }
 
 /**
- * Map Google resource types to their required scopes
- */
-export function getGoogleScopesForResourceType(resourceType?: string): string[] {
-  const scopeMap: Record<string, string[]> = {
-    spreadsheet: [
-      'https://www.googleapis.com/auth/spreadsheets.readonly',
-      'https://www.googleapis.com/auth/spreadsheets'
-    ],
-    sheet: [
-      'https://www.googleapis.com/auth/spreadsheets.readonly',
-      'https://www.googleapis.com/auth/spreadsheets'
-    ],
-    column: [
-      'https://www.googleapis.com/auth/spreadsheets.readonly',
-      'https://www.googleapis.com/auth/spreadsheets'
-    ],
-    calendar: [
-      'https://www.googleapis.com/auth/calendar',
-      'https://www.googleapis.com/auth/calendar.events'
-    ],
-    folder: [
-      'https://www.googleapis.com/auth/drive.readonly',
-      'https://www.googleapis.com/auth/drive.file'
-    ],
-    label: [
-      'https://www.googleapis.com/auth/gmail.readonly'
-    ],
-    form: [
-      'https://www.googleapis.com/auth/forms.responses.readonly'
-    ]
-  };
-
-  return scopeMap[resourceType || ''] || getGoogleOAuthConfig().scopes; // Fallback to all scopes if unknown
-}
-
-/**
  * Google OAuth Configuration
  */
-export function getGoogleOAuthConfig(scopes?: string[]) {
+export function getGoogleOAuthConfig() {
   const clientId = process.env.GOOGLE_INTEGRATION_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_INTEGRATION_CLIENT_SECRET?.trim();
   const redirectUri = process.env.NODE_ENV === 'production'
@@ -86,31 +50,28 @@ export function getGoogleOAuthConfig(scopes?: string[]) {
     throw new Error(`Google integration credentials not configured. Missing: ${missing.join(', ')}. Please ensure these are set in .env.local and restart your dev server (npm run dev)`);
   }
 
-  // Use provided scopes or default to all scopes
-  const defaultScopes = [
-    'https://www.googleapis.com/auth/spreadsheets.readonly',
-    'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/drive.readonly',
-    'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/calendar.events',
-    'https://www.googleapis.com/auth/forms.responses.readonly',
-    'https://www.googleapis.com/auth/gmail.readonly'
-  ];
-
   return {
     clientId,
     clientSecret,
     redirectUri,
-    scopes: scopes || defaultScopes
+    scopes: [
+      'https://www.googleapis.com/auth/spreadsheets.readonly',
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive.readonly',
+      'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/calendar',
+      'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/forms.responses.readonly',
+      'https://www.googleapis.com/auth/gmail.readonly'
+    ]
   };
 }
 
 /**
  * Generate Google OAuth authorization URL
  */
-export function getGoogleAuthUrl(state: string, scopes?: string[]): string {
-  const config = getGoogleOAuthConfig(scopes);
+export function getGoogleAuthUrl(state: string): string {
+  const config = getGoogleOAuthConfig();
   const params = new URLSearchParams({
     client_id: config.clientId,
     redirect_uri: config.redirectUri,

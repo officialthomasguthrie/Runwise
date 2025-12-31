@@ -78,9 +78,9 @@ GOOGLE_INTEGRATION_CLIENT_SECRET=GOCSPX-integration-secret
 
 **Expected Format:**
 ```env
-SLACK_BOT_TOKEN=xoxb-[your-bot-token-here]
-SLACK_CLIENT_ID=1234567890.1234567890123
-SLACK_CLIENT_SECRET=abc123def456ghi789jkl012mno345pqr
+SLACK_BOT_TOKEN=xoxb-your-bot-token-here
+SLACK_CLIENT_ID=your-client-id-here
+SLACK_CLIENT_SECRET=your-client-secret-here
 ```
 
 **How to Verify:**

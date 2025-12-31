@@ -361,28 +361,6 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
     };
     
     checkStatus();
-    
-    // Also check on window focus (in case user returns from OAuth)
-    const handleFocus = () => {
-      checkStatus();
-    };
-    window.addEventListener('focus', handleFocus);
-    
-    // Check if URL has integration_connected parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('integration_connected')) {
-      // Refresh status after a short delay to allow backend to process
-      setTimeout(() => {
-        checkStatus();
-        // Clear the parameter from URL
-        urlParams.delete('integration_connected');
-        window.history.replaceState({}, '', window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : ''));
-      }, 500);
-    }
-    
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
   }, [data.nodeId]);
 
   const handleConfigChange = (key: string, value: any) => {
@@ -690,10 +668,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   // Trello node - hide name/desc/dueDate until board and list are selected
                   (data.nodeId === 'create-trello-card' && (key === 'name' || key === 'desc' || key === 'dueDate'));
                 
-                // Determine if integration-dependent fields should be disabled
-                let isFieldDisabled = false;
+                // Hide integration-dependent fields if integration is not connected or parent resources not selected
                 if (isIntegrationDependentField) {
-                  const shouldEnableField = integrationStatus.isConnected === true && (
+                  const shouldShowField = integrationStatus.isConnected === true && (
                     // Google Sheets nodes - require spreadsheetId (and sheetName for values)
                     (data.nodeId === 'new-row-in-google-sheet' && 
                       (key === 'values' ? (localConfig.spreadsheetId && localConfig.sheetName) : true)) ||
@@ -715,7 +692,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                     (data.nodeId === 'create-trello-card' && localConfig.boardId && localConfig.idList)
                   );
                   
-                  isFieldDisabled = !shouldEnableField;
+                  if (!shouldShowField) {
+                    return null;
+                  }
                 }
                 
                 return (
@@ -1064,56 +1043,43 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                               return (
                                 <>
                                   <MentionInput
-                            value={localConfig[key] ?? ''}
-                                    onChange={(value) => !isFieldDisabled && handleConfigChange(key, value)}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (isFieldDisabled) {
-                                        e.preventDefault();
+                                    value={localConfig[key] ?? ''}
+                                    onChange={(value) => handleConfigChange(key, value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    placeholder={(() => {
+                                      let placeholderText = schema.placeholder || schema.description || '';
+                                      const eGIndex = placeholderText.toLowerCase().indexOf('(e.g.');
+                                      if (eGIndex !== -1) {
+                                        placeholderText = placeholderText.substring(0, eGIndex).trim();
                                       }
-                                    }}
-                                    onMouseDown={(e) => {
-                                      e.stopPropagation();
-                                      if (isFieldDisabled) {
-                                        e.preventDefault();
+                                      const eGIndex2 = placeholderText.toLowerCase().indexOf('(e.g');
+                                      if (eGIndex2 !== -1) {
+                                        placeholderText = placeholderText.substring(0, eGIndex2).trim();
                                       }
-                                    }}
-                            placeholder={(() => {
-                              let placeholderText = schema.placeholder || schema.description || '';
-                              const eGIndex = placeholderText.toLowerCase().indexOf('(e.g.');
-                              if (eGIndex !== -1) {
-                                placeholderText = placeholderText.substring(0, eGIndex).trim();
-                              }
-                              const eGIndex2 = placeholderText.toLowerCase().indexOf('(e.g');
-                              if (eGIndex2 !== -1) {
-                                placeholderText = placeholderText.substring(0, eGIndex2).trim();
-                              }
-                              return placeholderText;
-                            })()}
-                                    className={cn(
-                                      "w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 pr-10 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300",
-                                      isFieldDisabled && "opacity-50 cursor-not-allowed pointer-events-none"
-                                    )}
+                                      return placeholderText;
+                                    })()}
+                                    className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 pr-10 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
                                     availableOutputs={mentionOptions}
                                     isNodeExpanded={isExpanded}
-                          />
-                          {data.onAskAI && (
+                                  />
+                                  {data.onAskAI && (
                                     <div className="absolute right-1 top-1/2 -translate-y-1/2">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              onClick={() => {
-                                if (data.onAskAI) {
-                                  data.onAskAI(schema.label || key, id, data.nodeId || '');
-                                }
-                              }}
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          if (data.onAskAI) {
+                                            data.onAskAI(schema.label || key, id, data.nodeId || '');
+                                          }
+                                        }}
                                         className="h-7 px-2 text-xs inline-flex items-center justify-center gap-1 backdrop-blur-xl bg-neutral-200/70 text-foreground active:scale-[0.98] dark:bg-white/5 dark:border-white/10 dark:text-foreground dark:shadow-[0_4px_10px_rgba(0,0,0,0.1)] dark:hover:bg-white/10"
-                            >
-                              <Sparkles className="h-3 w-3" />
-                              Ask AI
-                            </Button>
+                                      >
+                                        <Sparkles className="h-3 w-3" />
+                                        Ask AI
+                                      </Button>
                                     </div>
-                          )}
+                                  )}
                                 </>
                               );
                             })()}
@@ -1136,47 +1102,34 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                           return (
                             <>
                               <MentionInput
-                        value={localConfig[key] ?? ''}
-                                onChange={(value) => !isFieldDisabled && handleConfigChange(key, value)}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (isFieldDisabled) {
-                                    e.preventDefault();
-                                  }
-                                }}
-                                onMouseDown={(e) => {
-                                  e.stopPropagation();
-                                  if (isFieldDisabled) {
-                                    e.preventDefault();
-                                  }
-                                }}
-                        placeholder={schema.placeholder || schema.description}
-                        rows={3}
+                                value={localConfig[key] ?? ''}
+                                onChange={(value) => handleConfigChange(key, value)}
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                placeholder={schema.placeholder || schema.description}
+                                rows={3}
                                 isTextarea={true}
-                                className={cn(
-                                  "w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 pr-12 pb-10 text-foreground placeholder:text-muted-foreground shadow-none resize-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-300 focus-visible:border-gray-300 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
-                                  isFieldDisabled && "opacity-50 cursor-not-allowed pointer-events-none"
-                                )}
+                                className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 pr-12 pb-10 text-foreground placeholder:text-muted-foreground shadow-none resize-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-300 focus-visible:border-gray-300 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
                                 availableOutputs={mentionOptions}
                                 isNodeExpanded={isExpanded}
-                      />
-                      {data.onAskAI && (
+                              />
+                              {data.onAskAI && (
                                 <div className="absolute bottom-3" style={{ right: '6px' }}>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => {
-                            if (data.onAskAI) {
-                              data.onAskAI(schema.label || key, id, data.nodeId || '');
-                            }
-                          }}
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      if (data.onAskAI) {
+                                        data.onAskAI(schema.label || key, id, data.nodeId || '');
+                                      }
+                                    }}
                                     className="h-7 px-2 text-xs inline-flex items-center justify-center gap-1 backdrop-blur-xl bg-neutral-200/70 text-foreground active:scale-[0.98] dark:bg-white/5 dark:border-white/10 dark:text-foreground dark:shadow-[0_4px_10px_rgba(0,0,0,0.1)] dark:hover:bg-white/10"
-                        >
-                          <Sparkles className="h-3 w-3" />
-                          Ask AI
-                        </Button>
+                                  >
+                                    <Sparkles className="h-3 w-3" />
+                                    Ask AI
+                                  </Button>
                                 </div>
-                      )}
+                              )}
                             </>
                           );
                         })()}
@@ -1215,13 +1168,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                     <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                       <Select
                         value={localConfig[key] ?? schema.default ?? ''}
-                        onValueChange={(value) => !isFieldDisabled && handleConfigChange(key, value)}
-                        disabled={isFieldDisabled}
+                        onValueChange={(value) => handleConfigChange(key, value)}
                       >
-                        <SelectTrigger className={cn(
-                          "nodrag w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 h-auto text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300",
-                          isFieldDisabled && "opacity-50 cursor-not-allowed"
-                        )}>
+                        <SelectTrigger className="nodrag w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 h-auto text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300">
                           <SelectValue placeholder={schema.placeholder || `Select ${schema.label || key}`} />
                         </SelectTrigger>
                         <SelectContent className="backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-lg max-h-[300px]">

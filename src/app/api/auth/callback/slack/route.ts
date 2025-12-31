@@ -117,17 +117,12 @@ export async function GET(request: NextRequest) {
       }
     );
     
-    // Get return URL from cookie, default to settings page
-    const returnUrl = request.cookies.get('oauth_return_url')?.value;
-    const redirectUrl = returnUrl 
-      ? decodeURIComponent(returnUrl) + (returnUrl.includes('?') ? '&' : '?') + 'integration_connected=slack'
-      : '/settings?tab=integrations&success=slack_connected';
-    
-    const response = NextResponse.redirect(new URL(redirectUrl, request.url));
+    const response = NextResponse.redirect(
+      new URL('/settings?tab=integrations&success=slack_connected', request.url)
+    );
     
     response.cookies.delete('oauth_state');
     response.cookies.delete('oauth_user_id');
-    response.cookies.delete('oauth_return_url');
     
     return response;
   } catch (error: any) {

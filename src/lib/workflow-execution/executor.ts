@@ -404,15 +404,17 @@ async function createExecutionContext(userId: string, logs: LogEntry[]): Promise
   // Add Twilio credentials if available
   if (integrationTokens.twilio) {
     auth.twilio = {
-      accountSid: integrationTokens.twilio.access_token,
-      authToken: integrationTokens.twilio.refresh_token || ''
+      credentials: {
+        accountSid: integrationTokens.twilio.access_token,
+        authToken: integrationTokens.twilio.refresh_token || ''
+      }
     };
   }
   
   // Add Stripe API key if available
   if (integrationTokens.stripe) {
     auth.stripe = {
-      secretKey: integrationTokens.stripe.access_token
+      apiKey: integrationTokens.stripe.access_token
     };
   }
   

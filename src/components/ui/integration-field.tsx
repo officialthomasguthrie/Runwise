@@ -54,28 +54,6 @@ export function IntegrationField({
   // Check integration status
   useEffect(() => {
     checkIntegrationStatus();
-    
-    // Also check on window focus (in case user returns from OAuth)
-    const handleFocus = () => {
-      checkIntegrationStatus();
-    };
-    window.addEventListener('focus', handleFocus);
-    
-    // Check if URL has integration_connected parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('integration_connected')) {
-      // Refresh status after a short delay to allow backend to process
-      setTimeout(() => {
-        checkIntegrationStatus();
-        // Clear the parameter from URL
-        urlParams.delete('integration_connected');
-        window.history.replaceState({}, '', window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : ''));
-      }, 500);
-    }
-    
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
   }, []);
 
   // Fetch resources when connected and needed
@@ -308,11 +286,7 @@ export function IntegrationField({
   };
 
   const handleConnect = () => {
-    // Get current URL to return to after OAuth
-    const returnUrl = encodeURIComponent(window.location.href);
-    // Pass resourceType so we can request only the necessary scopes
-    const resourceTypeParam = resourceType ? `&resourceType=${encodeURIComponent(resourceType)}` : '';
-    window.location.href = `/api/auth/connect/${serviceName}?returnUrl=${returnUrl}${resourceTypeParam}`;
+    window.location.href = `/api/auth/connect/${serviceName}`;
   };
 
   const getServiceDisplayName = () => {

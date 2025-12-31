@@ -281,14 +281,9 @@ export default function IntegrationsPage() {
 
         // Map service names to integration objects
         const mappedIntegrations = connectedServices
-          .filter((integration: any) => integration.connected && integration.service)
+          .filter((integration: any) => integration.connected)
           .map((integration: any) => {
             const serviceName = integration.service;
-            if (!serviceName) {
-              console.warn('Integration missing service name:', integration);
-              return null;
-            }
-            
             // Find matching integration by serviceName
             const matchingIntegration = allIntegrations.find(
               (int) => int.serviceName === serviceName
@@ -311,7 +306,7 @@ export default function IntegrationsPage() {
             // Fallback if no match found
             return {
               id: `connected-${serviceName}`,
-              name: serviceNameMap[serviceName] || (serviceName ? serviceName.charAt(0).toUpperCase() + serviceName.slice(1) : 'Unknown'),
+              name: serviceNameMap[serviceName] || serviceName.charAt(0).toUpperCase() + serviceName.slice(1),
               description: 'Connected integration',
               icon: Plug,
               gradient: 'from-gray-500/20 to-slate-500/20',
@@ -319,8 +314,7 @@ export default function IntegrationsPage() {
               status: 'active',
               serviceName: serviceName
             };
-          })
-          .filter((item: any) => item !== null); // Remove null entries
+          });
           
         if (!cancelled) {
           setConfiguredIntegrations(mappedIntegrations);
@@ -345,76 +339,6 @@ export default function IntegrationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
 
-  // Refresh integrations when returning from OAuth
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('integration_connected') || urlParams.get('success')) {
-      // Reload integrations after a short delay
-      setTimeout(() => {
-        const loadIntegrations = async () => {
-          try {
-            const response = await fetch('/api/integrations/status');
-            if (!response.ok) return;
-            
-            const data = await response.json();
-            const connectedServices = data.integrations || [];
-            
-            const mappedIntegrations = connectedServices
-              .filter((integration: any) => integration.connected && integration.service)
-              .map((integration: any) => {
-                const serviceName = integration.service;
-                if (!serviceName) {
-                  console.warn('Integration missing service name:', integration);
-                  return null;
-                }
-                
-                const matchingIntegration = allIntegrations.find(
-                  (int) => int.serviceName === serviceName
-                );
-                
-                if (matchingIntegration) {
-                  return {
-                    id: `connected-${serviceName}`,
-                    name: matchingIntegration.name,
-                    description: matchingIntegration.description,
-                    icon: matchingIntegration.icon,
-                    slug: matchingIntegration.slug,
-                    gradient: matchingIntegration.gradient,
-                    iconColor: matchingIntegration.iconColor,
-                    status: 'active',
-                    serviceName: serviceName
-                  };
-                }
-                
-                return {
-                  id: `connected-${serviceName}`,
-                  name: serviceNameMap[serviceName] || (serviceName ? serviceName.charAt(0).toUpperCase() + serviceName.slice(1) : 'Unknown'),
-                  description: 'Connected integration',
-                  icon: Plug,
-                  gradient: 'from-gray-500/20 to-slate-500/20',
-                  iconColor: 'text-gray-400',
-                  status: 'active',
-                  serviceName: serviceName
-                };
-              })
-              .filter((item: any) => item !== null); // Remove null entries
-            
-            setConfiguredIntegrations(mappedIntegrations);
-            
-            // Clear the parameter from URL
-            urlParams.delete('integration_connected');
-            urlParams.delete('success');
-            window.history.replaceState({}, '', window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : ''));
-          } catch (error) {
-            console.error('Error refreshing integrations:', error);
-          }
-        };
-        
-        loadIntegrations();
-      }, 1000);
-    }
-  }, []);
-
   // Service name mapping (internal service name -> integration display name)
   const serviceNameMap: Record<string, string> = {
     'google': 'Google Sheets',
@@ -429,11 +353,9 @@ export default function IntegrationsPage() {
   // Handle connect
   const handleConnect = (serviceName: string) => {
     // OAuth services redirect to OAuth flow
-    const oauthServices = ['google', 'slack', 'github', 'discord', 'twitter', 'paypal'];
+    const oauthServices = ['google', 'slack', 'github'];
     if (oauthServices.includes(serviceName)) {
-      // Get current URL to return to after OAuth
-      const returnUrl = encodeURIComponent(window.location.href);
-      window.location.href = `/api/auth/connect/${serviceName}?returnUrl=${returnUrl}`;
+      window.location.href = `/api/auth/connect/${serviceName}`;
     } else {
       // Credential-based services open dialog
       setSelectedServiceForCredentials(serviceName);
@@ -765,18 +687,14 @@ export default function IntegrationsPage() {
 
             {/* Discover Integrations */}
             <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
-              {/* Search bar - full width on mobile, positioned after header */}
               <div className="mb-6">
-                <div className="hidden md:block mb-4">
+                <div className="mb-4">
                   <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">
                     Discover Integrations
                   </h2>
                   <p className="text-sm md:text-base text-muted-foreground mt-2">
                     Popular integrations you can connect in seconds
                   </p>
-                </div>
-                <div className="w-full">
-                  <SearchComponent value={searchQuery} onChange={setSearchQuery} placeholder="Search integrations..." />
                 </div>
               </div>
 

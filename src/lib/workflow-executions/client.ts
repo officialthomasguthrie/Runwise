@@ -147,12 +147,12 @@ export async function loadUserExecutions(): Promise<{
         // Convert all workflow_ids to strings to handle both UUID and TEXT types
         const workflowIdStrings = workflowIds.map(id => String(id));
         
-        type WorkflowNameWithIdRow = Pick<Database['public']['Tables']['workflows']['Row'], 'id' | 'name'>;
+      type WorkflowNameWithIdRow = Pick<Database['public']['Tables']['workflows']['Row'], 'id' | 'name'>;
         const { data: workflows, error: workflowError } = await supabase
-          .from('workflows')
-          .select('id, name')
+        .from('workflows')
+        .select('id, name')
           .in('id', workflowIdStrings);
-        
+      
         if (workflowError) {
           // Log but don't fail - workflow names are optional
           console.warn('Could not load workflow names (non-critical):', {
@@ -161,9 +161,9 @@ export async function loadUserExecutions(): Promise<{
             hint: workflowError.hint
           });
         } else if (workflows) {
-          (workflows as WorkflowNameWithIdRow[]).forEach((wf) => {
+        (workflows as WorkflowNameWithIdRow[]).forEach((wf) => {
             workflowNames[String(wf.id)] = wf.name;
-          });
+        });
         }
       } catch (workflowNameError: any) {
         // Don't fail the whole request if workflow names can't be loaded

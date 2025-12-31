@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { getGoogleAuthUrl, generateStateToken, getGoogleScopesForResourceType } from '@/lib/integrations/oauth';
+import { getGoogleAuthUrl, generateStateToken } from '@/lib/integrations/oauth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,19 +20,11 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Get return URL and resourceType from query params
-    const { searchParams } = new URL(request.url);
-    const returnUrl = searchParams.get('returnUrl');
-    const resourceType = searchParams.get('resourceType'); // e.g., 'spreadsheet', 'calendar', 'folder', etc.
-    
-    // Get scopes for this specific resource type
-    const scopes = getGoogleScopesForResourceType(resourceType || undefined);
-    
     // Generate state token for CSRF protection
     const state = generateStateToken();
     
     // Store state in session/cookie (simplified - in production use secure session storage)
-    const response = NextResponse.redirect(getGoogleAuthUrl(state, scopes));
+    const response = NextResponse.redirect(getGoogleAuthUrl(state));
     
     // Store state in httpOnly cookie
     response.cookies.set('oauth_state', state, {
@@ -49,26 +41,6 @@ export async function GET(request: NextRequest) {
       sameSite: 'lax',
       maxAge: 600
     });
-    
-    // Store return URL if provided
-    if (returnUrl) {
-      response.cookies.set('oauth_return_url', returnUrl, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 600
-      });
-    }
-    
-    // Store resourceType for reference (optional, for logging/debugging)
-    if (resourceType) {
-      response.cookies.set('oauth_resource_type', resourceType, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 600
-      });
-    }
     
     return response;
   } catch (error: any) {

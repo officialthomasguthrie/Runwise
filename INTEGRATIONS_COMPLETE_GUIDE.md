@@ -302,9 +302,9 @@ APIs Enabled:
    - **Client Secret** (at top of page)
 
 2. **IMPORTANT:** Copy all three:
-   - Bot Token: `xoxb-[your-bot-token-here]`
-   - Client ID: `1234567890.1234567890123`
-   - Client Secret: `abc123def456ghi789jkl012mno345pqr`
+   - Bot Token: `xoxb-your-bot-token-here`
+   - Client ID: `your-client-id-here`
+   - Client Secret: `your-client-secret-here`
 
 #### Step 6: Document Your Credentials
 
@@ -641,8 +641,8 @@ Twilio uses Account SID and Auth Token.
 
 1. Go to [Twilio Console](https://console.twilio.com/)
 2. Dashboard shows:
-   - **Account SID** (looks like: `AC[your-account-sid-here]`)
-   - **Auth Token** (click **"Show"** to reveal, looks like: `1234567890abcdef1234567890abcdef`)
+   - **Account SID** (looks like: `ACyour-account-sid-here`)
+   - **Auth Token** (click **"Show"** to reveal, looks like: `your-auth-token-here`)
 
 #### Step 2: Document Your Credentials
 

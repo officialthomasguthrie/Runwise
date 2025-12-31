@@ -989,7 +989,7 @@ const findReplaceTextExecute = async (inputData: any, config: any, context: Exec
   if (useRegexFlag) {
     const flags = caseSensitiveFlag ? 'g' : 'gi';
     const regex = new RegExp(find, flags);
-      result = inputText.replace(regex, (_match: string) => {
+    result = inputText.replace(regex, (_match: string) => {
       replacements++;
       return replace;
     });
@@ -999,7 +999,7 @@ const findReplaceTextExecute = async (inputData: any, config: any, context: Exec
       replacements = (inputText.match(new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
     } else {
       const regex = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-        result = inputText.replace(regex, (_match: string) => {
+      result = inputText.replace(regex, (_match: string) => {
         replacements++;
         return replace;
       });
@@ -1808,11 +1808,7 @@ const logPrintExecute = async (inputData: any, config: any, context: ExecutionCo
 
   switch (level) {
     case 'debug':
-      if (context.logger.debug) {
       context.logger.debug(logMessage, logData);
-      } else {
-        context.logger.info(logMessage, logData);
-      }
       break;
     case 'info':
       context.logger.info(logMessage, logData);
@@ -2153,8 +2149,8 @@ const convertFileFormatExecute = async (inputData: any, config: any, context: Ex
   const base64Data = inputDataContent.replace(/^data:[^;]+;base64,/, '');
   const inputBuffer = Buffer.from(base64Data, 'base64');
   
-  let outputBuffer: Buffer;
-  let outputMimeType: string = 'application/octet-stream';
+  let outputBuffer: Buffer | undefined;
+  let outputMimeType: string | undefined;
   
   // Text format conversions (no library needed)
   if (['text', 'json', 'csv', 'html', 'markdown'].includes(inputFormat) && 
@@ -2211,9 +2207,9 @@ const convertFileFormatExecute = async (inputData: any, config: any, context: Ex
   // PDF to text
   else if (inputFormat === 'pdf' && outputFormat === 'text') {
     try {
-      const pdfParseModule = await import('pdf-parse');
-      const pdfParse = ('default' in pdfParseModule ? pdfParseModule.default : pdfParseModule) as (buffer: Buffer) => Promise<{ text: string }>;
-      const pdfData = await pdfParse(inputBuffer);
+      const pdfParseModule = await import('pdf-parse') as any;
+      const pdfParse = 'default' in pdfParseModule ? pdfParseModule.default : pdfParseModule;
+      const pdfData = await pdfParse(inputBuffer) as { text: string };
       outputBuffer = Buffer.from(pdfData.text, 'utf8');
       outputMimeType = 'text/plain';
     } catch (error: any) {
@@ -2224,9 +2220,9 @@ const convertFileFormatExecute = async (inputData: any, config: any, context: Ex
     throw new Error(`Conversion from ${inputFormat} to ${outputFormat} is not supported`);
   }
   
-  // Ensure outputMimeType is set (should be set by now, but TypeScript needs this)
-  if (!outputMimeType) {
-    outputMimeType = 'application/octet-stream';
+  // Ensure outputBuffer and outputMimeType are defined
+  if (!outputBuffer || !outputMimeType) {
+    throw new Error(`Failed to convert file format from ${inputFormat} to ${outputFormat}`);
   }
   
   return {
@@ -2254,12 +2250,11 @@ const compressDecompressExecute = async (inputData: any, config: any, context: E
       };
     } else if (format === 'zip') {
       try {
-        // @ts-ignore - archiver doesn't have type definitions
-        const archiverModule = await import('archiver');
-        const archiver = ('default' in archiverModule ? archiverModule.default : archiverModule) as any;
+        // @ts-ignore - archiver module types not available
+        const archiver = await import('archiver') as any;
         const { Readable } = await import('stream');
         
-        const archive = archiver('zip', { zlib: { level: 9 } });
+        const archive = archiver.default('zip', { zlib: { level: 9 } });
         const chunks: Buffer[] = [];
         
         archive.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -2308,9 +2303,9 @@ const compressDecompressExecute = async (inputData: any, config: any, context: E
       };
     } else if (format === 'zip') {
       try {
-        // @ts-ignore - adm-zip doesn't have type definitions
-        const AdmZipModule = await import('adm-zip');
-        const AdmZip = ('default' in AdmZipModule ? AdmZipModule.default : AdmZipModule) as any;
+        // @ts-ignore - adm-zip module types not available
+        const AdmZipModule = await import('adm-zip') as any;
+        const AdmZip = AdmZipModule.default || AdmZipModule;
         const base64Data = archiveContent?.replace(/^data:[^;]+;base64,/, '') || 
                           (typeof inputData === 'string' ? inputData : '');
         const zipBuffer = Buffer.from(base64Data, 'base64');
@@ -2354,9 +2349,9 @@ const extractArchiveExecute = async (inputData: any, config: any, context: Execu
   
   if (format === 'zip' || format === 'auto') {
     try {
-      // @ts-ignore - adm-zip doesn't have type definitions
-      const AdmZipModule = await import('adm-zip');
-      const AdmZip = ('default' in AdmZipModule ? AdmZipModule.default : AdmZipModule) as any;
+      // @ts-ignore - adm-zip module types not available
+      const AdmZipModule = await import('adm-zip') as any;
+      const AdmZip = AdmZipModule.default || AdmZipModule;
       const zip = new AdmZip(archiveBuffer);
       const zipEntries = extractPath 
         ? zip.getEntries().filter((e: any) => e.entryName.startsWith(extractPath))
@@ -2372,16 +2367,16 @@ const extractArchiveExecute = async (inputData: any, config: any, context: Execu
           });
         }
       }
-    } catch (error: any) {
-      if (format === 'auto') {
-        // Try TAR
-        try {
-          const tarModule = await import('tar');
-          const tar = ('default' in tarModule ? tarModule.default : tarModule) as any;
+        } catch (error: any) {
+          if (format === 'auto') {
+            // Try TAR
+            try {
+              const tarModule = await import('tar') as any;
+              const tar = tarModule.default || tarModule;
           const extracted: any[] = [];
           await tar.extract({
             file: archiveBuffer,
-            onentry: (entry: any) => {
+              onentry: (entry: any) => {
               if (entry.type === 'File') {
                 const chunks: Buffer[] = [];
                 entry.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -2398,7 +2393,7 @@ const extractArchiveExecute = async (inputData: any, config: any, context: Execu
           });
           files.push(...extracted);
         } catch (tarError: any) {
-          throw new Error(`Archive extraction failed. Please install 'adm-zip' or 'tar' package: ${error.message}`);
+          throw new Error(`Archive extraction failed. Please install 'adm-zip' or 'tar' package: ${tarError.message}`);
         }
       } else {
         throw new Error(`ZIP extraction failed. Please install 'adm-zip' package: ${error.message}`);
@@ -2406,12 +2401,12 @@ const extractArchiveExecute = async (inputData: any, config: any, context: Execu
     }
   } else if (format === 'tar' || format === 'targz') {
     try {
-      const tarModule = await import('tar');
-      const tar = ('default' in tarModule ? tarModule.default : tarModule) as any;
+      const tarModule = await import('tar') as any;
+      const tar = tarModule.default || tarModule;
       const extracted: any[] = [];
       await tar.extract({
         file: archiveBuffer,
-        onentry: (entry: any) => {
+              onentry: (entry: any) => {
           if (entry.type === 'File' && (!extractPath || entry.path.startsWith(extractPath))) {
             const chunks: Buffer[] = [];
             entry.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -2546,9 +2541,9 @@ async function getDbConnection(databaseType: string, connectionString: string) {
     const connection = await mysql.createConnection(connectionString);
     return { client: connection, type: 'mysql' };
   } else if (databaseType === 'sqlite') {
-    // @ts-ignore - better-sqlite3 doesn't have type definitions
-    const DatabaseModule = await import('better-sqlite3');
-    const Database = ('default' in DatabaseModule ? DatabaseModule.default : DatabaseModule) as any;
+    // @ts-ignore - better-sqlite3 module types not available
+    const DatabaseModule = await import('better-sqlite3') as any;
+    const Database = DatabaseModule.default || DatabaseModule;
     const db = new Database(connectionString);
     return { client: db, type: 'sqlite' };
   } else if (databaseType === 'mongodb') {
@@ -2640,7 +2635,7 @@ const insertDatabaseRecordExecute = async (inputData: any, config: any, context:
     if (type === 'postgresql') {
       const keys = Object.keys(data);
       const values = Object.values(data);
-      const placeholders = keys.map((_key: string, i: number) => `$${i + 1}`).join(', ');
+      const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
       const query = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`;
       const result = await (client as any).query(query, values);
       await (client as any).end();

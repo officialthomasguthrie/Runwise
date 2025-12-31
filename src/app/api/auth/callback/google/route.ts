@@ -110,32 +110,19 @@ export async function GET(request: NextRequest) {
       }
     );
     
-    // Get return URL from cookie, default to settings page
-    const returnUrl = request.cookies.get('oauth_return_url')?.value;
-    const redirectUrl = returnUrl 
-      ? decodeURIComponent(returnUrl) + (returnUrl.includes('?') ? '&' : '?') + 'integration_connected=google'
-      : '/settings?tab=integrations&success=google_connected';
-    
     // Clear OAuth cookies
-    const response = NextResponse.redirect(new URL(redirectUrl, request.url));
+    const response = NextResponse.redirect(
+      new URL('/settings?tab=integrations&success=google_connected', request.url)
+    );
     
     response.cookies.delete('oauth_state');
     response.cookies.delete('oauth_user_id');
-    response.cookies.delete('oauth_return_url');
     
     return response;
   } catch (error: any) {
     console.error('Error in Google OAuth callback:', error);
-    console.error('Error stack:', error?.stack);
-    console.error('Error message:', error?.message);
-    
-    // Include error details in URL for debugging (in development only)
-    const errorMessage = process.env.NODE_ENV === 'development' 
-      ? `callback_error: ${error?.message || 'Unknown error'}`
-      : 'callback_error';
-    
     return NextResponse.redirect(
-      new URL(`/settings?tab=integrations&error=${encodeURIComponent(errorMessage)}`, request.url)
+      new URL('/settings?tab=integrations&error=callback_error', request.url)
     );
   }
 }

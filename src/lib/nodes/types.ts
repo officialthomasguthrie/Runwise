@@ -7,7 +7,7 @@ export type NodeType = 'trigger' | 'action' | 'transform';
 
 export interface NodeInputSchema {
   name: string;
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any';
   description: string;
   required?: boolean;
 }
@@ -26,9 +26,9 @@ export interface NodeConfigSchema {
     required?: boolean;
     default?: any;
     options?: Array<{ label: string; value: string }>; // For select type
-    serviceName?: string; // For integration type
-    resourceType?: string; // For integration type
     integrationType?: string; // For integration type
+    resourceType?: string; // For integration type
+    serviceName?: string; // For integration type
   };
 }
 
@@ -49,10 +49,10 @@ export interface ExecutionContext {
     delete: (url: string, options?: any) => Promise<any>;
   };
   logger: {
+    debug: (message: string, data?: any) => void;
     info: (message: string, data?: any) => void;
     error: (message: string, error?: any) => void;
     warn: (message: string, data?: any) => void;
-    debug: (message: string, data?: any) => void;
   };
 }
 

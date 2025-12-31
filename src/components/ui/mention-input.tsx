@@ -114,7 +114,7 @@ export function MentionInput({
     if (lastAtIndex !== -1) {
       // Check if there's a space after @ (meaning mention is complete)
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      if (!textAfterAt.includes(' ') && availableOutputs.length > 0) {
+      if (!textAfterAt.includes(' ')) {
         setMentionStart(lastAtIndex);
         setMentionQuery(textAfterAt);
         setShowMentions(true);
@@ -316,7 +316,7 @@ export function MentionInput({
         className={`nodrag ${className || ''}`}
         {...inputProps}
       />
-       {showMentions && filteredOptions.length > 0 && createPortal(
+       {showMentions && createPortal(
          <div
            ref={popoverRef}
            className="fixed z-[9999] backdrop-blur-xl bg-white/80 dark:bg-zinc-900/80 border border-stone-200 dark:border-white/10 shadow-lg rounded-sm overflow-hidden pointer-events-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
@@ -328,33 +328,39 @@ export function MentionInput({
              maxHeight: 'none', // Remove max height restriction
            }}
          >
-          {filteredGroups.map((group) => (
-            <div key={group.nodeId} className="border-b border-stone-200 dark:border-white/10 last:border-b-0">
-              <div className="px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-stone-50/50 dark:bg-zinc-800/50">
-                {group.nodeName}
-              </div>
-              {group.filtered.map((output) => {
-                const globalIndex = filteredOptions.findIndex((o) => o === output);
-                const isSelected = globalIndex === selectedIndex;
-                
-                return (
-                  <div
-                    key={`${group.nodeId}-${output.path}`}
-                    onClick={() => insertMention(output)}
-                    className={cn(
-                      "px-1.5 py-0.5 text-[10px] cursor-pointer",
-                      isSelected && "bg-stone-100 dark:bg-zinc-800"
-                    )}
-                  >
-                    <div className="font-medium leading-tight">{output.displayPath}</div>
-                    <div className="text-muted-foreground font-mono text-[9px] leading-tight">
-                      {`{{${output.fullPath}}}`}
+          {filteredOptions.length > 0 ? (
+            filteredGroups.map((group) => (
+              <div key={group.nodeId} className="border-b border-stone-200 dark:border-white/10 last:border-b-0">
+                <div className="px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-stone-50/50 dark:bg-zinc-800/50">
+                  {group.nodeName}
+                </div>
+                {group.filtered.map((output) => {
+                  const globalIndex = filteredOptions.findIndex((o) => o === output);
+                  const isSelected = globalIndex === selectedIndex;
+                  
+                  return (
+                    <div
+                      key={`${group.nodeId}-${output.path}`}
+                      onClick={() => insertMention(output)}
+                      className={cn(
+                        "px-1.5 py-0.5 text-[10px] cursor-pointer",
+                        isSelected && "bg-stone-100 dark:bg-zinc-800"
+                      )}
+                    >
+                      <div className="font-medium leading-tight">{output.displayPath}</div>
+                      <div className="text-muted-foreground font-mono text-[9px] leading-tight">
+                        {`{{${output.fullPath}}}`}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            ))
+          ) : (
+            <div className="px-1.5 py-2 text-[10px] text-muted-foreground text-center">
+              No Previous Outputs
             </div>
-          ))}
+          )}
         </div>,
         document.body
       )}
