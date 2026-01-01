@@ -3099,28 +3099,23 @@ const speechToTextExecute = async (inputData: any, config: any, context: Executi
     throw new Error('OpenAI API key required. Please connect your OpenAI account or provide an API key.');
   }
 
-  // Use FormData for multipart/form-data
-  // In Node.js, we need to use form-data package or native FormData (Node 18+)
-  let formData: any;
-  try {
-    // Try native FormData first (Node 18+)
-    formData = new FormData();
-  } catch {
-    // Fallback to form-data package
-    const FormDataModule = await import('form-data');
-    formData = new FormDataModule.default();
-  }
+  // Use native FormData (Node 18+ has native FormData support)
+  const formData = new FormData();
   
   if (audioUrl) {
     // Fetch audio from URL and add to form
     const audioResponse = await fetch(audioUrl);
     const audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
-    formData.append('file', audioBuffer, { filename: 'audio.mp3', contentType: 'audio/mpeg' });
+    // Create File object for native FormData (Node 18+)
+    const file = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
+    formData.append('file', file);
   } else if (audioContent) {
     // Convert base64 to buffer
     const base64Data = audioContent.replace(/^data:audio\/[a-z]+;base64,/, '');
     const audioBuffer = Buffer.from(base64Data, 'base64');
-    formData.append('file', audioBuffer, { filename: 'audio.mp3', contentType: 'audio/mpeg' });
+    // Create File object for native FormData (Node 18+)
+    const file = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
+    formData.append('file', file);
   }
 
   formData.append('model', 'whisper-1');
@@ -3129,19 +3124,13 @@ const speechToTextExecute = async (inputData: any, config: any, context: Executi
   }
   formData.append('response_format', responseFormat);
 
-  // Use fetch for multipart/form-data
-  const headers: any = {
-    'Authorization': `Bearer ${openaiApiKey}`,
-  };
-  
-  // Add form-data headers if using form-data package
-  if (formData.getHeaders) {
-    Object.assign(headers, formData.getHeaders());
-  }
-  
+  // Use fetch for multipart/form-data (native FormData works with fetch in Node 18+)
   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
-    headers,
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      // Let fetch set Content-Type with boundary for FormData
+    },
     body: formData,
   });
 
