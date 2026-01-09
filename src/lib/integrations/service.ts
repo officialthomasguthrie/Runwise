@@ -199,19 +199,34 @@ export async function storeUserIntegration(
     throw new Error(`Failed to store integration: ${error.message}`);
   }
   
+  // Type assertion to help TypeScript understand the structure
+  // Supabase single() can return null, but we've checked for error above
+  const integrationData = (data as {
+    id: string;
+    user_id: string;
+    config: any;
+    created_at: string;
+    updated_at: string;
+  } | null);
+  
+  // Ensure data exists and has required properties
+  if (!integrationData || !integrationData.id) {
+    throw new Error('Failed to store integration: No data returned');
+  }
+  
   // Transform the response to match UserIntegration interface
   // Extract tokens from config for backward compatibility
-  const configData = (data as any).config || {};
+  const configData = integrationData.config || {};
   return {
-    id: data.id,
-    user_id: data.user_id,
+    id: integrationData.id,
+    user_id: integrationData.user_id,
     service_name: configData.service_name || serviceName,
     access_token: configData.access_token ? JSON.stringify(configData.access_token) : undefined,
     refresh_token: configData.refresh_token ? JSON.stringify(configData.refresh_token) : undefined,
     token_expires_at: configData.token_expires_at || undefined,
     metadata: configData.metadata || metadata,
-    created_at: data.created_at,
-    updated_at: data.updated_at
+    created_at: integrationData.created_at,
+    updated_at: integrationData.updated_at
   } as UserIntegration;
 }
 
@@ -272,12 +287,18 @@ export async function getUserIntegration(
       return null;
     }
     
+    // Type assertion to help TypeScript understand the structure
+    const integrationWithId = integration as { id: string } | null;
+    if (!integrationWithId || !integrationWithId.id) {
+      return null;
+    }
+    
     // Get user_integration by integration_id and check config for service_name
     const { data: newData, error: newError } = await supabase
       .from('user_integrations')
       .select('*')
       .eq('user_id', userId)
-      .eq('integration_id', integration.id)
+      .eq('integration_id', integrationWithId.id)
       .eq('is_active', true);
     
     if (newError || !newData || newData.length === 0) {
@@ -503,8 +524,8 @@ export async function deleteUserIntegration(
   if (deleteError) {
     console.error('[deleteUserIntegration] Error deleting integrations, trying to deactivate:', deleteError);
     // If delete fails, try to deactivate them instead
-    const { error: updateError } = await supabase
-      .from('user_integrations')
+    const { error: updateError } = await (supabase
+      .from('user_integrations') as any)
       .update({ is_active: false })
       .in('id', idsToDelete);
     
