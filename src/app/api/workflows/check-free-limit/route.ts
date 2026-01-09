@@ -1,6 +1,8 @@
 /**
  * API Route: /api/workflows/check-free-limit
  * Checks if a free user has already generated a workflow
+ * Free users can send unlimited messages until they generate their first workflow
+ * Once they generate a workflow, has_used_free_action is set to true
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -20,10 +22,10 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Get user's subscription tier
+    // Get user's subscription tier and free action status
     const { data: userData, error: userError } = await (supabase
       .from('users') as any)
-      .select('subscription_tier')
+      .select('subscription_tier, has_used_free_action')
       .eq('id', user.id)
       .single();
     
@@ -41,31 +43,15 @@ export async function GET(request: NextRequest) {
     if (subscriptionTier !== 'free') {
       return NextResponse.json({
         hasReachedLimit: false,
-        workflowCount: 0,
       });
     }
     
-    // Count AI-generated workflows for this user
-    const { count, error: countError } = await supabase
-      .from('workflows')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('ai_generated', true);
-    
-    if (countError) {
-      console.error('Error counting workflows:', countError);
-      return NextResponse.json(
-        { error: 'Failed to count workflows' },
-        { status: 500 }
-      );
-    }
-    
-    const workflowCount = count || 0;
-    const hasReachedLimit = workflowCount >= 1;
+    // For free users, check if they've generated a workflow
+    // has_used_free_action is true once they generate their first workflow
+    const hasUsedFreeAction = (userData as any)?.has_used_free_action || false;
     
     return NextResponse.json({
-      hasReachedLimit,
-      workflowCount,
+      hasReachedLimit: hasUsedFreeAction,
     });
   } catch (error: any) {
     console.error('Error in GET /api/workflows/check-free-limit:', error);

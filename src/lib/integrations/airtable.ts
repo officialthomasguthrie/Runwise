@@ -2,7 +2,7 @@
  * Airtable Integration API Client
  */
 
-import { getIntegrationCredential } from './service';
+import { getIntegrationCredential, getUserIntegration } from './service';
 
 export interface AirtableBase {
   id: string;
@@ -24,12 +24,25 @@ export interface AirtableField {
 
 /**
  * Get authenticated Airtable API token
+ * Supports both OAuth (preferred) and API token (backward compatibility)
  */
 async function getAirtableToken(userId: string): Promise<string> {
+  // Try OAuth token first (new method)
+  try {
+    const oauthIntegration = await getUserIntegration(userId, 'airtable');
+    if (oauthIntegration && oauthIntegration.access_token) {
+      return oauthIntegration.access_token;
+    }
+  } catch (error) {
+    // OAuth not available, fall back to API token
+    console.log('[Airtable] OAuth token not found, trying API token...');
+  }
+  
+  // Fall back to API token (backward compatibility)
   const token = await getIntegrationCredential(userId, 'airtable', 'api_token');
   
   if (!token) {
-    throw new Error('Airtable integration not connected. Please provide your Airtable Personal Access Token.');
+    throw new Error('Airtable integration not connected. Please connect your Airtable account via OAuth or provide an API token.');
   }
   
   return token;

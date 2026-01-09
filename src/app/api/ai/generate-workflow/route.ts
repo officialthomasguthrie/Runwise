@@ -42,41 +42,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if free user has reached workflow generation limit
+    // Check if free user has already generated a workflow
+    // Free users can generate ONE workflow, then they must upgrade
+    let subscriptionTier = 'free';
+    let hasUsedFreeAction = false;
+    
     try {
-      const { data: userRow, error: userError } = await (supabase as any)
+      const adminSupabase = createAdminClient();
+      const { data: userRow, error: userError } = await (adminSupabase as any)
         .from('users')
-        .select('subscription_tier')
+        .select('subscription_tier, has_used_free_action')
         .eq('id', user.id)
         .single();
 
-      const subscriptionTier = userError
-        ? 'free'
-        : ((userRow as any)?.subscription_tier || 'free');
-
-      if (subscriptionTier === 'free') {
-        // Check if free user has already generated a workflow
-        const { count, error: countError } = await supabase
-          .from('workflows')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('ai_generated', true);
+      if (!userError && userRow) {
+        subscriptionTier = (userRow as any)?.subscription_tier || 'free';
         
-        if (!countError && count && count >= 1) {
-          // Free user has generated a workflow, block generation
-          return new Response(
-            JSON.stringify({
-              error: 'You have reached your free limit. Upgrade to continue.',
-              requiresSubscription: true,
-            }),
-            { status: 402, headers: { 'Content-Type': 'application/json' } }
-          );
+        if (subscriptionTier === 'free') {
+          // Check if column exists (handle migration scenario gracefully)
+          hasUsedFreeAction = (userRow as any)?.has_used_free_action === true;
+          
+          if (hasUsedFreeAction) {
+            // Free user has already generated a workflow, block further workflow generation
+            return new Response(
+              JSON.stringify({
+                error: 'You have reached your free limit. You can generate one workflow for free. Upgrade to continue.',
+                requiresSubscription: true,
+              }),
+              { status: 402, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+          // Free user hasn't generated a workflow yet, allow generation (will be marked after successful generation)
         }
-        // Free user hasn't generated a workflow yet, allow generation
       }
-    } catch (limitError) {
+    } catch (limitError: any) {
       console.error('Error checking free limit in workflow generation:', limitError);
-      // On error, allow the request to proceed (fail open)
+      // On error, treat as free user who hasn't generated workflow yet (fail open)
+      // This ensures free users aren't blocked by database errors
+      subscriptionTier = 'free';
+      hasUsedFreeAction = false;
     }
 
     // Parse request body
@@ -110,19 +114,35 @@ export async function POST(request: NextRequest) {
       false // Will check for custom nodes after generation
     );
 
-    // Check if user has enough credits
-    const creditCheck = await checkCreditsAvailable(user.id, estimatedCredits);
-    if (!creditCheck.available) {
-      return new Response(
-        JSON.stringify({ 
-          error: creditCheck.message || 'Insufficient credits',
-          credits: {
-            required: estimatedCredits,
-            available: creditCheck.balance,
-          }
-        }),
-        { status: 402, headers: { 'Content-Type': 'application/json' } } // 402 Payment Required
-      );
+    // Only check credits for paid users or free users who have already used their free action
+    // Free users who haven't used their free action yet should not be blocked by credit checks
+    const shouldCheckCredits = subscriptionTier !== 'free' || hasUsedFreeAction;
+    console.log('[Workflow API] Credit check decision:', { 
+      subscriptionTier, 
+      hasUsedFreeAction, 
+      shouldCheckCredits,
+      userId: user.id 
+    });
+    
+    if (shouldCheckCredits) {
+      console.log('[Workflow API] Checking credits for user:', user.id);
+      const creditCheck = await checkCreditsAvailable(user.id, estimatedCredits);
+      if (!creditCheck.available) {
+        console.log('[Workflow API] Credit check failed:', creditCheck);
+        return new Response(
+          JSON.stringify({ 
+            error: creditCheck.message || 'Insufficient credits',
+            credits: {
+              required: estimatedCredits,
+              available: creditCheck.balance,
+            }
+          }),
+          { status: 402, headers: { 'Content-Type': 'application/json' } } // 402 Payment Required
+        );
+      }
+      console.log('[Workflow API] Credit check passed');
+    } else {
+      console.log('[Workflow API] Skipping credit check for free user who hasn\'t used free action');
     }
 
     // Track token usage for credit deduction
@@ -149,6 +169,27 @@ export async function POST(request: NextRequest) {
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             },
             onComplete: async (workflow: any, usage?: { inputTokens: number; outputTokens: number }) => {
+              // Mark free action as used for free users BEFORE other checks (to prevent race conditions)
+              if (subscriptionTier === 'free' && !hasUsedFreeAction) {
+                try {
+                  const adminSupabase = createAdminClient();
+                  const { error: markError } = await (adminSupabase as any)
+                    .from('users')
+                    .update({ has_used_free_action: true })
+                    .eq('id', user.id)
+                    .eq('subscription_tier', 'free');
+                  
+                  if (markError) {
+                    console.error('Error marking free action as used:', markError);
+                  } else {
+                    console.log('Marked free action as used for workflow generation:', user.id);
+                  }
+                } catch (markError) {
+                  console.error('Error marking free action as used:', markError);
+                  // Don't block the response, just log the error
+                }
+              }
+
               // Check step limit based on user's plan
               const adminSupabase = createAdminClient();
               const { data: userRow } = await (adminSupabase as any)
@@ -156,8 +197,8 @@ export async function POST(request: NextRequest) {
                 .select('subscription_tier')
                 .eq('id', user.id)
                 .single();
-              const subscriptionTier = (userRow as any)?.subscription_tier || 'free';
-              const planId = subscriptionTierToPlanId(subscriptionTier);
+              const subscriptionTierForPlan = (userRow as any)?.subscription_tier || 'free';
+              const planId = subscriptionTierToPlanId(subscriptionTierForPlan);
               
               // Count nodes in generated workflow (excluding placeholder nodes)
               const nodes = workflow.nodes || [];
@@ -178,49 +219,60 @@ export async function POST(request: NextRequest) {
                 return;
               }
               
-              // Calculate exact credits from token usage
-              let creditsUsed = estimatedCredits;
+              // Only calculate and deduct credits for paid users or free users who have used their free action
+              // Free users using their first action should not be charged credits
+              let creditsUsed = 0;
+              let deductionBalance = 0;
               
-              // Use actual token usage if available, otherwise estimate
-              if (usage) {
-                creditsUsed = calculateCreditsFromTokens(
-                  usage.inputTokens,
-                  usage.outputTokens
-                );
-                tokenUsage = usage; // Store for reference
-              } else {
-                // Estimate based on workflow complexity
-                const hasCustomNodes = workflow.nodes?.some((n: any) => 
-                  n.data?.nodeId === 'CUSTOM_GENERATED'
-                ) || false;
-                creditsUsed = estimateWorkflowGenerationCredits(nodeCount, hasCustomNodes);
-              }
-
-              // Deduct credits after successful generation
-              const deduction = await deductCredits(
-                user.id,
-                creditsUsed,
-                'workflow_generation',
-                {
-                  workflowName: workflow.workflowName,
-                  nodeCount: nodeCount,
-                  prompt: body.userPrompt.substring(0, 100), // First 100 chars
+              if (subscriptionTier !== 'free' || hasUsedFreeAction) {
+                // Calculate exact credits from token usage
+                creditsUsed = estimatedCredits;
+                
+                // Use actual token usage if available, otherwise estimate
+                if (usage) {
+                  creditsUsed = calculateCreditsFromTokens(
+                    usage.inputTokens,
+                    usage.outputTokens
+                  );
+                  tokenUsage = usage; // Store for reference
+                } else {
+                  // Estimate based on workflow complexity
+                  const hasCustomNodes = workflow.nodes?.some((n: any) => 
+                    n.data?.nodeId === 'CUSTOM_GENERATED'
+                  ) || false;
+                  creditsUsed = estimateWorkflowGenerationCredits(nodeCount, hasCustomNodes);
                 }
-              );
 
-              if (!deduction.success) {
-                console.error('Failed to deduct credits:', deduction.error);
-                // Still return workflow, but log the error
+                // Deduct credits after successful generation
+                const deduction = await deductCredits(
+                  user.id,
+                  creditsUsed,
+                  'workflow_generation',
+                  {
+                    workflowName: workflow.workflowName,
+                    nodeCount: nodeCount,
+                    prompt: body.userPrompt.substring(0, 100), // First 100 chars
+                  }
+                );
+
+                if (!deduction.success) {
+                  console.error('Failed to deduct credits:', deduction.error);
+                  // Still return workflow, but log the error
+                } else {
+                  deductionBalance = deduction.newBalance;
+                }
               }
 
               const data = JSON.stringify({
                 type: 'complete',
                 success: true,
                 workflow,
-                credits: {
-                  used: creditsUsed,
-                  remaining: deduction.newBalance,
-                },
+                ...(subscriptionTier !== 'free' || hasUsedFreeAction ? {
+                  credits: {
+                    used: creditsUsed,
+                    remaining: deductionBalance,
+                  },
+                } : {}),
               });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               controller.close();

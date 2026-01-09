@@ -99,6 +99,7 @@ interface ReactFlowEditorProps {
   onConfigPanelVisibilityChange?: (isVisible: boolean) => void; // Optional: callback when config panel visibility changes
   onAskAI?: (fieldName: string, nodeId: string, nodeType: string) => void; // Optional: callback when Ask AI button is clicked
   onAskNodeInfo?: (nodeId: string, nodeLabel: string, nodeType: string, nodeDescription?: string) => void; // Optional: callback when node info icon is clicked
+  onRegisterAddNodeCallback?: (callback: (nodeId: string) => void) => void; // Optional: register callback to add node to canvas
 }
 
 export const ReactFlowEditor = ({
@@ -122,6 +123,7 @@ export const ReactFlowEditor = ({
   onConfigPanelVisibilityChange,
   onAskAI,
   onAskNodeInfo,
+  onRegisterAddNodeCallback,
 }: ReactFlowEditorProps = {}) => {
   const { user, subscriptionTier } = useAuth();
   const router = useRouter();
@@ -1086,6 +1088,41 @@ export const ReactFlowEditor = ({
     }
   }, [onRegisterSaveCallback, handleSave]);
 
+  // Register add node callback with parent
+  useEffect(() => {
+    if (onRegisterAddNodeCallback) {
+      const addNodeToCanvas = (nodeId: string) => {
+        if (!reactFlowInstance.current) {
+          return;
+        }
+
+        // Calculate center position in flow coordinates
+        // Convert screen center to flow coordinates
+        const position = reactFlowInstance.current.screenToFlowPosition({
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2,
+        });
+
+        // Create new node
+        const newNode = {
+          id: `node-${Date.now()}`,
+          type: 'workflow-node',
+          position,
+          data: {
+            nodeId: nodeId,
+            config: {},
+            layoutDirection,
+          },
+        };
+
+        // Add node to canvas
+        setNodes((nds) => [...nds, newNode]);
+        setHasChanges(true);
+      };
+      onRegisterAddNodeCallback(addNodeToCanvas);
+    }
+  }, [onRegisterAddNodeCallback, layoutDirection]);
+
   // Cleanup polling on unmount
   useEffect(() => {
     return () => {
@@ -1177,7 +1214,7 @@ export const ReactFlowEditor = ({
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
-        connectionLineType={ConnectionLineType.SmoothStep}
+        connectionLineType={ConnectionLineType.Bezier}
         connectionLineStyle={{
           stroke: 'hsl(var(--primary))',
           strokeWidth: 2,

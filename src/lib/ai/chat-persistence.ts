@@ -125,6 +125,7 @@ export async function saveMessage(
         content: message.content,
         workflow_generated: message.workflowGenerated || false,
         workflow_id: message.workflowId || null,
+        is_paywall_message: message.isPaywallMessage || false,
         created_at: message.timestamp,
       }, { onConflict: 'id' });
 
@@ -199,6 +200,7 @@ export async function loadMessages(
         timestamp: msg.created_at,
         workflowGenerated: msg.workflow_generated,
         workflowId: msg.workflow_id,
+        isPaywallMessage: msg.is_paywall_message || false,
       };
       
       // Reconstruct workflow generation messages by checking content patterns
@@ -216,6 +218,12 @@ export async function loadMessages(
           // This is likely the summary message
           (chatMsg as any).workflowGeneratedSummary = true;
         }
+      }
+      
+      // Also check if this is a paywall message by content pattern (for backward compatibility)
+      // This ensures old paywall messages without the flag still work
+      if (!chatMsg.isPaywallMessage && msg.content === 'Your workflow is ready. Upgrade to continue.') {
+        chatMsg.isPaywallMessage = true;
       }
       
       return chatMsg;

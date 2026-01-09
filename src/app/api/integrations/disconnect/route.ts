@@ -22,7 +22,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { serviceName } = body;
     
+    console.log('[API /integrations/disconnect] Received request:', { serviceName, body });
+    
     if (!serviceName) {
+      console.error('[API /integrations/disconnect] Missing serviceName in request body');
       return NextResponse.json(
         { error: 'Missing required field: serviceName' },
         { status: 400 }
@@ -30,47 +33,57 @@ export async function POST(request: NextRequest) {
     }
     
     // For OAuth integrations, use deleteUserIntegration
-    const oauthServices = ['google', 'slack', 'github'];
-    if (oauthServices.includes(serviceName)) {
-      const deleted = await deleteUserIntegration(user.id, serviceName);
+    // Check if it's a Google service (google-sheets, google-gmail, etc.) or base service
+    const isGoogleService = serviceName.startsWith('google-');
+    const isShopifyService = serviceName.startsWith('shopify-');
+    const baseService = isGoogleService ? 'google' : isShopifyService ? 'shopify' : serviceName;
+    const oauthServices = ['google', 'slack', 'github', 'notion', 'airtable', 'trello', 'shopify', 'hubspot', 'asana', 'jira', 'twitter', 'paypal'];
+    
+    if (oauthServices.includes(baseService)) {
+      // Use the full service name (e.g., 'google-sheets', 'shopify-{shop}')
+      const serviceToDelete = serviceName;
+      console.log('[API /integrations/disconnect] Deleting OAuth integration:', serviceToDelete);
+      const deleted = await deleteUserIntegration(user.id, serviceToDelete);
       if (!deleted) {
+        console.error('[API /integrations/disconnect] Failed to delete integration');
         return NextResponse.json(
           { error: 'Failed to disconnect integration' },
           { status: 500 }
         );
       }
+      console.log('[API /integrations/disconnect] Successfully deleted integration');
       return NextResponse.json({ success: true });
     }
     
     // For credential-based integrations, delete from integration_credentials table
-    const credentialServices = ['notion', 'airtable', 'trello', 'openai'];
+    const credentialServices = ['openai', 'stripe', 'sendgrid', 'twilio', 'discord'];
     if (credentialServices.includes(serviceName)) {
       const supabaseAdmin = await createAdminClient();
       
-      if (serviceName === 'trello') {
-        // Delete both api_key and token
+      if (serviceName === 'twilio') {
+        // Delete both account_sid and auth_token
         const { error: error1 } = await supabaseAdmin
           .from('integration_credentials')
           .delete()
           .eq('user_id', user.id)
           .eq('service_name', serviceName)
-          .eq('credential_type', 'api_key');
+          .eq('credential_type', 'account_sid');
         
         const { error: error2 } = await supabaseAdmin
           .from('integration_credentials')
           .delete()
           .eq('user_id', user.id)
           .eq('service_name', serviceName)
-          .eq('credential_type', 'token');
+          .eq('credential_type', 'auth_token');
         
         if (error1 || error2) {
-          console.error('Error deleting Trello credentials:', error1 || error2);
+          console.error('Error deleting Twilio credentials:', error1 || error2);
           return NextResponse.json(
             { error: 'Failed to disconnect integration' },
             { status: 500 }
           );
         }
-      } else if (serviceName === 'openai') {
+      } else if (serviceName === 'openai' || serviceName === 'sendgrid') {
         // Delete api_key
         const { error } = await supabaseAdmin
           .from('integration_credentials')
@@ -80,14 +93,61 @@ export async function POST(request: NextRequest) {
           .eq('credential_type', 'api_key');
         
         if (error) {
-          console.error('Error deleting OpenAI credentials:', error);
+          console.error(`Error deleting ${serviceName} credentials:`, error);
           return NextResponse.json(
             { error: 'Failed to disconnect integration' },
             { status: 500 }
           );
         }
+      } else if (serviceName === 'stripe') {
+        // Delete secret_key
+        const { error } = await supabaseAdmin
+          .from('integration_credentials')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('service_name', serviceName)
+          .eq('credential_type', 'secret_key');
+        
+        if (error) {
+          console.error('Error deleting Stripe credentials:', error);
+          return NextResponse.json(
+            { error: 'Failed to disconnect integration' },
+            { status: 500 }
+          );
+        }
+      } else if (serviceName === 'discord') {
+        // Discord can be either OAuth (in user_integrations) or bot token (in integration_credentials)
+        // Try to delete from both to handle old OAuth integrations and new bot token integrations
+        
+        // First, try to delete OAuth integration from user_integrations
+        const oauthDeleted = await deleteUserIntegration(user.id, serviceName);
+        if (oauthDeleted) {
+          console.log('[API /integrations/disconnect] Deleted Discord OAuth integration');
+        }
+        
+        // Then, delete bot_token from integration_credentials
+        const { error } = await supabaseAdmin
+          .from('integration_credentials')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('service_name', serviceName)
+          .eq('credential_type', 'bot_token');
+        
+        if (error) {
+          console.error('Error deleting Discord bot token:', error);
+          // If we deleted OAuth integration, still return success
+          if (oauthDeleted) {
+            return NextResponse.json({ success: true });
+          }
+          return NextResponse.json(
+            { error: 'Failed to disconnect integration' },
+            { status: 500 }
+          );
+        }
+        
+        console.log('[API /integrations/disconnect] Deleted Discord bot token');
       } else {
-        // Delete api_token (Notion, Airtable)
+        // Delete api_token (fallback)
         const { error } = await supabaseAdmin
           .from('integration_credentials')
           .delete()

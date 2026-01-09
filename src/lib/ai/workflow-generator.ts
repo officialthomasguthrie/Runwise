@@ -699,11 +699,6 @@ function getNodeIntegrationRequirement(nodeId: string): string | null {
     return 'twilio';
   }
   
-  // Stripe nodes (Secret Key)
-  if (['create-stripe-customer', 'create-stripe-charge', 'new-stripe-payment'].includes(nodeId)) {
-    return 'stripe';
-  }
-  
   // Discord nodes (OAuth or Bot Token)
   if (['send-discord-message', 'new-discord-message'].includes(nodeId)) {
     return 'discord';
@@ -712,11 +707,6 @@ function getNodeIntegrationRequirement(nodeId: string): string | null {
   // Twitter/X nodes (OAuth)
   if (['post-to-x'].includes(nodeId)) {
     return 'twitter';
-  }
-  
-  // PayPal nodes (OAuth)
-  if (['new-paypal-payment'].includes(nodeId)) {
-    return 'paypal';
   }
   
   return null; // No integration required

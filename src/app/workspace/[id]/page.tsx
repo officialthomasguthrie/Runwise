@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase-client";
 import { nodeRegistry } from "@/lib/nodes/registry";
 import type { NodeDefinition } from "@/lib/nodes/types";
 import * as LucideIcons from "lucide-react";
+import { useTheme } from "next-themes";
 
 function WorkflowToggle({ workflowId, initialActive, onToggle }: { workflowId: string | null; initialActive: boolean; onToggle: (active: boolean) => Promise<void> }) {
   const [isChecked, setIsChecked] = useState(initialActive);
@@ -105,6 +106,12 @@ export default function WorkspacePage() {
   const [isLoadingWorkflowStatus, setIsLoadingWorkflowStatus] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // Category metadata for display (labels and ordering)
   const CATEGORY_META: Record<string, { label: string; order: number }> = {
@@ -151,6 +158,163 @@ export default function WorkspacePage() {
     }
     
     return IconComponent;
+  };
+
+  /**
+   * Get service name for a node ID (for integration nodes)
+   */
+  const getNodeServiceName = (nodeId: string): string | null => {
+    // Google nodes
+    if (nodeId === 'new-row-in-google-sheet') return 'google-sheets';
+    if (nodeId === 'new-form-submission') return 'google-forms';
+    if (nodeId === 'new-email-received') return 'google-gmail';
+    if (nodeId === 'create-calendar-event') return 'google-calendar';
+    if (nodeId === 'upload-file-to-google-drive' || nodeId === 'file-uploaded') return 'google-drive';
+    
+    // Slack nodes
+    if (['post-to-slack-channel', 'new-message-in-slack'].includes(nodeId)) return 'slack';
+    
+    // GitHub nodes
+    if (['new-github-issue'].includes(nodeId)) return 'github';
+    
+    // Notion nodes
+    if (['create-notion-page'].includes(nodeId)) return 'notion';
+    
+    // Airtable nodes
+    if (['update-airtable-record'].includes(nodeId)) return 'airtable';
+    
+    // Trello nodes
+    if (['create-trello-card'].includes(nodeId)) return 'trello';
+    
+    // Discord nodes
+    if (['send-discord-message', 'new-discord-message'].includes(nodeId)) return 'discord';
+    
+    // Twitter/X nodes
+    if (['post-to-x'].includes(nodeId)) return 'twitter';
+    
+    // PayPal nodes
+    
+    // Shopify nodes
+    if (['new-shopify-order', 'create-shopify-product'].includes(nodeId)) return 'shopify';
+    
+    // HubSpot nodes
+    if (['new-hubspot-contact', 'create-hubspot-contact'].includes(nodeId)) return 'hubspot';
+    
+    // Asana nodes
+    if (['new-asana-task', 'create-asana-task'].includes(nodeId)) return 'asana';
+    
+    // Jira nodes
+    if (['new-jira-issue', 'create-jira-issue'].includes(nodeId)) return 'jira';
+    
+    // Stripe nodes
+    
+    // SendGrid nodes
+    if (['send-email'].includes(nodeId)) return 'sendgrid';
+    
+    // Twilio nodes
+    if (['send-sms-via-twilio'].includes(nodeId)) return 'twilio';
+    
+    // OpenAI nodes (all AI/ML nodes)
+    if ([
+      'generate-summary-with-ai',
+      'generate-ai-content',
+      'classify-text',
+      'extract-entities',
+      'sentiment-analysis',
+      'translate-text',
+      'generate-image',
+      'image-recognition',
+      'text-to-speech',
+      'speech-to-text'
+    ].includes(nodeId)) return 'openai';
+    
+    return null;
+  };
+
+  /**
+   * Map serviceName to slug for logo lookup
+   */
+  const getServiceSlug = (serviceName: string): string | null => {
+    const serviceSlugMap: Record<string, string> = {
+      'google-sheets': 'googlesheets',
+      'google-gmail': 'gmail',
+      'google-calendar': 'googlecalendar',
+      'google-drive': 'googledrive',
+      'google-forms': 'googleforms',
+      'slack': 'slack',
+      'github': 'github',
+      'notion': 'notion',
+      'airtable': 'airtable',
+      'trello': 'trello',
+      'shopify': 'shopify',
+      'hubspot': 'hubspot',
+      'asana': 'asana',
+      'jira': 'jira',
+      'discord': 'discord',
+      'twitter': 'x',
+      'paypal': 'paypal',
+      'stripe': 'stripe',
+      'sendgrid': 'sendgrid',
+      'twilio': 'twilio',
+      'openai': 'openai'
+    };
+    return serviceSlugMap[serviceName] || null;
+  };
+
+  /**
+   * Get logo URL for a service slug
+   */
+  const getLogoUrl = (slug: string): string | null => {
+    if (!mounted || !theme) return null;
+    const isDark = theme === 'dark';
+    const clientId = '1dxbfHSJFAPEGdCLU4o5B';
+    
+    const brandfetchLogos: Record<string, { light?: string; dark?: string }> = {
+      'googlesheets': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idKa2XnbFY.svg?c=${clientId}` },
+      'slack': { dark: `https://cdn.brandfetch.io/idJ_HhtG0Z/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'gmail': { dark: `https://cdn.brandfetch.io/id5o3EIREg/theme/dark/symbol.svg?c=${clientId}` },
+      'googlecalendar': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idMX2_OMSc.svg?c=${clientId}` },
+      'googledrive': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idncaAgFGT.svg?c=${clientId}` },
+      // Google Forms uses a custom logo URL provided by user
+      'googleforms': { dark: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Google_Forms_logo_%282014-2020%29.svg/1489px-Google_Forms_logo_%282014-2020%29.svg.png' },
+      'github': {
+        light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`
+      },
+      'trello': { dark: `https://cdn.brandfetch.io/idToc8bDY1/theme/dark/symbol.svg?c=${clientId}` },
+      'notion': { dark: `https://cdn.brandfetch.io/idPYUoikV7/theme/dark/symbol.svg?c=${clientId}` },
+      'shopify': { dark: `https://cdn.brandfetch.io/idAgPm7IvG/theme/dark/symbol.svg?c=${clientId}` },
+      'hubspot': { dark: `https://cdn.brandfetch.io/idRt0LuzRf/theme/dark/symbol.svg?c=${clientId}` },
+      'discord': { dark: `https://cdn.brandfetch.io/idM8Hlme1a/theme/dark/symbol.svg?c=${clientId}` },
+      'airtable': { dark: `https://cdn.brandfetch.io/iddsnRzkxS/theme/dark/symbol.svg?c=${clientId}` },
+      'x': {
+        light: `https://cdn.brandfetch.io/idS5WhqBbM/theme/dark/logo.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idS5WhqBbM/theme/light/logo.svg?c=${clientId}`
+      },
+      'asana': { dark: `https://cdn.brandfetch.io/idxPi2Evsk/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'jira': { dark: `https://cdn.brandfetch.io/idchmboHEZ/theme/dark/symbol.svg?c=${clientId}` },
+      'stripe': { dark: `https://cdn.brandfetch.io/idxAg10C0L/w/480/h/480/theme/dark/icon.jpeg?c=${clientId}` },
+      'sendgrid': { dark: `https://cdn.brandfetch.io/idHHcfw5Qu/theme/dark/symbol.svg?c=${clientId}` },
+      'twilio': { dark: `https://cdn.brandfetch.io/idT7wVo_zL/theme/dark/symbol.svg?c=${clientId}` },
+      'openai': {
+        light: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idR3duQxYl/theme/light/symbol.svg?c=${clientId}`
+      },
+      'paypal': { dark: `https://cdn.brandfetch.io/id-Wd4a4TS/theme/dark/symbol.svg?c=${clientId}` }
+    };
+
+    const logoConfig = brandfetchLogos[slug];
+    if (logoConfig) {
+      if (isDark && logoConfig.dark) {
+        return logoConfig.dark;
+      } else if (!isDark && logoConfig.light) {
+        return logoConfig.light;
+      } else if (logoConfig.dark) {
+        return logoConfig.dark;
+      }
+    }
+    
+    return null;
   };
 
   /**
@@ -220,6 +384,9 @@ export default function WorkspacePage() {
   
   // Store the ID of the placeholder node that triggered the sidebar
   const [activePlaceholderId, setActivePlaceholderId] = useState<string | null>(null);
+  
+  // Ref to store the add node callback from ReactFlowEditor
+  const addNodeToCanvasRef = useRef<((nodeId: string) => void) | null>(null);
 
   // Helper function to safely parse JSON from response
   const safeParseJSON = async (response: Response): Promise<any> => {
@@ -250,6 +417,12 @@ export default function WorkspacePage() {
    */
   const renderNodeItem = (node: NodeDefinition) => {
     const IconComponent = getIconComponent(node.icon);
+    
+    // Check if this is an integration node (not AI-generated)
+    const serviceName = getNodeServiceName(node.id);
+    const slug = serviceName ? getServiceSlug(serviceName) : null;
+    const logoUrl = slug ? getLogoUrl(slug) : null;
+    const isIntegrationNode = !!serviceName && node.id !== 'CUSTOM_GENERATED';
     
     return (
       <div
@@ -282,13 +455,27 @@ export default function WorkspacePage() {
             window.dispatchEvent(event);
             setIsLeftSidebarVisible(false);
             setActivePlaceholderId(null);
+          } else {
+            // If no placeholder, add node to canvas at center of viewport
+            if (addNodeToCanvasRef.current) {
+              addNodeToCanvasRef.current(node.id);
+              setIsLeftSidebarVisible(false);
+            }
           }
         }}
         className="flex items-center gap-2.5 p-2.5 rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl transition-all duration-300 cursor-pointer cursor-grab active:cursor-grabbing text-foreground"
       >
-        <div className="flex items-center justify-center w-8 h-8 rounded-md bg-background/50 border border-stone-200 dark:border-white/10">
-          <IconComponent className="h-4 w-4 text-foreground" />
-        </div>
+        {isIntegrationNode && logoUrl ? (
+          <img 
+            src={logoUrl} 
+            alt={node.name} 
+            className="h-5 w-5 object-contain"
+          />
+        ) : (
+          <div className="flex items-center justify-center w-8 h-8 rounded-md bg-background/50 border border-stone-200 dark:border-white/10">
+            <IconComponent className="h-4 w-4 text-foreground" />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-medium text-foreground">{node.name}</h3>
         </div>
@@ -755,7 +942,7 @@ export default function WorkspacePage() {
                 ) : (
                   <button
                     onClick={startEditingName}
-                    className="px-2 py-1 rounded-sm hover:bg-accent transition-colors text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary truncate max-w-[120px] md:max-w-none"
+                    className="px-2 py-1 rounded-sm text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary truncate max-w-[120px] md:max-w-none"
                     title={workflowName}
                   >
                     {workflowName}
@@ -1171,6 +1358,9 @@ export default function WorkspacePage() {
                     setActivePlaceholderId(null);
                   }
                   setIsLeftSidebarVisible(true);
+                }}
+                onRegisterAddNodeCallback={(callback) => {
+                  addNodeToCanvasRef.current = callback;
                 }}
               />
             ) : (

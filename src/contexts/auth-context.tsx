@@ -109,6 +109,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     if (!supabase) return { error: new Error('Supabase client not initialized') };
+    
+    // Assign a random profile picture for email/password signups
+    // Use a hash of the email to consistently assign the same image per user
+    const profileImages = ['/Profile2.jpg', '/Profile3.jpg', '/Profile4.jpg'];
+    const emailHash = email.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const randomAvatar = profileImages[emailHash % profileImages.length];
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -116,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data: {
           first_name: firstName,
           last_name: lastName,
+          avatar_url: randomAvatar, // Set random avatar for email/password signups
         }
       }
     });

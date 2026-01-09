@@ -48,7 +48,7 @@ export const Posibilities: React.FC = () => {
         </h3>
 
         <p className="text-base md:text-lg text-[#ffffffcc] leading-[1.4em] font-normal mt-2.5">
-          With Runwise, you can automate anything
+          One platform to automate content, operations, and growth.
         </p>
       </motion.div>
 

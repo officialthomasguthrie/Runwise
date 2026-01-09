@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-client";
 import SearchComponent from "@/components/ui/animated-glowing-search-bar";
 import { useTheme } from "next-themes";
@@ -27,9 +27,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export default function IntegrationsPage() {
+function IntegrationsPageContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -79,12 +80,12 @@ export default function IntegrationsPage() {
   // Helper function to check if a logo uses Brandfetch
   const usesBrandfetch = (slug: string): boolean => {
   const brandfetchSlugs = [
-      'googlesheets', 'slack', 'gmail', 'googlecalendar', 'postgresql', 'amazons3',
+      'googlesheets', 'googleforms', 'slack', 'gmail', 'googlecalendar', 'postgresql', 'amazons3',
       'github', 'trello', 'notion', 'stripe', 'shopify', 'hubspot', 'discord',
       'twilio', 'sendgrid', 'zapier', 'dropbox', 'googledrive', 'airtable', 'x',
       'facebook', 'instagram', 'linkedin', 'youtube', 'spotify', 'figma', 'canva',
       'asana', 'mongodb', 'redis', 'salesforce', 'mailchimp', 'googleanalytics',
-      'intercom', 'zendesk', 'openai', 'zoom', 'microsoftteams'
+      'intercom', 'zendesk', 'openai', 'zoom', 'microsoftteams', 'paypal'
     ];
     return brandfetchSlugs.includes(slug);
   };
@@ -121,6 +122,8 @@ export default function IntegrationsPage() {
       'zapier': { dark: `https://cdn.brandfetch.io/idNMs_nMA0/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
       'dropbox': { dark: `https://cdn.brandfetch.io/idY3kwH_Nx/theme/dark/symbol.svg?c=${clientId}` },
       'googledrive': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idncaAgFGT.svg?c=${clientId}` },
+      // Google Forms uses a custom logo URL provided by user
+      'googleforms': { dark: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Google_Forms_logo_%282014-2020%29.svg/1489px-Google_Forms_logo_%282014-2020%29.svg.png' },
       'airtable': { dark: `https://cdn.brandfetch.io/iddsnRzkxS/theme/dark/symbol.svg?c=${clientId}` },
       'x': {
         light: `https://cdn.brandfetch.io/idS5WhqBbM/theme/dark/logo.svg?c=${clientId}`,
@@ -152,7 +155,8 @@ export default function IntegrationsPage() {
       'openai': {
         light: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${clientId}`,
         dark: `https://cdn.brandfetch.io/idR3duQxYl/theme/light/symbol.svg?c=${clientId}`
-      }
+      },
+      'paypal': { dark: `https://cdn.brandfetch.io/id-Wd4a4TS/theme/dark/symbol.svg?c=${clientId}` }
     };
 
     const logoConfig = brandfetchLogos[slug];
@@ -175,16 +179,17 @@ export default function IntegrationsPage() {
 
   // All available integrations (40 integrations for 4x10 grid)
   const allIntegrations = [
-    { id: 'all-1', name: 'Google Sheets', description: 'Spreadsheet management', icon: FileSpreadsheet, slug: 'googlesheets', gradient: 'from-green-500/20 to-emerald-500/20', iconColor: 'text-green-400', category: 'Productivity', serviceName: 'google' },
+    { id: 'all-1', name: 'Google Sheets', description: 'Spreadsheet management', icon: FileSpreadsheet, slug: 'googlesheets', gradient: 'from-green-500/20 to-emerald-500/20', iconColor: 'text-green-400', category: 'Productivity', serviceName: 'google-sheets' },
+    { id: 'all-1b', name: 'Google Forms', description: 'Form submissions', icon: FileText, slug: 'googleforms', gradient: 'from-purple-500/20 to-violet-500/20', iconColor: 'text-purple-400', category: 'Productivity', serviceName: 'google-forms' },
     { id: 'all-2', name: 'Slack', description: 'Team communication', icon: Slack, slug: 'slack', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'Communication', serviceName: 'slack' },
-    { id: 'all-3', name: 'Gmail', description: 'Email service', icon: Mail, slug: 'gmail', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Communication', serviceName: 'google' },
-    { id: 'all-4', name: 'Google Calendar', description: 'Calendar events', icon: Calendar, slug: 'googlecalendar', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Productivity', serviceName: 'google' },
+    { id: 'all-3', name: 'Gmail', description: 'Email service', icon: Mail, slug: 'gmail', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Communication', serviceName: 'google-gmail' },
+    { id: 'all-4', name: 'Google Calendar', description: 'Calendar events', icon: Calendar, slug: 'googlecalendar', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Productivity', serviceName: 'google-calendar' },
     { id: 'all-5', name: 'PostgreSQL', description: 'Database management', icon: Database, slug: 'postgresql', gradient: 'from-indigo-500/20 to-blue-500/20', iconColor: 'text-indigo-400', category: 'Database' },
     { id: 'all-6', name: 'AWS S3', description: 'Cloud storage', icon: Cloud, slug: 'amazons3', gradient: 'from-orange-500/20 to-yellow-500/20', iconColor: 'text-orange-400', category: 'Storage' },
     { id: 'all-8', name: 'GitHub', description: 'Code repositories', icon: Github, slug: 'github', gradient: 'from-gray-500/20 to-slate-500/20', iconColor: 'text-gray-400', category: 'Development', serviceName: 'github' },
     { id: 'all-9', name: 'Trello', description: 'Project boards', icon: Trello, slug: 'trello', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Productivity', serviceName: 'trello' },
     { id: 'all-10', name: 'Notion', description: 'Note taking', icon: FileText, slug: 'notion', gradient: 'from-gray-500/20 to-zinc-500/20', iconColor: 'text-gray-400', category: 'Productivity', serviceName: 'notion' },
-    { id: 'all-11', name: 'Stripe', description: 'Payment processing', icon: DollarSign, slug: 'stripe', gradient: 'from-purple-500/20 to-violet-500/20', iconColor: 'text-purple-400', category: 'Finance' },
+    { id: 'all-11', name: 'Stripe', description: 'Payment processing', icon: DollarSign, slug: 'stripe', gradient: 'from-purple-500/20 to-violet-500/20', iconColor: 'text-purple-400', category: 'Payment' },
     { id: 'all-12', name: 'Shopify', description: 'E-commerce platform', icon: ShoppingCart, slug: 'shopify', gradient: 'from-green-500/20 to-lime-500/20', iconColor: 'text-green-400', category: 'E-commerce' },
     { id: 'all-13', name: 'HubSpot', description: 'CRM platform', icon: Users, slug: 'hubspot', gradient: 'from-orange-500/20 to-red-500/20', iconColor: 'text-orange-400', category: 'CRM' },
     { id: 'all-14', name: 'Discord', description: 'Community chat', icon: MessageSquare, slug: 'discord', gradient: 'from-indigo-500/20 to-purple-500/20', iconColor: 'text-indigo-400', category: 'Communication' },
@@ -192,9 +197,9 @@ export default function IntegrationsPage() {
     { id: 'all-16', name: 'SendGrid', description: 'Email delivery', icon: Mail, slug: 'sendgrid', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Communication' },
     { id: 'all-17', name: 'Zapier', description: 'Workflow automation', icon: Zap, slug: 'zapier', gradient: 'from-orange-500/20 to-amber-500/20', iconColor: 'text-orange-400', category: 'Automation' },
     { id: 'all-18', name: 'Dropbox', description: 'File storage', icon: Box, slug: 'dropbox', gradient: 'from-blue-500/20 to-sky-500/20', iconColor: 'text-blue-400', category: 'Storage' },
-    { id: 'all-19', name: 'Google Drive', description: 'Cloud storage', icon: Cloud, slug: 'googledrive', gradient: 'from-yellow-500/20 to-green-500/20', iconColor: 'text-yellow-400', category: 'Storage', serviceName: 'google' },
+    { id: 'all-19', name: 'Google Drive', description: 'Cloud storage', icon: Cloud, slug: 'googledrive', gradient: 'from-yellow-500/20 to-green-500/20', iconColor: 'text-yellow-400', category: 'Storage', serviceName: 'google-drive' },
     { id: 'all-20', name: 'Airtable', description: 'Database tables', icon: Database, slug: 'airtable', gradient: 'from-yellow-500/20 to-orange-500/20', iconColor: 'text-yellow-400', category: 'Database', serviceName: 'airtable' },
-    { id: 'all-21', name: 'Twitter', description: 'Social media', icon: Twitter, slug: 'x', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Social' },
+    { id: 'all-21', name: 'Twitter', description: 'Social media', icon: Twitter, slug: 'x', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Social', serviceName: 'twitter' },
     { id: 'all-22', name: 'Facebook', description: 'Social network', icon: Facebook, slug: 'facebook', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Social' },
     { id: 'all-23', name: 'Instagram', description: 'Photo sharing', icon: Instagram, slug: 'instagram', gradient: 'from-pink-500/20 to-purple-500/20', iconColor: 'text-pink-400', category: 'Social' },
     { id: 'all-24', name: 'LinkedIn', description: 'Professional network', icon: Linkedin, slug: 'linkedin', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Social' },
@@ -213,12 +218,17 @@ export default function IntegrationsPage() {
     { id: 'all-37', name: 'Google Analytics', description: 'Website analytics', icon: BarChart3, slug: 'googleanalytics', gradient: 'from-orange-500/20 to-red-500/20', iconColor: 'text-orange-400', category: 'Analytics' },
     { id: 'all-38', name: 'Intercom', description: 'Customer messaging', icon: MessageSquare, slug: 'intercom', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Support' },
     { id: 'all-39', name: 'Zendesk', description: 'Help desk software', icon: HelpCircle, slug: 'zendesk', gradient: 'from-green-500/20 to-teal-500/20', iconColor: 'text-green-400', category: 'Support' },
-    { id: 'all-40', name: 'OpenAI', description: 'AI language models', icon: Zap, slug: 'openai', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'AI', serviceName: 'openai' }
+    { id: 'all-40', name: 'OpenAI', description: 'AI language models', icon: Zap, slug: 'openai', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'AI', serviceName: 'openai' },
+    { id: 'all-41', name: 'PayPal', description: 'Payment processing', icon: CreditCard, slug: 'paypal', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Payment' }
   ];
 
   // Check if an integration is connected
   const isIntegrationConnected = (serviceName?: string): boolean => {
     if (!serviceName) return false;
+    // For Shopify, check if any shopify-{shop} integration exists
+    if (serviceName === 'shopify') {
+      return configuredIntegrations.some(int => (int as any).serviceName?.startsWith('shopify-'));
+    }
     return configuredIntegrations.some(int => (int as any).serviceName === serviceName);
   };
 
@@ -243,6 +253,30 @@ export default function IntegrationsPage() {
       return 0; // keep original order if both have or both don't have serviceName
     });
 
+  // Helper function to safely parse JSON from response
+  const safeParseJSON = async (response: Response): Promise<any> => {
+    const contentType = response.headers.get('content-type');
+    const text = await response.text();
+    
+    // If response is empty, return error
+    if (!text || text.trim().length === 0) {
+      return { error: 'Empty response from server' };
+    }
+    
+    // If response is not JSON, return error object with text
+    if (!contentType || !contentType.includes('application/json')) {
+      return { error: text || 'Invalid response format' };
+    }
+    
+    // Try to parse as JSON
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      // If parsing fails, return the text as error
+      return { error: text || 'Failed to parse response' };
+    }
+  };
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading && !user) {
@@ -251,6 +285,89 @@ export default function IntegrationsPage() {
   }, [user, loading, router]);
 
   // Load configured integrations from API
+  const loadIntegrations = async () => {
+    setIntegrationsLoading(true);
+    try {
+      console.log('[IntegrationsPage] Loading integrations...');
+      const response = await fetch('/api/integrations/status');
+
+      if (!response.ok) {
+        console.error('[IntegrationsPage] Failed to fetch integrations:', response.statusText);
+        setConfiguredIntegrations([]);
+        return;
+      }
+
+      const data = await safeParseJSON(response);
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      console.log('[IntegrationsPage] Integrations response:', data);
+      const connectedServices = data.integrations || [];
+
+      // Deduplicate by service name (keep first occurrence)
+      const seenServices = new Set<string>();
+      const uniqueServices = connectedServices.filter((integration: any) => {
+        if (!integration.connected || !integration.service) return false;
+        if (seenServices.has(integration.service)) {
+          console.log('[IntegrationsPage] Duplicate service found, skipping:', integration.service);
+          return false;
+        }
+        seenServices.add(integration.service);
+        return true;
+      });
+
+      // Map service names to integration objects
+      const mappedIntegrations = uniqueServices
+        .map((integration: any) => {
+          const serviceName = integration.service;
+          if (!serviceName) return null; // Skip if service name is missing
+          
+          // For Shopify, normalize serviceName (shopify-{shop} -> shopify)
+          const normalizedServiceName = serviceName.startsWith('shopify-') ? 'shopify' : serviceName;
+          
+          // Find matching integration by serviceName
+          const matchingIntegration = allIntegrations.find(
+            (int) => int.serviceName === normalizedServiceName
+          );
+          
+          if (matchingIntegration) {
+              return {
+                id: `connected-${normalizedServiceName}`,
+                name: matchingIntegration.name,
+                description: matchingIntegration.description,
+                icon: matchingIntegration.icon,
+                slug: matchingIntegration.slug,
+                gradient: matchingIntegration.gradient,
+                iconColor: matchingIntegration.iconColor,
+                status: 'active',
+                serviceName: normalizedServiceName // Use normalized name for display
+              };
+          }
+          
+          // Fallback if no match found
+          return {
+            id: `connected-${normalizedServiceName}`,
+            name: serviceNameMap[normalizedServiceName] || (normalizedServiceName ? normalizedServiceName.charAt(0).toUpperCase() + normalizedServiceName.slice(1) : 'Unknown Integration'),
+            description: 'Connected integration',
+            icon: Plug,
+            gradient: 'from-gray-500/20 to-slate-500/20',
+            iconColor: 'text-gray-400',
+            status: 'active',
+              serviceName: normalizedServiceName
+          };
+        })
+        .filter((integration: any) => integration !== null);
+        
+      console.log('[IntegrationsPage] Mapped integrations:', mappedIntegrations);
+      setConfiguredIntegrations(mappedIntegrations);
+    } catch (e) {
+      console.error('[IntegrationsPage] Unexpected error fetching integrations:', e);
+      setConfiguredIntegrations([]);
+    } finally {
+      setIntegrationsLoading(false);
+    }
+  };
+
   useEffect(() => {
     // Don't load if auth is still loading
     if (loading) return;
@@ -262,100 +379,98 @@ export default function IntegrationsPage() {
       return;
     }
 
-    let cancelled = false;
-
-    const loadIntegrations = async () => {
-      setIntegrationsLoading(true);
-      try {
-        const response = await fetch('/api/integrations/status');
-        if (cancelled) return;
-
-        if (!response.ok) {
-          console.error('Failed to fetch integrations:', response.statusText);
-          setConfiguredIntegrations([]);
-          return;
-        }
-
-        const data = await response.json();
-        const connectedServices = data.integrations || [];
-
-        // Map service names to integration objects
-        const mappedIntegrations = connectedServices
-          .filter((integration: any) => integration.connected)
-          .map((integration: any) => {
-            const serviceName = integration.service;
-            // Find matching integration by serviceName
-            const matchingIntegration = allIntegrations.find(
-              (int) => int.serviceName === serviceName
-            );
-            
-            if (matchingIntegration) {
-              return {
-                id: `connected-${serviceName}`,
-                name: matchingIntegration.name,
-                description: matchingIntegration.description,
-                icon: matchingIntegration.icon,
-                slug: matchingIntegration.slug,
-                gradient: matchingIntegration.gradient,
-                iconColor: matchingIntegration.iconColor,
-                status: 'active',
-                serviceName: serviceName
-              };
-            }
-            
-            // Fallback if no match found
-            return {
-              id: `connected-${serviceName}`,
-              name: serviceNameMap[serviceName] || serviceName.charAt(0).toUpperCase() + serviceName.slice(1),
-              description: 'Connected integration',
-              icon: Plug,
-              gradient: 'from-gray-500/20 to-slate-500/20',
-              iconColor: 'text-gray-400',
-              status: 'active',
-              serviceName: serviceName
-            };
-          });
-          
-        if (!cancelled) {
-          setConfiguredIntegrations(mappedIntegrations);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          console.error('Unexpected error fetching integrations:', e);
-          setConfiguredIntegrations([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIntegrationsLoading(false);
-        }
-      }
-    };
-
     loadIntegrations();
-
-    return () => {
-      cancelled = true;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
 
+  // Handle OAuth callback URL parameters
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const error = searchParams.get('error');
+    
+    if (success || error) {
+      console.log('[IntegrationsPage] OAuth callback detected:', { success, error });
+      
+      // Reload integrations after OAuth callback
+      if (user && !loading) {
+        loadIntegrations();
+      }
+      
+      // Show user feedback
+      if (success) {
+        // Handle both old format (google_connected) and new format (sheets_connected, gmail_connected, etc.)
+        let serviceName = success.replace('_connected', '');
+        
+        // If it's a Google service without the prefix, add it
+        if (['sheets', 'gmail', 'calendar', 'drive'].includes(serviceName)) {
+          serviceName = `google-${serviceName}`;
+        }
+        
+        const displayName = serviceNameMap[serviceName] || serviceName.charAt(0).toUpperCase() + serviceName.slice(1);
+        alert(`Successfully connected ${displayName}!`);
+      } else if (error) {
+        const errorMessages: Record<string, string> = {
+          'oauth_error': 'OAuth authentication failed',
+          'missing_code': 'OAuth callback missing authorization code',
+          'invalid_state': 'OAuth state validation failed (possible CSRF attack)',
+          'no_user': 'User not found in OAuth callback',
+          'unauthorized': 'Unauthorized access',
+          'token_exchange_failed': 'Failed to exchange OAuth code for tokens',
+          'callback_error': 'An error occurred during OAuth callback'
+        };
+        const message = errorMessages[error] || `Connection failed: ${error}`;
+        alert(`Error: ${message}`);
+      }
+      
+      // Clear URL parameters
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('success');
+      newUrl.searchParams.delete('error');
+      router.replace(newUrl.pathname + newUrl.search);
+    }
+  }, [searchParams, user, loading, router]);
+
   // Service name mapping (internal service name -> integration display name)
   const serviceNameMap: Record<string, string> = {
-    'google': 'Google Sheets',
+    'google-sheets': 'Google Sheets',
+    'google-gmail': 'Gmail',
+    'google-calendar': 'Google Calendar',
+    'google-drive': 'Google Drive',
+    'google': 'Google', // Legacy fallback
     'slack': 'Slack',
     'github': 'GitHub',
     'notion': 'Notion',
     'airtable': 'Airtable',
     'trello': 'Trello',
     'openai': 'OpenAI',
+    'twitter': 'Twitter/X',
   };
 
   // Handle connect
   const handleConnect = (serviceName: string) => {
     // OAuth services redirect to OAuth flow
-    const oauthServices = ['google', 'slack', 'github'];
-    if (oauthServices.includes(serviceName)) {
-      window.location.href = `/api/auth/connect/${serviceName}`;
+    // Check if it's a Google service (google-sheets, google-gmail, etc.)
+    const isGoogleService = serviceName.startsWith('google-');
+    const baseService = isGoogleService ? 'google' : serviceName;
+    const oauthServices = ['google', 'slack', 'github', 'notion', 'airtable', 'trello', 'shopify', 'hubspot', 'asana', 'jira'];
+    
+    if (oauthServices.includes(baseService)) {
+      // Shopify requires shop parameter - prompt user for shop domain
+      if (baseService === 'shopify') {
+        const shop = prompt('Enter your Shopify shop domain (e.g., "mystore" or "mystore.myshopify.com"):');
+        if (!shop || !shop.trim()) {
+          return; // User cancelled or didn't enter shop
+        }
+        const url = `/api/auth/connect/${baseService}?shop=${encodeURIComponent(shop.trim())}`;
+        window.location.href = url;
+        return;
+      }
+      
+      // For Google services, pass the specific service name as a query parameter
+      const url = isGoogleService 
+        ? `/api/auth/connect/${baseService}?service=${encodeURIComponent(serviceName)}`
+        : `/api/auth/connect/${serviceName}`;
+      window.location.href = url;
     } else {
       // Credential-based services open dialog
       setSelectedServiceForCredentials(serviceName);
@@ -374,68 +489,43 @@ export default function IntegrationsPage() {
     setCredentialError(null);
 
     try {
-      if (selectedServiceForCredentials === 'trello') {
-        // Trello needs both API key and token
-        if (!credentialInput.trim() || !credentialInput2.trim()) {
-          setCredentialError('Both API key and token are required');
-          setSavingCredential(false);
-          return;
-        }
-
-        // Save API key
-        const keyResponse = await fetch('/api/integrations/store-credential', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            serviceName: 'trello',
-            credentialType: 'api_key',
-            credentialValue: credentialInput.trim()
-          })
-        });
-
-        if (!keyResponse.ok) {
-          const error = await keyResponse.json();
-          throw new Error(error.error || 'Failed to save API key');
-        }
-
-        // Save token
-        const tokenResponse = await fetch('/api/integrations/store-credential', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            serviceName: 'trello',
-            credentialType: 'token',
-            credentialValue: credentialInput2.trim()
-          })
-        });
-
-        if (!tokenResponse.ok) {
-          const error = await tokenResponse.json();
-          throw new Error(error.error || 'Failed to save token');
-        }
+      // Determine credential type based on service
+      let credentialType = 'api_key';
+      if (selectedServiceForCredentials === 'stripe') {
+        credentialType = 'secret_key';
+      } else if (selectedServiceForCredentials === 'openai' || selectedServiceForCredentials === 'sendgrid') {
+        credentialType = 'api_key';
+      } else if (selectedServiceForCredentials === 'discord') {
+        credentialType = 'bot_token';
+      } else if (selectedServiceForCredentials === 'twitter') {
+        credentialType = 'bearer_token';
       } else {
-        // Notion, Airtable use API token, OpenAI uses API key
-        if (!credentialInput.trim()) {
-          setCredentialError(selectedServiceForCredentials === 'openai' ? 'API key is required' : 'Token is required');
-          setSavingCredential(false);
-          return;
-        }
+        credentialType = 'api_token';
+      }
 
-        const credentialType = selectedServiceForCredentials === 'openai' ? 'api_key' : 'api_token';
-        const response = await fetch('/api/integrations/store-credential', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            serviceName: selectedServiceForCredentials,
-            credentialType: credentialType,
-            credentialValue: credentialInput.trim()
-          })
-        });
+      if (!credentialInput.trim()) {
+        const errorMsg = selectedServiceForCredentials === 'stripe' ? 'Secret key is required' 
+          : selectedServiceForCredentials === 'discord' ? 'Bot token is required'
+          : selectedServiceForCredentials === 'twitter' ? 'Bearer token is required'
+          : 'API key is required';
+        setCredentialError(errorMsg);
+        setSavingCredential(false);
+        return;
+      }
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to save token');
-        }
+      const response = await fetch('/api/integrations/store-credential', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serviceName: selectedServiceForCredentials,
+          credentialType: credentialType,
+          credentialValue: credentialInput.trim()
+        })
+      });
+
+      if (!response.ok) {
+        const error = await safeParseJSON(response);
+        throw new Error(error.error || error.message || 'Failed to save API key');
       }
 
       // Close dialog and reload integrations
@@ -445,12 +535,28 @@ export default function IntegrationsPage() {
       // Reload integrations
       const statusResponse = await fetch('/api/integrations/status');
       if (statusResponse.ok) {
-        const data = await statusResponse.json();
+        const data = await safeParseJSON(statusResponse);
+        if (data.error) {
+          throw new Error(data.error);
+        }
         const connectedServices = data.integrations || [];
-        const mappedIntegrations = connectedServices
-          .filter((integration: any) => integration.connected)
+        
+        // Deduplicate by service name (keep first occurrence)
+        const seenServices = new Set<string>();
+        const uniqueServices = connectedServices.filter((integration: any) => {
+          if (!integration.connected || !integration.service) return false;
+          if (seenServices.has(integration.service)) {
+            return false;
+          }
+          seenServices.add(integration.service);
+          return true;
+        });
+        
+        const mappedIntegrations = uniqueServices
           .map((integration: any) => {
             const service = integration.service;
+            if (!service) return null; // Skip if service name is missing
+            
             const matchingIntegration = allIntegrations.find(
               (int) => int.serviceName === service
             );
@@ -471,7 +577,7 @@ export default function IntegrationsPage() {
             
             return {
               id: `connected-${service}`,
-              name: serviceNameMap[service] || service.charAt(0).toUpperCase() + service.slice(1),
+              name: serviceNameMap[service] || (service ? service.charAt(0).toUpperCase() + service.slice(1) : 'Unknown Integration'),
               description: 'Connected integration',
               icon: Plug,
               gradient: 'from-gray-500/20 to-slate-500/20',
@@ -479,7 +585,8 @@ export default function IntegrationsPage() {
               status: 'active',
               serviceName: service
             };
-          });
+          })
+          .filter((integration: any) => integration !== null);
         setConfiguredIntegrations(mappedIntegrations);
       }
     } catch (error: any) {
@@ -491,27 +598,31 @@ export default function IntegrationsPage() {
   };
 
   const getCredentialPlaceholder = () => {
-    if (selectedServiceForCredentials === 'notion') {
-      return 'secret_... or ntn_...';
-    } else if (selectedServiceForCredentials === 'airtable') {
-      return 'pat...';
-    } else if (selectedServiceForCredentials === 'trello') {
-      return 'API Key';
-    } else if (selectedServiceForCredentials === 'openai') {
+    if (selectedServiceForCredentials === 'openai') {
       return 'sk-...';
+    } else if (selectedServiceForCredentials === 'stripe') {
+      return 'sk_live_... or sk_test_...';
+    } else if (selectedServiceForCredentials === 'sendgrid') {
+      return 'SG....';
+    } else if (selectedServiceForCredentials === 'discord') {
+      return 'MTIzNDU2Nzg5MDEyMzQ1Njc4OTA.Xxxxxx...';
+    } else if (selectedServiceForCredentials === 'twitter') {
+      return 'AAAAAAAAAAAAAAAAAAAAA... (Bearer Token)';
     }
     return 'Enter your API token';
   };
 
   const getCredentialLabel = () => {
-    if (selectedServiceForCredentials === 'notion') {
-      return 'Notion API Token';
-    } else if (selectedServiceForCredentials === 'airtable') {
-      return 'Airtable Personal Access Token';
-    } else if (selectedServiceForCredentials === 'trello') {
-      return 'Trello API Key';
-    } else if (selectedServiceForCredentials === 'openai') {
+    if (selectedServiceForCredentials === 'openai') {
       return 'OpenAI API Key';
+    } else if (selectedServiceForCredentials === 'stripe') {
+      return 'Stripe Secret Key';
+    } else if (selectedServiceForCredentials === 'sendgrid') {
+      return 'SendGrid API Key';
+    } else if (selectedServiceForCredentials === 'discord') {
+      return 'Discord Bot Token';
+    } else if (selectedServiceForCredentials === 'twitter') {
+      return 'Twitter Bearer Token';
     }
     return 'API Token';
   };
@@ -520,6 +631,7 @@ export default function IntegrationsPage() {
   const handleDisconnect = async (serviceName: string) => {
     if (!serviceName) return;
     
+    console.log('[IntegrationsPage] Disconnecting:', serviceName);
     setDisconnectingService(serviceName);
     try {
       const response = await fetch('/api/integrations/disconnect', {
@@ -529,52 +641,19 @@ export default function IntegrationsPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to disconnect');
+        const error = await safeParseJSON(response);
+        console.error('[IntegrationsPage] Disconnect error:', error);
+        throw new Error(error.error || error.message || 'Failed to disconnect');
       }
 
-      // Reload integrations
-      const statusResponse = await fetch('/api/integrations/status');
-      if (statusResponse.ok) {
-        const data = await statusResponse.json();
-        const connectedServices = data.integrations || [];
-        const mappedIntegrations = connectedServices
-          .filter((integration: any) => integration.connected)
-          .map((integration: any) => {
-            const service = integration.service;
-            const matchingIntegration = allIntegrations.find(
-              (int) => int.serviceName === service
-            );
-            
-            if (matchingIntegration) {
-              return {
-                id: `connected-${service}`,
-                name: matchingIntegration.name,
-                description: matchingIntegration.description,
-                icon: matchingIntegration.icon,
-                slug: matchingIntegration.slug,
-                gradient: matchingIntegration.gradient,
-                iconColor: matchingIntegration.iconColor,
-                status: 'active',
-                serviceName: service
-              };
-            }
-            
-            return {
-              id: `connected-${service}`,
-              name: serviceNameMap[service] || service.charAt(0).toUpperCase() + service.slice(1),
-              description: 'Connected integration',
-              icon: Plug,
-              gradient: 'from-gray-500/20 to-slate-500/20',
-              iconColor: 'text-gray-400',
-              status: 'active',
-              serviceName: service
-            };
-          });
-        setConfiguredIntegrations(mappedIntegrations);
-      }
+      console.log('[IntegrationsPage] Disconnect successful, reloading integrations...');
+      
+      // Reload integrations by calling loadIntegrations
+      await loadIntegrations();
+      
+      console.log('[IntegrationsPage] Integrations reloaded after disconnect');
     } catch (error: any) {
-      console.error('Error disconnecting integration:', error);
+      console.error('[IntegrationsPage] Error disconnecting integration:', error);
       alert(error.message || 'Failed to disconnect integration');
     } finally {
       setDisconnectingService(null);
@@ -598,92 +677,95 @@ export default function IntegrationsPage() {
               </h1>
             </div>
 
-            {/* Configured Integrations - Only show if there are configured integrations */}
-            {!integrationsLoading && configuredIntegrations.length > 0 && (
-              <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
-                <div className="mb-6">
-                  <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">
-                    Configured Integrations
-                  </h2>
-                  <p className="text-sm md:text-base text-muted-foreground mt-2">
-                    Your active integrations and connections
-                  </p>
-                </div>
+            {/* Configured Integrations - Always show, even if empty */}
+            <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
+              <div className="mb-6">
+                <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">
+                  Configured Integrations
+                </h2>
+                <p className="text-sm md:text-base text-muted-foreground mt-2">
+                  Your active integrations and connections
+                </p>
+              </div>
 
-                <div>
-                  {integrationsLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-sm text-muted-foreground">Loading integrations...</div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                      {configuredIntegrations.map((integration) => {
-                        const Icon = integration.icon;
-                        const serviceName = (integration as any).serviceName;
-                        return (
-                          <div
-                            key={integration.id}
-                            className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg"
-                          >
-                            <div className="flex items-start gap-4">
-                              <div className="shrink-0">
-                                {(integration as any).slug ? (
-                                  <div className="p-2">
-                                    <img 
-                                      src={getLogoUrl((integration as any).slug)} 
-                                      alt={integration.name} 
-                                      className={`h-8 w-8 object-contain ${
-                                        !usesBrandfetch((integration as any).slug) && darkLogos.includes((integration as any).slug) ? 'dark:brightness-0 dark:invert' : ''
-                                      } ${
-                                        !usesBrandfetch((integration as any).slug) && lightModeBlackLogos.includes((integration as any).slug) ? 'brightness-0' : ''
-                                      }`} 
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-3`}>
-                                    <Icon className={`h-6 w-6 ${integration.iconColor}`} />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="space-y-1">
-                                <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
-                                <p className="text-xs text-muted-foreground">{integration.description}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="mt-4 flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
-                                <Check className="h-3 w-3" />
-                                <span>Connected</span>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => serviceName && handleDisconnect(serviceName)}
-                                disabled={disconnectingService === serviceName}
-                                className="h-7 px-2 text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/20"
-                              >
-                                {disconnectingService === serviceName ? (
-                                  <>
-                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                    Disconnecting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <X className="h-3 w-3 mr-1" />
-                                    Disconnect
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+              {integrationsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-sm text-muted-foreground">Loading integrations...</div>
                 </div>
-              </section>
-            )}
+              ) : configuredIntegrations.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {configuredIntegrations.map((integration) => {
+                    const Icon = integration.icon;
+                    const serviceName = (integration as any).serviceName;
+                    return (
+                      <div
+                        key={integration.id}
+                        className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-6 transition-all duration-300 text-foreground hover:shadow-lg"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="shrink-0">
+                            {(integration as any).slug ? (
+                              <div className="p-2">
+                                <img 
+                                  src={getLogoUrl((integration as any).slug)} 
+                                  alt={integration.name} 
+                                  className={`h-8 w-8 object-contain ${
+                                    !usesBrandfetch((integration as any).slug) && darkLogos.includes((integration as any).slug) ? 'dark:brightness-0 dark:invert' : ''
+                                  } ${
+                                    !usesBrandfetch((integration as any).slug) && lightModeBlackLogos.includes((integration as any).slug) ? 'brightness-0' : ''
+                                  }`} 
+                                />
+                              </div>
+                            ) : (
+                              <div className={`rounded-md bg-gradient-to-br ${integration.gradient} p-3`}>
+                                <Icon className={`h-6 w-6 ${integration.iconColor}`} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <h3 className="text-sm font-semibold text-foreground">{integration.name}</h3>
+                            <p className="text-xs text-muted-foreground">{integration.description}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4 flex items-center justify-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => serviceName && handleDisconnect(serviceName)}
+                            disabled={disconnectingService === serviceName}
+                            className="w-full h-8 text-xs border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 hover:border-red-300 dark:hover:border-red-800/50"
+                          >
+                            {disconnectingService === serviceName ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                Disconnecting...
+                              </>
+                            ) : (
+                              'Disconnect'
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-8">
+                  <div className="flex flex-col items-center justify-center text-center space-y-3">
+                    <div className="p-3 rounded-full bg-muted/50 dark:bg-gray-500/20">
+                      <Plug className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground mb-1">No configured integrations</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Connect your first integration below to get started
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
 
             {/* Discover Integrations */}
             <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
@@ -784,47 +866,18 @@ export default function IntegrationsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {selectedServiceForCredentials === 'trello' ? (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Trello API Key
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="Enter your Trello API Key"
-                    value={credentialInput}
-                    onChange={(e) => setCredentialInput(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Trello Token
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="Enter your Trello Token"
-                    value={credentialInput2}
-                    onChange={(e) => setCredentialInput2(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  {getCredentialLabel()}
-                </label>
-                <Input
-                  type="text"
-                  placeholder={getCredentialPlaceholder()}
-                  value={credentialInput}
-                  onChange={(e) => setCredentialInput(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                {getCredentialLabel()}
+              </label>
+              <Input
+                type="text"
+                placeholder={getCredentialPlaceholder()}
+                value={credentialInput}
+                onChange={(e) => setCredentialInput(e.target.value)}
+                className="w-full"
+              />
+            </div>
             {credentialError && (
               <div className="text-sm text-red-600 dark:text-red-400">
                 {credentialError}
@@ -891,5 +944,30 @@ export default function IntegrationsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function IntegrationsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-screen bg-background">
+        <CollapsibleSidebar />
+        <div className="flex-1 flex-col overflow-hidden">
+          <BlankHeader />
+          <main className="flex h-full grow flex-col overflow-auto relative scrollbar-hide">
+            <div className="relative pb-12">
+              <div className="relative z-10 px-4 sm:px-6 lg:px-8 pb-4">
+                <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight mt-7 mb-8">
+                  Integrations
+                </h1>
+                <div className="text-sm text-muted-foreground">Loading...</div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    }>
+      <IntegrationsPageContent />
+    </Suspense>
   );
 }

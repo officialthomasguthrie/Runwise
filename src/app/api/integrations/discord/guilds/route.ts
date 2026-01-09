@@ -22,7 +22,16 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({ guilds });
   } catch (error: any) {
-    console.error('Error fetching Discord guilds:', error);
+    console.error('[API /discord/guilds] Error fetching Discord guilds:', error);
+    
+    // Check if it's an authentication error
+    if (error.message?.includes('invalid') || error.message?.includes('expired') || error.message?.includes('401')) {
+      return NextResponse.json(
+        { error: 'Discord token is invalid or expired. Please reconnect your Discord account.', code: 'NOT_CONNECTED' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       { error: error.message || 'Failed to fetch guilds' },
       { status: 500 }

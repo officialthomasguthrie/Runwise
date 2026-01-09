@@ -2,7 +2,7 @@
  * Notion Integration API Client
  */
 
-import { getIntegrationCredential } from './service';
+import { getIntegrationCredential, getUserIntegration } from './service';
 
 export interface NotionDatabase {
   id: string;
@@ -12,12 +12,25 @@ export interface NotionDatabase {
 
 /**
  * Get authenticated Notion API token
+ * Supports both OAuth (preferred) and API token (backward compatibility)
  */
 async function getNotionToken(userId: string): Promise<string> {
+  // Try OAuth token first (new method)
+  try {
+    const oauthIntegration = await getUserIntegration(userId, 'notion');
+    if (oauthIntegration && oauthIntegration.access_token) {
+      return oauthIntegration.access_token;
+    }
+  } catch (error) {
+    // OAuth not available, fall back to API token
+    console.log('[Notion] OAuth token not found, trying API token...');
+  }
+  
+  // Fall back to API token (backward compatibility)
   const token = await getIntegrationCredential(userId, 'notion', 'api_token');
   
   if (!token) {
-    throw new Error('Notion integration not connected. Please provide your Notion API token.');
+    throw new Error('Notion integration not connected. Please connect your Notion account via OAuth or provide an API token.');
   }
   
   return token;

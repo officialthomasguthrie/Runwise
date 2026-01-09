@@ -42,11 +42,11 @@ export const Process: React.FC = () => {
         </div>
 
         <h3 className="text-[28px] md:text-[50px] font-medium leading-[1.2em] tracking-tight mt-[25px]">
-          Your path to excellence
+          From prompt to production
         </h3>
 
         <p className="text-base md:text-lg text-[#ffffffcc] leading-[1.4em] font-normal mt-2.5">
-          A simple, effective approach to deliver excellence.
+          Generated, validated, and deployed automatically.
         </p>
       </motion.div>
 

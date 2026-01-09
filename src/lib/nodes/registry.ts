@@ -15,17 +15,14 @@ const getAuthToken = (context: ExecutionContext, service: string): string => {
 // ============================================================================
 
 const sendEmailExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { apiKey, to, subject, body, from, cc, bcc } = config;
+  const { to, subject, body, from, cc, bcc } = config;
   
-  // Try to use integration first, fall back to API key
-  let sendGridApiKey = apiKey;
-  if (!sendGridApiKey) {
-    const { getIntegrationCredential } = await import('@/lib/integrations/service');
-    sendGridApiKey = await getIntegrationCredential(context.userId, 'sendgrid', 'api_key');
-  }
+  // Get API key from integration
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const sendGridApiKey = await getIntegrationCredential(context.userId, 'sendgrid', 'api_key');
   
   if (!sendGridApiKey) {
-    throw new Error('SendGrid API key required. Please connect your SendGrid account or provide an API key.');
+    throw new Error('SendGrid API key required. Please connect your SendGrid account.');
   }
   
   // Use SendGrid integration client
@@ -123,11 +120,15 @@ const postToSlackChannelExecute = async (inputData: any, config: any, context: E
 };
 
 const sendDiscordMessageExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { webhookUrl, channelId, message, embeds } = config;
+  const { channelId, message, embeds } = config;
   
   // Validate required fields
   if (!message) {
     throw new Error('Message is required');
+  }
+  
+  if (!channelId) {
+    throw new Error('Channel is required. Please select a Discord channel.');
   }
   
   // Parse embeds if it's a JSON string
@@ -140,28 +141,7 @@ const sendDiscordMessageExecute = async (inputData: any, config: any, context: E
     }
   }
   
-  // If webhook URL is provided, use webhook (legacy support)
-  if (webhookUrl) {
-  const response = await context.http.post(
-    webhookUrl,
-    {
-      content: message,
-      embeds: parsedEmbeds,
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-  return { success: true, ...response };
-  }
-  
-  // Otherwise, use Discord API with integration
-  if (!channelId) {
-    throw new Error('Either webhook URL or channel ID is required');
-  }
-  
+  // Use Discord API with integration
   const { sendDiscordMessage } = await import('@/lib/integrations/discord');
   const result = await sendDiscordMessage(context.userId, channelId, {
     content: message,
@@ -278,25 +258,20 @@ const createCalendarEventExecute = async (inputData: any, config: any, context: 
 };
 
 const sendSmsViaTwilioExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { accountSid, authToken, to, message, from } = config;
+  const { to, message, from } = config;
   
   // Validate required fields
   if (!to || !from || !message) {
     throw new Error('To, From, and Message are required');
   }
   
-  // Try to use integration first, fall back to config
-  let twilioAccountSid = accountSid;
-  let twilioAuthToken = authToken;
+  // Get credentials from integration
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const twilioAccountSid = await getIntegrationCredential(context.userId, 'twilio', 'account_sid');
+  const twilioAuthToken = await getIntegrationCredential(context.userId, 'twilio', 'auth_token');
   
   if (!twilioAccountSid || !twilioAuthToken) {
-    const { getIntegrationCredential } = await import('@/lib/integrations/service');
-    twilioAccountSid = twilioAccountSid || await getIntegrationCredential(context.userId, 'twilio', 'account_sid');
-    twilioAuthToken = twilioAuthToken || await getIntegrationCredential(context.userId, 'twilio', 'auth_token');
-  }
-  
-  if (!twilioAccountSid || !twilioAuthToken) {
-    throw new Error('Twilio credentials required. Please connect your Twilio account or provide Account SID and Auth Token.');
+    throw new Error('Twilio credentials required. Please connect your Twilio account.');
   }
   
   // Use Twilio integration client
@@ -365,12 +340,12 @@ const postToXExecute = async (inputData: any, config: any, context: ExecutionCon
 
 const newFormSubmissionExecute = async (inputData: any, config: any, context: ExecutionContext) => {
   // This is a trigger, so it polls for new submissions
-  const { apiKey, formId, pollInterval } = config;
+  const { formId, pollInterval } = config;
   const lastCheck = config.lastCheck || new Date().toISOString();
   
-  const accessToken = context.auth?.google?.token || apiKey || getAuthToken(context, 'google');
+  const accessToken = context.auth?.google?.token || getAuthToken(context, 'google');
   if (!accessToken) {
-    throw new Error('Google access token required. Please connect your Google account or provide an API key.');
+    throw new Error('Google access token required. Please connect your Google Forms integration.');
   }
   
   const response = await context.http.get(
@@ -541,33 +516,6 @@ const newGitHubIssueExecute = async (inputData: any, config: any, context: Execu
   return { issues: response, count: response.length };
 };
 
-const newStripePaymentExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  // Webhook-based trigger for Stripe payments
-  // inputData comes from Stripe webhook event
-  return {
-    payment: inputData,
-    chargeId: inputData.id || inputData.charge?.id,
-    amount: inputData.amount || inputData.amount_captured,
-    currency: inputData.currency || 'usd',
-    status: inputData.status || inputData.payment_status,
-    customerId: inputData.customer,
-    metadata: inputData.metadata || {},
-    ...inputData
-  };
-};
-
-const newPayPalPaymentExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  // Webhook-based trigger for PayPal payments
-  // inputData comes from PayPal webhook event
-  return {
-    payment: inputData,
-    paymentId: inputData.id || inputData.resource?.id,
-    amount: inputData.amount || inputData.resource?.amount?.value,
-    currency: inputData.currency || inputData.resource?.amount?.currency || 'USD',
-    status: inputData.status || inputData.resource?.status,
-    ...inputData
-  };
-};
 
 const fileUploadedExecute = async (inputData: any, config: any, context: ExecutionContext) => {
   const { apiKey, driveId, folderId, lastCheck } = config;
@@ -600,8 +548,16 @@ const delayExecutionExecute = async (inputData: any, config: any, context: Execu
 };
 
 const generateSummaryWithAiExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { apiKey, text, maxLength } = config;
+  const { text, maxLength } = config;
   const inputText = text || String(inputData);
+  
+  // Get OpenAI API key from integration credentials
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const apiKey = await getIntegrationCredential(context.userId, 'openai', 'api_key');
+  
+  if (!apiKey) {
+    throw new Error('OpenAI API key required. Please connect your OpenAI account.');
+  }
   
   // Call OpenAI API for summarization
   const response = await context.http.post(
@@ -619,7 +575,7 @@ const generateSummaryWithAiExecute = async (inputData: any, config: any, context
     },
     {
       headers: {
-        'Authorization': `Bearer ${apiKey || getAuthToken(context, 'openai')}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
     }
@@ -635,8 +591,9 @@ const generateSummaryWithAiExecute = async (inputData: any, config: any, context
 const generateAiContentExecute = async (inputData: any, config: any, context: ExecutionContext) => {
   const { prompt } = config;
   
-  // Use integration API key from context, fallback to getAuthToken
-  const apiKey = context.auth?.openai?.apiKey || getAuthToken(context, 'openai');
+  // Get OpenAI API key from integration credentials
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const apiKey = await getIntegrationCredential(context.userId, 'openai', 'api_key');
   
   if (!apiKey) {
     throw new Error('OpenAI API key required. Please connect your OpenAI account.');
@@ -1582,7 +1539,10 @@ const classifyTextExecute = async (inputData: any, config: any, context: Executi
 
   const classificationPrompt = prompt || `Classify the following text into one of these categories: ${categoriesStr}. Return only the category name and a confidence score from 0 to 1. Format: {"category": "category_name", "confidence": 0.95}`;
 
-  const apiKey = context.auth?.openai?.apiKey || getAuthToken(context, 'openai');
+  // Get OpenAI API key from integration credentials
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const apiKey = await getIntegrationCredential(context.userId, 'openai', 'api_key');
+  
   if (!apiKey) {
     throw new Error('OpenAI API key required. Please connect your OpenAI account.');
   }
@@ -1637,7 +1597,10 @@ const extractEntitiesExecute = async (inputData: any, config: any, context: Exec
 
   const typesStr = typesList.join(', ');
 
-  const apiKey = context.auth?.openai?.apiKey || getAuthToken(context, 'openai');
+  // Get OpenAI API key from integration credentials
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const apiKey = await getIntegrationCredential(context.userId, 'openai', 'api_key');
+  
   if (!apiKey) {
     throw new Error('OpenAI API key required. Please connect your OpenAI account.');
   }
@@ -1691,7 +1654,10 @@ const sentimentAnalysisExecute = async (inputData: any, config: any, context: Ex
   
   const inputText = text || (typeof inputData === 'string' ? inputData : JSON.stringify(inputData));
 
-  const apiKey = context.auth?.openai?.apiKey || getAuthToken(context, 'openai');
+  // Get OpenAI API key from integration credentials
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const apiKey = await getIntegrationCredential(context.userId, 'openai', 'api_key');
+  
   if (!apiKey) {
     throw new Error('OpenAI API key required. Please connect your OpenAI account.');
   }
@@ -1747,7 +1713,10 @@ const translateTextExecute = async (inputData: any, config: any, context: Execut
 
   const inputText = text || (typeof inputData === 'string' ? inputData : JSON.stringify(inputData));
 
-  const apiKey = context.auth?.openai?.apiKey || getAuthToken(context, 'openai');
+  // Get OpenAI API key from integration credentials
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const apiKey = await getIntegrationCredential(context.userId, 'openai', 'api_key');
+  
   if (!apiKey) {
     throw new Error('OpenAI API key required. Please connect your OpenAI account.');
   }
@@ -2871,15 +2840,18 @@ const waitForWebhookExecute = async (inputData: any, config: any, context: Execu
 
 // 23. Generate Image (DALL-E)
 const generateImageExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { prompt, size = '1024x1024', style, quality = 'standard', apiKey } = config;
+  const { prompt, size = '1024x1024', style, quality = 'standard' } = config;
   
   if (!prompt) {
     throw new Error('Prompt is required');
   }
 
-  const openaiApiKey = apiKey || context.auth?.openai?.apiKey || getAuthToken(context, 'openai');
+  // Get OpenAI API key from integration credentials
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const openaiApiKey = await getIntegrationCredential(context.userId, 'openai', 'api_key');
+  
   if (!openaiApiKey) {
-    throw new Error('OpenAI API key required. Please connect your OpenAI account or provide an API key.');
+    throw new Error('OpenAI API key required. Please connect your OpenAI account.');
   }
 
   const response = await context.http.post(
@@ -2911,15 +2883,18 @@ const generateImageExecute = async (inputData: any, config: any, context: Execut
 
 // 24. Image Recognition (GPT-4 Vision)
 const imageRecognitionExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { imageContent, imageUrl, task, maxResults = 10, apiKey } = config;
+  const { imageContent, imageUrl, task, maxResults = 10 } = config;
   
   if (!imageContent && !imageUrl && !inputData) {
     throw new Error('Image content, image URL, or input data is required');
   }
 
-  const openaiApiKey = apiKey || context.auth?.openai?.apiKey || getAuthToken(context, 'openai');
+  // Get OpenAI API key from integration credentials
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const openaiApiKey = await getIntegrationCredential(context.userId, 'openai', 'api_key');
+  
   if (!openaiApiKey) {
-    throw new Error('OpenAI API key required. Please connect your OpenAI account or provide an API key.');
+    throw new Error('OpenAI API key required. Please connect your OpenAI account.');
   }
 
   // Determine image source
@@ -3014,7 +2989,7 @@ const imageRecognitionExecute = async (inputData: any, config: any, context: Exe
 
 // 25. Text to Speech (OpenAI TTS)
 const textToSpeechExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { text, voice = 'alloy', speed = 1.0, format = 'mp3', apiKey } = config;
+  const { text, voice = 'alloy', speed = 1.0, format = 'mp3' } = config;
   
   const inputText = text || (typeof inputData === 'string' ? inputData : JSON.stringify(inputData));
   
@@ -3022,9 +2997,12 @@ const textToSpeechExecute = async (inputData: any, config: any, context: Executi
     throw new Error('Text is required');
   }
 
-  const openaiApiKey = apiKey || context.auth?.openai?.apiKey || getAuthToken(context, 'openai');
+  // Get OpenAI API key from integration credentials
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const openaiApiKey = await getIntegrationCredential(context.userId, 'openai', 'api_key');
+  
   if (!openaiApiKey) {
-    throw new Error('OpenAI API key required. Please connect your OpenAI account or provide an API key.');
+    throw new Error('OpenAI API key required. Please connect your OpenAI account.');
   }
 
   // Validate voice
@@ -3078,7 +3056,7 @@ const textToSpeechExecute = async (inputData: any, config: any, context: Executi
 
 // 26. Speech to Text (OpenAI Whisper)
 const speechToTextExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { audioContent, audioUrl, language = 'auto', responseFormat = 'text', apiKey } = config;
+  const { audioContent, audioUrl, language = 'auto', responseFormat = 'text' } = config;
   
   // Determine audio source
   let audioData = audioContent || audioUrl;
@@ -3094,9 +3072,12 @@ const speechToTextExecute = async (inputData: any, config: any, context: Executi
     throw new Error('Audio content, audio URL, or input data is required');
   }
 
-  const openaiApiKey = apiKey || context.auth?.openai?.apiKey || getAuthToken(context, 'openai');
+  // Get OpenAI API key from integration credentials
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const openaiApiKey = await getIntegrationCredential(context.userId, 'openai', 'api_key');
+  
   if (!openaiApiKey) {
-    throw new Error('OpenAI API key required. Please connect your OpenAI account or provide an API key.');
+    throw new Error('OpenAI API key required. Please connect your OpenAI account.');
   }
 
   // Use native FormData (Node 18+ has native FormData support)
@@ -3190,7 +3171,6 @@ export const nodeRegistry: NodeRegistry = {
       { name: 'messageId', type: 'string', description: 'Message ID from email service' },
     ],
     configSchema: {
-      apiKey: { type: 'string', label: 'SendGrid API Key', description: 'Optional: SendGrid API key (or connect SendGrid account in settings)', required: false },
       to: { type: 'string', label: 'To', description: 'Recipient email address (e.g., user@example.com)', required: true },
       subject: { type: 'string', label: 'Subject', description: 'Email subject line', required: true },
       body: { type: 'textarea', label: 'Body', description: 'Email body content (HTML supported)', required: true },
@@ -3264,8 +3244,8 @@ export const nodeRegistry: NodeRegistry = {
       { name: 'success', type: 'boolean', description: 'Whether message was sent' },
     ],
     configSchema: {
-      webhookUrl: { type: 'string', label: 'Webhook URL', description: 'Optional: Discord webhook URL (or use channel selection below)', required: false },
-      channelId: { type: 'string', label: 'Channel', description: 'Select a Discord channel (or use webhook URL above)', required: false, serviceName: 'discord', resourceType: 'channel' },
+      guildId: { type: 'string', label: 'Server', description: 'Select a Discord server', required: true, serviceName: 'discord', resourceType: 'guild' },
+      channelId: { type: 'string', label: 'Channel', description: 'Select a Discord channel', required: true, serviceName: 'discord', resourceType: 'channel' },
       message: { type: 'textarea', label: 'Message', description: 'Message content to send', required: true },
       embeds: { type: 'textarea', label: 'Embeds', description: 'Discord embed objects (JSON format, optional)', required: false },
     },
@@ -3374,8 +3354,6 @@ export const nodeRegistry: NodeRegistry = {
       { name: 'status', type: 'string', description: 'Message status' },
     ],
     configSchema: {
-      accountSid: { type: 'string', label: 'Account SID', description: 'Optional: Twilio Account SID (or connect Twilio account in settings)', required: false },
-      authToken: { type: 'string', label: 'Auth Token', description: 'Optional: Twilio Auth Token (or connect Twilio account in settings)', required: false },
       to: { type: 'string', label: 'To', description: 'Recipient phone number (E.164 format, e.g., +1234567890)', required: true },
       message: { type: 'textarea', label: 'Message', description: 'SMS message text (max 1600 characters)', required: true },
       from: { type: 'string', label: 'From', description: 'Your Twilio phone number (E.164 format, e.g., +1234567890)', required: true },
@@ -3440,119 +3418,6 @@ export const nodeRegistry: NodeRegistry = {
     code: postToXExecute.toString(),
   },
   
-  'create-stripe-customer': {
-    id: 'create-stripe-customer',
-    name: 'Create Stripe Customer',
-    type: 'action',
-    description: 'Creates a new customer in Stripe.',
-    icon: 'CreditCard',
-    category: 'payment',
-    inputs: [
-      { name: 'data', type: 'object', description: 'Input data from previous node' },
-    ],
-    outputs: [
-      { name: 'customerId', type: 'string', description: 'Stripe customer ID' },
-      { name: 'email', type: 'string', description: 'Customer email' },
-      { name: 'name', type: 'string', description: 'Customer name' },
-    ],
-    configSchema: {
-      apiKey: { type: 'string', label: 'Stripe Secret Key', description: 'Optional: Stripe Secret Key (or connect Stripe account in settings)', required: false },
-      email: { type: 'string', label: 'Email', description: 'Customer email address', required: false },
-      name: { type: 'string', label: 'Name', description: 'Customer name', required: false },
-    },
-    execute: async (inputData: any, config: any, context: ExecutionContext) => {
-      const { apiKey, email, name } = config;
-      
-      // Try to use integration first
-      let stripeApiKey = apiKey;
-      if (!stripeApiKey) {
-        const { getIntegrationCredential } = await import('@/lib/integrations/service');
-        stripeApiKey = await getIntegrationCredential(context.userId, 'stripe', 'secret_key');
-      }
-      
-      if (!stripeApiKey) {
-        throw new Error('Stripe Secret Key required. Please connect your Stripe account or provide a Secret Key.');
-      }
-      
-      const { createCustomer } = await import('@/lib/integrations/stripe');
-      const result = await createCustomer(context.userId, {
-        email,
-        name
-      });
-      
-      return { customerId: result.id, email: result.email, name: result.name };
-    },
-    code: (async (inputData: any, config: any, context: ExecutionContext) => {
-      const { apiKey, email, name } = config;
-      const { getIntegrationCredential } = await import('@/lib/integrations/service');
-      let stripeApiKey = apiKey || await getIntegrationCredential(context.userId, 'stripe', 'secret_key');
-      if (!stripeApiKey) throw new Error('Stripe Secret Key required');
-      const { createCustomer } = await import('@/lib/integrations/stripe');
-      const result = await createCustomer(context.userId, { email, name });
-      return { customerId: result.id, email: result.email, name: result.name };
-    }).toString(),
-  },
-  
-  'create-stripe-charge': {
-    id: 'create-stripe-charge',
-    name: 'Create Stripe Charge',
-    type: 'action',
-    description: 'Creates a charge in Stripe.',
-    icon: 'CreditCard',
-    category: 'payment',
-    inputs: [
-      { name: 'data', type: 'object', description: 'Input data from previous node' },
-    ],
-    outputs: [
-      { name: 'chargeId', type: 'string', description: 'Stripe charge ID' },
-      { name: 'amount', type: 'number', description: 'Charge amount (in cents)' },
-      { name: 'currency', type: 'string', description: 'Currency code' },
-      { name: 'status', type: 'string', description: 'Charge status' },
-    ],
-    configSchema: {
-      apiKey: { type: 'string', label: 'Stripe Secret Key', description: 'Optional: Stripe Secret Key (or connect Stripe account in settings)', required: false },
-      amount: { type: 'number', label: 'Amount', description: 'Charge amount in cents (e.g., 1000 = $10.00)', required: true },
-      currency: { type: 'string', label: 'Currency', description: 'Currency code (e.g., usd, eur)', required: true },
-      customer: { type: 'string', label: 'Customer ID', description: 'Stripe customer ID (optional)', required: false },
-      source: { type: 'string', label: 'Source', description: 'Card token or source ID (optional)', required: false },
-      description: { type: 'string', label: 'Description', description: 'Charge description (optional)', required: false },
-    },
-    execute: async (inputData: any, config: any, context: ExecutionContext) => {
-      const { apiKey, amount, currency, customer, source, description } = config;
-      
-      // Try to use integration first
-      let stripeApiKey = apiKey;
-      if (!stripeApiKey) {
-        const { getIntegrationCredential } = await import('@/lib/integrations/service');
-        stripeApiKey = await getIntegrationCredential(context.userId, 'stripe', 'secret_key');
-      }
-      
-      if (!stripeApiKey) {
-        throw new Error('Stripe Secret Key required. Please connect your Stripe account or provide a Secret Key.');
-      }
-      
-      const { createCharge } = await import('@/lib/integrations/stripe');
-      const result = await createCharge(context.userId, {
-        amount,
-        currency,
-        customer,
-        source,
-        description
-      });
-      
-      return { chargeId: result.id, amount: result.amount, currency: result.currency, status: result.status };
-    },
-    code: (async (inputData: any, config: any, context: ExecutionContext) => {
-      const { apiKey, amount, currency, customer, source, description } = config;
-      const { getIntegrationCredential } = await import('@/lib/integrations/service');
-      let stripeApiKey = apiKey || await getIntegrationCredential(context.userId, 'stripe', 'secret_key');
-      if (!stripeApiKey) throw new Error('Stripe Secret Key required');
-      const { createCharge } = await import('@/lib/integrations/stripe');
-      const result = await createCharge(context.userId, { amount, currency, customer, source, description });
-      return { chargeId: result.id, amount: result.amount, currency: result.currency, status: result.status };
-    }).toString(),
-  },
-  
   // TRIGGER NODES
   'new-form-submission': {
     id: 'new-form-submission',
@@ -3575,7 +3440,6 @@ export const nodeRegistry: NodeRegistry = {
         integrationType: 'google',
         resourceType: 'form'
       },
-      apiKey: { type: 'string', label: 'Google API Key', description: 'Optional: Google Cloud API key (or connect Google account above)', required: false },
       pollInterval: { type: 'number', label: 'Poll Interval', description: 'Polling interval in seconds (default: 60)', required: false, default: 60 },
     },
     execute: newFormSubmissionExecute,
@@ -3657,7 +3521,7 @@ export const nodeRegistry: NodeRegistry = {
     id: 'new-discord-message',
     name: 'New Discord Message',
     type: 'trigger',
-    description: 'Triggers when a new message is received via Discord webhook.',
+    description: 'Triggers when a new message is received in a Discord channel.',
     icon: 'MessageCircle',
     category: 'trigger',
     inputs: [],
@@ -3665,7 +3529,8 @@ export const nodeRegistry: NodeRegistry = {
       { name: 'message', type: 'object', description: 'Discord message data' },
     ],
     configSchema: {
-      webhookUrl: { type: 'string', label: 'Webhook URL', description: 'Discord webhook URL', required: true },
+      guildId: { type: 'string', label: 'Server', description: 'Select a Discord server', required: true, serviceName: 'discord', resourceType: 'guild' },
+      channelId: { type: 'string', label: 'Channel', description: 'Select a Discord channel to monitor', required: true, serviceName: 'discord', resourceType: 'channel' },
     },
     execute: newDiscordMessageExecute,
     code: newDiscordMessageExecute.toString(),
@@ -3728,52 +3593,6 @@ export const nodeRegistry: NodeRegistry = {
     },
     execute: newGitHubIssueExecute,
     code: newGitHubIssueExecute.toString(),
-  },
-  
-  'new-stripe-payment': {
-    id: 'new-stripe-payment',
-    name: 'New Stripe Payment',
-    type: 'trigger',
-    description: 'Triggers when a new payment is completed in Stripe.',
-    icon: 'CreditCard',
-    category: 'trigger',
-    inputs: [],
-    outputs: [
-      { name: 'payment', type: 'object', description: 'Stripe payment data' },
-      { name: 'chargeId', type: 'string', description: 'Stripe charge ID' },
-      { name: 'amount', type: 'number', description: 'Payment amount (in cents)' },
-      { name: 'currency', type: 'string', description: 'Currency code' },
-      { name: 'status', type: 'string', description: 'Payment status' },
-      { name: 'customerId', type: 'string', description: 'Stripe customer ID' },
-      { name: 'metadata', type: 'object', description: 'Payment metadata' },
-    ],
-    configSchema: {
-      webhookUrl: { type: 'string', label: 'Webhook URL', description: 'Stripe webhook URL (auto-generated when workflow is saved)', required: false },
-    },
-    execute: newStripePaymentExecute,
-    code: newStripePaymentExecute.toString(),
-  },
-  
-  'new-paypal-payment': {
-    id: 'new-paypal-payment',
-    name: 'New PayPal Payment',
-    type: 'trigger',
-    description: 'Triggers when a new payment is completed in PayPal.',
-    icon: 'CreditCard',
-    category: 'trigger',
-    inputs: [],
-    outputs: [
-      { name: 'payment', type: 'object', description: 'PayPal payment data' },
-      { name: 'paymentId', type: 'string', description: 'PayPal payment ID' },
-      { name: 'amount', type: 'number', description: 'Payment amount' },
-      { name: 'currency', type: 'string', description: 'Currency code' },
-      { name: 'status', type: 'string', description: 'Payment status' },
-    ],
-    configSchema: {
-      webhookUrl: { type: 'string', label: 'Webhook URL', description: 'PayPal webhook URL (auto-generated when workflow is saved)', required: false },
-    },
-    execute: newPayPalPaymentExecute,
-    code: newPayPalPaymentExecute.toString(),
   },
   
   'file-uploaded': {
@@ -4764,7 +4583,6 @@ export const nodeRegistry: NodeRegistry = {
           { label: 'HD', value: 'hd' }
         ]
       },
-      apiKey: { type: 'string', label: 'OpenAI API Key', description: 'Optional: OpenAI API key (or connect OpenAI account above)', required: false },
     },
     execute: generateImageExecute,
     code: generateImageExecute.toString(),
@@ -4802,7 +4620,6 @@ export const nodeRegistry: NodeRegistry = {
         ]
       },
       maxResults: { type: 'number', label: 'Max Results', description: 'Maximum number of results to return', required: false, default: 10 },
-      apiKey: { type: 'string', label: 'OpenAI API Key', description: 'Optional: OpenAI API key (or connect OpenAI account above)', required: false },
     },
     execute: imageRecognitionExecute,
     code: imageRecognitionExecute.toString(),
@@ -4855,7 +4672,6 @@ export const nodeRegistry: NodeRegistry = {
           { label: 'FLAC', value: 'flac' }
         ]
       },
-      apiKey: { type: 'string', label: 'OpenAI API Key', description: 'Optional: OpenAI API key (or connect OpenAI account above)', required: false },
     },
     execute: textToSpeechExecute,
     code: textToSpeechExecute.toString(),
@@ -4912,7 +4728,6 @@ export const nodeRegistry: NodeRegistry = {
           { label: 'VTT Subtitles', value: 'vtt' }
         ]
       },
-      apiKey: { type: 'string', label: 'OpenAI API Key', description: 'Optional: OpenAI API key (or connect OpenAI account above)', required: false },
     },
     execute: speechToTextExecute,
     code: speechToTextExecute.toString(),

@@ -1842,6 +1842,12 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   const generateWorkflow = async () => {
     if (!user) return;
     
+    // Prevent multiple simultaneous workflow generations
+    if (isGeneratingWorkflow) {
+      console.log('[Workflow Generation] Already generating workflow, skipping duplicate call');
+      return;
+    }
+    
     // Check if free user has reached limit before generating
     if (isFreePlan) {
       try {
@@ -1986,67 +1992,101 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       }
 
       // Remove the "Generating..." message and add success messages
-      const now = Date.now();
+      // Check if messages already exist to prevent duplicates
+      const existingSuccessMsg = messages.find(
+        (msg) => msg.content === 'Workflow Generated Successfully' && (msg as any).workflowGeneratedSuccess
+      );
       
-      // First message: "Workflow Generated Successfully" in italic gray
-      const successMsg: ChatMessage = {
-        id: `msg_${now}`,
+      // Only add messages if they don't already exist
+      if (!existingSuccessMsg) {
+        const now = Date.now();
+        
+        // First message: "Workflow Generated Successfully" in italic gray
+        const successMsg: ChatMessage = {
+          id: `msg_${now}`,
+          role: 'assistant',
+          content: 'Workflow Generated Successfully',
+          timestamp: new Date().toISOString(),
+          workflowGenerated: true,
+          workflowGeneratedSuccess: true, // Mark for italic gray styling
+        };
+        
+        // Second message: AI explanation of how the workflow works and offer to help
+        const aiSummary = finalWorkflow.reasoning || '';
+        let explanationMessage = '';
+        
+        if (aiSummary) {
+          explanationMessage = `I've generated the "${finalWorkflow.workflowName}" workflow and added it to your canvas. ${aiSummary}\n\nWould you like me to help you set it up?`;
+        } else {
+          // Generate a basic explanation from the workflow structure
+          const triggerNodes = finalWorkflow.nodes.filter((n: any) => 
+            n.data?.nodeId?.includes('trigger') || n.type === 'trigger'
+          );
+          const actionNodes = finalWorkflow.nodes.filter((n: any) => 
+            n.data?.nodeId?.includes('action') || n.type === 'action'
+          );
+          
+          let explanation = `I've generated the "${finalWorkflow.workflowName}" workflow and added it to your canvas. `;
+          
+          if (triggerNodes.length > 0) {
+            explanation += `The workflow starts with ${triggerNodes.length} trigger${triggerNodes.length > 1 ? 's' : ''}. `;
+          }
+          if (actionNodes.length > 0) {
+            explanation += `It includes ${actionNodes.length} action${actionNodes.length > 1 ? 's' : ''} that will execute when the workflow runs. `;
+          }
+          
+          explanation += `Would you like me to help you set it up?`;
+          explanationMessage = explanation;
+        }
+        
+        // Check if explanation message already exists (check for messages that match the pattern)
+        // Look for messages that contain the workflow generation pattern and are marked as workflowGenerated
+        const existingExplanationMsg = messages.find(
+          (msg) => msg.role === 'assistant' && 
+                   (msg.content.includes("I've generated the") || msg.content.includes("I've generated")) &&
+                   msg.content.includes("workflow and added it to your canvas") &&
+                   (msg as any).workflowGenerated &&
+                   !(msg as any).workflowGeneratedSuccess // Exclude the success message itself
+        );
+        
+        if (!existingExplanationMsg) {
+          const explanationMsg: ChatMessage = {
+            id: `msg_${now + 1}`,
             role: 'assistant',
-        content: 'Workflow Generated Successfully',
+            content: explanationMessage,
             timestamp: new Date().toISOString(),
             workflowGenerated: true,
-        workflowGeneratedSuccess: true, // Mark for italic gray styling
-      };
-      
-      // Second message: AI explanation of how the workflow works and offer to help
-      const aiSummary = finalWorkflow.reasoning || '';
-      let explanationMessage = '';
-      
-      if (aiSummary) {
-        explanationMessage = `I've generated the "${finalWorkflow.workflowName}" workflow and added it to your canvas. ${aiSummary}\n\nWould you like me to help you set it up?`;
+          };
+          
+          setMessages((prev) => [
+            ...prev,
+            successMsg,
+            explanationMsg,
+          ]);
+          
+          // Save all messages to database
+          try {
+            await saveMessage(successMsg, activeConversationId);
+            await saveMessage(explanationMsg, activeConversationId);
+          } catch (saveError) {
+            console.error('Error saving workflow generation messages:', saveError);
+            // Don't block the UI if save fails
+          }
+        } else {
+          // Only add success message if explanation already exists
+          setMessages((prev) => [
+            ...prev,
+            successMsg,
+          ]);
+          
+          try {
+            await saveMessage(successMsg, activeConversationId);
+          } catch (saveError) {
+            console.error('Error saving workflow success message:', saveError);
+          }
+        }
       } else {
-        // Generate a basic explanation from the workflow structure
-        const triggerNodes = finalWorkflow.nodes.filter((n: any) => 
-          n.data?.nodeId?.includes('trigger') || n.type === 'trigger'
-        );
-        const actionNodes = finalWorkflow.nodes.filter((n: any) => 
-          n.data?.nodeId?.includes('action') || n.type === 'action'
-        );
-        
-        let explanation = `I've generated the "${finalWorkflow.workflowName}" workflow and added it to your canvas. `;
-        
-        if (triggerNodes.length > 0) {
-          explanation += `The workflow starts with ${triggerNodes.length} trigger${triggerNodes.length > 1 ? 's' : ''}. `;
-        }
-        if (actionNodes.length > 0) {
-          explanation += `It includes ${actionNodes.length} action${actionNodes.length > 1 ? 's' : ''} that will execute when the workflow runs. `;
-        }
-        
-        explanation += `Would you like me to help you set it up?`;
-        explanationMessage = explanation;
-      }
-      
-      const explanationMsg: ChatMessage = {
-        id: `msg_${now + 1}`,
-        role: 'assistant',
-        content: explanationMessage,
-        timestamp: new Date().toISOString(),
-        workflowGenerated: true,
-      };
-      
-      setMessages((prev) => [
-        ...prev,
-        successMsg,
-        explanationMsg,
-      ]);
-      
-      // Save all messages to database
-      try {
-        await saveMessage(successMsg, activeConversationId);
-        await saveMessage(explanationMsg, activeConversationId);
-      } catch (saveError) {
-        console.error('Error saving workflow generation messages:', saveError);
-        // Don't block the UI if save fails
+        console.log('[Workflow Generation] Success messages already exist, skipping duplicate');
       }
       
       setWorkflowPrompt(null);
@@ -2117,7 +2157,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         {/* Header / Tabs */}
         {showChatHistory ? (
           <div className="flex-1">
-            <h2 className="text-sm font-semibold text-foreground">AI Assistant</h2>
+            <h2 className="text-sm font-semibold text-foreground">Recent Chats</h2>
           </div>
         ) : (
           <div

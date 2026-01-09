@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,11 +24,12 @@ interface IntegrationFieldProps {
   value: any;
   onChange: (value: any) => void;
   nodeId: string;
-  serviceName: 'google' | 'slack' | 'github' | 'notion' | 'airtable' | 'trello' | 'openai' | 'sendgrid' | 'twilio' | 'stripe' | 'discord' | 'twitter' | 'paypal';
+  serviceName: 'google' | 'google-sheets' | 'google-gmail' | 'google-calendar' | 'google-drive' | 'google-forms' | 'slack' | 'github' | 'notion' | 'airtable' | 'trello' | 'openai' | 'sendgrid' | 'twilio' | 'stripe' | 'discord' | 'twitter' | 'paypal' | 'shopify' | 'hubspot' | 'asana' | 'jira';
   resourceType?: 'spreadsheet' | 'sheet' | 'column' | 'channel' | 'repository' | 'database' | 'base' | 'table' | 'field' | 'board' | 'list' | 'calendar' | 'folder' | 'label' | 'form' | 'guild';
   parentValue?: any; // For dependent fields (e.g., sheet depends on spreadsheet)
   onParentChange?: (value: any) => void;
   credentialType?: 'oauth' | 'api_token' | 'api_key_and_token'; // How to authenticate
+  onConnected?: () => void; // Optional callback when connection is successfully established
 }
 
 export function IntegrationField({
@@ -40,8 +42,11 @@ export function IntegrationField({
   resourceType,
   parentValue,
   onParentChange,
-  credentialType = 'oauth'
+  credentialType = 'oauth',
+  onConnected,
 }: IntegrationFieldProps) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [resources, setResources] = useState<any[]>([]);
@@ -50,6 +55,12 @@ export function IntegrationField({
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [tokenInput2, setTokenInput2] = useState('');
   const [isSavingToken, setIsSavingToken] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  // Handle theme mounting
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Check integration status
   useEffect(() => {
@@ -57,25 +68,117 @@ export function IntegrationField({
   }, []);
 
   // Fetch resources when connected and needed
+  // For dependent fields (with parentValue), also fetch when parent is selected
   useEffect(() => {
-    if (isConnected && resourceType && !resources.length) {
+    if (isConnected === true && resourceType && !resources.length && !isLoading) {
+      // For dependent fields, only fetch if parentValue is provided
+      if (parentValue || !parentValue) {
       fetchResources();
+      }
     }
   }, [isConnected, resourceType, parentValue]);
+
+  // Helper function to safely parse JSON from response
+  const safeParseJSON = async (response: Response): Promise<any> => {
+    const contentType = response.headers.get('content-type');
+    const text = await response.text();
+    
+    // If response is empty, return error
+    if (!text || text.trim().length === 0) {
+      return { error: 'Empty response from server' };
+    }
+    
+    // If response is not JSON, return error object with text
+    if (!contentType || !contentType.includes('application/json')) {
+      return { error: text || 'Invalid response format' };
+    }
+    
+    // Try to parse as JSON
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      // If parsing fails, return the text as error
+      return { error: text || 'Failed to parse response' };
+    }
+  };
+
+  // Helper to get display label for resource type
+  const getResourceLabel = () => {
+    const labels: Record<string, string> = {
+      spreadsheet: 'Spreadsheet',
+      sheet: 'Sheet',
+      column: 'Column',
+      channel: 'Channel',
+      guild: 'Server',
+      repository: 'Repository',
+      database: 'Database',
+      base: 'Base',
+      table: 'Table',
+      field: 'Field',
+      board: 'Board',
+      list: 'List',
+      calendar: 'Calendar',
+      folder: 'Folder',
+      label: 'Label',
+      form: 'Form',
+    };
+    return labels[resourceType || ''] || resourceType || 'Resource';
+  };
 
   const checkIntegrationStatus = async () => {
     try {
       const response = await fetch('/api/integrations/status');
       if (!response.ok) throw new Error('Failed to check status');
       
-      const data = await response.json();
+      const data = await safeParseJSON(response);
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      // For Google services, check the specific service
+      if (serviceName.startsWith('google-')) {
+        const integration = data.integrations?.find((i: any) => i.service === serviceName);
+        setIsConnected(!!integration?.connected);
+      } else if (serviceName === 'google') {
+        // Fallback: check if any Google service is connected
+      const googleServices = ['google', 'google-sheets', 'google-gmail', 'google-calendar', 'google-drive', 'google-forms'];
+        const hasGoogleConnection = data.integrations?.some((i: any) => 
+          googleServices.includes(i.service) && i.connected
+        );
+        setIsConnected(hasGoogleConnection);
+      } else {
       const integration = data.integrations?.find((i: any) => i.service === serviceName);
       setIsConnected(!!integration?.connected);
+      }
     } catch (error) {
       console.error('Error checking integration status:', error);
       setIsConnected(false);
     }
   };
+
+  // Check for OAuth success after redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const error = urlParams.get('error');
+    
+    if (success || error) {
+      // Remove query parameters from URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      
+      // Refresh integration status
+      checkIntegrationStatus();
+      
+      // If connected and we have a resource type, fetch resources
+      if (success && resourceType) {
+        setTimeout(() => {
+          fetchResources();
+        }, 500);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const saveToken = async (token: string, type: string = 'api_token') => {
     setIsSavingToken(true);
@@ -93,14 +196,22 @@ export function IntegrationField({
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save token');
+        const errorData = await safeParseJSON(response);
+        throw new Error(errorData.error || errorData.message || 'Failed to save token');
       }
       
       setTokenInput('');
       setApiKeyInput('');
       setTokenInput2('');
       setIsConnected(true);
+      // Notify parent (e.g., workflow node) so it can refresh its own integration status
+      if (onConnected) {
+        try {
+          await onConnected();
+        } catch (e) {
+          console.error('Error in onConnected callback:', e);
+        }
+      }
       // Fetch resources immediately after saving
       if (resourceType) {
         await fetchResources();
@@ -125,8 +236,8 @@ export function IntegrationField({
         await saveToken(tokenInput2.trim(), 'auth_token');
       } else {
         // For Trello and others
-        await saveToken(apiKeyInput.trim(), 'api_key');
-        await saveToken(tokenInput2.trim(), 'token');
+      await saveToken(apiKeyInput.trim(), 'api_key');
+      await saveToken(tokenInput2.trim(), 'token');
       }
     } else {
       if (!tokenInput.trim()) {
@@ -155,7 +266,16 @@ export function IntegrationField({
     try {
       let url = '';
       
-      if (serviceName === 'google') {
+      // For Google services, use the specific service name
+      if (serviceName === 'google' || serviceName.startsWith('google-')) {
+        // Determine which Google service based on serviceName or resourceType
+        const googleService = serviceName.startsWith('google-') ? serviceName : 
+          resourceType === 'calendar' ? 'google-calendar' :
+          resourceType === 'folder' ? 'google-drive' :
+          resourceType === 'label' ? 'google-gmail' :
+          resourceType === 'form' ? 'google-forms' :
+          'google-sheets'; // Default to sheets
+        
         if (resourceType === 'spreadsheet') {
           url = '/api/integrations/google/spreadsheets';
         } else if (resourceType === 'sheet' && parentValue) {
@@ -206,8 +326,8 @@ export function IntegrationField({
         } else if (resourceType === 'channel' && parentValue) {
           url = `/api/integrations/discord/channels?guildId=${parentValue}`;
         } else if (resourceType === 'channel') {
-          // If no parent, we'll need to fetch guilds first
-          url = '/api/integrations/discord/guilds';
+          // Fetch all channels from all guilds
+          url = '/api/integrations/discord/channels/all';
         }
       }
 
@@ -218,15 +338,18 @@ export function IntegrationField({
 
       const response = await fetch(url);
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await safeParseJSON(response);
         if (errorData.code === 'NOT_CONNECTED') {
           setIsConnected(false);
           return;
         }
-        throw new Error(errorData.error || 'Failed to fetch resources');
+        throw new Error(errorData.error || errorData.message || 'Failed to fetch resources');
       }
 
-      const data = await response.json();
+      const data = await safeParseJSON(response);
+      if (data.error) {
+        throw new Error(data.error);
+      }
       
       if (resourceType === 'spreadsheet') {
         setResources(data.spreadsheets || []);
@@ -286,17 +409,195 @@ export function IntegrationField({
   };
 
   const handleConnect = () => {
-    window.location.href = `/api/auth/connect/${serviceName}`;
+    // Determine the base service name and specific service for Google
+    let baseService = serviceName;
+    let specificService = serviceName;
+    
+    // For Google services, use 'google' as base service and pass specific service as query param
+    if (serviceName.startsWith('google-')) {
+      baseService = 'google';
+      specificService = serviceName;
+    }
+    
+    // Shopify requires shop parameter - prompt user for shop domain
+    if (serviceName === 'shopify') {
+      const shop = prompt('Enter your Shopify shop domain (e.g., "mystore" or "mystore.myshopify.com"):');
+      if (!shop || !shop.trim()) {
+        return; // User cancelled or didn't enter shop
+      }
+      
+      // Get current workspace URL if we're in a workspace
+      const currentPath = window.location.pathname;
+      const isWorkspace = currentPath.startsWith('/workspace/');
+      const returnUrl = isWorkspace ? currentPath : undefined;
+      
+      // Build OAuth connect URL with shop parameter
+      let connectUrl = `/api/auth/connect/${baseService}?shop=${encodeURIComponent(shop.trim())}`;
+      if (returnUrl) {
+        connectUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
+      }
+      
+      window.location.href = connectUrl;
+      return;
+    }
+    
+    // Get current workspace URL if we're in a workspace
+    const currentPath = window.location.pathname;
+    const isWorkspace = currentPath.startsWith('/workspace/');
+    const returnUrl = isWorkspace ? currentPath : undefined;
+    
+    // Build OAuth connect URL
+    let connectUrl = `/api/auth/connect/${baseService}`;
+    const params = new URLSearchParams();
+    
+    // For Google services, pass the specific service name
+    if (baseService === 'google') {
+      params.set('service', specificService);
+    }
+    
+    // Pass return URL if we're in a workspace
+    if (returnUrl) {
+      params.set('returnUrl', returnUrl);
+    }
+    
+    if (params.toString()) {
+      connectUrl += `?${params.toString()}`;
+    }
+    
+    window.location.href = connectUrl;
+  };
+
+  const handleDisconnect = async () => {
+    if (!serviceName) return;
+    
+    setIsDisconnecting(true);
+    try {
+      const response = await fetch('/api/integrations/disconnect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ serviceName: serviceName }),
+      });
+
+      if (!response.ok) {
+        const errorData = await safeParseJSON(response);
+        throw new Error(errorData.error || errorData.message || 'Failed to disconnect');
+      }
+
+      // Wait a bit for the API to process, then re-check status
+      setTimeout(async () => {
+        await checkIntegrationStatus();
+        setResources([]);
+        setError(null);
+        setIsDisconnecting(false);
+      }, 500);
+    } catch (error: any) {
+      console.error('Error disconnecting:', error);
+      setError(error.message || 'Failed to disconnect');
+      setIsDisconnecting(false);
+    }
+  };
+
+  // Map serviceName to slug for logo lookup
+  const getServiceSlug = (): string | null => {
+    const serviceSlugMap: Record<string, string> = {
+      'google-sheets': 'googlesheets',
+      'google-gmail': 'gmail',
+      'google-calendar': 'googlecalendar',
+      'google-drive': 'googledrive',
+      'google-forms': 'googleforms',
+      'slack': 'slack',
+      'github': 'github',
+      'notion': 'notion',
+      'airtable': 'airtable',
+      'trello': 'trello',
+      'shopify': 'shopify',
+      'hubspot': 'hubspot',
+      'asana': 'asana',
+      'jira': 'jira',
+      'discord': 'discord',
+      'twitter': 'x',
+      'paypal': 'paypal',
+      'openai': 'openai',
+      'sendgrid': 'sendgrid',
+      'twilio': 'twilio',
+      'stripe': 'stripe'
+    };
+    return serviceSlugMap[serviceName] || null;
+  };
+
+  // Get logo URL (same logic as integrations-settings.tsx)
+  const getLogoUrl = (slug: string): string | null => {
+    if (!mounted || !theme) return null;
+    const isDark = theme === 'dark';
+    const clientId = '1dxbfHSJFAPEGdCLU4o5B';
+    
+    const brandfetchLogos: Record<string, { light?: string; dark?: string }> = {
+      'googlesheets': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idKa2XnbFY.svg?c=${clientId}` },
+      'slack': { dark: `https://cdn.brandfetch.io/idJ_HhtG0Z/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'gmail': { dark: `https://cdn.brandfetch.io/id5o3EIREg/theme/dark/symbol.svg?c=${clientId}` },
+      'googlecalendar': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idMX2_OMSc.svg?c=${clientId}` },
+      'googledrive': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idncaAgFGT.svg?c=${clientId}` },
+      'github': {
+        light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`
+      },
+      'trello': { dark: `https://cdn.brandfetch.io/idToc8bDY1/theme/dark/symbol.svg?c=${clientId}` },
+      'notion': { dark: `https://cdn.brandfetch.io/idPYUoikV7/theme/dark/symbol.svg?c=${clientId}` },
+      'shopify': { dark: `https://cdn.brandfetch.io/idAgPm7IvG/theme/dark/symbol.svg?c=${clientId}` },
+      'hubspot': { dark: `https://cdn.brandfetch.io/idRt0LuzRf/theme/dark/symbol.svg?c=${clientId}` },
+      'discord': { dark: `https://cdn.brandfetch.io/idM8Hlme1a/theme/dark/symbol.svg?c=${clientId}` },
+      'airtable': { dark: `https://cdn.brandfetch.io/iddsnRzkxS/theme/dark/symbol.svg?c=${clientId}` },
+      'x': {
+        light: `https://cdn.brandfetch.io/idS5WhqBbM/theme/dark/logo.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idS5WhqBbM/theme/light/logo.svg?c=${clientId}`
+      },
+      'asana': { dark: `https://cdn.brandfetch.io/idxPi2Evsk/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'jira': { dark: `https://cdn.brandfetch.io/idchmboHEZ/theme/dark/symbol.svg?c=${clientId}` },
+      'paypal': { dark: `https://cdn.brandfetch.io/id-Wd4a4TS/theme/dark/symbol.svg?c=${clientId}` },
+      'openai': {
+        light: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idR3duQxYl/theme/light/symbol.svg?c=${clientId}`
+      },
+      'sendgrid': { dark: `https://cdn.brandfetch.io/idHHcfw5Qu/theme/dark/symbol.svg?c=${clientId}` },
+      'twilio': { dark: `https://cdn.brandfetch.io/idT7wVo_zL/theme/dark/symbol.svg?c=${clientId}` },
+      'stripe': { dark: `https://cdn.brandfetch.io/idxAg10C0L/w/480/h/480/theme/dark/icon.jpeg?c=${clientId}` },
+      // Google Forms uses a custom logo URL provided by user
+      'googleforms': { dark: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Google_Forms_logo_%282014-2020%29.svg/1489px-Google_Forms_logo_%282014-2020%29.svg.png' }
+    };
+
+    const logoConfig = brandfetchLogos[slug];
+    if (logoConfig) {
+      if (isDark && logoConfig.dark) {
+        return logoConfig.dark;
+      } else if (!isDark && logoConfig.light) {
+        return logoConfig.light;
+      } else if (logoConfig.dark) {
+        return logoConfig.dark;
+      }
+    }
+    
+    return null;
   };
 
   const getServiceDisplayName = () => {
     const names: Record<string, string> = {
       google: 'Google',
+      'google-sheets': 'Google Sheets',
+      'google-gmail': 'Gmail',
+      'google-calendar': 'Google Calendar',
+      'google-drive': 'Google Drive',
+      'google-forms': 'Google Forms',
       slack: 'Slack',
       github: 'GitHub',
       notion: 'Notion',
       airtable: 'Airtable',
       trello: 'Trello',
+      shopify: 'Shopify',
+      hubspot: 'HubSpot',
+      asana: 'Asana',
+      jira: 'Jira',
       openai: 'OpenAI',
       sendgrid: 'SendGrid',
       twilio: 'Twilio',
@@ -323,13 +624,33 @@ export function IntegrationField({
     } else if (serviceName === 'stripe') {
       return 'sk_live_... or sk_test_...';
     } else if (serviceName === 'discord') {
-      return 'Bot token (optional - OAuth preferred)';
+      return 'MTIzNDU2Nzg5MDEyMzQ1Njc4OTA.Xxxxxx...';
     }
     return 'Enter your API token';
   };
 
   // Not connected - show connect/input based on credential type
+  // BUT: Don't show connect button for dependent fields (fields with parentValue)
+  // Dependent fields should only be rendered when parent is selected AND integration is connected
+  // If we're here with a dependent field and not connected, it means connection check is still loading
   if (isConnected === false) {
+    // For dependent fields, show loading state instead of connect button
+    // This handles the case where connection check hasn't completed yet
+    if (parentValue) {
+      return (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">
+            {fieldSchema?.label || getResourceLabel()}
+            {fieldSchema?.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Checking connection...</span>
+          </div>
+        </div>
+      );
+    }
+    
     if (credentialType === 'oauth') {
       // OAuth services (Google, Slack, GitHub)
       return (
@@ -348,8 +669,25 @@ export function IntegrationField({
               variant="ghost"
               className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
             >
+              {(() => {
+                const slug = getServiceSlug();
+                const logoUrl = slug ? getLogoUrl(slug) : null;
+                return logoUrl ? (
+                  <>
+                    <img 
+                      src={logoUrl} 
+                      alt={getServiceDisplayName()} 
+                      className="h-4 w-4 mr-2 object-contain"
+                    />
+                    Connect
+                  </>
+                ) : (
+                  <>
               <ExternalLink className="h-3 w-3 mr-2" />
-              Connect {getServiceDisplayName()}
+                    Connect
+                  </>
+                );
+              })()}
             </Button>
           </div>
         </div>
@@ -398,7 +736,27 @@ export function IntegrationField({
                   Saving...
                 </>
               ) : (
-                'Save & Connect'
+                <>
+                  {(() => {
+                    const slug = getServiceSlug();
+                    const logoUrl = slug ? getLogoUrl(slug) : null;
+                    return logoUrl ? (
+                      <>
+                        <img 
+                          src={logoUrl} 
+                          alt={getServiceDisplayName()} 
+                          className="h-4 w-4 mr-2 object-contain"
+                        />
+                        Save & Connect
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="h-3 w-3 mr-2" />
+                        Save & Connect
+                      </>
+                    );
+                  })()}
+                </>
               )}
             </Button>
           </div>
@@ -417,7 +775,9 @@ export function IntegrationField({
               <p className="text-xs text-red-500">{error}</p>
             )}
             <p className="text-xs text-muted-foreground">
-              Enter your {getServiceDisplayName()} {serviceName === 'openai' ? 'API key' : 'API token'} to {serviceName === 'openai' ? 'connect' : 'select resources'}
+              {serviceName === 'discord' 
+                ? 'Enter your Discord bot token to connect. Get your bot token from https://discord.com/developers/applications'
+                : `Enter your ${getServiceDisplayName()} ${serviceName === 'openai' ? 'API key' : 'API token'} to ${serviceName === 'openai' ? 'connect' : 'select resources'}`}
             </p>
             <Input
               type="text"
@@ -439,7 +799,27 @@ export function IntegrationField({
                   Saving...
                 </>
               ) : (
-                'Save & Connect'
+                <>
+                  {(() => {
+                    const slug = getServiceSlug();
+                    const logoUrl = slug ? getLogoUrl(slug) : null;
+                    return logoUrl ? (
+                      <>
+                        <img 
+                          src={logoUrl} 
+                          alt={getServiceDisplayName()} 
+                          className="h-4 w-4 mr-2 object-contain"
+                        />
+                        Save & Connect
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="h-3 w-3 mr-2" />
+                        Save & Connect
+                      </>
+                    );
+                  })()}
+                </>
               )}
             </Button>
           </div>
@@ -468,30 +848,9 @@ export function IntegrationField({
     );
   }
 
-  // Helper to get display label for resource type
-  const getResourceLabel = () => {
-    const labels: Record<string, string> = {
-      spreadsheet: 'Spreadsheet',
-      sheet: 'Sheet',
-      column: 'Column',
-      channel: 'Channel',
-      repository: 'Repository',
-      database: 'Database',
-      base: 'Base',
-      table: 'Table',
-      field: 'Field',
-      board: 'Board',
-      list: 'List',
-      calendar: 'Calendar',
-      folder: 'Folder',
-      label: 'Label',
-      form: 'Form',
-    };
-    return labels[resourceType || ''] || resourceType || 'Resource';
-  };
-
-  // Resource picker dropdown
-  if (resources.length > 0) {
+  // Resource picker dropdown - only show when connected and resources are loaded
+  // For Discord channels, only show after channels have been fetched
+  if (isConnected === true && resources.length > 0) {
     return (
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-muted-foreground">
@@ -527,18 +886,139 @@ export function IntegrationField({
     );
   }
 
-  // Connected but no resources yet
-  // For OpenAI (and other services without resource selection), show connected status
-  if (serviceName === 'openai' || !resourceType) {
+  // Connected but no resources yet or still loading
+  // For Discord channels specifically, show loading state until channels are fetched
+  if (isConnected === true && serviceName === 'discord' && resourceType === 'channel') {
+    if (isLoading) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading channels...</span>
+        </div>
+      );
+    }
+    
+    if (resources.length === 0 && !error) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading channels...</span>
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <div className="text-xs text-red-500">
+          {error}
+        </div>
+      );
+    }
+  }
+
+  // For API token fields when service is already connected (e.g., bot token for Discord)
+  // Show input field to add additional credentials
+  if (isConnected === true && credentialType === 'api_token' && !resourceType) {
+    return (
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground">
+          {fieldSchema?.label || 'Bot Token'}
+          {fieldSchema?.required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+        <div className="space-y-2">
+          {error && (
+            <p className="text-xs text-red-500">{error}</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {fieldSchema?.description || `Enter your ${getServiceDisplayName()} ${serviceName === 'discord' ? 'bot token' : 'token'} to ${serviceName === 'discord' ? 'access channels and send messages' : 'use this service'}`}
+          </p>
+          <Input
+            type="password"
+            placeholder={getTokenPlaceholder()}
+            value={tokenInput}
+            onChange={(e) => setTokenInput(e.target.value)}
+            className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+          />
+          <Button
+            type="button"
+            onClick={handleSaveCredentials}
+            variant="ghost"
+            className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+            disabled={isSavingToken || !tokenInput.trim()}
+          >
+            {isSavingToken ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                {(() => {
+                  const slug = getServiceSlug();
+                  const logoUrl = slug ? getLogoUrl(slug) : null;
+                  return logoUrl ? (
+                    <>
+                      <img 
+                        src={logoUrl} 
+                        alt={getServiceDisplayName()} 
+                        className="h-4 w-4 mr-2 object-contain"
+                      />
+                      Connect
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="h-3 w-3 mr-2" />
+                      Connect
+                    </>
+                  );
+                })()}
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // For OAuth integrations without resource selection, show disconnect button
+  if (isConnected === true && credentialType === 'oauth' && (serviceName === 'openai' || !resourceType)) {
+    const slug = getServiceSlug();
+    const logoUrl = slug ? getLogoUrl(slug) : null;
+    
     return (
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-muted-foreground">
           Connect
           {fieldSchema?.required && <span className="text-red-500 ml-1">*</span>}
         </label>
-        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-          <div className="h-2 w-2 rounded-full bg-green-500"></div>
-          <span>Connected</span>
+        <div className="space-y-2">
+          <Button
+            type="button"
+            onClick={handleDisconnect}
+            variant="ghost"
+            disabled={isDisconnecting}
+            className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+          >
+            {isDisconnecting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Disconnecting...
+              </>
+            ) : (
+              <>
+                {logoUrl ? (
+                  <img 
+                    src={logoUrl} 
+                    alt={getServiceDisplayName()} 
+                    className="h-4 w-4 mr-2 object-contain"
+                  />
+                ) : (
+                  <ExternalLink className="h-3 w-3 mr-2" />
+                )}
+                Disconnect
+              </>
+            )}
+          </Button>
         </div>
       </div>
     );

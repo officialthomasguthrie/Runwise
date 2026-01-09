@@ -32,6 +32,21 @@
   right: -6px !important;
 }
 
+/* React Flow Connection Line Styles - Animated Dashed Pattern */
+.react-flow__connectionline {
+  stroke-dasharray: 8 4 !important;
+  animation: dash-animation 0.5s linear infinite !important;
+}
+
+@keyframes dash-animation {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 12;
+  }
+}
+
 /* React Flow Edge Styles */
 .react-flow__edge-path {
   stroke: rgb(120 113 108) !important; /* stone-400 */

@@ -3,9 +3,10 @@
  * Renders any node from the node library using the same UI template
  */
 
-import { memo, useState, useEffect } from "react";
+import { memo, useState, useEffect, useCallback } from "react";
 import { Handle, Position, useReactFlow, type Node, type Edge } from "@xyflow/react";
 import * as LucideIcons from "lucide-react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +16,7 @@ import {
   BaseNodeHeader,
   BaseNodeHeaderTitle,
 } from "@/components/base-node";
-import { Trash2, Zap, Info, Sparkles, CheckCircle2, Check } from "lucide-react";
+import { Trash2, Zap, Info, Sparkles, CheckCircle2, Check, Loader2, ExternalLink } from "lucide-react";
 import { getNodeById } from "@/lib/nodes/registry";
 import type { NodeDefinition } from "@/lib/nodes/types";
 import { ScheduleInput } from "@/components/ui/schedule-input";
@@ -207,6 +208,12 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
 
 export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
   const { deleteElements, getNodes, getEdges } = useReactFlow();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   console.log('🟦 WorkflowNode RENDERING:', { id, nodeId: data.nodeId, label: data.label });
   
@@ -250,21 +257,118 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
   // Local config state for form fields
   const [localConfig, setLocalConfig] = useState<Record<string, any>>(data.config || {});
   const isExpanded = data.isExpanded || false;
-  const [integrationStatus, setIntegrationStatus] = useState<{serviceName?: 'google' | 'slack' | 'github' | 'notion' | 'airtable' | 'trello' | 'openai' | 'sendgrid' | 'twilio' | 'stripe' | 'discord' | 'twitter' | 'paypal'; isConnected: boolean | null; credentialType?: 'oauth' | 'api_token' | 'api_key_and_token'}>({isConnected: null});
+  const [integrationStatus, setIntegrationStatus] = useState<{serviceName?: 'google' | 'google-sheets' | 'google-gmail' | 'google-calendar' | 'google-drive' | 'google-forms' | 'slack' | 'github' | 'notion' | 'airtable' | 'trello' | 'openai' | 'sendgrid' | 'twilio' | 'stripe' | 'discord' | 'twitter' | 'paypal' | 'shopify' | 'hubspot' | 'asana' | 'jira'; isConnected: boolean | null; credentialType?: 'oauth' | 'api_token' | 'api_key_and_token'}>({isConnected: null});
 
   // Update local config when data.config changes externally
   useEffect(() => {
     setLocalConfig(data.config || {});
   }, [data.config]);
 
+  // Map serviceName to slug for logo lookup
+  const getServiceSlug = (serviceName?: string): string | null => {
+    if (!serviceName) return null;
+    const serviceSlugMap: Record<string, string> = {
+      'google-sheets': 'googlesheets',
+      'google-gmail': 'gmail',
+      'google-calendar': 'googlecalendar',
+      'google-drive': 'googledrive',
+      'google-forms': 'googleforms',
+      'slack': 'slack',
+      'github': 'github',
+      'notion': 'notion',
+      'airtable': 'airtable',
+      'trello': 'trello',
+      'shopify': 'shopify',
+      'hubspot': 'hubspot',
+      'asana': 'asana',
+      'jira': 'jira',
+      'discord': 'discord',
+      'twitter': 'x',
+      'paypal': 'paypal',
+      'stripe': 'stripe',
+      'sendgrid': 'sendgrid',
+      'twilio': 'twilio',
+      'openai': 'openai'
+    };
+    return serviceSlugMap[serviceName] || null;
+  };
+
+  // Get logo URL (same logic as integrations-settings.tsx) - memoized to capture mounted and theme
+  const getLogoUrl = useCallback(
+    (slug: string): string | null => {
+      if (!mounted || !theme) return null;
+      const isDark = theme === 'dark';
+      const clientId = '1dxbfHSJFAPEGdCLU4o5B';
+      
+      const brandfetchLogos: Record<string, { light?: string; dark?: string }> = {
+        'googlesheets': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idKa2XnbFY.svg?c=${clientId}` },
+        'slack': { dark: `https://cdn.brandfetch.io/idJ_HhtG0Z/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+        'gmail': { dark: `https://cdn.brandfetch.io/id5o3EIREg/theme/dark/symbol.svg?c=${clientId}` },
+        'googlecalendar': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idMX2_OMSc.svg?c=${clientId}` },
+        'googledrive': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idncaAgFGT.svg?c=${clientId}` },
+        'github': {
+          light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/dark/symbol.svg?c=${clientId}`,
+          dark: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`
+        },
+        'trello': { dark: `https://cdn.brandfetch.io/idToc8bDY1/theme/dark/symbol.svg?c=${clientId}` },
+        'notion': { dark: `https://cdn.brandfetch.io/idPYUoikV7/theme/dark/symbol.svg?c=${clientId}` },
+        'shopify': { dark: `https://cdn.brandfetch.io/idAgPm7IvG/theme/dark/symbol.svg?c=${clientId}` },
+        'hubspot': { dark: `https://cdn.brandfetch.io/idRt0LuzRf/theme/dark/symbol.svg?c=${clientId}` },
+        'discord': { dark: `https://cdn.brandfetch.io/idM8Hlme1a/theme/dark/symbol.svg?c=${clientId}` },
+        'airtable': { dark: `https://cdn.brandfetch.io/iddsnRzkxS/theme/dark/symbol.svg?c=${clientId}` },
+        'x': {
+          light: `https://cdn.brandfetch.io/idS5WhqBbM/theme/dark/logo.svg?c=${clientId}`,
+          dark: `https://cdn.brandfetch.io/idS5WhqBbM/theme/light/logo.svg?c=${clientId}`
+        },
+      'asana': { dark: `https://cdn.brandfetch.io/idxPi2Evsk/w/400/h/400/theme/dark/icon.jpeg?c=${clientId}` },
+      'jira': { dark: `https://cdn.brandfetch.io/idchmboHEZ/theme/dark/symbol.svg?c=${clientId}` },
+      'stripe': { dark: `https://cdn.brandfetch.io/idxAg10C0L/w/480/h/480/theme/dark/icon.jpeg?c=${clientId}` },
+      'sendgrid': { dark: `https://cdn.brandfetch.io/idHHcfw5Qu/theme/dark/symbol.svg?c=${clientId}` },
+      'twilio': { dark: `https://cdn.brandfetch.io/idT7wVo_zL/theme/dark/symbol.svg?c=${clientId}` },
+      'openai': {
+        light: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idR3duQxYl/theme/light/symbol.svg?c=${clientId}`
+      },
+      'paypal': { dark: `https://cdn.brandfetch.io/id-Wd4a4TS/theme/dark/symbol.svg?c=${clientId}` },
+      // Google Forms uses a custom logo URL provided by user
+      'googleforms': { dark: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Google_Forms_logo_%282014-2020%29.svg/1489px-Google_Forms_logo_%282014-2020%29.svg.png' }
+    };
+
+      const logoConfig = brandfetchLogos[slug];
+      if (logoConfig) {
+        if (isDark && logoConfig.dark) {
+          return logoConfig.dark;
+        } else if (!isDark && logoConfig.light) {
+          return logoConfig.light;
+        } else if (logoConfig.dark) {
+          return logoConfig.dark;
+        }
+      }
+      
+      return null;
+    },
+    [mounted, theme]
+  );
+
   // Function to detect which integration service this node uses
-  const getNodeIntegration = (): {serviceName?: 'google' | 'slack' | 'github' | 'notion' | 'airtable' | 'trello' | 'openai' | 'sendgrid' | 'twilio' | 'stripe' | 'discord' | 'twitter' | 'paypal'; credentialType?: 'oauth' | 'api_token' | 'api_key_and_token'} => {
+  const getNodeIntegration = (): {serviceName?: 'google' | 'google-sheets' | 'google-gmail' | 'google-calendar' | 'google-drive' | 'google-forms' | 'slack' | 'github' | 'notion' | 'airtable' | 'trello' | 'openai' | 'sendgrid' | 'twilio' | 'stripe' | 'discord' | 'twitter' | 'paypal' | 'shopify' | 'hubspot' | 'asana' | 'jira'; credentialType?: 'oauth' | 'api_token' | 'api_key_and_token'} => {
     const nodeId = data.nodeId || '';
     
-    // Google nodes (OAuth)
-    if (['new-row-in-google-sheet', 'new-email-received', 'create-calendar-event', 
-         'upload-file-to-google-drive', 'new-form-submission', 'file-uploaded'].includes(nodeId)) {
-      return { serviceName: 'google', credentialType: 'oauth' };
+    // Google nodes (OAuth) - map to specific service names
+    if (nodeId === 'new-row-in-google-sheet') {
+      return { serviceName: 'google-sheets', credentialType: 'oauth' };
+    }
+    if (nodeId === 'new-form-submission') {
+      return { serviceName: 'google-forms', credentialType: 'oauth' };
+    }
+    if (nodeId === 'new-email-received') {
+      return { serviceName: 'google-gmail', credentialType: 'oauth' };
+    }
+    if (nodeId === 'create-calendar-event') {
+      return { serviceName: 'google-calendar', credentialType: 'oauth' };
+    }
+    if (nodeId === 'upload-file-to-google-drive' || nodeId === 'file-uploaded') {
+      return { serviceName: 'google-drive', credentialType: 'oauth' };
     }
     
     // Slack nodes (OAuth)
@@ -279,21 +383,21 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
     
     // Notion nodes (API token)
     if (['create-notion-page'].includes(nodeId)) {
-      return { serviceName: 'notion', credentialType: 'api_token' };
+      return { serviceName: 'notion', credentialType: 'oauth' };
     }
     
-    // Airtable nodes (API token)
+    // Airtable nodes (OAuth)
     if (['update-airtable-record'].includes(nodeId)) {
-      return { serviceName: 'airtable', credentialType: 'api_token' };
+      return { serviceName: 'airtable', credentialType: 'oauth' };
     }
     
-    // Trello nodes (API key + token)
+    // Trello nodes (OAuth)
     if (['create-trello-card'].includes(nodeId)) {
-      return { serviceName: 'trello', credentialType: 'api_key_and_token' };
+      return { serviceName: 'trello', credentialType: 'oauth' };
     }
     
     // OpenAI nodes (API key)
-    if (['generate-summary-with-ai', 'generate-ai-content'].includes(nodeId)) {
+    if (['generate-summary-with-ai', 'generate-ai-content', 'classify-text', 'extract-entities', 'sentiment-analysis', 'translate-text', 'generate-image', 'image-recognition', 'text-to-speech', 'speech-to-text'].includes(nodeId)) {
       return { serviceName: 'openai', credentialType: 'api_token' };
     }
     
@@ -307,61 +411,115 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
       return { serviceName: 'twilio', credentialType: 'api_key_and_token' };
     }
     
-    // Stripe nodes (Secret Key)
-    if (['create-stripe-customer', 'create-stripe-charge', 'new-stripe-payment'].includes(nodeId)) {
-      return { serviceName: 'stripe', credentialType: 'api_token' };
-    }
-    
-    // Discord nodes (OAuth or Bot Token)
+    // Discord nodes (Bot Token only)
     if (['send-discord-message', 'new-discord-message'].includes(nodeId)) {
-      return { serviceName: 'discord', credentialType: 'oauth' };
+      return { serviceName: 'discord', credentialType: 'api_token' };
     }
     
-    // Twitter/X nodes (OAuth)
+    // Twitter/X nodes (API token - Bearer Token)
     if (['post-to-x'].includes(nodeId)) {
-      return { serviceName: 'twitter', credentialType: 'oauth' };
+      return { serviceName: 'twitter', credentialType: 'api_token' };
     }
     
-    // PayPal nodes (OAuth)
-    if (['new-paypal-payment'].includes(nodeId)) {
-      return { serviceName: 'paypal', credentialType: 'oauth' };
+    // Shopify nodes (OAuth)
+    if (['new-shopify-order', 'create-shopify-product'].includes(nodeId)) {
+      return { serviceName: 'shopify', credentialType: 'oauth' };
+    }
+    
+    // HubSpot nodes (OAuth)
+    if (['new-hubspot-contact', 'create-hubspot-contact'].includes(nodeId)) {
+      return { serviceName: 'hubspot', credentialType: 'oauth' };
+    }
+    
+    // Asana nodes (OAuth)
+    if (['new-asana-task', 'create-asana-task'].includes(nodeId)) {
+      return { serviceName: 'asana', credentialType: 'oauth' };
+    }
+    
+    // Jira nodes (OAuth)
+    if (['new-jira-issue', 'create-jira-issue'].includes(nodeId)) {
+      return { serviceName: 'jira', credentialType: 'oauth' };
     }
     
     return {};
   };
 
-  // Check integration status
-  useEffect(() => {
+  // Helper function to safely parse JSON from response
+  const safeParseJSON = async (response: Response): Promise<any> => {
+    const contentType = response.headers.get('content-type');
+    const text = await response.text();
+    
+    // If response is empty, return error
+    if (!text || text.trim().length === 0) {
+      return { error: 'Empty response from server' };
+    }
+    
+    // If response is not JSON, return error object with text
+    if (!contentType || !contentType.includes('application/json')) {
+      return { error: text || 'Invalid response format' };
+    }
+    
+    // Try to parse as JSON
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      // If parsing fails, return the text as error
+      return { error: text || 'Failed to parse response' };
+    }
+  };
+
+  // Check integration status function
+  const checkIntegrationStatus = useCallback(async () => {
     const integration = getNodeIntegration();
     if (!integration.serviceName) {
       setIntegrationStatus({isConnected: null});
       return;
     }
     
-    const checkStatus = async () => {
-      try {
-        const response = await fetch('/api/integrations/status');
-        if (!response.ok) throw new Error('Failed to check status');
-        
-        const data = await response.json();
-        const integrationData = data.integrations?.find((i: any) => i.service === integration.serviceName);
-        setIntegrationStatus({
-          serviceName: integration.serviceName,
-          isConnected: !!integrationData?.connected,
-          credentialType: integration.credentialType
-        });
-      } catch (error) {
-        console.error('Error checking integration status:', error);
-        setIntegrationStatus({
-          serviceName: integration.serviceName,
-          isConnected: false,
-          credentialType: integration.credentialType
-        });
+    try {
+      const response = await fetch('/api/integrations/status');
+      if (!response.ok) throw new Error('Failed to check status');
+      
+      const data = await safeParseJSON(response);
+      if (data.error) {
+        throw new Error(data.error);
       }
-    };
-    
-    checkStatus();
+      
+      // For Google services, check the specific service
+      let isConnected = false;
+      if (integration.serviceName?.startsWith('google-')) {
+        const integrationData = data.integrations?.find((i: any) => i.service === integration.serviceName);
+        isConnected = !!integrationData?.connected;
+      } else if (integration.serviceName === 'google') {
+        // Fallback: check if any Google service is connected
+        const googleServices = ['google', 'google-sheets', 'google-gmail', 'google-calendar', 'google-drive'];
+        isConnected = data.integrations?.some((i: any) => 
+          googleServices.includes(i.service) && i.connected
+        ) || false;
+      } else {
+        const integrationData = data.integrations?.find((i: any) => i.service === integration.serviceName);
+        isConnected = !!integrationData?.connected;
+      }
+      
+      setIntegrationStatus({
+        serviceName: integration.serviceName,
+        isConnected,
+        credentialType: integration.credentialType
+      });
+    } catch (error) {
+      console.error('Error checking integration status:', error);
+      setIntegrationStatus({
+        serviceName: integration.serviceName,
+        isConnected: false,
+        credentialType: integration.credentialType
+      });
+    }
   }, [data.nodeId]);
+
+  // Check integration status on mount and when nodeId changes
+  useEffect(() => {
+    checkIntegrationStatus();
+  }, [checkIntegrationStatus]);
 
   const handleConfigChange = (key: string, value: any) => {
     const newConfig = { ...localConfig, [key]: value };
@@ -452,7 +610,24 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
       {/* Node Header */}
       <BaseNodeHeader className="border-b border-stone-200 dark:border-white/20">
         <div className="flex items-center gap-2 flex-1">
-          <IconComponent className="size-4 text-muted-foreground" />
+          {(() => {
+            // Check if this is an integration node (not AI-generated)
+            const integration = getNodeIntegration();
+            const isIntegrationNode = !!integration.serviceName && data.nodeId !== 'CUSTOM_GENERATED';
+            const slug = isIntegrationNode && integration.serviceName ? getServiceSlug(integration.serviceName) : null;
+            const logoUrl = slug ? getLogoUrl(slug) : null;
+            
+            if (isIntegrationNode && logoUrl) {
+              return (
+                <img 
+                  src={logoUrl} 
+                  alt={nodeName} 
+                  className="size-4 object-contain"
+                />
+              );
+            }
+            return <IconComponent className="size-4 text-muted-foreground" />;
+          })()}
           <div className="flex items-center gap-2">
           <BaseNodeHeaderTitle>{nodeName}</BaseNodeHeaderTitle>
             {isFullyConfigured() && (
@@ -516,10 +691,14 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                     nodeId={id}
                     serviceName={integrationStatus.serviceName}
                     credentialType="api_token"
+                    // When connection succeeds via this node, refresh the node-level integrationStatus
+                    onConnected={async () => {
+                      await checkIntegrationStatus();
+                    }}
                   />
                 </div>
               )}
-              {/* API Key + Token Integration Connection (Twilio, Trello) */}
+              {/* API Key + Token Integration Connection (Twilio) */}
               {integrationStatus.serviceName && 
                integrationStatus.credentialType === 'api_key_and_token' && 
                integrationStatus.isConnected === false && (
@@ -574,32 +753,75 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   />
                 </div>
               )}
-              {/* Show Connected status for API key/token integrations if connected */}
-              {integrationStatus.serviceName && integrationStatus.isConnected !== null && integrationStatus.credentialType !== 'oauth' && integrationStatus.isConnected && (
-                <div className="pb-2 border-b border-stone-200 dark:border-white/10">
-                  <Button
-                    variant="outline"
-                    disabled
-                    className="w-full justify-center bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/20 cursor-not-allowed"
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Connected
-                  </Button>
+              {/* Show Disconnect button for API key/token integrations if connected */}
+              {integrationStatus.serviceName && 
+               integrationStatus.credentialType !== 'oauth' && 
+               integrationStatus.isConnected === true && (
+                <div className="pb-2">
+                  <ApiTokenDisconnectButton
+                    serviceName={integrationStatus.serviceName}
+                    onDisconnect={async () => {
+                      try {
+                        const response = await fetch('/api/integrations/disconnect', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ serviceName: integrationStatus.serviceName }),
+                        });
+                        
+                        if (!response.ok) {
+                          const errorData = await safeParseJSON(response);
+                          const errorMessage = errorData.error || errorData.message || 'Unknown error';
+                          console.error('Failed to disconnect:', errorMessage);
+                          throw new Error(errorMessage);
+                        }
+                        
+                        // Wait a bit for the API to process, then re-check status
+                        setTimeout(() => {
+                          checkIntegrationStatus();
+                        }, 500);
+                      } catch (error) {
+                        console.error('Error disconnecting:', error);
+                        throw error;
+                      }
+                    }}
+                    getLogoUrl={getLogoUrl}
+                    getServiceSlug={getServiceSlug}
+                  />
                 </div>
               )}
-              {/* Show Connected status for OAuth integrations if connected (for nodes without resource fields) */}
+              {/* Show Disconnect button for OAuth integrations if connected (for nodes without resource fields) */}
               {integrationStatus.serviceName && 
                integrationStatus.credentialType === 'oauth' && 
                integrationStatus.isConnected === true && (
-                <div className="pb-2 border-b border-stone-200 dark:border-white/10">
-                  <Button
-                    variant="outline"
-                    disabled
-                    className="w-full justify-center bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/20 cursor-not-allowed"
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Connected
-                  </Button>
+                <div className="pb-2">
+                  <OAuthDisconnectButton 
+                    serviceName={integrationStatus.serviceName}
+                    onDisconnect={async () => {
+                      try {
+                        const response = await fetch('/api/integrations/disconnect', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ serviceName: integrationStatus.serviceName }),
+                        });
+                        
+                        if (!response.ok) {
+                          const errorData = await safeParseJSON(response);
+                          const errorMessage = errorData.error || errorData.message || 'Unknown error';
+                          console.error('Failed to disconnect:', errorMessage);
+                          throw new Error(errorMessage);
+                        }
+                        
+                        // Wait a bit for the API to process, then re-check status
+                        setTimeout(() => {
+                          checkIntegrationStatus();
+                        }, 500);
+                      } catch (error) {
+                        console.error('Error disconnecting:', error);
+                      }
+                    }}
+                    getLogoUrl={getLogoUrl}
+                    getServiceSlug={getServiceSlug}
+                  />
                 </div>
               )}
               {Object.entries(configSchema).map(([key, schema]: [string, any]) => {
@@ -618,7 +840,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   // Notion, Airtable, Trello API key/token integration fields
                   (data.nodeId === 'create-notion-page' && key === 'databaseId') ||
                   (data.nodeId === 'update-airtable-record' && (key === 'baseId' || key === 'tableId')) ||
-                  (data.nodeId === 'create-trello-card' && (key === 'boardId' || key === 'idList'));
+                  (data.nodeId === 'create-trello-card' && (key === 'boardId' || key === 'idList')) ||
+                  // Discord integration fields (server & channel are handled by IntegrationField)
+                  ((data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && (key === 'guildId' || key === 'channelId'));
                 
                 const isExcludedField =
                   // Google OAuth integration nodes - remove apiKey fields
@@ -637,7 +861,16 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   (data.nodeId === 'update-airtable-record' && key === 'apiKey') ||
                   (data.nodeId === 'create-trello-card' && (key === 'apiKey' || key === 'token')) ||
                   // OpenAI nodes - remove apiKey field
-                  ((data.nodeId === 'generate-summary-with-ai' || data.nodeId === 'generate-ai-content') && key === 'apiKey');
+                  ((data.nodeId === 'generate-summary-with-ai' || 
+                    data.nodeId === 'generate-ai-content' || 
+                    data.nodeId === 'classify-text' || 
+                    data.nodeId === 'extract-entities' || 
+                    data.nodeId === 'sentiment-analysis' || 
+                    data.nodeId === 'translate-text' ||
+                    data.nodeId === 'generate-image' ||
+                    data.nodeId === 'image-recognition' ||
+                    data.nodeId === 'text-to-speech' ||
+                    data.nodeId === 'speech-to-text') && key === 'apiKey');
                 
                 const shouldShowLabel = !isIntegrationField && !isExcludedField;
                 
@@ -661,12 +894,14 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   (data.nodeId === 'new-email-received' && key === 'lastCheck') ||
                   // Slack nodes - hide message until channel is selected
                   ((data.nodeId === 'post-to-slack-channel' || data.nodeId === 'new-message-in-slack') && key === 'message') ||
-                  // Notion node - hide title/content until database is selected
-                  (data.nodeId === 'create-notion-page' && (key === 'title' || key === 'content')) ||
-                  // Airtable node - hide recordId/fields until base and table are selected
-                  (data.nodeId === 'update-airtable-record' && (key === 'recordId' || key === 'fields')) ||
-                  // Trello node - hide name/desc/dueDate until board and list are selected
-                  (data.nodeId === 'create-trello-card' && (key === 'name' || key === 'desc' || key === 'dueDate'));
+                  // Notion node - hide databaseId until connected, hide title/content until database is selected
+                  (data.nodeId === 'create-notion-page' && (key === 'databaseId' || key === 'title' || key === 'content')) ||
+                  // Airtable node - hide baseId until connected, hide tableId until baseId selected, hide recordId/fields until base and table are selected
+                  (data.nodeId === 'update-airtable-record' && (key === 'baseId' || key === 'tableId' || key === 'recordId' || key === 'fields')) ||
+                  // Trello node - hide boardId until connected, hide idList until boardId selected, hide name/desc/dueDate until board and list are selected
+                  (data.nodeId === 'create-trello-card' && (key === 'boardId' || key === 'idList' || key === 'name' || key === 'desc' || key === 'dueDate')) ||
+                  // Discord nodes - hide guildId and channelId until Discord is connected
+                  ((data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && (key === 'guildId' || key === 'channelId'));
                 
                 // Hide integration-dependent fields if integration is not connected or parent resources not selected
                 if (isIntegrationDependentField) {
@@ -684,12 +919,22 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                     (data.nodeId === 'new-email-received' && localConfig.labelId) ||
                     // Slack nodes - require channel
                     ((data.nodeId === 'post-to-slack-channel' || data.nodeId === 'new-message-in-slack') && localConfig.channel) ||
-                    // Notion node - require databaseId
-                    (data.nodeId === 'create-notion-page' && localConfig.databaseId) ||
-                    // Airtable node - require baseId and tableId
-                    (data.nodeId === 'update-airtable-record' && localConfig.baseId && localConfig.tableId) ||
-                    // Trello node - require boardId and idList
-                    (data.nodeId === 'create-trello-card' && localConfig.boardId && localConfig.idList)
+                    // Notion node - databaseId shows when connected, title/content require databaseId
+                    (data.nodeId === 'create-notion-page' && 
+                      (key === 'databaseId' ? true : localConfig.databaseId)) ||
+                    // Airtable node - baseId shows when connected, tableId requires baseId, recordId/fields require baseId and tableId
+                    (data.nodeId === 'update-airtable-record' && 
+                      (key === 'baseId' ? true : 
+                       key === 'tableId' ? localConfig.baseId :
+                       (localConfig.baseId && localConfig.tableId))) ||
+                    // Trello node - boardId shows when connected, idList requires boardId, name/desc/dueDate require boardId and idList
+                    (data.nodeId === 'create-trello-card' && 
+                      (key === 'boardId' ? true :
+                       key === 'idList' ? localConfig.boardId :
+                       (localConfig.boardId && localConfig.idList))) ||
+                    // Discord nodes - require Discord connection (guildId for channelId, just connection for guildId)
+                    ((data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && 
+                      (key === 'channelId' ? localConfig.guildId : true))
                   );
                   
                   if (!shouldShowField) {
@@ -785,7 +1030,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                                   if (localConfig.sheetName) handleConfigChange('sheetName', '');
                                 }}
                                 nodeId={id}
-                                serviceName="google"
+                                serviceName="google-sheets"
                                 resourceType="spreadsheet"
                                 credentialType="oauth"
                               />
@@ -799,7 +1044,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                                 value={localConfig[key]}
                                 onChange={(value) => handleConfigChange(key, value)}
                                 nodeId={id}
-                                serviceName="google"
+                                serviceName="google-sheets"
                                 resourceType="sheet"
                                 parentValue={localConfig.spreadsheetId}
                                 credentialType="oauth"
@@ -818,7 +1063,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             value={localConfig[key]}
                             onChange={(value) => handleConfigChange(key, value)}
                             nodeId={id}
-                            serviceName="google"
+                            serviceName="google-calendar"
                             resourceType="calendar"
                             credentialType="oauth"
                           />
@@ -834,7 +1079,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             value={localConfig[key]}
                             onChange={(value) => handleConfigChange(key, value)}
                             nodeId={id}
-                            serviceName="google"
+                            serviceName="google-drive"
                             resourceType="folder"
                             credentialType="oauth"
                           />
@@ -850,7 +1095,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             value={localConfig[key]}
                             onChange={(value) => handleConfigChange(key, value)}
                             nodeId={id}
-                            serviceName="google"
+                            serviceName="google-forms"
                             resourceType="form"
                             credentialType="oauth"
                           />
@@ -866,7 +1111,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             value={localConfig[key]}
                             onChange={(value) => handleConfigChange(key, value)}
                             nodeId={id}
-                            serviceName="google"
+                            serviceName="google-gmail"
                             resourceType="label"
                             credentialType="oauth"
                           />
@@ -887,6 +1132,47 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             credentialType="oauth"
                           />
                         </div>
+                      )}
+                      
+                      {/* Discord Integration Fields - Only show when Discord is connected */}
+                      {(data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && 
+                       integrationStatus.serviceName === 'discord' && 
+                       integrationStatus.isConnected === true && (
+                        <>
+                          {key === 'guildId' && (
+                            <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                              <IntegrationField
+                                fieldKey={key}
+                                fieldSchema={schema}
+                                value={localConfig[key]}
+                                onChange={(value) => {
+                                  handleConfigChange(key, value);
+                                  // Clear channel when server changes
+                                  if (localConfig.channelId) handleConfigChange('channelId', '');
+                                }}
+                                nodeId={id}
+                                serviceName="discord"
+                                resourceType="guild"
+                                credentialType="api_token"
+                              />
+                            </div>
+                          )}
+                          {key === 'channelId' && localConfig.guildId && (
+                            <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                              <IntegrationField
+                                fieldKey={key}
+                                fieldSchema={schema}
+                                value={localConfig[key]}
+                                onChange={(value) => handleConfigChange(key, value)}
+                                nodeId={id}
+                                serviceName="discord"
+                                resourceType="channel"
+                                parentValue={localConfig.guildId}
+                                credentialType="api_token"
+                              />
+                            </div>
+                          )}
+                        </>
                       )}
                       
                       {/* GitHub Integration Fields */}
@@ -917,7 +1203,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                       )}
                       
                       {/* Notion Integration Fields */}
-                      {data.nodeId === 'create-notion-page' && key === 'databaseId' && (
+                      {data.nodeId === 'create-notion-page' && key === 'databaseId' && integrationStatus.isConnected === true && (
                         <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                           <IntegrationField
                             fieldKey={key}
@@ -935,7 +1221,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                       {/* Airtable Integration Fields */}
                       {data.nodeId === 'update-airtable-record' && (
                         <>
-                          {key === 'baseId' && (
+                          {key === 'baseId' && integrationStatus.isConnected === true && (
                             <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                               <IntegrationField
                                 fieldKey={key}
@@ -950,11 +1236,11 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                                 nodeId={id}
                                 serviceName="airtable"
                                 resourceType="base"
-                                credentialType="api_token"
+                                credentialType="oauth"
                               />
                             </div>
                           )}
-                          {key === 'tableId' && localConfig.baseId && (
+                          {key === 'tableId' && integrationStatus.isConnected === true && localConfig.baseId && (
                             <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                               <IntegrationField
                                 fieldKey={key}
@@ -969,7 +1255,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                                 serviceName="airtable"
                                 resourceType="table"
                                 parentValue={localConfig.baseId}
-                                credentialType="api_token"
+                                credentialType="oauth"
                               />
                             </div>
                           )}
@@ -979,7 +1265,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                       {/* Trello Integration Fields */}
                       {data.nodeId === 'create-trello-card' && (
                         <>
-                          {key === 'boardId' && (
+                          {key === 'boardId' && integrationStatus.isConnected === true && (
                             <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                               <IntegrationField
                                 fieldKey={key}
@@ -993,11 +1279,11 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                                 nodeId={id}
                                 serviceName="trello"
                                 resourceType="board"
-                                credentialType="api_key_and_token"
+                                credentialType="oauth"
                               />
                             </div>
                           )}
-                          {key === 'idList' && localConfig.boardId && (
+                          {key === 'idList' && integrationStatus.isConnected === true && localConfig.boardId && (
                             <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                               <IntegrationField
                                 fieldKey={key}
@@ -1008,7 +1294,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                                 serviceName="trello"
                                 resourceType="list"
                                 parentValue={localConfig.boardId || localConfig.idBoard}
-                                credentialType="api_key_and_token"
+                                credentialType="oauth"
                               />
                             </div>
                           )}
@@ -1025,6 +1311,8 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                         (data.nodeId === 'new-form-submission' && (key === 'formId' || key === 'apiKey')) ||
                         // Slack OAuth integration fields
                         ((data.nodeId === 'post-to-slack-channel' || data.nodeId === 'new-message-in-slack') && (key === 'channel' || key === 'botToken')) ||
+                        // Discord integration fields
+                        ((data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && (key === 'guildId' || key === 'channelId')) ||
                         // GitHub OAuth integration fields
                         (data.nodeId === 'new-github-issue' && (key === 'repo' || key === 'accessToken')) ||
                         // Notion, Airtable, Trello API key/token integration fields
@@ -1225,6 +1513,117 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
 });
 
 WorkflowNode.displayName = "WorkflowNode";
+
+// OAuth Disconnect Button Component
+function OAuthDisconnectButton({ 
+  serviceName, 
+  onDisconnect, 
+  getLogoUrl, 
+  getServiceSlug 
+}: { 
+  serviceName: string; 
+  onDisconnect: () => Promise<void>; 
+  getLogoUrl: (slug: string) => string | null;
+  getServiceSlug: (serviceName?: string) => string | null;
+}) {
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true);
+    try {
+      await onDisconnect();
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  const slug = getServiceSlug(serviceName);
+  const logoUrl = slug ? getLogoUrl(slug) : null;
+
+  return (
+    <Button
+      variant="ghost"
+      onClick={handleDisconnect}
+      disabled={isDisconnecting}
+      className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+    >
+      {isDisconnecting ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          Disconnecting...
+        </>
+      ) : (
+        <>
+          {logoUrl ? (
+            <img 
+              src={logoUrl} 
+              alt={serviceName} 
+              className="h-4 w-4 mr-2 object-contain"
+            />
+          ) : (
+            <ExternalLink className="h-3 w-3 mr-2" />
+          )}
+          Disconnect
+        </>
+      )}
+    </Button>
+  );
+}
+
+function ApiTokenDisconnectButton({ 
+  serviceName, 
+  onDisconnect, 
+  getLogoUrl, 
+  getServiceSlug 
+}: { 
+  serviceName: string; 
+  onDisconnect: () => Promise<void>; 
+  getLogoUrl: (slug: string) => string | null;
+  getServiceSlug: (serviceName?: string) => string | null;
+}) {
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true);
+    try {
+      await onDisconnect();
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  const slug = getServiceSlug(serviceName);
+  const logoUrl = slug ? getLogoUrl(slug) : null;
+
+  return (
+    <Button
+      variant="ghost"
+      onClick={handleDisconnect}
+      disabled={isDisconnecting}
+      className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+    >
+      {isDisconnecting ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          Disconnecting...
+        </>
+      ) : (
+        <>
+          {logoUrl ? (
+            <img 
+              src={logoUrl} 
+              alt={serviceName} 
+              className="h-4 w-4 mr-2 object-contain"
+            />
+          ) : (
+            <ExternalLink className="h-3 w-3 mr-2" />
+          )}
+          Disconnect
+        </>
+      )}
+    </Button>
+  );
+}
 
 // Export node factory function for easy creation
 export const createWorkflowNode = (

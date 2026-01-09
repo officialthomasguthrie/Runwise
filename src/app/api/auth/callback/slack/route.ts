@@ -14,16 +14,23 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state');
     const error = searchParams.get('error');
     
+    // Get return URL from cookie or default to settings
+    const returnUrl = request.cookies.get('oauth_return_url')?.value || '/settings?tab=integrations';
+    const getErrorUrl = (errorType: string) => {
+      const separator = returnUrl.includes('?') ? '&' : '?';
+      return `${returnUrl}${separator}error=${errorType}`;
+    };
+    
     if (error) {
       console.error('Slack OAuth error:', error);
       return NextResponse.redirect(
-        new URL('/settings?tab=integrations&error=oauth_error', request.url)
+        new URL(getErrorUrl('oauth_error'), request.url)
       );
     }
     
     if (!code || !state) {
       return NextResponse.redirect(
-        new URL('/settings?tab=integrations&error=missing_code', request.url)
+        new URL(getErrorUrl('missing_code'), request.url)
       );
     }
     
@@ -32,13 +39,13 @@ export async function GET(request: NextRequest) {
     
     if (!storedState || !validateStateToken(state, storedState)) {
       return NextResponse.redirect(
-        new URL('/settings?tab=integrations&error=invalid_state', request.url)
+        new URL(getErrorUrl('invalid_state'), request.url)
       );
     }
     
     if (!userId) {
       return NextResponse.redirect(
-        new URL('/settings?tab=integrations&error=no_user', request.url)
+        new URL(getErrorUrl('no_user'), request.url)
       );
     }
     
@@ -47,7 +54,7 @@ export async function GET(request: NextRequest) {
     
     if (authError || !user || user.id !== userId) {
       return NextResponse.redirect(
-        new URL('/settings?tab=integrations&error=unauthorized', request.url)
+        new URL(getErrorUrl('unauthorized'), request.url)
       );
     }
     
@@ -117,18 +124,27 @@ export async function GET(request: NextRequest) {
       }
     );
     
+    // Build success redirect URL
+    const isWorkspace = returnUrl.startsWith('/workspace/');
+    const successParam = isWorkspace ? 'connected' : 'slack_connected';
+    const redirectUrl = `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}success=${successParam}`;
+    
     const response = NextResponse.redirect(
-      new URL('/settings?tab=integrations&success=slack_connected', request.url)
+      new URL(redirectUrl, request.url)
     );
     
     response.cookies.delete('oauth_state');
     response.cookies.delete('oauth_user_id');
+    response.cookies.delete('oauth_return_url');
     
     return response;
   } catch (error: any) {
     console.error('Error in Slack OAuth callback:', error);
+    const returnUrl = request.cookies.get('oauth_return_url')?.value || '/settings?tab=integrations';
+    const separator = returnUrl.includes('?') ? '&' : '?';
+    const errorUrl = `${returnUrl}${separator}error=callback_error`;
     return NextResponse.redirect(
-      new URL('/settings?tab=integrations&error=callback_error', request.url)
+      new URL(errorUrl, request.url)
     );
   }
 }

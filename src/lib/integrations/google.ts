@@ -23,19 +23,59 @@ export interface GoogleColumn {
 
 /**
  * Get authenticated Google API client
+ * @param userId - User ID
+ * @param serviceName - Specific Google service name (e.g., 'google-sheets', 'google-drive', 'google-calendar', 'google-gmail', 'google-forms')
  */
-async function getGoogleClient(userId: string) {
-  const integration = await getUserIntegration(userId, 'google');
+async function getGoogleClient(userId: string, serviceName: string = 'google-sheets') {
+  // Try the specific service first
+  let integration = await getUserIntegration(userId, serviceName);
+  let foundServiceName = serviceName;
   
+  // If not found, try other Google services as fallback (for backward compatibility)
   if (!integration || !integration.access_token) {
-    throw new Error('Google integration not connected');
+    const googleServices = ['google-sheets', 'google-drive', 'google-calendar', 'google-gmail', 'google-forms'];
+    for (const service of googleServices) {
+      if (service !== serviceName) {
+        integration = await getUserIntegration(userId, service);
+        if (integration?.access_token) {
+          foundServiceName = service; // Track which service we found
+          break;
+        }
+      }
+    }
   }
   
-  // Check if token is expired
-  if (integration.expires_at && new Date() >= integration.expires_at) {
-    // Token refresh would happen here
-    // For now, throw error
-    throw new Error('Google token expired. Please reconnect.');
+  if (!integration || !integration.access_token) {
+    throw new Error(`${serviceName} integration not connected`);
+  }
+  
+  // Check if token is expired or will expire soon (within 5 minutes)
+  const now = new Date();
+  const expiresAt = integration.expires_at ? new Date(integration.expires_at) : null;
+  const timeUntilExpiry = expiresAt ? expiresAt.getTime() - now.getTime() : Infinity;
+  
+  // If token is expired or will expire in less than 5 minutes, refresh it
+  if (expiresAt && timeUntilExpiry < 5 * 60 * 1000) {
+    if (integration.refresh_token) {
+      try {
+        // Refresh the token for the service we found
+        const refreshedTokens = await refreshGoogleToken(userId, integration.refresh_token, foundServiceName);
+        
+        // Get the refreshed integration
+        const refreshedIntegration = await getUserIntegration(userId, foundServiceName);
+        if (refreshedIntegration?.access_token) {
+          return refreshedIntegration.access_token;
+        }
+        
+        // If refresh succeeded but we can't get the token, use the one from refresh
+        return refreshedTokens.access_token;
+      } catch (refreshError) {
+        console.error('Error refreshing Google token:', refreshError);
+        throw new Error('Google token expired and refresh failed. Please reconnect your Google account.');
+      }
+    } else {
+      throw new Error('Google token expired and no refresh token available. Please reconnect your Google account.');
+    }
   }
   
   return integration.access_token;
@@ -45,7 +85,7 @@ async function getGoogleClient(userId: string) {
  * Fetch user's Google Spreadsheets
  */
 export async function getGoogleSpreadsheets(userId: string): Promise<GoogleSpreadsheet[]> {
-  const accessToken = await getGoogleClient(userId);
+  const accessToken = await getGoogleClient(userId, 'google-sheets');
   
   const response = await fetch('https://www.googleapis.com/drive/v3/files?q=mimeType="application/vnd.google-apps.spreadsheet"&fields=files(id,name,webViewLink)', {
     headers: {
@@ -74,7 +114,7 @@ export async function getGoogleSheets(
   userId: string,
   spreadsheetId: string
 ): Promise<GoogleSheet[]> {
-  const accessToken = await getGoogleClient(userId);
+  const accessToken = await getGoogleClient(userId, 'google-sheets');
   
   const response = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
@@ -106,7 +146,7 @@ export async function getGoogleSheetColumns(
   spreadsheetId: string,
   sheetName: string
 ): Promise<GoogleColumn[]> {
-  const accessToken = await getGoogleClient(userId);
+  const accessToken = await getGoogleClient(userId, 'google-sheets');
   
   // Get first row (headers)
   const range = `${sheetName}!1:1`;
@@ -145,7 +185,7 @@ export interface GoogleCalendar {
 }
 
 export async function getGoogleCalendars(userId: string): Promise<GoogleCalendar[]> {
-  const accessToken = await getGoogleClient(userId);
+  const accessToken = await getGoogleClient(userId, 'google-calendar');
   
   const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
     headers: {
@@ -178,7 +218,7 @@ export interface GoogleDriveFolder {
 }
 
 export async function getGoogleDriveFolders(userId: string, parentFolderId?: string): Promise<GoogleDriveFolder[]> {
-  const accessToken = await getGoogleClient(userId);
+  const accessToken = await getGoogleClient(userId, 'google-drive');
   
   let query = "mimeType='application/vnd.google-apps.folder' and trashed=false";
   if (parentFolderId) {
@@ -220,7 +260,7 @@ export interface GmailLabel {
 }
 
 export async function getGmailLabels(userId: string): Promise<GmailLabel[]> {
-  const accessToken = await getGoogleClient(userId);
+  const accessToken = await getGoogleClient(userId, 'google-gmail');
   
   const response = await fetch('https://www.googleapis.com/gmail/v1/users/me/labels', {
     headers: {
@@ -254,7 +294,8 @@ export interface GoogleForm {
 }
 
 export async function getGoogleForms(userId: string): Promise<GoogleForm[]> {
-  const accessToken = await getGoogleClient(userId);
+  // Use the Google Forms integration if connected, otherwise fall back to Sheets
+  const accessToken = await getGoogleClient(userId, 'google-forms');
   
   const response = await fetch(
     'https://www.googleapis.com/drive/v3/files?q=mimeType="application/vnd.google-apps.form"&fields=files(id,name,webViewLink)',
@@ -281,10 +322,14 @@ export async function getGoogleForms(userId: string): Promise<GoogleForm[]> {
 
 /**
  * Refresh Google access token and update stored integration
+ * @param userId - User ID
+ * @param refreshToken - Refresh token
+ * @param serviceName - Google service name to update (e.g., 'google-sheets', 'google-drive')
  */
 export async function refreshGoogleToken(
   userId: string,
-  refreshToken: string
+  refreshToken: string,
+  serviceName: string = 'google-sheets'
 ): Promise<{ access_token: string; expires_in: number }> {
   const clientSecret = process.env.GOOGLE_INTEGRATION_CLIENT_SECRET;
   const clientId = process.env.GOOGLE_INTEGRATION_CLIENT_ID;
@@ -319,9 +364,10 @@ export async function refreshGoogleToken(
     ? new Date(Date.now() + tokens.expires_in * 1000)
     : undefined;
   
+  // Update the specific Google service integration with the new token
   await storeUserIntegration(
     userId,
-    'google',
+    serviceName,
     {
       access_token: tokens.access_token,
       refresh_token: refreshToken, // Keep the same refresh token

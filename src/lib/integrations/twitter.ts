@@ -2,19 +2,20 @@
  * Twitter/X Integration API Client
  */
 
-import { getUserIntegration } from './service';
+import { getIntegrationCredential } from './service';
 
 /**
- * Get Twitter/X access token
+ * Get Twitter/X Bearer Token (API Key)
  */
 async function getTwitterToken(userId: string): Promise<string> {
-  const integration = await getUserIntegration(userId, 'twitter');
+  // Get Bearer Token from stored credentials
+  const bearerToken = await getIntegrationCredential(userId, 'twitter', 'bearer_token');
   
-  if (!integration?.access_token) {
-    throw new Error('Twitter/X integration not connected. Please connect your Twitter account.');
+  if (!bearerToken) {
+    throw new Error('Twitter/X integration not connected. Please provide your Bearer Token.');
   }
   
-  return integration.access_token;
+  return bearerToken;
 }
 
 /**

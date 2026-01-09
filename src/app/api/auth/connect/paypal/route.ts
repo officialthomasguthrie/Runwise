@@ -19,6 +19,20 @@ export async function GET(request: NextRequest) {
     }
     
     const state = generateStateToken();
+    
+    // Get return URL from query parameter, referer, or default
+    const { searchParams } = new URL(request.url);
+    const returnUrlParam = searchParams.get('returnUrl');
+    let returnUrl = returnUrlParam;
+    if (!returnUrl) {
+      const referer = request.headers.get('referer') || '';
+      returnUrl = referer.includes('/integrations') 
+        ? '/integrations' 
+        : referer.includes('/workspace/')
+        ? referer.split('?')[0]
+        : '/settings?tab=integrations';
+    }
+    
     const response = NextResponse.redirect(getPayPalAuthUrl(state));
     
     response.cookies.set('oauth_state', state, {
@@ -29,6 +43,13 @@ export async function GET(request: NextRequest) {
     });
     
     response.cookies.set('oauth_user_id', user.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600
+    });
+    
+    response.cookies.set('oauth_return_url', returnUrl, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
