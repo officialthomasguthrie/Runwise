@@ -582,12 +582,18 @@ html {
   -moz-appearance: none;
   width: 14px;
   height: 14px;
-  border: 1.5px solid #ffffff1a;
+  border: 1.5px solid rgb(209 213 219); /* gray-300 for light mode */
   border-radius: 3px;
   background-color: transparent;
   cursor: pointer;
   position: relative;
   transition: all 0.2s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  .custom-checkbox {
+    border-color: #ffffff1a;
+  }
 }
 
 .custom-checkbox:checked {

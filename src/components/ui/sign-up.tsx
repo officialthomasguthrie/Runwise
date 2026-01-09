@@ -27,7 +27,7 @@ interface SignUpPageProps {
 // --- SUB-COMPONENTS ---
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-[#ffffff1a] bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
+  <div className="rounded-2xl border border-gray-300 dark:border-[#ffffff1a] bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
     {children}
   </div>
 );
@@ -128,7 +128,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
 
               <div className="animate-element animate-delay-700 flex items-center gap-1 text-xs" suppressHydrationWarning={true}>
                 <label className="flex items-center gap-1 cursor-pointer">
-                  <input type="checkbox" name="agreeTerms" className="custom-checkbox" required />
+                  <input type="checkbox" name="agreeTerms" className="custom-checkbox border-gray-300 dark:border-[#ffffff1a]" required />
                   <span className="text-foreground/90">I agree to the <a href="/terms" className="text-pink-400 hover:underline">Terms</a> and <a href="/privacy" className="text-pink-400 hover:underline">Privacy</a></span>
                 </label>
               </div>
@@ -147,12 +147,12 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
             </div>
 
             <div className="animate-element animate-delay-1000 space-y-1" suppressHydrationWarning={true}>
-              <button onClick={onGoogleSignUp} className="w-full flex items-center justify-center gap-2 border border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-background">
+              <button onClick={onGoogleSignUp} className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-background">
                 <img src="https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/symbol.svg?c=1dxbfHSJFAPEGdCLU4o5B" alt="Google" className="h-5 w-5" />
                 <span className="text-xs">Continue with Google</span>
               </button>
               
-              <button onClick={onMicrosoftSignUp} className="w-full flex items-center justify-center gap-2 border border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-background">
+              <button onClick={onMicrosoftSignUp} className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-background">
                 <img src="https://cdn.brandfetch.io/idchmboHEZ/theme/dark/symbol.svg?c=1dxbfHSJFAPEGdCLU4o5B" alt="Microsoft" className="h-5 w-5" />
                 <span className="text-xs">Continue with Microsoft</span>
               </button>

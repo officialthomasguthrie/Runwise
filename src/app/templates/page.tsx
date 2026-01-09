@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Mail, BarChart3, FileText, Users, Receipt, Headphones, HelpCircle, MessageSquare, Search, Twitter } from "lucide-react";
-import SearchComponent from "@/components/ui/animated-glowing-search-bar";
+import { Calendar, Mail, BarChart3, FileText, Users, Receipt, Headphones, HelpCircle, MessageSquare, Twitter } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -16,7 +15,6 @@ import { TEMPLATES } from "@/lib/templates";
 export default function TemplatesPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const [isCreating, setIsCreating] = useState<number | null>(null);
 
   // Redirect to login if not authenticated
@@ -48,12 +46,6 @@ export default function TemplatesPage() {
     }
   ];
 
-  // Filter templates based on search query
-  const filteredTemplates = templates.filter(template =>
-    template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    template.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const handleUseTemplate = async (templateId: number, templateName: string) => {
     if (!user) return;
@@ -126,23 +118,8 @@ export default function TemplatesPage() {
             </div>
 
             <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16">
-              {/* Search bar - full width on mobile, positioned after header */}
-              <div className="mb-6">
-                <div className="hidden md:block mb-4">
-                  <h2 className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl tracking-tighter font-geist text-foreground leading-tight">
-                    Browse Templates
-                  </h2>
-                  <p className="text-sm md:text-base text-muted-foreground mt-2">
-                    Search through {templates.length} available templates
-                  </p>
-                </div>
-                <div className="w-full">
-                  <SearchComponent value={searchQuery} onChange={setSearchQuery} placeholder="Search templates..." />
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredTemplates.map((template) => {
+                {templates.map((template) => {
                   const IconComponent = template.icon;
                   return (
                     <div

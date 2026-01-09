@@ -3,7 +3,7 @@
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase-client";
-import { Download, FileJson, Loader2, Workflow } from "lucide-react";
+import { Download, Loader2, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Workflow {
@@ -214,9 +214,6 @@ export function ExportSettings() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="p-2 rounded-md bg-background/50 border border-stone-200 dark:border-white/10">
-                    <FileJson className="h-5 w-5 text-foreground/60" />
-                  </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold text-foreground truncate">
                       {workflow.name}

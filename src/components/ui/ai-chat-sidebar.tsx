@@ -2206,7 +2206,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground focus:ring-0 focus-visible:ring-0 active:bg-white/90 dark:active:bg-white/10"
+            className="h-8 w-8 text-muted-foreground hover:bg-white/20 dark:hover:bg-zinc-900/20 focus:ring-0 focus-visible:ring-0 active:bg-transparent"
             title="New Chat"
             onClick={createNewConversation}
           >
@@ -2217,7 +2217,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             size="icon"
             className={`h-8 w-8 transition-all duration-300 focus:ring-0 focus-visible:ring-0 active:bg-transparent ${
               showChatHistory
-                ? 'backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] text-foreground'
+                ? 'text-foreground'
                 : 'text-muted-foreground hover:bg-white/20 dark:hover:bg-zinc-900/20'
             }`}
             title="Chat History"

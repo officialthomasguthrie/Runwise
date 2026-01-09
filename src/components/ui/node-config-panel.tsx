@@ -6,7 +6,6 @@ import { getNodeById } from '@/lib/nodes/registry';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Sparkles } from 'lucide-react';
 
 interface NodeConfigPanelProps {
   node: Node;
@@ -94,56 +93,24 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onAskAI }: NodeConfig
 
             {/* Text Input */}
             {schema.type === 'string' && !schema.options && (
-              <div className="relative">
               <Input
                 type="text"
-                  value={localConfig[key] || ''}
+                value={localConfig[key] || ''}
                 onChange={(e) => handleChange(key, e.target.value)}
                 placeholder={schema.description}
-                  className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-stone-200 dark:focus:border-white/10 focus-visible:border-stone-200 dark:focus-visible:border-white/10 pr-24"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (onAskAI) {
-                      onAskAI(schema.label || key, node.id, nodeData.nodeId || '');
-                    }
-                  }}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs backdrop-blur-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 shadow-none dark:shadow-none hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-gray-600 dark:text-white"
-                >
-                  <Sparkles className="h-3 w-3 mr-1 text-gray-600 dark:text-white" />
-                  Ask AI
-                </Button>
-              </div>
+                className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-stone-200 dark:focus:border-white/10 focus-visible:border-stone-200 dark:focus-visible:border-white/10"
+              />
             )}
 
             {/* Textarea */}
             {schema.type === 'textarea' && (
-              <div className="relative">
               <Textarea
-                  value={localConfig[key] || ''}
+                value={localConfig[key] || ''}
                 onChange={(e) => handleChange(key, e.target.value)}
                 placeholder={schema.description}
-                  rows={3}
-                  className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-stone-200 dark:focus:border-white/10 focus-visible:border-stone-200 dark:focus-visible:border-white/10 pb-10"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (onAskAI) {
-                      onAskAI(schema.label || key, node.id, nodeData.nodeId || '');
-                    }
-                  }}
-                  className="absolute bottom-2 right-2 h-7 px-2 text-xs backdrop-blur-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 shadow-none dark:shadow-none hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-gray-600 dark:text-white"
-                >
-                  <Sparkles className="h-3 w-3 mr-1 text-gray-600 dark:text-white" />
-                  Ask AI
-                </Button>
-              </div>
+                rows={3}
+                className="text-sm backdrop-blur-xl dark:bg-white/5 border dark:border-white/10 dark:shadow-none resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:border-stone-200 dark:focus:border-white/10 focus-visible:border-stone-200 dark:focus-visible:border-white/10"
+              />
             )}
 
             {/* Number Input */}

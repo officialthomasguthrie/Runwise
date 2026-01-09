@@ -8,23 +8,28 @@ import { Plus } from "lucide-react";
 import { ButtonEdge } from "@/components/button-edge";
  
 const ButtonEdgeDemo = memo((props: EdgeProps) => {
-  const { addNodes, addEdges, getNode } = useReactFlow();
+  const { addNodes, deleteElements, addEdges, getNode, getEdges } = useReactFlow();
   
   const onEdgeClick = useCallback(() => {
     const sourceNode = getNode(props.source);
-    if (!sourceNode) return;
+    const targetNode = getNode(props.target);
+    
+    if (!sourceNode || !targetNode) return;
+    
     const layoutDirection = sourceNode.data?.layoutDirection === 'TB' ? 'TB' : 'LR';
     const onOpenAddNodeSidebar = sourceNode.data?.onOpenAddNodeSidebar;
     
     // Generate unique ID for new node
     const newNodeId = `placeholder-${Date.now()}`;
-    const newEdgeId = `${props.source}-${newNodeId}`;
     
-    // Calculate position for new node (to the right of source node)
+    // Calculate position for new node (midpoint between source and target)
     const newNodePosition = {
-      x: sourceNode.position.x + 400,
-      y: sourceNode.position.y + Math.random() * 100 - 50, // Add some vertical offset
+      x: (sourceNode.position.x + targetNode.position.x) / 2,
+      y: (sourceNode.position.y + targetNode.position.y) / 2,
     };
+    
+    // Remove the clicked edge first
+    deleteElements({ edges: [{ id: props.id }] });
     
     // Add new placeholder node
     addNodes({
@@ -37,9 +42,9 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
       },
     });
     
-    // Add new edge from source to placeholder
-    const newEdge = {
-      id: newEdgeId,
+    // Create two new edges: source -> new node -> target
+    const edge1 = {
+      id: `${props.source}-${newNodeId}`,
       source: props.source,
       target: newNodeId,
       type: 'buttonedge',
@@ -48,7 +53,21 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
       sourcePosition: layoutDirection === 'TB' ? Position.Bottom : Position.Right,
       targetPosition: layoutDirection === 'TB' ? Position.Top : Position.Left,
     } as any;
-    addEdges(newEdge);
+    
+    const edge2 = {
+      id: `${newNodeId}-${props.target}`,
+      source: newNodeId,
+      target: props.target,
+      type: 'buttonedge',
+      animated: true,
+      style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
+      sourcePosition: layoutDirection === 'TB' ? Position.Bottom : Position.Right,
+      targetPosition: layoutDirection === 'TB' ? Position.Top : Position.Left,
+    } as any;
+    
+    // Add the two new edges
+    addEdges(edge1);
+    addEdges(edge2);
     
     // Automatically open sidebar for new placeholder
     if (onOpenAddNodeSidebar && typeof onOpenAddNodeSidebar === 'function') {
@@ -56,7 +75,7 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
         onOpenAddNodeSidebar(newNodeId);
       }, 100);
     }
-  }, [props.source, addNodes, addEdges, getNode]);
+  }, [props.source, props.target, props.id, addNodes, deleteElements, addEdges, getNode]);
  
   return (
     <ButtonEdge {...props}>

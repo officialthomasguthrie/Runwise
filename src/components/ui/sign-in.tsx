@@ -30,7 +30,7 @@ interface SignInPageProps {
 // --- SUB-COMPONENTS ---
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-[#ffffff1a] bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
+  <div className="rounded-2xl border border-gray-300 dark:border-[#ffffff1a] bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
     <style jsx>{`
       input:-webkit-autofill,
       input:-webkit-autofill:hover,
@@ -117,7 +117,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
               <div className="animate-element animate-delay-500 flex items-center justify-between text-xs" suppressHydrationWarning={true}>
                 <label className="flex items-center gap-1 cursor-pointer">
-                  <input type="checkbox" name="rememberMe" className="custom-checkbox" />
+                  <input type="checkbox" name="rememberMe" className="custom-checkbox border-gray-300 dark:border-[#ffffff1a]" />
                   <span className="text-foreground/90">Keep me signed in</span>
                 </label>
                 <a href="#" onClick={(e) => { e.preventDefault(); setIsForgotPasswordModalOpen(true); }} className="hover:underline text-pink-400 transition-colors">Reset password</a>
@@ -137,12 +137,12 @@ export const SignInPage: React.FC<SignInPageProps> = ({
             </div>
 
             <div className="animate-element animate-delay-1000 space-y-1" suppressHydrationWarning={true}>
-              <button onClick={onGoogleSignIn} className="w-full flex items-center justify-center gap-2 border border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-background">
+              <button onClick={onGoogleSignIn} className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-background">
                 <img src="https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/symbol.svg?c=1dxbfHSJFAPEGdCLU4o5B" alt="Google" className="h-5 w-5" />
                 <span className="text-xs">Continue with Google</span>
               </button>
               
-              <button onClick={onMicrosoftSignIn} className="w-full flex items-center justify-center gap-2 border border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-background">
+              <button onClick={onMicrosoftSignIn} className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-background">
                 <img src="https://cdn.brandfetch.io/idchmboHEZ/theme/dark/symbol.svg?c=1dxbfHSJFAPEGdCLU4o5B" alt="Microsoft" className="h-5 w-5" />
                 <span className="text-xs">Continue with Microsoft</span>
               </button>

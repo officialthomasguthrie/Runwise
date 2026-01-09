@@ -16,7 +16,7 @@ import {
   BaseNodeHeader,
   BaseNodeHeaderTitle,
 } from "@/components/base-node";
-import { Trash2, Zap, Info, Sparkles, CheckCircle2, Check, Loader2, ExternalLink } from "lucide-react";
+import { Trash2, Zap, Info, CheckCircle2, Check, Loader2, ExternalLink } from "lucide-react";
 import { getNodeById } from "@/lib/nodes/registry";
 import type { NodeDefinition } from "@/lib/nodes/types";
 import { ScheduleInput } from "@/components/ui/schedule-input";
@@ -1347,27 +1347,10 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                                       }
                                       return placeholderText;
                                     })()}
-                                    className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 pr-10 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+                                    className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
                                     availableOutputs={mentionOptions}
                                     isNodeExpanded={isExpanded}
                                   />
-                                  {data.onAskAI && (
-                                    <div className="absolute right-1 top-1/2 -translate-y-1/2">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        onClick={() => {
-                                          if (data.onAskAI) {
-                                            data.onAskAI(schema.label || key, id, data.nodeId || '');
-                                          }
-                                        }}
-                                        className="h-7 px-2 text-xs inline-flex items-center justify-center gap-1 backdrop-blur-xl bg-neutral-200/70 text-foreground active:scale-[0.98] dark:bg-white/5 dark:border-white/10 dark:text-foreground dark:shadow-[0_4px_10px_rgba(0,0,0,0.1)] dark:hover:bg-white/10"
-                                      >
-                                        <Sparkles className="h-3 w-3" />
-                                        Ask AI
-                                      </Button>
-                                    </div>
-                                  )}
                                 </>
                               );
                             })()}
@@ -1397,27 +1380,10 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                                 placeholder={schema.placeholder || schema.description}
                                 rows={3}
                                 isTextarea={true}
-                                className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 pr-12 pb-10 text-foreground placeholder:text-muted-foreground shadow-none resize-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-300 focus-visible:border-gray-300 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                                className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none resize-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-gray-300 focus-visible:border-gray-300 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
                                 availableOutputs={mentionOptions}
                                 isNodeExpanded={isExpanded}
                               />
-                              {data.onAskAI && (
-                                <div className="absolute bottom-3" style={{ right: '6px' }}>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      if (data.onAskAI) {
-                                        data.onAskAI(schema.label || key, id, data.nodeId || '');
-                                      }
-                                    }}
-                                    className="h-7 px-2 text-xs inline-flex items-center justify-center gap-1 backdrop-blur-xl bg-neutral-200/70 text-foreground active:scale-[0.98] dark:bg-white/5 dark:border-white/10 dark:text-foreground dark:shadow-[0_4px_10px_rgba(0,0,0,0.1)] dark:hover:bg-white/10"
-                                  >
-                                    <Sparkles className="h-3 w-3" />
-                                    Ask AI
-                                  </Button>
-                                </div>
-                              )}
                             </>
                           );
                         })()}
