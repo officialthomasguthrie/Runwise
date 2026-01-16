@@ -689,8 +689,25 @@ function IntegrationsPageContent() {
               </div>
 
               {integrationsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-sm text-muted-foreground">Loading integrations...</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {[...Array(4)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-6"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="h-10 w-10 rounded-md bg-gray-300 dark:bg-[#303030] animate-pulse" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 w-28 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                          <div className="h-3 w-full bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                          <div className="h-3 w-4/5 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                        </div>
+                      </div>
+                      <div className="mt-4 flex items-center justify-center">
+                        <div className="h-8 w-full bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : configuredIntegrations.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

@@ -245,15 +245,25 @@ export default function WorkflowsPage() {
               </div>
 
                 {workflowsLoading ? (
-                  <div className="max-w-full overflow-hidden">
-                    <div className="w-full" style={{ maxWidth: "1400px" }}>
-                      <div className="h-24 md:h-28 flex items-center justify-center border-none bg-transparent">
-                        <div className="flex items-center gap-3 text-muted-foreground text-sm">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-400" />
-                          Loading workflows...
+                  <div className="w-full max-w-[1600px] grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                    {Array.from({ length: 8 }).map((_, index) => (
+                      <div key={index} className="h-32 rounded-sm border border-stone-200 dark:border-white/10 bg-background px-5 py-4">
+                        <div className="space-y-3">
+                          {/* Title skeleton */}
+                          <div className="h-5 w-3/4 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+                          {/* Timestamp skeleton */}
+                          <div className="flex items-center gap-1">
+                            <div className="h-3 w-3 bg-gray-200 dark:bg-[#303030] rounded-full animate-pulse" />
+                            <div className="h-3 w-24 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                          </div>
+                          {/* Status and arrow skeleton */}
+                          <div className="flex items-center justify-between mt-4">
+                            <div className="h-4 w-16 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                            <div className="h-4 w-4 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
                 ) : workflows.length > 0 ? (
                       <div className="w-full max-w-[1600px] grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">

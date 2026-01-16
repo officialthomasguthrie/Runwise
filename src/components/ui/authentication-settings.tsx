@@ -318,8 +318,88 @@ export function AuthenticationSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-muted-foreground">Loading authentication methods...</div>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground mb-1">
+            Login Methods
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Manage how you sign in to your account
+          </p>
+        </div>
+
+        {/* Connected Methods Skeleton */}
+        <div className="space-y-3">
+          <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-md bg-gray-300 dark:bg-[#303030] animate-pulse" />
+                <div className="space-y-2">
+                  <div className="h-4 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                  <div className="h-3 w-48 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                </div>
+              </div>
+              <div className="h-6 w-20 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            </div>
+          </div>
+        </div>
+
+        {/* Add Login Method Section Skeleton */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Add Login Method
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-md bg-gray-300 dark:bg-[#303030] animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-24 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                  <div className="h-3 w-40 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-md bg-gray-300 dark:bg-[#303030] animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-28 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                  <div className="h-3 w-44 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Password Change Section Skeleton */}
+        <div className="space-y-4 pt-6 border-t border-stone-200 dark:border-white/20">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground mb-1">
+              Change Password
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Update your account password
+            </p>
+          </div>
+
+          <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-6 space-y-4">
+            <div className="space-y-2">
+              <div className="h-4 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+              <div className="h-10 w-full bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 w-28 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+              <div className="h-10 w-full bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 w-40 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+              <div className="h-10 w-full bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+            </div>
+            <div className="flex items-center justify-end pt-2">
+              <div className="h-10 w-36 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -341,7 +421,7 @@ export function AuthenticationSettings() {
           {authMethods.map((method) => (
             <div
               key={method.id}
-              className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-4"
+              className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-4"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -397,7 +477,7 @@ export function AuthenticationSettings() {
             {!hasProvider('google') && (
               <button
                 onClick={() => handleLinkProvider('google')}
-                className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-4 hover:bg-stone-200/80 dark:hover:bg-zinc-900/80 transition-all duration-300 text-left"
+                className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-4 hover:bg-stone-200/80 dark:hover:bg-zinc-900/80 transition-all duration-300 text-left"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-md bg-background/50 border border-border flex items-center justify-center">
@@ -423,7 +503,7 @@ export function AuthenticationSettings() {
             {!hasProvider('azure') && (
               <button
                 onClick={() => handleLinkProvider('microsoft')}
-                className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-4 hover:bg-stone-200/80 dark:hover:bg-zinc-900/80 transition-all duration-300 text-left"
+                className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-4 hover:bg-stone-200/80 dark:hover:bg-zinc-900/80 transition-all duration-300 text-left"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-md bg-background/50 border border-border flex items-center justify-center">
@@ -460,7 +540,7 @@ export function AuthenticationSettings() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-6 space-y-4">
+            <div className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-6 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="currentPassword" className="text-sm font-medium">
                   Current Password

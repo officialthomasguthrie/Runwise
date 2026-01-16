@@ -174,8 +174,39 @@ export function ExportSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-muted-foreground">Loading workflows...</div>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground mb-1">
+            Export Workflows
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Export any of your workflows as JSON files
+          </p>
+        </div>
+
+        {/* Workflow Cards Skeleton */}
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="h-5 w-48 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                    <div className="flex items-center gap-3">
+                      <div className="h-3 w-16 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                      <div className="h-3 w-1 bg-gray-200 dark:bg-[#303030] rounded-full animate-pulse" />
+                      <div className="h-3 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+                <div className="h-9 w-28 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse ml-4" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -192,7 +223,7 @@ export function ExportSettings() {
       </div>
 
       {workflows.length === 0 ? (
-        <div className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-8">
+        <div className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-8">
           <div className="flex flex-col items-center justify-center text-center space-y-3">
             <div className="p-3 rounded-full bg-muted/50">
               <Workflow className="h-6 w-6 text-muted-foreground" />
@@ -210,7 +241,7 @@ export function ExportSettings() {
           {workflows.map((workflow) => (
             <div
               key={workflow.id}
-              className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-4"
+              className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-4"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1 min-w-0">

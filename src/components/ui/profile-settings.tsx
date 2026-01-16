@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,8 @@ export function ProfileSettings() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialLoad = useRef(true);
   // Initialize avatarLoaded - check if image is already cached from user context
   const [avatarLoaded, setAvatarLoaded] = useState(() => {
     const initialAvatarUrl = user?.user_metadata?.avatar_url;
@@ -173,6 +175,39 @@ export function ProfileSettings() {
     loadProfileData();
   }, [user, supabase, refreshTrigger]);
 
+  // Auto-save when profile data changes
+  useEffect(() => {
+    // Don't auto-save during initial load
+    if (isInitialLoad.current || !user || isLoading) {
+      isInitialLoad.current = false;
+      return;
+    }
+
+    // Don't auto-save if required fields are empty (initial state)
+    if (!profileData.firstName.trim() && !profileData.lastName.trim() && !profileData.email.trim()) {
+      return;
+    }
+
+    // Clear existing timer
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    // Debounce save by 1000ms
+    saveTimerRef.current = setTimeout(() => {
+      if (validateForm()) {
+        handleSave();
+      }
+    }, 1000);
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileData.firstName, profileData.lastName, profileData.email, profileData.phone, profileData.location, profileData.bio, profileData.avatarUrl]);
+
   // Handle input changes
   const handleInputChange = (field: keyof ProfileData, value: string) => {
     setProfileData(prev => ({ ...prev, [field]: value }));
@@ -209,12 +244,11 @@ export function ProfileSettings() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Save profile data
+  // Save profile data (now called automatically)
   const handleSave = async () => {
     if (!user || !validateForm()) return;
 
     setIsSaving(true);
-    setSaveStatus('idle');
 
     try {
       // Update user metadata
@@ -341,20 +375,64 @@ export function ProfileSettings() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin" />
-        <span className="ml-2 text-muted-foreground">Loading profile...</span>
+      <div className="max-w-[800px] space-y-10 pb-16">
+        {/* Avatar Section Skeleton */}
+        <div className="flex gap-6">
+          <div className="h-20 w-20 rounded-full bg-gray-300 dark:bg-[#303030] animate-pulse" />
+          <div className="space-y-3">
+            <div className="h-6 w-48 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            <div className="h-4 w-64 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+          </div>
+        </div>
+
+        {/* Identity Section Skeleton */}
+        <div className="space-y-6">
+          <div>
+            <div className="h-5 w-20 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse mb-4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <div className="h-4 w-24 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                <div className="h-10 w-full bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-24 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                <div className="h-10 w-full bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Section Skeleton */}
+        <div className="space-y-6">
+          <div>
+            <div className="h-5 w-20 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse mb-4" />
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <div className="h-4 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                <div className="h-10 w-full bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                <div className="h-10 w-full bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-24 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                <div className="h-10 w-full bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Avatar Section with Save Button */}
-      <div className="flex items-center justify-between gap-6 mb-8">
-        <div className="flex items-center gap-6 flex-1">
-          <div className="relative">
-            <Avatar className="h-20 w-20">
+    <div className="max-w-[800px] space-y-10 pb-16">
+      {/* Avatar Section */}
+      <div className="flex gap-6">
+        <div className="relative">
+          <Avatar className="h-20 w-20">
             {(profileData.avatarUrl || user?.user_metadata?.avatar_url) && (
               <AvatarImage 
                 src={profileData.avatarUrl || user?.user_metadata?.avatar_url} 
@@ -377,206 +455,134 @@ export function ProfileSettings() {
             >
               <User className="h-8 w-8" />
             </AvatarFallback>
-            </Avatar>
+          </Avatar>
           {/* Loading overlay for avatar upload */}
           {isUploadingAvatar && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 dark:bg-black/60 rounded-full backdrop-blur-sm">
               <Loader2 className="h-6 w-6 animate-spin text-white" />
             </div>
           )}
-          <label className="absolute bottom-0 right-0 bg-background border border-border rounded-full p-1.5 cursor-pointer hover:bg-muted transition-colors z-10">
-              <Camera className="h-3 w-3" />
-              <input
-                type="file"
-                accept="image/*"
+          <label className="absolute bottom-0 right-0 bg-background border border-neutral-300 dark:border-neutral-700 rounded-full p-1.5 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors z-10">
+            <Camera className="h-3 w-3" />
+            <input
+              type="file"
+              accept="image/*"
               onChange={handleFileSelect}
-                className="hidden"
+              className="hidden"
               disabled={isUploadingAvatar}
+            />
+          </label>
+        </div>
+        <div>
+          <h3 className="font-semibold text-lg mb-1">
+            {profileData.firstName} {profileData.lastName}
+          </h3>
+          <p className="text-muted-foreground text-sm">{profileData.email}</p>
+          {errors.avatar && (
+            <p className="text-sm text-red-500 mt-1">{errors.avatar}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Identity Section */}
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-base font-semibold mb-4">Identity</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name *</Label>
+              <Input
+                id="firstName"
+                value={profileData.firstName}
+                onChange={(e) => handleInputChange('firstName', e.target.value)}
+                placeholder="Enter your first name"
+                className={`bg-background border border-neutral-300 dark:border-neutral-700 rounded-md focus-visible:ring-0 focus-visible:border-neutral-500 dark:focus-visible:border-neutral-500 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors ${errors.firstName ? "border-red-500 dark:border-red-500" : ""}`}
               />
-            </label>
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg">
-              {profileData.firstName} {profileData.lastName}
-            </h3>
-            <p className="text-muted-foreground">{profileData.email}</p>
-            {errors.avatar && (
-              <p className="text-sm text-red-500 mt-1">{errors.avatar}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Top Save Button */}
-        <Button 
-          onClick={handleSave} 
-          disabled={isSaving}
-          variant="ghost"
-          className="bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
-            </>
-          )}
-        </Button>
-      </div>
-
-        {/* Basic Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="firstName">First Name *</Label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
-            <Input
-              id="firstName"
-              value={profileData.firstName}
-              onChange={(e) => handleInputChange('firstName', e.target.value)}
-              placeholder="Enter your first name"
-                className={`pl-10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-0 focus-visible:border-stone-400 dark:focus-visible:border-white/40 focus-visible:bg-white/60 dark:focus-visible:bg-zinc-900/60 transition-all duration-300 placeholder:text-muted-foreground/70 ${errors.firstName ? "border-red-500 dark:border-red-500" : ""}`}
-            />
+              {errors.firstName && (
+                <p className="text-sm text-red-500">{errors.firstName}</p>
+              )}
             </div>
-            {errors.firstName && (
-              <p className="text-sm text-red-500">{errors.firstName}</p>
-            )}
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="lastName">Last Name *</Label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
-            <Input
-              id="lastName"
-              value={profileData.lastName}
-              onChange={(e) => handleInputChange('lastName', e.target.value)}
-              placeholder="Enter your last name"
-                className={`pl-10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-0 focus-visible:border-stone-400 dark:focus-visible:border-white/40 focus-visible:bg-white/60 dark:focus-visible:bg-zinc-900/60 transition-all duration-300 placeholder:text-muted-foreground/70 ${errors.lastName ? "border-red-500 dark:border-red-500" : ""}`}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name *</Label>
+              <Input
+                id="lastName"
+                value={profileData.lastName}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
+                placeholder="Enter your last name"
+                className={`bg-background border border-neutral-300 dark:border-neutral-700 rounded-md focus-visible:ring-0 focus-visible:border-neutral-500 dark:focus-visible:border-neutral-500 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors ${errors.lastName ? "border-red-500 dark:border-red-500" : ""}`}
+              />
+              {errors.lastName && (
+                <p className="text-sm text-red-500">{errors.lastName}</p>
+              )}
             </div>
-            {errors.lastName && (
-              <p className="text-sm text-red-500">{errors.lastName}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-2 mt-6">
-          <Label htmlFor="email">Email Address *</Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
-            <Input
-              id="email"
-              type="email"
-              value={profileData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              placeholder="Enter your email address"
-              className={`pl-10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-0 focus-visible:border-stone-400 dark:focus-visible:border-white/40 focus-visible:bg-white/60 dark:focus-visible:bg-zinc-900/60 transition-all duration-300 placeholder:text-muted-foreground/70 ${errors.email ? "border-red-500 dark:border-red-500" : ""}`}
-            />
-          </div>
-          {errors.email && (
-            <p className="text-sm text-red-500">{errors.email}</p>
-          )}
-        </div>
-
-        <div className="space-y-2 mt-6">
-          <Label htmlFor="phone">Phone Number</Label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
-            <Input
-              id="phone"
-              type="tel"
-              value={profileData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              placeholder="Enter your phone number"
-              className={`pl-10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-0 focus-visible:border-stone-400 dark:focus-visible:border-white/40 focus-visible:bg-white/60 dark:focus-visible:bg-zinc-900/60 transition-all duration-300 placeholder:text-muted-foreground/70 ${errors.phone ? "border-red-500 dark:border-red-500" : ""}`}
-            />
-          </div>
-          {errors.phone && (
-            <p className="text-sm text-red-500">{errors.phone}</p>
-          )}
-        </div>
-
-        <div className="space-y-2 mt-6">
-          <Label htmlFor="location">Location</Label>
-          <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
-            <Input
-              id="location"
-              value={profileData.location}
-              onChange={(e) => handleInputChange('location', e.target.value)}
-              placeholder="Enter your location"
-            className="pl-10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-0 focus-visible:border-stone-400 dark:focus-visible:border-white/40 focus-visible:bg-white/60 dark:focus-visible:bg-zinc-900/60 transition-all duration-300 placeholder:text-muted-foreground/70"
-          />
-        </div>
-      </div>
-
-      {/* Account Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-          <Label htmlFor="memberSince">Member Since</Label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
-            <Input
-              id="memberSince"
-              value={profileData.createdAt ? new Date(profileData.createdAt).toLocaleDateString() : "N/A"}
-              readOnly
-              className="pl-10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-0 focus-visible:border-stone-400 dark:focus-visible:border-white/40 focus-visible:bg-white/60 dark:focus-visible:bg-zinc-900/60 transition-all duration-300 placeholder:text-muted-foreground/70 cursor-default"
-            />
-            </div>
-          </div>
-          <div className="space-y-2">
-          <Label htmlFor="lastLogin">Last Login</Label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
-            <Input
-              id="lastLogin"
-              value={profileData.lastLogin ? new Date(profileData.lastLogin).toLocaleDateString() : "N/A"}
-              readOnly
-              className="pl-10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-0 focus-visible:border-stone-400 dark:focus-visible:border-white/40 focus-visible:bg-white/60 dark:focus-visible:bg-zinc-900/60 transition-all duration-300 placeholder:text-muted-foreground/70 cursor-default"
-            />
           </div>
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="flex items-center justify-between pt-6">
-        <div className="flex items-center gap-2">
-          {saveStatus === 'success' && (
-            <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="h-4 w-4" />
-              <span className="text-sm">Profile saved successfully!</span>
+      {/* Contact Section */}
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-base font-semibold mb-4">Contact</h2>
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={profileData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="Enter your email address"
+                className={`bg-background border border-neutral-300 dark:border-neutral-700 rounded-md focus-visible:ring-0 focus-visible:border-neutral-500 dark:focus-visible:border-neutral-500 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors ${errors.email ? "border-red-500 dark:border-red-500" : ""}`}
+              />
+              {errors.email && (
+                <p className="text-sm text-red-500">{errors.email}</p>
+              )}
             </div>
-          )}
-          {saveStatus === 'error' && (
-            <div className="flex items-center gap-2 text-red-600">
-              <AlertCircle className="h-4 w-4" />
-              <span className="text-sm">Failed to save profile. Please try again.</span>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={profileData.phone}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
+                placeholder="Enter your phone number"
+                className={`bg-background border border-neutral-300 dark:border-neutral-700 rounded-md focus-visible:ring-0 focus-visible:border-neutral-500 dark:focus-visible:border-neutral-500 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors ${errors.phone ? "border-red-500 dark:border-red-500" : ""}`}
+              />
+              {errors.phone && (
+                <p className="text-sm text-red-500">{errors.phone}</p>
+              )}
             </div>
-          )}
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                value={profileData.location}
+                onChange={(e) => handleInputChange('location', e.target.value)}
+                placeholder="Enter your location"
+                className="bg-background border border-neutral-300 dark:border-neutral-700 rounded-md focus-visible:ring-0 focus-visible:border-neutral-500 dark:focus-visible:border-neutral-500 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors"
+              />
+            </div>
+          </div>
         </div>
-        
-        <Button 
-          onClick={handleSave} 
-          disabled={isSaving}
-          variant="ghost"
-          className="bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
-            </>
-          )}
-        </Button>
+      </div>
+
+      {/* Auto-save status messages */}
+      <div className="flex gap-2 pt-2">
+        {saveStatus === 'success' && (
+          <div className="flex gap-2 text-green-600">
+            <CheckCircle className="h-4 w-4" />
+            <span className="text-sm">Profile saved successfully!</span>
+          </div>
+        )}
+        {saveStatus === 'error' && (
+          <div className="flex gap-2 text-red-600">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">Failed to save profile. Please try again.</span>
+          </div>
+        )}
       </div>
 
       {/* Avatar Crop Modal */}

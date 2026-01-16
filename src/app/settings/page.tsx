@@ -15,15 +15,16 @@ import { IntegrationsSettings } from "@/components/ui/integrations-settings";
 import { AuthenticationSettings } from "@/components/ui/authentication-settings";
 import { NotificationsSettings } from "@/components/ui/notifications-settings";
 import { ExportSettings } from "@/components/ui/export-settings";
+import { User, BarChart3, Lock, CreditCard, Plug, Bell, Download } from "lucide-react";
 
 const tabs = [
-  { id: "profile", label: "Profile" },
-  { id: "usage", label: "Usage" },
-  { id: "authentication", label: "Authentication" },
-  { id: "billing", label: "Billing" },
-  { id: "integrations", label: "Integrations" },
-  { id: "notifications", label: "Notifications" },
-  { id: "export", label: "Export" },
+  { id: "profile", label: "Profile", icon: User },
+  { id: "usage", label: "Usage", icon: BarChart3 },
+  { id: "authentication", label: "Authentication", icon: Lock },
+  { id: "billing", label: "Billing", icon: CreditCard },
+  { id: "integrations", label: "Integrations", icon: Plug },
+  { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "export", label: "Export", icon: Download },
 ];
 
 function SettingsPageContent() {
@@ -85,7 +86,16 @@ function SettingsPageContent() {
                 >
                   <div className="hidden md:block w-max flex-shrink-0">
                     <Tabs.List type="button-gray" items={tabs}>
-                      {(tab) => <Tabs.Item {...tab} />}
+                      {(tab) => {
+                        const Icon = tab.icon;
+                        const { label, ...tabProps } = tab;
+                        return (
+                          <Tabs.Item {...tabProps}>
+                            {Icon && <Icon className="h-4 w-4" />}
+                            {label}
+                          </Tabs.Item>
+                        );
+                      }}
                     </Tabs.List>
                   </div>
 

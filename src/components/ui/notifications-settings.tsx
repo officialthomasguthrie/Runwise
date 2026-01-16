@@ -1,9 +1,9 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase-client";
-import { Mail, Monitor, Smartphone, Save, Loader2, Check } from "lucide-react";
+import { Mail, Monitor, Smartphone, Save, Loader2, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
@@ -33,6 +33,8 @@ export function NotificationsSettings() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -52,11 +54,37 @@ export function NotificationsSettings() {
         console.error('Error loading notification settings:', error);
       } finally {
         setLoading(false);
+        isInitialLoad.current = false;
       }
     };
 
     loadSettings();
   }, [user]);
+
+  // Auto-save when settings change
+  useEffect(() => {
+    // Don't auto-save during initial load
+    if (isInitialLoad.current || !user || loading) {
+      return;
+    }
+
+    // Clear existing timer
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    // Debounce save by 500ms
+    saveTimerRef.current = setTimeout(() => {
+      handleSave();
+    }, 500);
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings]);
 
   const handleEmailToggle = (key: keyof NotificationSettings['email']) => {
     setSettings(prev => ({
@@ -86,7 +114,6 @@ export function NotificationsSettings() {
     if (!user) return;
 
     setIsSaving(true);
-    setSaveStatus('idle');
 
     try {
       const supabase = createClient();
@@ -113,8 +140,78 @@ export function NotificationsSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-muted-foreground">Loading notification settings...</div>
+      <div className="space-y-6">
+        {/* Email Notifications Section Skeleton */}
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Email Notifications
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Choose which email notifications you want to receive
+            </p>
+          </div>
+
+          <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-6 space-y-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                  <div className="h-3 w-56 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                </div>
+                <div className="h-6 w-11 rounded-full bg-gray-300 dark:bg-[#303030] animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop Notifications Section Skeleton */}
+        <div className="space-y-4 pt-6">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
+              <Monitor className="h-5 w-5" />
+              Desktop Notifications
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Enable desktop browser notifications
+            </p>
+          </div>
+
+          <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-48 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                <div className="h-3 w-52 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+              </div>
+              <div className="h-6 w-11 rounded-full bg-gray-300 dark:bg-[#303030] animate-pulse" />
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Push Notifications Section Skeleton */}
+        <div className="space-y-4 pt-6">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
+              <Smartphone className="h-5 w-5" />
+              Mobile Push Notifications
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Enable push notifications on your mobile device
+            </p>
+          </div>
+
+          <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-56 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                <div className="h-3 w-60 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+              </div>
+              <div className="h-6 w-11 rounded-full bg-gray-300 dark:bg-[#303030] animate-pulse" />
+            </div>
+          </div>
+        </div>
+
       </div>
     );
   }
@@ -133,7 +230,7 @@ export function NotificationsSettings() {
           </p>
         </div>
 
-        <div className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-6 space-y-4">
+        <div className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-6 space-y-4">
           {/* Workflow Failures */}
           <div className="flex items-center justify-between">
             <div className="flex-1">
@@ -249,7 +346,7 @@ export function NotificationsSettings() {
       </div>
 
       {/* Desktop Notifications Section */}
-      <div className="space-y-4 pt-6 border-t border-stone-200 dark:border-white/20">
+      <div className="space-y-4 pt-6">
         <div>
           <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
             <Monitor className="h-5 w-5" />
@@ -260,7 +357,7 @@ export function NotificationsSettings() {
           </p>
         </div>
 
-        <div className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-6">
+        <div className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <Label htmlFor="desktop" className="text-sm font-medium text-foreground cursor-pointer">
@@ -291,7 +388,7 @@ export function NotificationsSettings() {
       </div>
 
       {/* Mobile Push Notifications Section */}
-      <div className="space-y-4 pt-6 border-t border-stone-200 dark:border-white/20">
+      <div className="space-y-4 pt-6">
         <div>
           <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
             <Smartphone className="h-5 w-5" />
@@ -302,7 +399,7 @@ export function NotificationsSettings() {
           </p>
         </div>
 
-        <div className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-6">
+        <div className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <Label htmlFor="mobile" className="text-sm font-medium text-foreground cursor-pointer">
@@ -332,31 +429,20 @@ export function NotificationsSettings() {
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="flex items-center justify-end pt-4">
-        <Button
-          onClick={handleSave}
-          disabled={isSaving}
-          variant="ghost"
-          className="bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : saveStatus === 'success' ? (
-            <>
-              <Check className="h-4 w-4 mr-2" />
-              Saved
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Settings
-            </>
-          )}
-        </Button>
+      {/* Auto-save status messages */}
+      <div className="flex items-center gap-2 pt-4">
+        {saveStatus === 'success' && !isSaving && (
+          <div className="flex items-center gap-2 text-sm text-green-600">
+            <Check className="h-4 w-4" />
+            <span>Settings saved</span>
+          </div>
+        )}
+        {saveStatus === 'error' && !isSaving && (
+          <div className="flex items-center gap-2 text-sm text-red-600">
+            <AlertCircle className="h-4 w-4" />
+            <span>Failed to save settings</span>
+          </div>
+        )}
       </div>
     </div>
   );

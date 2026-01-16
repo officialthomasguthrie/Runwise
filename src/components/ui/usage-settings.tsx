@@ -55,8 +55,54 @@ export function UsageSettings() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-xl font-semibold">Credit Usage</h2>
-        <div className="text-sm text-muted-foreground">Loading credit information...</div>
+        {/* Credit Balance Card Skeleton */}
+        <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-6 space-y-4">
+          <div className="space-y-2">
+            <div className="h-4 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            <div className="h-10 w-48 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+          </div>
+
+          {/* Progress Bar Skeleton */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="h-3 w-48 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+              <div className="h-3 w-12 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            </div>
+            <div className="w-full h-2 bg-gray-300 dark:bg-[#303030] rounded-full animate-pulse" />
+          </div>
+        </div>
+
+        {/* Usage Statistics Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-2">
+            <div className="h-4 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            <div className="h-8 w-24 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+            <div className="h-3 w-40 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+          </div>
+          <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-2">
+            <div className="h-4 w-28 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            <div className="h-8 w-36 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+            <div className="h-3 w-48 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+          </div>
+        </div>
+
+        {/* Credit Information Skeleton */}
+        <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-3">
+          <div className="h-5 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+          <div className="space-y-2">
+            <div className="h-4 w-full bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            <div className="h-4 w-full bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            <div className="h-4 w-3/4 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+          </div>
+          <div className="pt-2 space-y-2">
+            <div className="h-4 w-24 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            <div className="space-y-1 ml-2">
+              <div className="h-3 w-full bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+              <div className="h-3 w-full bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+              <div className="h-3 w-4/5 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -64,7 +110,6 @@ export function UsageSettings() {
   if (error || !creditData) {
     return (
       <div className="space-y-6">
-        <h2 className="text-xl font-semibold">Credit Usage</h2>
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive flex items-center gap-2">
           <AlertCircle className="w-4 h-4" />
           {error || 'Unable to load credit information'}
@@ -90,10 +135,8 @@ export function UsageSettings() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Credit Usage</h2>
-
       {/* Credit Balance Card */}
-      <div className="rounded-lg border border-stone-200 dark:border-white/10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-6 space-y-4">
+      <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-6 space-y-4">
         <div>
           <p className="text-sm text-muted-foreground mb-1">Credits Remaining</p>
           <p className="text-3xl font-semibold text-foreground">
@@ -135,10 +178,10 @@ export function UsageSettings() {
         </div>
 
         {isLow && (
-          <div className={`rounded-lg border px-4 py-3 text-sm ${
+          <div className={`rounded-lg px-4 py-3 text-sm ${
             isVeryLow
-              ? 'bg-destructive/10 border-destructive/20 text-destructive'
-              : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-600 dark:text-yellow-500'
+              ? 'bg-destructive/10 text-destructive'
+              : 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-500'
           } flex items-start gap-2`}>
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <div>
@@ -152,7 +195,7 @@ export function UsageSettings() {
 
       {/* Usage Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="rounded-lg border border-stone-200 dark:border-white/10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-2">
+        <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <TrendingUp className="w-4 h-4" />
             <span>Used This Month</span>
@@ -165,7 +208,7 @@ export function UsageSettings() {
           </p>
         </div>
 
-        <div className="rounded-lg border border-stone-200 dark:border-white/10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-2">
+        <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
             <span>Next Reset</span>
@@ -180,7 +223,7 @@ export function UsageSettings() {
       </div>
 
       {/* Credit Information */}
-      <div className="rounded-lg border border-stone-200 dark:border-white/10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-3">
+      <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-3">
         <h3 className="text-sm font-semibold text-foreground">About Credits</h3>
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>

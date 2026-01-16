@@ -126,8 +126,35 @@ export function ExecutionsView({ workflowId, className }: ExecutionsViewProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className={cn("h-full flex flex-col pt-16", className)}>
+        <div className="px-6 py-4 space-y-2">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={index}
+              className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl"
+            >
+              <div className="w-full px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 space-y-2">
+                    {/* Workflow name and status skeleton */}
+                    <div className="flex items-center gap-2">
+                      <div className="h-5 w-32 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+                      <div className="h-4 w-16 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                    </div>
+                    {/* Date, duration, trigger skeleton */}
+                    <div className="flex items-center gap-4">
+                      <div className="h-3 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                      <div className="h-3 w-20 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                      <div className="h-3 w-24 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+                {/* Chevron skeleton */}
+                <div className="h-4 w-4 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -223,8 +250,19 @@ export function ExecutionsView({ workflowId, className }: ExecutionsViewProps) {
                     <div>
                       <h3 className="text-sm font-medium mb-2">Node Executions</h3>
                       {isLoadingNodes ? (
-                        <div className="flex items-center justify-center py-4">
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        <div className="space-y-2">
+                          {Array.from({ length: 3 }).map((_, index) => (
+                            <div
+                              key={index}
+                              className="p-3 bg-white/40 dark:bg-zinc-900/40 rounded-md"
+                            >
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="h-4 w-24 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+                                <div className="h-3 w-16 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                              </div>
+                              <div className="h-3 w-32 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse mt-1" />
+                            </div>
+                          ))}
                         </div>
                       ) : nodes.length > 0 ? (
                         <div className="space-y-2">

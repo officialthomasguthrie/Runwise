@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import GradientText from "@/components/ui/GradientText";
 import { GradientAIChatInput } from "@/components/ui/gradient-ai-chat-input";
 import { GridCard } from "@/components/ui/grid-card";
-import { AnimatedGridPattern } from "@/components/ui/animated-grid-pattern";
 import { ButtonColorful } from "@/components/ui/button-colorful";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
@@ -384,22 +383,6 @@ export default function DashboardPage() {
             </div>
           )}
           <main className="flex h-full grow flex-col overflow-y-auto relative scrollbar-hide">
-            {/* Animated Grid Pattern - Full Dashboard Background */}
-            <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-              <AnimatedGridPattern
-                numSquares={30}
-                maxOpacity={0.1}
-                duration={3}
-                repeatDelay={1}
-                  className={cn(
-                    "[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]",
-                    "inset-y-[-20%] h-[150%] skew-y-12",
-                    "left-[calc(50%-70%+2rem)] w-[140%]",
-                  )}
-              />
-              <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-background to-transparent pointer-events-none" />
-            </div>
-            
             {/* Dashboard Hero Section */}
             <section className="relative pt-6 pb-48 z-10" style={{ overflow: 'visible' }}>
               <motion.div
