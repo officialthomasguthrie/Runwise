@@ -149,8 +149,6 @@ export function ExecutionsView({ workflowId, className }: ExecutionsViewProps) {
                     </div>
                   </div>
                 </div>
-                {/* Chevron skeleton */}
-                <div className="h-4 w-4 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
               </div>
             </div>
           ))}

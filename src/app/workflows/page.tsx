@@ -256,10 +256,9 @@ export default function WorkflowsPage() {
                             <div className="h-3 w-3 bg-gray-200 dark:bg-[#303030] rounded-full animate-pulse" />
                             <div className="h-3 w-24 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
                           </div>
-                          {/* Status and arrow skeleton */}
+                          {/* Status skeleton */}
                           <div className="flex items-center justify-between mt-4">
                             <div className="h-4 w-16 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
-                            <div className="h-4 w-4 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
                           </div>
                         </div>
                       </div>

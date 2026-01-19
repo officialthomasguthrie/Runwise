@@ -15,13 +15,19 @@ import {
   HelpCircle,
   Sun,
   Moon,
-  ChevronRight,
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "next-themes";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipArrow,
+} from "@/components/ui/tooltip";
 
 function getInitials(user: any) {
   const fullName = (user?.user_metadata?.full_name as string | undefined)?.trim();
@@ -95,81 +101,115 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
   ];
 
   return (
-    <aside
-      className={cn(
-        "relative h-full border-r border-stone-200 dark:border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 hidden md:flex flex-col w-16 z-40",
-        className
-      )}
-    >
-      {/* Collapse button - center of right edge */}
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-50">
-        <div className="flex h-6 w-6 items-center justify-center rounded-full border border-stone-200 dark:border-white/10 bg-background/95 backdrop-blur shadow-sm">
-          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+    <TooltipProvider>
+      <aside
+        className={cn(
+          "relative h-full border-r border-stone-200 dark:border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 hidden md:flex flex-col w-16 z-40",
+          className
+        )}
+      >
+        <div className="flex items-center justify-center px-2 py-4">
+          <Link href="/" className="flex items-center justify-center">
+          <img
+            src="/logo.png"
+            alt="Runwise Logo"
+            className="h-8 w-auto object-contain"
+          />
+          </Link>
         </div>
-      </div>
-      <div className="flex items-center justify-center px-2 py-4">
-        <Link href="/" className="flex items-center justify-center">
-        <img
-          src="/logo.png"
-          alt="Runwise Logo"
-          className="h-8 w-auto object-contain"
-        />
-        </Link>
-      </div>
-      <nav className="flex-1 px-2 pb-4 mt-2">
-        <ul className="flex flex-col items-center gap-3">
-          {mainItems.map(({ href, icon: Icon, label }) => (
-            <li key={href}>
-              <Link
-                href={href}
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
-                  pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
-                )}
-                aria-label={label}
-              >
-                <Icon className="h-4 w-4" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      <nav className="px-2 pb-3">
-        <div className="flex items-center justify-center pb-3">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {mounted ? (
-              theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
-          </button>
+        <nav className="flex-1 px-2 pb-4 mt-2">
+          <ul className="flex flex-col items-center gap-3">
+            {mainItems.map(({ href, icon: Icon, label }) => (
+              <li key={href}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href={href}
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
+                        pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
+                      )}
+                      aria-label={label}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent 
+                    side="right"
+                    sideOffset={4}
+                    className="bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl border border-stone-200/50 dark:border-white/20 text-foreground shadow-[0_15px_30px_-12px_rgba(0,0,0,0.1),0_5px_15px_-8px_rgba(0,0,0,0.05),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.3),0_4px_6px_-4px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.05)]"
+                  >
+                    <TooltipArrow className="fill-stone-100 dark:fill-zinc-900/90" width={8} height={4} />
+                    <p>{label}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav className="px-2 pb-3">
+          <div className="flex items-center justify-center pb-3">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {mounted ? (
+                theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+          <ul className="flex flex-col items-center gap-2">
+            {utilityItems.map(({ href, icon: Icon, label }) => (
+              <li key={href}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href={href}
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
+                        pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
+                      )}
+                      aria-label={label}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent 
+                    side="right"
+                    sideOffset={4}
+                    className="bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl border border-stone-200/50 dark:border-white/20 text-foreground shadow-[0_15px_30px_-12px_rgba(0,0,0,0.1),0_5px_15px_-8px_rgba(0,0,0,0.05),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.3),0_4px_6px_-4px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.05)]"
+                  >
+                    <TooltipArrow className="fill-stone-100 dark:fill-zinc-900/90" width={8} height={4} />
+                    <p>{label}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="px-2 pb-4">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center justify-center">
+                <UserProfileAvatar user={user} />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent 
+              side="right"
+              sideOffset={8}
+              className="bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl border border-stone-200/50 dark:border-white/20 text-foreground shadow-[0_15px_30px_-12px_rgba(0,0,0,0.1),0_5px_15px_-8px_rgba(0,0,0,0.05),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.3),0_4px_6px_-4px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.05)]"
+            >
+              <TooltipArrow className="fill-stone-100 dark:fill-zinc-900/90" width={8} height={4} />
+              <p>Profile</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
-        <ul className="flex flex-col items-center gap-2">
-          {utilityItems.map(({ href, icon: Icon, label }) => (
-            <li key={href}>
-              <Link
-                href={href}
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
-                  pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
-                )}
-                aria-label={label}
-              >
-                <Icon className="h-4 w-4" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      <div className="px-2 pb-4">
-        <UserProfileAvatar user={user} />
-      </div>
-    </aside>
+      </aside>
+    </TooltipProvider>
   );
 }
 
