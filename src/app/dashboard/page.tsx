@@ -394,7 +394,7 @@ export default function DashboardPage() {
               >
                 <div className="mx-auto max-w-4xl text-center px-4" style={{ overflow: 'visible' }}>
                   <motion.h1
-                    className="mx-auto mb-4 text-4xl font-geist tracking-tighter text-foreground leading-tight sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl"
+                    className="mx-auto mb-4 text-4xl font-geist font-[350] tracking-tighter text-foreground leading-tight sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl"
                     variants={fadeInUp}
                     style={{ overflow: 'visible', textOverflow: 'clip', whiteSpace: 'normal', wordBreak: 'normal' }}
                   >
@@ -435,7 +435,7 @@ export default function DashboardPage() {
                             deletingSpeed={25}
                             pauseDuration={2000}
                             loop={true}
-                            showCursor={true}
+                            showCursor={false}
                             cursorCharacter="|"
                             className="text-muted-foreground"
                           />

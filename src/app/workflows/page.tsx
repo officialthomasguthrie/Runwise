@@ -259,9 +259,9 @@ export default function WorkflowsPage() {
                           {/* Status skeleton */}
                           <div className="flex items-center justify-between mt-4">
                             <div className="h-4 w-16 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
-                          </div>
                         </div>
                       </div>
+                    </div>
                     ))}
                   </div>
                 ) : workflows.length > 0 ? (

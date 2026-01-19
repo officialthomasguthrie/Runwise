@@ -102,37 +102,81 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
 
   return (
     <TooltipProvider>
-      <aside
-        className={cn(
-          "relative h-full border-r border-stone-200 dark:border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 hidden md:flex flex-col w-16 z-40",
-          className
-        )}
-      >
-        <div className="flex items-center justify-center px-2 py-4">
-          <Link href="/" className="flex items-center justify-center">
-          <img
-            src="/logo.png"
-            alt="Runwise Logo"
-            className="h-8 w-auto object-contain"
-          />
-          </Link>
+    <aside
+      className={cn(
+        "relative h-full border-r border-stone-200 dark:border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 hidden md:flex flex-col w-16 z-40",
+        className
+      )}
+    >
+      <div className="flex items-center justify-center px-2 py-4">
+        <Link href="/" className="flex items-center justify-center">
+        <img
+          src="/logo.png"
+          alt="Runwise Logo"
+          className="h-8 w-auto object-contain"
+        />
+        </Link>
+      </div>
+      <nav className="flex-1 px-2 pb-4 mt-2">
+        <ul className="flex flex-col items-center gap-3">
+          {mainItems.map(({ href, icon: Icon, label }) => (
+            <li key={href}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+              <Link
+                href={href}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
+                  pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
+                )}
+                aria-label={label}
+              >
+                <Icon className="h-4 w-4" />
+              </Link>
+                  </TooltipTrigger>
+                  <TooltipContent 
+                    side="right"
+                    sideOffset={4}
+                    className="bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl border border-stone-200/50 dark:border-white/20 text-foreground shadow-[0_15px_30px_-12px_rgba(0,0,0,0.1),0_5px_15px_-8px_rgba(0,0,0,0.05),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.3),0_4px_6px_-4px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.05)]"
+                  >
+                    <TooltipArrow className="fill-stone-100 dark:fill-zinc-900/90" width={8} height={4} />
+                    <p>{label}</p>
+                  </TooltipContent>
+                </Tooltip>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <nav className="px-2 pb-3">
+        <div className="flex items-center justify-center pb-3">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {mounted ? (
+              theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </button>
         </div>
-        <nav className="flex-1 px-2 pb-4 mt-2">
-          <ul className="flex flex-col items-center gap-3">
-            {mainItems.map(({ href, icon: Icon, label }) => (
-              <li key={href}>
+        <ul className="flex flex-col items-center gap-2">
+          {utilityItems.map(({ href, icon: Icon, label }) => (
+            <li key={href}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Link
-                      href={href}
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
-                        pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
-                      )}
-                      aria-label={label}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </Link>
+              <Link
+                href={href}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
+                  pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
+                )}
+                aria-label={label}
+              >
+                <Icon className="h-4 w-4" />
+              </Link>
                   </TooltipTrigger>
                   <TooltipContent 
                     side="right"
@@ -143,59 +187,15 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
                     <p>{label}</p>
                   </TooltipContent>
                 </Tooltip>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <nav className="px-2 pb-3">
-          <div className="flex items-center justify-center pb-3">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {mounted ? (
-                theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-          <ul className="flex flex-col items-center gap-2">
-            {utilityItems.map(({ href, icon: Icon, label }) => (
-              <li key={href}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link
-                      href={href}
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
-                        pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
-                      )}
-                      aria-label={label}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent 
-                    side="right"
-                    sideOffset={4}
-                    className="bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl border border-stone-200/50 dark:border-white/20 text-foreground shadow-[0_15px_30px_-12px_rgba(0,0,0,0.1),0_5px_15px_-8px_rgba(0,0,0,0.05),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.3),0_4px_6px_-4px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.05)]"
-                  >
-                    <TooltipArrow className="fill-stone-100 dark:fill-zinc-900/90" width={8} height={4} />
-                    <p>{label}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="px-2 pb-4">
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <div className="px-2 pb-4">
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center justify-center">
-                <UserProfileAvatar user={user} />
+        <UserProfileAvatar user={user} />
               </div>
             </TooltipTrigger>
             <TooltipContent 
@@ -207,8 +207,8 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
               <p>Profile</p>
             </TooltipContent>
           </Tooltip>
-        </div>
-      </aside>
+      </div>
+    </aside>
     </TooltipProvider>
   );
 }
