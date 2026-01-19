@@ -85,7 +85,7 @@ function ResetPasswordContent() {
 
   if (tokenValid === false) {
     return (
-      <div className="min-h-screen w-full bg-background text-foreground flex items-center justify-center p-3" suppressHydrationWarning={true}>
+      <div className="auth-page min-h-screen w-full bg-background text-foreground flex items-center justify-center p-3" suppressHydrationWarning={true}>
         <div className="w-full max-w-xs space-y-4">
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
             <p className="text-sm text-red-400 mb-4">{error}</p>
@@ -105,7 +105,7 @@ function ResetPasswordContent() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground" suppressHydrationWarning={true}>
+    <div className="auth-page min-h-screen w-full bg-background text-foreground" suppressHydrationWarning={true}>
       {/* Go Back Button */}
       <button
         onClick={handleGoBack}

@@ -119,7 +119,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground" suppressHydrationWarning={true}>
+    <div className="auth-page min-h-screen w-full bg-background text-foreground" suppressHydrationWarning={true}>
       <SignUpPage
         title={<span className="font-light text-foreground tracking-tighter">Get Started</span>}
         description="Create your account and start building AI workflows"

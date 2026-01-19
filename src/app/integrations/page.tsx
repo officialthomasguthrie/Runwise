@@ -481,16 +481,16 @@ function IntegrationsPageContent() {
       // Listen for connection success
       const handleMessage = (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
-        
+
         if (event.data.type === 'integration-connected' && event.data.service === serviceName) {
-          // Reload integrations
+      // Reload integrations
           loadIntegrations();
           window.removeEventListener('message', handleMessage);
         } else if (event.data.type === 'integration-connection-cancelled') {
           window.removeEventListener('message', handleMessage);
-        }
-      };
-      
+    }
+  };
+
       window.addEventListener('message', handleMessage);
     }
   };

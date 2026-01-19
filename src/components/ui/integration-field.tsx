@@ -699,18 +699,18 @@ export function IntegrationField({
       const supportedServices = ['openai', 'sendgrid', 'twilio', 'discord', 'stripe', 'twitter'];
       
       if (supportedServices.includes(serviceName)) {
-        return (
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              Connect
-              {fieldSchema?.required && <span className="text-red-500 ml-1">*</span>}
-            </label>
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
+      return (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">
+            Connect
+            {fieldSchema?.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
                 {fieldSchema?.description || `Connect your ${getServiceDisplayName()} account`}
               </p>
-              <Button
-                type="button"
+            <Button
+              type="button"
                 onClick={() => {
                   // Open connection window popup
                   const width = 600;
@@ -742,33 +742,33 @@ export function IntegrationField({
                   
                   window.addEventListener('message', handleMessage);
                 }}
-                variant="ghost"
-                className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+              variant="ghost"
+              className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
               >
-                {(() => {
-                  const slug = getServiceSlug();
-                  const logoUrl = slug ? getLogoUrl(slug) : null;
+                  {(() => {
+                    const slug = getServiceSlug();
+                    const logoUrl = slug ? getLogoUrl(slug) : null;
                   const isOpenAI = slug === 'openai';
-                  return logoUrl ? (
-                    <>
-                      <img 
-                        src={logoUrl} 
-                        alt={getServiceDisplayName()} 
+                    return logoUrl ? (
+                      <>
+                        <img 
+                          src={logoUrl} 
+                          alt={getServiceDisplayName()} 
                         className={isOpenAI ? "h-5 w-5 mr-2 object-contain" : "h-4 w-4 mr-2 object-contain"}
-                      />
+                        />
                       Connect
-                    </>
-                  ) : (
-                    <>
-                      <ExternalLink className="h-3 w-3 mr-2" />
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="h-3 w-3 mr-2" />
                       Connect
-                    </>
-                  );
-                })()}
-              </Button>
-            </div>
+                      </>
+                    );
+                  })()}
+            </Button>
           </div>
-        );
+        </div>
+      );
       }
       
       // Fallback for unsupported services - show inline form
@@ -805,13 +805,13 @@ export function IntegrationField({
                 />
               </>
             ) : (
-              <Input
-                type="text"
-                placeholder={getTokenPlaceholder()}
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
-              />
+            <Input
+              type="text"
+              placeholder={getTokenPlaceholder()}
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+            />
             )}
             <Button
               type="button"

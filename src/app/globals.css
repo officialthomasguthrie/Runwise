@@ -1,3 +1,5 @@
+/* stylelint-disable at-rule-no-unknown */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -328,12 +330,10 @@ html {
   touch-action: manipulation; /* Prevent browser zoom */
   -webkit-text-size-adjust: 100%; /* Prevent iOS zoom */
   -ms-text-size-adjust: 100%; /* Prevent IE zoom */
-  font-family: 'Roboto', system-ui, sans-serif !important;
 }
 
 body {
   overflow-x: hidden; /* Prevent horizontal scroll */
-  font-family: 'Roboto', system-ui, sans-serif !important;
 }
 
 /* Allow user interaction on React Flow canvas */
@@ -675,24 +675,30 @@ html {
 
 @layer base {
   * {
-    @apply border-border;
-    font-family: 'Roboto', system-ui, sans-serif !important;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Roboto', system-ui, sans-serif !important;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
 
-/* Force Roboto font everywhere with maximum specificity */
-html, html *, body, body *, div, div *, span, span *, h1, h2, h3, h4, h5, h6, p, a, button, input, textarea, select, label, li, ul, ol, table, tr, td, th, .font-geist, [class*="font-"] {
-  font-family: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
-  font-display: swap !important;
+/* Default app font: Open Sans for all pages */
+html,
+body,
+html *:not(main.landing-page *):not(.landing-page *):not(.auth-page *),
+body *:not(main.landing-page *):not(.landing-page *):not(.auth-page *) {
+  font-family: "Open Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-display: swap;
 }
 
-/* Additional override for any remaining elements */
-*:not([class*="mono"]):not([class*="code"]) {
+/* Auth pages (login/signup/reset-password) should keep Roboto */
+html:has(.auth-page),
+html:has(.auth-page) *,
+body:has(.auth-page),
+body:has(.auth-page) * {
   font-family: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
+  font-display: swap !important;
 }
 
 /* ============================================
