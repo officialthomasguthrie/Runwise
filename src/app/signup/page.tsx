@@ -4,6 +4,7 @@ import { SignUpPage, Testimonial } from "@/components/ui/sign-up";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AuthLoadingPage } from "@/components/ui/auth-loading-page";
 
 const sampleTestimonials: Testimonial[] = [
   {
@@ -61,13 +62,14 @@ export default function SignupPage() {
 
       if (error) {
         setError(error.message ?? "Unable to create account. Please try again.");
+        setLoading(false);
       } else {
+        // Don't set loading to false - let the loading page stay until dashboard loads
         // New users will start on the free tier via the DB default / trigger
         router.push("/dashboard");
       }
     } catch {
       setError("An unexpected error occurred. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
@@ -112,6 +114,10 @@ export default function SignupPage() {
     router.push("/");
   };
 
+  if (loading) {
+    return <AuthLoadingPage />;
+  }
+
   return (
     <div className="min-h-screen w-full bg-background text-foreground" suppressHydrationWarning={true}>
       <SignUpPage
@@ -128,14 +134,6 @@ export default function SignupPage() {
       {error && (
         <div className="fixed top-4 right-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 max-w-sm">
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      )}
-      {loading && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background rounded-lg p-6 flex items-center gap-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-400"></div>
-            <p className="text-foreground">Creating your account...</p>
-          </div>
         </div>
       )}
     </div>

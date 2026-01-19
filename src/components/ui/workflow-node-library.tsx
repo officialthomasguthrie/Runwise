@@ -307,8 +307,8 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
         'googlecalendar': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idMX2_OMSc.svg?c=${clientId}` },
         'googledrive': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idncaAgFGT.svg?c=${clientId}` },
         'github': {
-          light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/dark/symbol.svg?c=${clientId}`,
-          dark: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`
+          light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`,
+          dark: `https://cdn.brandfetch.io/idZAyF9rlg/w/800/h/784/theme/light/symbol.png?c=${clientId}`
         },
         'trello': { dark: `https://cdn.brandfetch.io/idToc8bDY1/theme/dark/symbol.svg?c=${clientId}` },
         'notion': { dark: `https://cdn.brandfetch.io/idPYUoikV7/theme/dark/symbol.svg?c=${clientId}` },
@@ -327,7 +327,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
       'twilio': { dark: `https://cdn.brandfetch.io/idT7wVo_zL/theme/dark/symbol.svg?c=${clientId}` },
       'openai': {
         light: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${clientId}`,
-        dark: `https://cdn.brandfetch.io/idR3duQxYl/theme/light/symbol.svg?c=${clientId}`
+        dark: `https://cdn.brandfetch.io/idR3duQxYl/w/800/h/800/theme/light/symbol.png?c=${clientId}`
       },
       'paypal': { dark: `https://cdn.brandfetch.io/id-Wd4a4TS/theme/dark/symbol.svg?c=${clientId}` },
       // Google Forms uses a custom logo URL provided by user
@@ -353,6 +353,57 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
   // Function to detect which integration service this node uses
   const getNodeIntegration = (): {serviceName?: 'google' | 'google-sheets' | 'google-gmail' | 'google-calendar' | 'google-drive' | 'google-forms' | 'slack' | 'github' | 'notion' | 'airtable' | 'trello' | 'openai' | 'sendgrid' | 'twilio' | 'stripe' | 'discord' | 'twitter' | 'paypal' | 'shopify' | 'hubspot' | 'asana' | 'jira'; credentialType?: 'oauth' | 'api_token' | 'api_key_and_token'} => {
     const nodeId = data.nodeId || '';
+    
+    // For custom nodes, check configSchema for integration fields
+    if (nodeId === 'CUSTOM_GENERATED' && configSchema) {
+      // Find the first integration field in configSchema
+      const integrationField = Object.entries(configSchema).find(
+        ([_, schema]: [string, any]) => schema.type === 'integration'
+      );
+      
+      if (integrationField) {
+        const [_, schema] = integrationField;
+        const integrationSchema = schema as any;
+        
+        // Map integrationType/serviceName to our serviceName and credentialType
+        const serviceName = integrationSchema.serviceName || integrationSchema.integrationType;
+        const integrationType = integrationSchema.integrationType || serviceName;
+        
+        // Map integration types to service names and credential types
+        const integrationMapping: Record<string, { serviceName: string; credentialType: 'oauth' | 'api_token' | 'api_key_and_token' }> = {
+          'google': { serviceName: 'google', credentialType: 'oauth' },
+          'google-sheets': { serviceName: 'google-sheets', credentialType: 'oauth' },
+          'google-gmail': { serviceName: 'google-gmail', credentialType: 'oauth' },
+          'google-calendar': { serviceName: 'google-calendar', credentialType: 'oauth' },
+          'google-drive': { serviceName: 'google-drive', credentialType: 'oauth' },
+          'google-forms': { serviceName: 'google-forms', credentialType: 'oauth' },
+          'slack': { serviceName: 'slack', credentialType: 'oauth' },
+          'github': { serviceName: 'github', credentialType: 'oauth' },
+          'notion': { serviceName: 'notion', credentialType: 'oauth' },
+          'airtable': { serviceName: 'airtable', credentialType: 'oauth' },
+          'trello': { serviceName: 'trello', credentialType: 'oauth' },
+          'openai': { serviceName: 'openai', credentialType: 'api_token' },
+          'sendgrid': { serviceName: 'sendgrid', credentialType: 'api_token' },
+          'twilio': { serviceName: 'twilio', credentialType: 'api_key_and_token' },
+          'stripe': { serviceName: 'stripe', credentialType: 'api_token' },
+          'discord': { serviceName: 'discord', credentialType: 'api_token' },
+          'twitter': { serviceName: 'twitter', credentialType: 'api_token' },
+          'paypal': { serviceName: 'paypal', credentialType: 'oauth' },
+          'shopify': { serviceName: 'shopify', credentialType: 'oauth' },
+          'hubspot': { serviceName: 'hubspot', credentialType: 'oauth' },
+          'asana': { serviceName: 'asana', credentialType: 'oauth' },
+          'jira': { serviceName: 'jira', credentialType: 'oauth' },
+        };
+        
+        const mapping = integrationMapping[integrationType as string] || integrationMapping[serviceName as string];
+        if (mapping) {
+          return {
+            serviceName: mapping.serviceName as any,
+            credentialType: mapping.credentialType,
+          };
+        }
+      }
+    }
     
     // Google nodes (OAuth) - map to specific service names
     if (nodeId === 'new-row-in-google-sheet') {
@@ -611,18 +662,19 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
       <BaseNodeHeader className="border-b border-stone-200 dark:border-white/20">
         <div className="flex items-center gap-2 flex-1">
           {(() => {
-            // Check if this is an integration node (not AI-generated)
+            // Check if this is an integration node (including AI-generated custom nodes with integrations)
             const integration = getNodeIntegration();
-            const isIntegrationNode = !!integration.serviceName && data.nodeId !== 'CUSTOM_GENERATED';
+            const isIntegrationNode = !!integration.serviceName;
             const slug = isIntegrationNode && integration.serviceName ? getServiceSlug(integration.serviceName) : null;
             const logoUrl = slug ? getLogoUrl(slug) : null;
             
             if (isIntegrationNode && logoUrl) {
+              const isOpenAI = slug === 'openai';
               return (
                 <img 
                   src={logoUrl} 
                   alt={nodeName} 
-                  className="size-4 object-contain"
+                  className={isOpenAI ? "size-6 object-contain" : "size-4 object-contain"}
                 />
               );
             }
@@ -675,7 +727,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
           >
             <div className="space-y-4" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
               {/* API Token Integration Connection (no resource selection, just connection) */}
-              {integrationStatus.serviceName && 
+              {/* Skip for custom nodes - they handle integration via configSchema */}
+              {data.nodeId !== 'CUSTOM_GENERATED' && 
+               integrationStatus.serviceName && 
                integrationStatus.credentialType === 'api_token' && 
                integrationStatus.isConnected === false && (
                 <div className="pb-4">
@@ -699,7 +753,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                 </div>
               )}
               {/* API Key + Token Integration Connection (Twilio) */}
-              {integrationStatus.serviceName && 
+              {/* Skip for custom nodes - they handle integration via configSchema */}
+              {data.nodeId !== 'CUSTOM_GENERATED' && 
+               integrationStatus.serviceName && 
                integrationStatus.credentialType === 'api_key_and_token' && 
                integrationStatus.isConnected === false && (
                 <div className="pb-4">
@@ -720,7 +776,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
               )}
               {/* OAuth Integration Connection (for nodes without resource fields like PayPal, Twitter) */}
               {/* Only show generic connection if node doesn't have resource fields that handle connection */}
-              {integrationStatus.serviceName && 
+              {/* Skip for custom nodes - they handle integration via configSchema */}
+              {data.nodeId !== 'CUSTOM_GENERATED' && 
+               integrationStatus.serviceName && 
                integrationStatus.credentialType === 'oauth' && 
                integrationStatus.isConnected === false && 
                !(
@@ -754,7 +812,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                 </div>
               )}
               {/* Show Disconnect button for API key/token integrations if connected */}
-              {integrationStatus.serviceName && 
+              {/* Skip for custom nodes - they handle disconnect via IntegrationField */}
+              {data.nodeId !== 'CUSTOM_GENERATED' && 
+               integrationStatus.serviceName && 
                integrationStatus.credentialType !== 'oauth' && 
                integrationStatus.isConnected === true && (
                 <div className="pb-2">
@@ -790,7 +850,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                 </div>
               )}
               {/* Show Disconnect button for OAuth integrations if connected (for nodes without resource fields) */}
-              {integrationStatus.serviceName && 
+              {/* Skip for custom nodes - they handle disconnect via IntegrationField */}
+              {data.nodeId !== 'CUSTOM_GENERATED' && 
+               integrationStatus.serviceName && 
                integrationStatus.credentialType === 'oauth' && 
                integrationStatus.isConnected === true && (
                 <div className="pb-2">
@@ -824,6 +886,109 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   />
                 </div>
               )}
+              
+              {/* Custom Node Integration Connection - Render at top before other fields */}
+              {data.nodeId === 'CUSTOM_GENERATED' && (() => {
+                // Find integration field in configSchema
+                const integrationField = Object.entries(configSchema).find(
+                  ([_, schema]: [string, any]) => (schema as any).type === 'integration'
+                );
+                
+                if (integrationField) {
+                  const [key, schema] = integrationField;
+                  const schemaTyped = schema as any;
+                  const serviceName = schemaTyped.serviceName || schemaTyped.integrationType;
+                  const credentialType = schemaTyped.credentialType || 'oauth';
+                  
+                  // If not connected, show IntegrationField for connection
+                  // If connected, show disconnect button directly (no label) - just like library nodes
+                  if (integrationStatus.isConnected !== true) {
+                    return (
+                      <div key={`integration-${key}`} className="pb-4">
+                        <IntegrationField
+                          fieldKey={key}
+                          fieldSchema={schemaTyped}
+                          value={localConfig[key]}
+                          onChange={(value) => handleConfigChange(key, value)}
+                          nodeId={id}
+                          serviceName={serviceName}
+                          resourceType={schemaTyped.resourceType}
+                          credentialType={credentialType}
+                          onConnected={async () => {
+                            await checkIntegrationStatus();
+                          }}
+                        />
+                      </div>
+                    );
+                  } else {
+                    // Connected - show disconnect button directly (no "Connect" label), just like library nodes
+                    return (
+                      <div key={`integration-${key}`} className="pb-2">
+                        {credentialType === 'oauth' ? (
+                          <OAuthDisconnectButton 
+                            serviceName={serviceName}
+                            onDisconnect={async () => {
+                              try {
+                                const response = await fetch('/api/integrations/disconnect', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ serviceName }),
+                                });
+                                
+                                if (!response.ok) {
+                                  const errorData = await safeParseJSON(response);
+                                  const errorMessage = errorData.error || errorData.message || 'Unknown error';
+                                  console.error('Failed to disconnect:', errorMessage);
+                                  throw new Error(errorMessage);
+                                }
+                                
+                                setTimeout(() => {
+                                  checkIntegrationStatus();
+                                }, 500);
+                              } catch (error) {
+                                console.error('Error disconnecting:', error);
+                              }
+                            }}
+                            getLogoUrl={getLogoUrl}
+                            getServiceSlug={getServiceSlug}
+                          />
+                        ) : (
+                          <ApiTokenDisconnectButton
+                            serviceName={serviceName}
+                            onDisconnect={async () => {
+                              try {
+                                const response = await fetch('/api/integrations/disconnect', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ serviceName }),
+                                });
+                                
+                                if (!response.ok) {
+                                  const errorData = await safeParseJSON(response);
+                                  const errorMessage = errorData.error || errorData.message || 'Unknown error';
+                                  console.error('Failed to disconnect:', errorMessage);
+                                  throw new Error(errorMessage);
+                                }
+                                
+                                setTimeout(() => {
+                                  checkIntegrationStatus();
+                                }, 500);
+                              } catch (error) {
+                                console.error('Error disconnecting:', error);
+                                throw error;
+                              }
+                            }}
+                            getLogoUrl={getLogoUrl}
+                            getServiceSlug={getServiceSlug}
+                          />
+                        )}
+                      </div>
+                    );
+                  }
+                }
+                return null;
+              })()}
+              
               {Object.entries(configSchema).map(([key, schema]: [string, any]) => {
                 // Check if this field should skip label rendering (handled by IntegrationField or excluded)
                 const isIntegrationField = 
@@ -845,6 +1010,8 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   ((data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && (key === 'guildId' || key === 'channelId'));
                 
                 const isExcludedField =
+                  // Custom nodes - exclude integration fields (rendered at top)
+                  (data.nodeId === 'CUSTOM_GENERATED' && schema.type === 'integration') ||
                   // Google OAuth integration nodes - remove apiKey fields
                   ((data.nodeId === 'new-row-in-google-sheet' ||
                     data.nodeId === 'new-email-received' ||
@@ -1318,7 +1485,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                         // Notion, Airtable, Trello API key/token integration fields
                         (data.nodeId === 'create-notion-page' && (key === 'databaseId' || key === 'apiKey')) ||
                         (data.nodeId === 'update-airtable-record' && (key === 'baseId' || key === 'tableId' || key === 'apiKey')) ||
-                        (data.nodeId === 'create-trello-card' && (key === 'boardId' || key === 'idList' || key === 'apiKey' || key === 'token'))
+                        (data.nodeId === 'create-trello-card' && (key === 'boardId' || key === 'idList' || key === 'apiKey' || key === 'token')) ||
+                        // Custom node integration fields (already handled above)
+                        (data.nodeId === 'CUSTOM_GENERATED' && schema.type === 'integration')
                       ) && (
                         <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                           <div className="relative">
@@ -1505,6 +1674,7 @@ function OAuthDisconnectButton({
 
   const slug = getServiceSlug(serviceName);
   const logoUrl = slug ? getLogoUrl(slug) : null;
+  const isOpenAI = slug === 'openai';
 
   return (
     <Button
@@ -1524,7 +1694,7 @@ function OAuthDisconnectButton({
             <img 
               src={logoUrl} 
               alt={serviceName} 
-              className="h-4 w-4 mr-2 object-contain"
+              className={isOpenAI ? "h-5 w-5 mr-2 object-contain" : "h-4 w-4 mr-2 object-contain"}
             />
           ) : (
             <ExternalLink className="h-3 w-3 mr-2" />
@@ -1560,6 +1730,7 @@ function ApiTokenDisconnectButton({
 
   const slug = getServiceSlug(serviceName);
   const logoUrl = slug ? getLogoUrl(slug) : null;
+  const isOpenAI = slug === 'openai';
 
   return (
     <Button
@@ -1579,7 +1750,7 @@ function ApiTokenDisconnectButton({
             <img 
               src={logoUrl} 
               alt={serviceName} 
-              className="h-4 w-4 mr-2 object-contain"
+              className={isOpenAI ? "h-5 w-5 mr-2 object-contain" : "h-4 w-4 mr-2 object-contain"}
             />
           ) : (
             <ExternalLink className="h-3 w-3 mr-2" />

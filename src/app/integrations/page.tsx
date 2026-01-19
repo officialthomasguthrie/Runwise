@@ -51,12 +51,6 @@ function IntegrationsPageContent() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [comingSoonDialogOpen, setComingSoonDialogOpen] = useState<boolean>(false);
   const [selectedIntegrationName, setSelectedIntegrationName] = useState<string>("");
-  const [credentialDialogOpen, setCredentialDialogOpen] = useState<boolean>(false);
-  const [selectedServiceForCredentials, setSelectedServiceForCredentials] = useState<string | null>(null);
-  const [credentialInput, setCredentialInput] = useState<string>('');
-  const [credentialInput2, setCredentialInput2] = useState<string>('');
-  const [savingCredential, setSavingCredential] = useState<boolean>(false);
-  const [credentialError, setCredentialError] = useState<string | null>(null);
   const [disconnectingService, setDisconnectingService] = useState<string | null>(null);
 
   // List of integration slugs that have black or very dark logos (should be inverted to white in dark mode)
@@ -108,8 +102,8 @@ function IntegrationsPageContent() {
         dark: `https://cdn.brandfetch.io/idVoqFQ-78/theme/light/logo.svg?c=${clientId}`
       },
       'github': {
-        light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/dark/symbol.svg?c=${clientId}`,
-        dark: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`
+        light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idZAyF9rlg/w/800/h/784/theme/light/symbol.png?c=${clientId}`
       },
       'trello': { dark: `https://cdn.brandfetch.io/idToc8bDY1/theme/dark/symbol.svg?c=${clientId}` },
       'notion': { dark: `https://cdn.brandfetch.io/idPYUoikV7/theme/dark/symbol.svg?c=${clientId}` },
@@ -154,7 +148,7 @@ function IntegrationsPageContent() {
       },
       'openai': {
         light: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${clientId}`,
-        dark: `https://cdn.brandfetch.io/idR3duQxYl/theme/light/symbol.svg?c=${clientId}`
+        dark: `https://cdn.brandfetch.io/idR3duQxYl/w/800/h/800/theme/light/symbol.png?c=${clientId}`
       },
       'paypal': { dark: `https://cdn.brandfetch.io/id-Wd4a4TS/theme/dark/symbol.svg?c=${clientId}` }
     };
@@ -472,160 +466,35 @@ function IntegrationsPageContent() {
         : `/api/auth/connect/${serviceName}`;
       window.location.href = url;
     } else {
-      // Credential-based services open dialog
-      setSelectedServiceForCredentials(serviceName);
-      setCredentialDialogOpen(true);
-      setCredentialInput('');
-      setCredentialInput2('');
-      setCredentialError(null);
-    }
-  };
-
-  // Handle save credential
-  const handleSaveCredential = async () => {
-    if (!selectedServiceForCredentials) return;
-
-    setSavingCredential(true);
-    setCredentialError(null);
-
-    try {
-      // Determine credential type based on service
-      let credentialType = 'api_key';
-      if (selectedServiceForCredentials === 'stripe') {
-        credentialType = 'secret_key';
-      } else if (selectedServiceForCredentials === 'openai' || selectedServiceForCredentials === 'sendgrid') {
-        credentialType = 'api_key';
-      } else if (selectedServiceForCredentials === 'discord') {
-        credentialType = 'bot_token';
-      } else if (selectedServiceForCredentials === 'twitter') {
-        credentialType = 'bearer_token';
-      } else {
-        credentialType = 'api_token';
-      }
-
-      if (!credentialInput.trim()) {
-        const errorMsg = selectedServiceForCredentials === 'stripe' ? 'Secret key is required' 
-          : selectedServiceForCredentials === 'discord' ? 'Bot token is required'
-          : selectedServiceForCredentials === 'twitter' ? 'Bearer token is required'
-          : 'API key is required';
-        setCredentialError(errorMsg);
-        setSavingCredential(false);
-        return;
-      }
-
-      const response = await fetch('/api/integrations/store-credential', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          serviceName: selectedServiceForCredentials,
-          credentialType: credentialType,
-          credentialValue: credentialInput.trim()
-        })
-      });
-
-      if (!response.ok) {
-        const error = await safeParseJSON(response);
-        throw new Error(error.error || error.message || 'Failed to save API key');
-      }
-
-      // Close dialog and reload integrations
-      setCredentialDialogOpen(false);
-      setSelectedServiceForCredentials(null);
+      // Credential-based services open new window popup
+      const width = 600;
+      const height = 700;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
       
-      // Reload integrations
-      const statusResponse = await fetch('/api/integrations/status');
-      if (statusResponse.ok) {
-        const data = await safeParseJSON(statusResponse);
-        if (data.error) {
-          throw new Error(data.error);
+      const popup = window.open(
+        `/integrations/connect?service=${encodeURIComponent(serviceName)}`,
+        'ConnectIntegration',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      );
+      
+      // Listen for connection success
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'integration-connected' && event.data.service === serviceName) {
+          // Reload integrations
+          loadIntegrations();
+          window.removeEventListener('message', handleMessage);
+        } else if (event.data.type === 'integration-connection-cancelled') {
+          window.removeEventListener('message', handleMessage);
         }
-        const connectedServices = data.integrations || [];
-        
-        // Deduplicate by service name (keep first occurrence)
-        const seenServices = new Set<string>();
-        const uniqueServices = connectedServices.filter((integration: any) => {
-          if (!integration.connected || !integration.service) return false;
-          if (seenServices.has(integration.service)) {
-            return false;
-          }
-          seenServices.add(integration.service);
-          return true;
-        });
-        
-        const mappedIntegrations = uniqueServices
-          .map((integration: any) => {
-            const service = integration.service;
-            if (!service) return null; // Skip if service name is missing
-            
-            const matchingIntegration = allIntegrations.find(
-              (int) => int.serviceName === service
-            );
-            
-            if (matchingIntegration) {
-              return {
-                id: `connected-${service}`,
-                name: matchingIntegration.name,
-                description: matchingIntegration.description,
-                icon: matchingIntegration.icon,
-                slug: matchingIntegration.slug,
-                gradient: matchingIntegration.gradient,
-                iconColor: matchingIntegration.iconColor,
-                status: 'active',
-                serviceName: service
-              };
-            }
-            
-            return {
-              id: `connected-${service}`,
-              name: serviceNameMap[service] || (service ? service.charAt(0).toUpperCase() + service.slice(1) : 'Unknown Integration'),
-              description: 'Connected integration',
-              icon: Plug,
-              gradient: 'from-gray-500/20 to-slate-500/20',
-              iconColor: 'text-gray-400',
-              status: 'active',
-              serviceName: service
-            };
-          })
-          .filter((integration: any) => integration !== null);
-        setConfiguredIntegrations(mappedIntegrations);
-      }
-    } catch (error: any) {
-      console.error('Error saving credential:', error);
-      setCredentialError(error.message || 'Failed to save credentials');
-    } finally {
-      setSavingCredential(false);
+      };
+      
+      window.addEventListener('message', handleMessage);
     }
   };
 
-  const getCredentialPlaceholder = () => {
-    if (selectedServiceForCredentials === 'openai') {
-      return 'sk-...';
-    } else if (selectedServiceForCredentials === 'stripe') {
-      return 'sk_live_... or sk_test_...';
-    } else if (selectedServiceForCredentials === 'sendgrid') {
-      return 'SG....';
-    } else if (selectedServiceForCredentials === 'discord') {
-      return 'MTIzNDU2Nzg5MDEyMzQ1Njc4OTA.Xxxxxx...';
-    } else if (selectedServiceForCredentials === 'twitter') {
-      return 'AAAAAAAAAAAAAAAAAAAAA... (Bearer Token)';
-    }
-    return 'Enter your API token';
-  };
-
-  const getCredentialLabel = () => {
-    if (selectedServiceForCredentials === 'openai') {
-      return 'OpenAI API Key';
-    } else if (selectedServiceForCredentials === 'stripe') {
-      return 'Stripe Secret Key';
-    } else if (selectedServiceForCredentials === 'sendgrid') {
-      return 'SendGrid API Key';
-    } else if (selectedServiceForCredentials === 'discord') {
-      return 'Discord Bot Token';
-    } else if (selectedServiceForCredentials === 'twitter') {
-      return 'Twitter Bearer Token';
-    }
-    return 'API Token';
-  };
 
   // Handle disconnect
   const handleDisconnect = async (serviceName: string) => {
@@ -726,7 +595,7 @@ function IntegrationsPageContent() {
                                 <img 
                                   src={getLogoUrl((integration as any).slug)} 
                                   alt={integration.name} 
-                                  className={`h-8 w-8 object-contain ${
+                                  className={`${(integration as any).slug === 'openai' ? 'h-10 w-10' : 'h-8 w-8'} object-contain ${
                                     !usesBrandfetch((integration as any).slug) && darkLogos.includes((integration as any).slug) ? 'dark:brightness-0 dark:invert' : ''
                                   } ${
                                     !usesBrandfetch((integration as any).slug) && lightModeBlackLogos.includes((integration as any).slug) ? 'brightness-0' : ''
@@ -812,7 +681,7 @@ function IntegrationsPageContent() {
                             <img 
                               src={getLogoUrl(integration.slug)} 
                               alt={integration.name} 
-                              className={`h-8 w-8 object-contain ${
+                              className={`${integration.slug === 'openai' ? 'h-10 w-10' : 'h-8 w-8'} object-contain ${
                                 !usesBrandfetch(integration.slug) && darkLogos.includes(integration.slug) ? 'dark:brightness-0 dark:invert' : ''
                               } ${
                                 !usesBrandfetch(integration.slug) && lightModeBlackLogos.includes(integration.slug) ? 'brightness-0' : ''
@@ -873,65 +742,6 @@ function IntegrationsPageContent() {
         </main>
       </div>
 
-      {/* Credential Input Dialog */}
-      <Dialog open={credentialDialogOpen} onOpenChange={setCredentialDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Connect {selectedServiceForCredentials && serviceNameMap[selectedServiceForCredentials] ? serviceNameMap[selectedServiceForCredentials] : selectedServiceForCredentials}</DialogTitle>
-            <DialogDescription className="pt-2">
-              Enter your {getCredentialLabel()} to connect this integration.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                {getCredentialLabel()}
-              </label>
-              <Input
-                type="text"
-                placeholder={getCredentialPlaceholder()}
-                value={credentialInput}
-                onChange={(e) => setCredentialInput(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            {credentialError && (
-              <div className="text-sm text-red-600 dark:text-red-400">
-                {credentialError}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setCredentialDialogOpen(false);
-                setSelectedServiceForCredentials(null);
-                setCredentialInput('');
-                setCredentialInput2('');
-                setCredentialError(null);
-              }}
-              className="w-full sm:w-auto"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveCredential}
-              disabled={savingCredential}
-              className="w-full sm:w-auto"
-            >
-              {savingCredential ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                'Connect'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Coming Soon Dialog */}
       <Dialog open={comingSoonDialogOpen} onOpenChange={setComingSoonDialogOpen}>

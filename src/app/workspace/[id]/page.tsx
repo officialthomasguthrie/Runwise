@@ -278,8 +278,8 @@ export default function WorkspacePage() {
       // Google Forms uses a custom logo URL provided by user
       'googleforms': { dark: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Google_Forms_logo_%282014-2020%29.svg/1489px-Google_Forms_logo_%282014-2020%29.svg.png' },
       'github': {
-        light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/dark/symbol.svg?c=${clientId}`,
-        dark: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`
+        light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idZAyF9rlg/w/800/h/784/theme/light/symbol.png?c=${clientId}`
       },
       'trello': { dark: `https://cdn.brandfetch.io/idToc8bDY1/theme/dark/symbol.svg?c=${clientId}` },
       'notion': { dark: `https://cdn.brandfetch.io/idPYUoikV7/theme/dark/symbol.svg?c=${clientId}` },
@@ -298,7 +298,7 @@ export default function WorkspacePage() {
       'twilio': { dark: `https://cdn.brandfetch.io/idT7wVo_zL/theme/dark/symbol.svg?c=${clientId}` },
       'openai': {
         light: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${clientId}`,
-        dark: `https://cdn.brandfetch.io/idR3duQxYl/theme/light/symbol.svg?c=${clientId}`
+        dark: `https://cdn.brandfetch.io/idR3duQxYl/w/800/h/800/theme/light/symbol.png?c=${clientId}`
       },
       'paypal': { dark: `https://cdn.brandfetch.io/id-Wd4a4TS/theme/dark/symbol.svg?c=${clientId}` }
     };
@@ -469,7 +469,7 @@ export default function WorkspacePage() {
           <img 
             src={logoUrl} 
             alt={node.name} 
-            className="h-5 w-5 object-contain"
+            className={slug === 'openai' ? "h-7 w-7 object-contain" : "h-5 w-5 object-contain"}
           />
         ) : (
           <div className="flex items-center justify-center w-8 h-8 rounded-md bg-background/50 border border-stone-200 dark:border-white/10">

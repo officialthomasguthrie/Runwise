@@ -431,8 +431,8 @@ export function ProfileSettings() {
     <div className="max-w-[800px] space-y-10 pb-16">
       {/* Avatar Section */}
       <div className="flex gap-6">
-        <div className="relative">
-          <Avatar className="h-20 w-20">
+          <div className="relative">
+            <Avatar className="h-20 w-20">
             {(profileData.avatarUrl || user?.user_metadata?.avatar_url) && (
               <AvatarImage 
                 src={profileData.avatarUrl || user?.user_metadata?.avatar_url} 
@@ -455,7 +455,7 @@ export function ProfileSettings() {
             >
               <User className="h-8 w-8" />
             </AvatarFallback>
-          </Avatar>
+            </Avatar>
           {/* Loading overlay for avatar upload */}
           {isUploadingAvatar && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 dark:bg-black/60 rounded-full backdrop-blur-sm">
@@ -463,62 +463,62 @@ export function ProfileSettings() {
             </div>
           )}
           <label className="absolute bottom-0 right-0 bg-background border border-neutral-300 dark:border-neutral-700 rounded-full p-1.5 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors z-10">
-            <Camera className="h-3 w-3" />
-            <input
-              type="file"
-              accept="image/*"
+              <Camera className="h-3 w-3" />
+              <input
+                type="file"
+                accept="image/*"
               onChange={handleFileSelect}
-              className="hidden"
+                className="hidden"
               disabled={isUploadingAvatar}
-            />
-          </label>
-        </div>
+              />
+            </label>
+          </div>
         <div>
           <h3 className="font-semibold text-lg mb-1">
-            {profileData.firstName} {profileData.lastName}
-          </h3>
+              {profileData.firstName} {profileData.lastName}
+            </h3>
           <p className="text-muted-foreground text-sm">{profileData.email}</p>
-          {errors.avatar && (
-            <p className="text-sm text-red-500 mt-1">{errors.avatar}</p>
-          )}
+            {errors.avatar && (
+              <p className="text-sm text-red-500 mt-1">{errors.avatar}</p>
+            )}
+          </div>
         </div>
-      </div>
 
       {/* Identity Section */}
       <div className="space-y-6">
         <div>
           <h2 className="text-base font-semibold mb-4">Identity</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name *</Label>
-              <Input
-                id="firstName"
-                value={profileData.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-                placeholder="Enter your first name"
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="firstName">First Name *</Label>
+            <Input
+              id="firstName"
+              value={profileData.firstName}
+              onChange={(e) => handleInputChange('firstName', e.target.value)}
+              placeholder="Enter your first name"
                 className={`bg-background border border-neutral-300 dark:border-neutral-700 rounded-md focus-visible:ring-0 focus-visible:border-neutral-500 dark:focus-visible:border-neutral-500 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors ${errors.firstName ? "border-red-500 dark:border-red-500" : ""}`}
-              />
-              {errors.firstName && (
-                <p className="text-sm text-red-500">{errors.firstName}</p>
-              )}
-            </div>
+            />
+            {errors.firstName && (
+              <p className="text-sm text-red-500">{errors.firstName}</p>
+            )}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name *</Label>
-              <Input
-                id="lastName"
-                value={profileData.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
-                placeholder="Enter your last name"
+          <div className="space-y-2">
+            <Label htmlFor="lastName">Last Name *</Label>
+            <Input
+              id="lastName"
+              value={profileData.lastName}
+              onChange={(e) => handleInputChange('lastName', e.target.value)}
+              placeholder="Enter your last name"
                 className={`bg-background border border-neutral-300 dark:border-neutral-700 rounded-md focus-visible:ring-0 focus-visible:border-neutral-500 dark:focus-visible:border-neutral-500 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors ${errors.lastName ? "border-red-500 dark:border-red-500" : ""}`}
-              />
-              {errors.lastName && (
-                <p className="text-sm text-red-500">{errors.lastName}</p>
-              )}
+            />
+            {errors.lastName && (
+              <p className="text-sm text-red-500">{errors.lastName}</p>
+            )}
             </div>
           </div>
+          </div>
         </div>
-      </div>
 
       {/* Contact Section */}
       <div className="space-y-6">
@@ -526,44 +526,44 @@ export function ProfileSettings() {
           <h2 className="text-base font-semibold mb-4">Contact</h2>
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={profileData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="Enter your email address"
+          <Label htmlFor="email">Email Address *</Label>
+            <Input
+              id="email"
+              type="email"
+              value={profileData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              placeholder="Enter your email address"
                 className={`bg-background border border-neutral-300 dark:border-neutral-700 rounded-md focus-visible:ring-0 focus-visible:border-neutral-500 dark:focus-visible:border-neutral-500 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors ${errors.email ? "border-red-500 dark:border-red-500" : ""}`}
-              />
-              {errors.email && (
-                <p className="text-sm text-red-500">{errors.email}</p>
-              )}
-            </div>
+            />
+          {errors.email && (
+            <p className="text-sm text-red-500">{errors.email}</p>
+          )}
+        </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={profileData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="Enter your phone number"
+          <Label htmlFor="phone">Phone Number</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={profileData.phone}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+              placeholder="Enter your phone number"
                 className={`bg-background border border-neutral-300 dark:border-neutral-700 rounded-md focus-visible:ring-0 focus-visible:border-neutral-500 dark:focus-visible:border-neutral-500 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors ${errors.phone ? "border-red-500 dark:border-red-500" : ""}`}
-              />
-              {errors.phone && (
-                <p className="text-sm text-red-500">{errors.phone}</p>
-              )}
-            </div>
+            />
+          {errors.phone && (
+            <p className="text-sm text-red-500">{errors.phone}</p>
+          )}
+        </div>
 
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                value={profileData.location}
-                onChange={(e) => handleInputChange('location', e.target.value)}
-                placeholder="Enter your location"
+          <Label htmlFor="location">Location</Label>
+            <Input
+              id="location"
+              value={profileData.location}
+              onChange={(e) => handleInputChange('location', e.target.value)}
+              placeholder="Enter your location"
                 className="bg-background border border-neutral-300 dark:border-neutral-700 rounded-md focus-visible:ring-0 focus-visible:border-neutral-500 dark:focus-visible:border-neutral-500 hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors"
-              />
+            />
             </div>
           </div>
         </div>
@@ -571,18 +571,18 @@ export function ProfileSettings() {
 
       {/* Auto-save status messages */}
       <div className="flex gap-2 pt-2">
-        {saveStatus === 'success' && (
+          {saveStatus === 'success' && (
           <div className="flex gap-2 text-green-600">
-            <CheckCircle className="h-4 w-4" />
-            <span className="text-sm">Profile saved successfully!</span>
-          </div>
-        )}
-        {saveStatus === 'error' && (
+              <CheckCircle className="h-4 w-4" />
+              <span className="text-sm">Profile saved successfully!</span>
+            </div>
+          )}
+          {saveStatus === 'error' && (
           <div className="flex gap-2 text-red-600">
-            <AlertCircle className="h-4 w-4" />
-            <span className="text-sm">Failed to save profile. Please try again.</span>
-          </div>
-        )}
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm">Failed to save profile. Please try again.</span>
+            </div>
+          )}
       </div>
 
       {/* Avatar Crop Modal */}

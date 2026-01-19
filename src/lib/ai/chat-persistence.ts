@@ -206,6 +206,17 @@ export async function loadMessages(
       // Reconstruct workflow generation messages by checking content patterns
       // If it's a workflow-generated message, check if it's the success or summary message
       if (msg.workflow_generated) {
+        // Check if this is a step progress message (contains JSON step progress data)
+        try {
+          const parsed = JSON.parse(msg.content);
+          // If it's valid JSON and has step progress structure, mark it as step progress
+          if (parsed && typeof parsed === 'object' && ('intent' in parsed || 'node-matching' in parsed)) {
+            (chatMsg as any).isStepProgress = true;
+          }
+        } catch (e) {
+          // Not JSON, continue with other checks
+        }
+        
         // Check if this is the "Workflow Generated Successfully" message
         if (msg.content === 'Workflow Generated Successfully') {
           (chatMsg as any).workflowGeneratedSuccess = true;
@@ -214,7 +225,7 @@ export async function loadMessages(
         // Summary messages come after the success message and contain the AI's explanation
         // We'll identify them by checking if they follow a workflow generation pattern
         else if (msg.content && !msg.content.includes('has been generated and added to your canvas') && 
-                 msg.content !== 'Workflow Generated Successfully') {
+                 msg.content !== 'Workflow Generated Successfully' && !(chatMsg as any).isStepProgress) {
           // This is likely the summary message
           (chatMsg as any).workflowGeneratedSummary = true;
         }

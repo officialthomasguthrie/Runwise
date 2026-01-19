@@ -540,8 +540,8 @@ export function IntegrationField({
       'googlecalendar': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idMX2_OMSc.svg?c=${clientId}` },
       'googledrive': { dark: `https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/idncaAgFGT.svg?c=${clientId}` },
       'github': {
-        light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/dark/symbol.svg?c=${clientId}`,
-        dark: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`
+        light: `https://cdn.brandfetch.io/idZAyF9rlg/theme/light/symbol.svg?c=${clientId}`,
+        dark: `https://cdn.brandfetch.io/idZAyF9rlg/w/800/h/784/theme/light/symbol.png?c=${clientId}`
       },
       'trello': { dark: `https://cdn.brandfetch.io/idToc8bDY1/theme/dark/symbol.svg?c=${clientId}` },
       'notion': { dark: `https://cdn.brandfetch.io/idPYUoikV7/theme/dark/symbol.svg?c=${clientId}` },
@@ -558,7 +558,7 @@ export function IntegrationField({
       'paypal': { dark: `https://cdn.brandfetch.io/id-Wd4a4TS/theme/dark/symbol.svg?c=${clientId}` },
       'openai': {
         light: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${clientId}`,
-        dark: `https://cdn.brandfetch.io/idR3duQxYl/theme/light/symbol.svg?c=${clientId}`
+        dark: `https://cdn.brandfetch.io/idR3duQxYl/w/800/h/800/theme/light/symbol.png?c=${clientId}`
       },
       'sendgrid': { dark: `https://cdn.brandfetch.io/idHHcfw5Qu/theme/dark/symbol.svg?c=${clientId}` },
       'twilio': { dark: `https://cdn.brandfetch.io/idT7wVo_zL/theme/dark/symbol.svg?c=${clientId}` },
@@ -672,12 +672,13 @@ export function IntegrationField({
               {(() => {
                 const slug = getServiceSlug();
                 const logoUrl = slug ? getLogoUrl(slug) : null;
+                const isOpenAI = slug === 'openai';
                 return logoUrl ? (
                   <>
                     <img 
                       src={logoUrl} 
                       alt={getServiceDisplayName()} 
-                      className="h-4 w-4 mr-2 object-contain"
+                      className={isOpenAI ? "h-5 w-5 mr-2 object-contain" : "h-4 w-4 mr-2 object-contain"}
                     />
                     Connect
                   </>
@@ -692,8 +693,85 @@ export function IntegrationField({
           </div>
         </div>
       );
-    } else if (credentialType === 'api_key_and_token') {
-      // Trello (needs both API key and token)
+    } else if (credentialType === 'api_key_and_token' || credentialType === 'api_token') {
+      // API key/token services - show Connect button that opens modal
+      // Only show modal for services that have schemas defined
+      const supportedServices = ['openai', 'sendgrid', 'twilio', 'discord', 'stripe', 'twitter'];
+      
+      if (supportedServices.includes(serviceName)) {
+        return (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              Connect
+              {fieldSchema?.required && <span className="text-red-500 ml-1">*</span>}
+            </label>
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                {fieldSchema?.description || `Connect your ${getServiceDisplayName()} account`}
+              </p>
+              <Button
+                type="button"
+                onClick={() => {
+                  // Open connection window popup
+                  const width = 600;
+                  const height = 700;
+                  const left = (window.screen.width - width) / 2;
+                  const top = (window.screen.height - height) / 2;
+                  
+                  const popup = window.open(
+                    `/integrations/connect?service=${encodeURIComponent(serviceName)}`,
+                    'ConnectIntegration',
+                    `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+                  );
+                  
+                  // Listen for connection success
+                  const handleMessage = (event: MessageEvent) => {
+                    if (event.origin !== window.location.origin) return;
+                    
+                    if (event.data.type === 'integration-connected' && event.data.service === serviceName) {
+                      // Refresh connection status
+                      checkIntegrationStatus();
+                      if (onConnected) {
+                        onConnected();
+                      }
+                      window.removeEventListener('message', handleMessage);
+                    } else if (event.data.type === 'integration-connection-cancelled') {
+                      window.removeEventListener('message', handleMessage);
+                    }
+                  };
+                  
+                  window.addEventListener('message', handleMessage);
+                }}
+                variant="ghost"
+                className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+              >
+                {(() => {
+                  const slug = getServiceSlug();
+                  const logoUrl = slug ? getLogoUrl(slug) : null;
+                  const isOpenAI = slug === 'openai';
+                  return logoUrl ? (
+                    <>
+                      <img 
+                        src={logoUrl} 
+                        alt={getServiceDisplayName()} 
+                        className={isOpenAI ? "h-5 w-5 mr-2 object-contain" : "h-4 w-4 mr-2 object-contain"}
+                      />
+                      Connect
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="h-3 w-3 mr-2" />
+                      Connect
+                    </>
+                  );
+                })()}
+              </Button>
+            </div>
+          </div>
+        );
+      }
+      
+      // Fallback for unsupported services - show inline form
       return (
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">
@@ -707,85 +785,34 @@ export function IntegrationField({
             <p className="text-xs text-muted-foreground">
               {serviceName === 'twilio' 
                 ? 'Enter your Twilio Account SID and Auth Token to use Twilio services'
-                : `Enter your ${getServiceDisplayName()} API key and token to select resources`}
+                : `Enter your ${getServiceDisplayName()} ${credentialType === 'api_key_and_token' ? 'API key and token' : 'API token'} to ${serviceName === 'openai' ? 'connect' : 'select resources'}`}
             </p>
-            <Input
-              type="text"
-              placeholder="API Key"
-              value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
-              className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
-            />
-            <Input
-              type="text"
-              placeholder="Token"
-              value={tokenInput2}
-              onChange={(e) => setTokenInput2(e.target.value)}
-              className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
-            />
-            <Button
-              type="button"
-              onClick={handleSaveCredentials}
-              variant="ghost"
-              className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
-              disabled={isSavingToken}
-            >
-              {isSavingToken ? (
-                <>
-                  <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  {(() => {
-                    const slug = getServiceSlug();
-                    const logoUrl = slug ? getLogoUrl(slug) : null;
-                    return logoUrl ? (
-                      <>
-                        <img 
-                          src={logoUrl} 
-                          alt={getServiceDisplayName()} 
-                          className="h-4 w-4 mr-2 object-contain"
-                        />
-                        Save & Connect
-                      </>
-                    ) : (
-                      <>
-                        <ExternalLink className="h-3 w-3 mr-2" />
-                        Save & Connect
-                      </>
-                    );
-                  })()}
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      );
-    } else {
-      // API token services (Notion, Airtable, GitHub fallback)
-      return (
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">
-            Connect
-            {fieldSchema?.required && <span className="text-red-500 ml-1">*</span>}
-          </label>
-          <div className="space-y-2">
-            {error && (
-              <p className="text-xs text-red-500">{error}</p>
+            {credentialType === 'api_key_and_token' ? (
+              <>
+                <Input
+                  type="text"
+                  placeholder="API Key"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+                />
+                <Input
+                  type="text"
+                  placeholder="Token"
+                  value={tokenInput2}
+                  onChange={(e) => setTokenInput2(e.target.value)}
+                  className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+                />
+              </>
+            ) : (
+              <Input
+                type="text"
+                placeholder={getTokenPlaceholder()}
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
+              />
             )}
-            <p className="text-xs text-muted-foreground">
-              {serviceName === 'discord' 
-                ? 'Enter your Discord bot token to connect. Get your bot token from https://discord.com/developers/applications'
-                : `Enter your ${getServiceDisplayName()} ${serviceName === 'openai' ? 'API key' : 'API token'} to ${serviceName === 'openai' ? 'connect' : 'select resources'}`}
-            </p>
-            <Input
-              type="text"
-              placeholder={getTokenPlaceholder()}
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              className="w-full text-sm rounded-md border border-gray-300 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300"
-            />
             <Button
               type="button"
               onClick={handleSaveCredentials}
@@ -803,12 +830,13 @@ export function IntegrationField({
                   {(() => {
                     const slug = getServiceSlug();
                     const logoUrl = slug ? getLogoUrl(slug) : null;
+                    const isOpenAI = slug === 'openai';
                     return logoUrl ? (
                       <>
                         <img 
                           src={logoUrl} 
                           alt={getServiceDisplayName()} 
-                          className="h-4 w-4 mr-2 object-contain"
+                          className={isOpenAI ? "h-5 w-5 mr-2 object-contain" : "h-4 w-4 mr-2 object-contain"}
                         />
                         Save & Connect
                       </>

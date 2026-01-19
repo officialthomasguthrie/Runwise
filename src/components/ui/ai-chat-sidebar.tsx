@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { 
   Plus, 
@@ -14,7 +15,9 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  ArrowUp
+  ArrowUp,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -106,6 +109,22 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
   const [isGeneratingWorkflow, setIsGeneratingWorkflow] = useState(false);
   const [workflowJson, setWorkflowJson] = useState<string | null>(null);
   const [isJsonExpanded, setIsJsonExpanded] = useState(false);
+  
+  // Pipeline step progress tracking
+  type StepStatus = 'pending' | 'in-progress' | 'completed' | 'failed';
+  interface StepProgress {
+    status: StepStatus;
+    error?: string;
+  }
+  const [stepProgress, setStepProgress] = useState<Record<string, StepProgress>>({
+    'intent': { status: 'pending' },
+    'node-matching': { status: 'pending' },
+    'workflow-generation': { status: 'pending' },
+    'node-configuration': { status: 'pending' },
+    'code-generation': { status: 'pending' },
+    'validation': { status: 'pending' },
+  });
+  const [stepProgressMessageId, setStepProgressMessageId] = useState<string | null>(null);
   
   // Chat history state
   const [allConversations, setAllConversations] = useState<ChatConversation[]>([]);
@@ -978,6 +997,19 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     
     try {
       const { messages: loadedMessages } = await loadMessages(conversationId);
+      
+      // Restore step progress from step progress message if it exists
+      const stepProgressMsg = loadedMessages.find((msg) => (msg as any).isStepProgress);
+      if (stepProgressMsg && stepProgressMsg.content) {
+        try {
+          const restoredStepProgress = JSON.parse(stepProgressMsg.content);
+          setStepProgress(restoredStepProgress);
+          setStepProgressMessageId(stepProgressMsg.id);
+        } catch (e) {
+          console.error('Error parsing step progress from message:', e);
+        }
+      }
+      
       setMessages(loadedMessages);
       isNewConversation.current = false;
       setHasUnsavedMessages(false);
@@ -1446,7 +1478,17 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 const aiSuggestsConfig = fullMessage.toLowerCase().includes('configure') ||
                   fullMessage.toLowerCase().includes('setting') ||
                   fullMessage.toLowerCase().includes('updated') ||
-                  fullMessage.toLowerCase().includes('filled');
+                  fullMessage.toLowerCase().includes('filled') ||
+                  fullMessage.toLowerCase().includes("i'll set") ||
+                  fullMessage.toLowerCase().includes("i'll configure") ||
+                  fullMessage.toLowerCase().includes("i'll update") ||
+                  fullMessage.toLowerCase().includes("i'll fill") ||
+                  fullMessage.toLowerCase().includes("i will set") ||
+                  fullMessage.toLowerCase().includes("i will configure") ||
+                  fullMessage.toLowerCase().includes("i will update") ||
+                  fullMessage.toLowerCase().includes("i will fill") ||
+                  (fullMessage.toLowerCase().includes('setting') && fullMessage.toLowerCase().includes('to')) ||
+                  (fullMessage.toLowerCase().includes('configuring') && fullMessage.toLowerCase().includes('with'));
                 
                 const shouldConfigure = userMessage && hasConfigurationKeywords && (hasValues || aiSuggestsConfig);
 
@@ -1780,6 +1822,34 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       return;
     }
 
+    // Initialize configuration step progress
+    setStepProgress({
+      'workflow-configuration': { status: 'in-progress' },
+    });
+    
+    // Create or get step progress message ID
+    const configStepProgressId = `config-step-progress_${Date.now()}`;
+    setStepProgressMessageId(configStepProgressId);
+    
+    // Create step progress message
+    const stepProgressMsg = {
+      id: configStepProgressId,
+      role: 'assistant' as const,
+      content: JSON.stringify({ 'workflow-configuration': { status: 'in-progress' } }),
+      timestamp: new Date().toISOString(),
+      isStepProgress: true,
+    } as ChatMessage & { isStepProgress: boolean };
+    
+    setMessages((prev) => {
+      const existingIndex = prev.findIndex((msg: any) => msg.id === configStepProgressId);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = stepProgressMsg;
+        return updated;
+      }
+      return [...prev, stepProgressMsg];
+    });
+
     try {
       const currentWorkflow = getCurrentWorkflow();
       console.log('🔧 Current workflow has', currentWorkflow.nodes.length, 'nodes');
@@ -1803,6 +1873,30 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Failed to configure nodes:', response.status, errorText);
+        
+        // Mark step as failed
+        setStepProgress({
+          'workflow-configuration': { status: 'failed', error: errorText },
+        });
+        
+        const failedStepProgressMsg = {
+          id: configStepProgressId,
+          role: 'assistant' as const,
+          content: JSON.stringify({ 'workflow-configuration': { status: 'failed', error: errorText } }),
+          timestamp: new Date().toISOString(),
+          isStepProgress: true,
+        } as ChatMessage & { isStepProgress: boolean };
+        
+        setMessages((prev) => {
+          const existingIndex = prev.findIndex((msg: any) => msg.id === configStepProgressId);
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = failedStepProgressMsg;
+            return updated;
+          }
+          return [...prev, failedStepProgressMsg];
+        });
+        
         return;
       }
 
@@ -1816,8 +1910,31 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         // Apply configurations
         onNodesConfigured(result.configurations);
         
-        // Add a system message showing what was configured
-        const configSummary = result.summary || result.message || 'Configuration updated';
+        // Mark step as completed
+        setStepProgress({
+          'workflow-configuration': { status: 'completed' },
+        });
+        
+        const completedStepProgressMsg = {
+          id: configStepProgressId,
+          role: 'assistant' as const,
+          content: JSON.stringify({ 'workflow-configuration': { status: 'completed' } }),
+          timestamp: new Date().toISOString(),
+          isStepProgress: true,
+        } as ChatMessage & { isStepProgress: boolean };
+        
+        setMessages((prev) => {
+          const existingIndex = prev.findIndex((msg: any) => msg.id === configStepProgressId);
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = completedStepProgressMsg;
+            return updated;
+          }
+          return [...prev, completedStepProgressMsg];
+        });
+        
+        // Add a summary message showing what was configured
+        const configSummary = result.summary || result.message || 'Workflow configured successfully';
         setMessages((prev) => [
           ...prev,
           {
@@ -1829,13 +1946,63 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         ]);
       } else if (result.needsInput) {
         console.log('⚠️ AI needs more input and no configurations to apply');
+        // Mark step as failed (needs input)
+        setStepProgress({
+          'workflow-configuration': { status: 'failed', error: 'More information needed' },
+        });
+        
+        const failedStepProgressMsg = {
+          id: configStepProgressId,
+          role: 'assistant' as const,
+          content: JSON.stringify({ 'workflow-configuration': { status: 'failed', error: 'More information needed' } }),
+          timestamp: new Date().toISOString(),
+          isStepProgress: true,
+        } as ChatMessage & { isStepProgress: boolean };
+        
+        setMessages((prev) => {
+          const existingIndex = prev.findIndex((msg: any) => msg.id === configStepProgressId);
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = failedStepProgressMsg;
+            return updated;
+          }
+          return [...prev, failedStepProgressMsg];
+        });
+        
         // AI needs more information - it will ask in the response
         // Don't return early - let the AI response be shown
       } else {
         console.warn('⚠️ No configurations in API response');
+        // Mark step as failed
+        setStepProgress({
+          'workflow-configuration': { status: 'failed', error: 'No configurations returned' },
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error configuring nodes:', error);
+      
+      // Mark step as failed
+      setStepProgress({
+        'workflow-configuration': { status: 'failed', error: error.message || 'Configuration failed' },
+      });
+      
+      const failedStepProgressMsg = {
+        id: configStepProgressId,
+        role: 'assistant' as const,
+        content: JSON.stringify({ 'workflow-configuration': { status: 'failed', error: error.message || 'Configuration failed' } }),
+        timestamp: new Date().toISOString(),
+        isStepProgress: true,
+      } as ChatMessage & { isStepProgress: boolean };
+      
+      setMessages((prev) => {
+        const existingIndex = prev.findIndex((msg: any) => msg.id === configStepProgressId);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = failedStepProgressMsg;
+          return updated;
+        }
+        return [...prev, failedStepProgressMsg];
+      });
     }
   };
 
@@ -1883,13 +2050,35 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     setError(null);
     setWorkflowJson('');
     setIsJsonExpanded(false);
+    
+    // Reset step progress
+    setStepProgress({
+      'intent': { status: 'pending' },
+      'node-matching': { status: 'pending' },
+      'workflow-generation': { status: 'pending' },
+      'code-generation': { status: 'pending' },
+      'validation': { status: 'pending' },
+    });
+    setStepProgressMessageId(null);
+
+    // Add "Thinking..." message immediately to show during initial delay
+    const thinkingMessageId = `thinking_${Date.now()}`;
+    const thinkingMessage: ChatMessage = {
+      id: thinkingMessageId,
+      role: 'assistant',
+      content: 'Thinking...',
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, thinkingMessage]);
 
     try {
       // Get current workflow state if available
       const currentWorkflow = getCurrentWorkflow ? getCurrentWorkflow() : { nodes: [], edges: [] };
       
       // Call workflow generation API with streaming
-      const response = await fetch('/api/ai/generate-workflow', {
+      let response: Response;
+      try {
+        response = await fetch('/api/ai/generate-workflow', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1900,10 +2089,18 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           currentWorkflow: currentWorkflow, // Send current workflow context
         }),
       });
+      } catch (fetchError: any) {
+        // Catch network errors (CORS, network failure, etc.)
+        throw new Error(
+          fetchError.message === 'Failed to fetch' 
+            ? 'Network error: Could not reach the server. Please check your internet connection and try again.'
+            : `Network error: ${fetchError.message || 'Unknown network error'}`
+        );
+      }
 
       if (!response.ok) {
         const errorData = await safeParseJSON(response);
-        throw new Error(errorData.error || 'Failed to generate workflow');
+        throw new Error(errorData.error || `Server error: ${response.status} ${response.statusText}`);
       }
 
       if (!response.body) {
@@ -1933,9 +2130,98 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             if (!jsonStr || jsonStr.length === 0) continue;
             
             try {
-              const data = JSON.parse(jsonStr);
+              let data: any;
+              // Try parsing - might be double-encoded if step-progress
+              try {
+                data = JSON.parse(jsonStr);
+                // If it's a string, it might be double-encoded
+                if (typeof data === 'string') {
+                  data = JSON.parse(data);
+                }
+              } catch (e) {
+                // If parsing fails, log and skip
+                console.error('[Workflow Generation] Failed to parse JSON:', jsonStr.substring(0, 100));
+                continue;
+              }
               
-              if (data.type === 'json-chunk') {
+              if (data.type === 'step-progress') {
+                // Remove "Thinking..." message when first step progress arrives (only the one we added for workflow generation)
+                setMessages((prev) => prev.filter((msg) => !(msg.content === 'Thinking...' && msg.id.startsWith('thinking_'))));
+                
+                // Handle step progress updates
+                const stepName = data.step;
+                setStepProgress((prev) => {
+                  const updated = { ...prev };
+                  
+                  // Mark current step as in-progress (always, even if not initialized)
+                  updated[stepName] = { status: 'in-progress' };
+                  
+                  // Mark previous step as completed (infer from step order)
+                  const stepOrder = ['intent', 'node-matching', 'workflow-generation', 'node-configuration', 'code-generation', 'validation'];
+                  const currentIndex = stepOrder.indexOf(stepName);
+                  if (currentIndex > 0) {
+                    const previousStep = stepOrder[currentIndex - 1];
+                    // Always mark previous step as completed when next step starts (even if it wasn't explicitly marked as in-progress)
+                    if (updated[previousStep]) {
+                      updated[previousStep] = { status: 'completed' };
+                    }
+                  }
+                  
+                  // If validation starts and code-generation is still pending, it was skipped/not needed
+                  // Don't mark it as completed - keep it as pending so UI can hide it
+                  // (The UI will hide pending code-generation steps)
+                  
+                  // Create or update step progress message with step progress state stored as JSON
+                  const stepProgressId = stepProgressMessageId || `step-progress_${Date.now()}`;
+                  if (!stepProgressMessageId) {
+                    setStepProgressMessageId(stepProgressId);
+                  }
+                  
+                  // Store step progress state as JSON in message content for persistence
+                  const stepProgressMsg = {
+                    id: stepProgressId,
+                    role: 'assistant' as const,
+                    content: JSON.stringify(updated), // Store step progress state as JSON
+                    timestamp: new Date().toISOString(),
+                    workflowGenerated: true,
+                    isStepProgress: true, // Mark as step progress message
+                  } as ChatMessage & { isStepProgress: boolean };
+                  
+                  // Update messages with step progress message
+                  setMessages((prevMessages) => {
+                    // Check if step progress message already exists
+                    const existingIndex = prevMessages.findIndex((msg) => (msg as any).isStepProgress);
+                    if (existingIndex >= 0) {
+                      // Update existing message (keep it in place) and save to database
+                      const updatedMessages = prevMessages.map((msg, idx) => 
+                        idx === existingIndex ? stepProgressMsg : msg
+                      );
+                      // Save updated message to database
+                      saveMessage(stepProgressMsg, activeConversationId).catch(err => 
+                        console.error('Error saving step progress message:', err)
+                      );
+                      return updatedMessages;
+                    } else {
+                      // Find the last assistant message (confirmation) and insert step progress after it
+                      const lastAssistantIndex = prevMessages.findLastIndex((msg) => msg.role === 'assistant' && !(msg as any).isStepProgress);
+                      const newMessages = [...prevMessages];
+                      if (lastAssistantIndex >= 0) {
+                        newMessages.splice(lastAssistantIndex + 1, 0, stepProgressMsg);
+                      } else {
+                        // No assistant message yet, add at end
+                        newMessages.push(stepProgressMsg);
+                      }
+                      // Save new message to database
+                      saveMessage(stepProgressMsg, activeConversationId).catch(err => 
+                        console.error('Error saving step progress message:', err)
+                      );
+                      return newMessages;
+                    }
+                  });
+                  
+                  return updated;
+                });
+              } else if (data.type === 'json-chunk') {
                 // Update JSON in real-time as it streams
                 accumulatedJson = data.content;
                 const workflowData = {
@@ -1957,7 +2243,42 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 // Format and display the JSON (even if incomplete)
                 setWorkflowJson(JSON.stringify(workflowData, null, 2));
               } else if (data.type === 'complete') {
-                // Final workflow received
+                // Final workflow received - mark validation as completed
+                setStepProgress((prev) => {
+                  const updated = {
+                    ...prev,
+                    'validation': { status: 'completed' as const },
+                  };
+                  
+                  // Update step progress message with final state
+                  const stepProgressId = stepProgressMessageId || `step-progress_${Date.now()}`;
+                  const stepProgressMsg = {
+                    id: stepProgressId,
+                    role: 'assistant' as const,
+                    content: JSON.stringify(updated),
+                    timestamp: new Date().toISOString(),
+                    workflowGenerated: true,
+                    isStepProgress: true,
+                  } as ChatMessage & { isStepProgress: boolean };
+                  
+                  setMessages((prevMessages) => {
+                    const existingIndex = prevMessages.findIndex((msg) => (msg as any).isStepProgress);
+                    if (existingIndex >= 0) {
+                      const updatedMessages = prevMessages.map((msg, idx) => 
+                        idx === existingIndex ? stepProgressMsg : msg
+                      );
+                      // Save updated message to database
+                      saveMessage(stepProgressMsg, activeConversationId).catch(err => 
+                        console.error('Error saving step progress message:', err)
+                      );
+                      return updatedMessages;
+                    }
+                    return prevMessages;
+                  });
+                  
+                  return updated;
+                });
+                
                 finalWorkflow = data.workflow;
                 const workflowData = {
                   nodes: data.workflow.nodes,
@@ -1966,6 +2287,25 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                 };
                 setWorkflowJson(JSON.stringify(workflowData, null, 2));
               } else if (data.type === 'error') {
+                // Mark current step as failed
+                setStepProgress((prev) => {
+                  const stepOrder = ['intent', 'node-matching', 'workflow-generation', 'code-generation', 'validation'];
+                  // Find the last in-progress step
+                  let failedStep = 'validation'; // Default to validation if we can't determine
+                  for (let i = stepOrder.length - 1; i >= 0; i--) {
+                    if (prev[stepOrder[i]]?.status === 'in-progress') {
+                      failedStep = stepOrder[i];
+                      break;
+                    }
+                  }
+                  return {
+                    ...prev,
+                    [failedStep]: { 
+                      status: 'failed', 
+                      error: data.error || 'Unknown error' 
+                    },
+                  };
+                });
                 throw new Error(data.error || 'Stream error');
               }
             } catch (parseError) {
@@ -1991,34 +2331,25 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         });
       }
 
-      // Remove the "Generating..." message and add success messages
-      // Check if messages already exist to prevent duplicates
-      const existingSuccessMsg = messages.find(
-        (msg) => msg.content === 'Workflow Generated Successfully' && (msg as any).workflowGeneratedSuccess
+      // Keep isGeneratingWorkflow true so step progress stays visible
+      // It will be set to false after explanation streaming completes
+      
+      // Generate AI explanation via streaming chat API immediately after validation completes
+      // Check if explanation message already exists
+      const existingExplanationMsg = messages.find(
+        (msg) => msg.role === 'assistant' && 
+                 (msg.content.includes("I've generated the") || msg.content.includes("I've generated")) &&
+                 msg.content.includes("workflow and added it to your canvas") &&
+                 (msg as any).workflowGenerated &&
+                 !(msg as any).workflowGeneratedSuccess
       );
       
-      // Only add messages if they don't already exist
-      if (!existingSuccessMsg) {
-        const now = Date.now();
+      if (!existingExplanationMsg) {
+        // Get current messages state
+        const currentMessages = [...messages];
         
-        // First message: "Workflow Generated Successfully" in italic gray
-        const successMsg: ChatMessage = {
-          id: `msg_${now}`,
-          role: 'assistant',
-          content: 'Workflow Generated Successfully',
-          timestamp: new Date().toISOString(),
-          workflowGenerated: true,
-          workflowGeneratedSuccess: true, // Mark for italic gray styling
-        };
-        
-        // Second message: AI explanation of how the workflow works and offer to help
-        const aiSummary = finalWorkflow.reasoning || '';
-        let explanationMessage = '';
-        
-        if (aiSummary) {
-          explanationMessage = `I've generated the "${finalWorkflow.workflowName}" workflow and added it to your canvas. ${aiSummary}\n\nWould you like me to help you set it up?`;
-        } else {
-          // Generate a basic explanation from the workflow structure
+        // Create a prompt for the AI to explain the workflow
+        const workflowSummary = finalWorkflow.reasoning || '';
           const triggerNodes = finalWorkflow.nodes.filter((n: any) => 
             n.data?.nodeId?.includes('trigger') || n.type === 'trigger'
           );
@@ -2026,70 +2357,150 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
             n.data?.nodeId?.includes('action') || n.type === 'action'
           );
           
-          let explanation = `I've generated the "${finalWorkflow.workflowName}" workflow and added it to your canvas. `;
-          
+        // Build context about the workflow for the AI
+        let workflowContext = `I've just generated a workflow named "${finalWorkflow.workflowName}" with ${finalWorkflow.nodes.length} node(s) and ${finalWorkflow.edges.length} connection(s). `;
           if (triggerNodes.length > 0) {
-            explanation += `The workflow starts with ${triggerNodes.length} trigger${triggerNodes.length > 1 ? 's' : ''}. `;
+          workflowContext += `It starts with ${triggerNodes.length} trigger${triggerNodes.length > 1 ? 's' : ''}. `;
           }
           if (actionNodes.length > 0) {
-            explanation += `It includes ${actionNodes.length} action${actionNodes.length > 1 ? 's' : ''} that will execute when the workflow runs. `;
-          }
-          
-          explanation += `Would you like me to help you set it up?`;
-          explanationMessage = explanation;
+          workflowContext += `It includes ${actionNodes.length} action${actionNodes.length > 1 ? 's' : ''}. `;
         }
+        if (workflowSummary) {
+          workflowContext += `The workflow reasoning: ${workflowSummary} `;
+        }
+        workflowContext += `Please provide a friendly explanation of what this workflow does and offer to help set it up. Keep it concise and conversational.`;
         
-        // Check if explanation message already exists (check for messages that match the pattern)
-        // Look for messages that contain the workflow generation pattern and are marked as workflowGenerated
-        const existingExplanationMsg = messages.find(
-          (msg) => msg.role === 'assistant' && 
-                   (msg.content.includes("I've generated the") || msg.content.includes("I've generated")) &&
-                   msg.content.includes("workflow and added it to your canvas") &&
-                   (msg as any).workflowGenerated &&
-                   !(msg as any).workflowGeneratedSuccess // Exclude the success message itself
-        );
-        
-        if (!existingExplanationMsg) {
-          const explanationMsg: ChatMessage = {
-            id: `msg_${now + 1}`,
+        // Create streaming AI message placeholder with "Thinking..." initially
+        const explanationMessageId = `msg_${Date.now() + 1}`;
+        const explanationMessage: ChatMessage = {
+          id: explanationMessageId,
             role: 'assistant',
-            content: explanationMessage,
+          content: 'Thinking...',
             timestamp: new Date().toISOString(),
             workflowGenerated: true,
           };
           
-          setMessages((prev) => [
-            ...prev,
-            successMsg,
-            explanationMsg,
-          ]);
-          
-          // Save all messages to database
-          try {
-            await saveMessage(successMsg, activeConversationId);
-            await saveMessage(explanationMsg, activeConversationId);
-          } catch (saveError) {
-            console.error('Error saving workflow generation messages:', saveError);
-            // Don't block the UI if save fails
+        // Add "Thinking..." message that will be updated incrementally when text arrives
+        setMessages((prev) => [...prev, explanationMessage]);
+        
+        try {
+          // Call AI chat API with streaming to generate the explanation
+          const response = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: workflowContext,
+              chatId: activeConversationId,
+              conversationHistory: currentMessages, // Include conversation history with success message
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await safeParseJSON(response);
+            throw new Error(errorData.error || 'Failed to get AI explanation');
           }
-        } else {
-          // Only add success message if explanation already exists
-          setMessages((prev) => [
-            ...prev,
-            successMsg,
-          ]);
-          
-          try {
-            await saveMessage(successMsg, activeConversationId);
-          } catch (saveError) {
-            console.error('Error saving workflow success message:', saveError);
+
+          if (!response.body) {
+            throw new Error('Response body is null');
           }
+
+          // Read the stream
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let fullExplanation = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const jsonStr = line.slice(6).trim();
+                // Skip empty or incomplete JSON
+                if (!jsonStr || jsonStr.length === 0) continue;
+                
+                try {
+                  const data = JSON.parse(jsonStr);
+                  
+                  if (data.type === 'chunk') {
+                    fullExplanation += data.content;
+                    // Update the message incrementally, replacing "Thinking..." with actual content
+                    // Use flushSync to force immediate React update so streaming is visible
+                    flushSync(() => {
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === explanationMessageId
+                            ? { ...msg, content: fullExplanation }
+                            : msg
+                        )
+                      );
+                    });
+                  } else if (data.type === 'complete') {
+                    fullExplanation = data.message;
+                    // Final update with complete message
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === explanationMessageId
+                          ? { ...msg, content: fullExplanation }
+                          : msg
+                      )
+                    );
+
+                    // Save complete AI explanation message to database
+                    const completeExplanationMsg: ChatMessage = {
+                      id: explanationMessageId,
+                      role: 'assistant',
+                      content: fullExplanation,
+                      timestamp: new Date().toISOString(),
+                      workflowGenerated: true,
+                    };
+                    await saveMessage(completeExplanationMsg, activeConversationId);
+                    
+                    // Clear workflow prompt and stop showing step progress AFTER explanation is complete
+                    setWorkflowPrompt(null);
+                    setIsGeneratingWorkflow(false);
+                  } else if (data.type === 'error') {
+                    throw new Error(data.error || 'Stream error');
+                  }
+                } catch (parseError) {
+                  // Only log if it's not an empty/incomplete JSON error
+                  if (jsonStr.length > 0) {
+                    console.error('Error parsing stream data:', parseError, 'JSON string:', jsonStr.substring(0, 100));
+                  }
+                }
+              }
+            }
+          }
+        } catch (explanationError: any) {
+          console.error('Error generating workflow explanation:', explanationError);
+          // Update the message to show error or fallback
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === explanationMessageId
+                ? { 
+                    ...msg, 
+                    content: `I've generated the "${finalWorkflow.workflowName}" workflow and added it to your canvas. Would you like me to help you set it up?`
+                  }
+                : msg
+            )
+          );
+          // Clear workflow prompt and stop showing step progress even if explanation generation fails
+          setWorkflowPrompt(null);
+          setIsGeneratingWorkflow(false);
         }
       } else {
-        console.log('[Workflow Generation] Success messages already exist, skipping duplicate');
+        // Explanation already exists, just clear the workflow prompt and stop showing step progress
+        setWorkflowPrompt(null);
+        setIsGeneratingWorkflow(false);
       }
-      
-      setWorkflowPrompt(null);
 
       // Check if free user has now reached the limit after generating workflow
       if (isFreePlan) {
@@ -2125,8 +2536,33 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       }
     } catch (err: any) {
       console.error('Error generating workflow:', err);
-      setError(err.message || 'Failed to generate workflow');
+      // Handle both Error objects and string errors
+      const errorMessage = err?.message || err?.toString() || 'Failed to generate workflow';
+      setError(errorMessage);
       setWorkflowJson(null);
+      
+      // Remove "Thinking..." message if it exists
+      setMessages((prev) => prev.filter(msg => !msg.id?.startsWith('thinking_')));
+      
+      // Mark the current in-progress step as failed
+      setStepProgress((prev) => {
+        const stepOrder = ['intent', 'node-matching', 'workflow-generation', 'node-configuration', 'code-generation', 'validation'];
+        // Find the last in-progress step
+        let failedStep = 'validation'; // Default to validation if we can't determine
+        for (let i = stepOrder.length - 1; i >= 0; i--) {
+          if (prev[stepOrder[i]]?.status === 'in-progress') {
+            failedStep = stepOrder[i];
+            break;
+          }
+        }
+        return {
+          ...prev,
+          [failedStep]: { 
+            status: 'failed', 
+            error: errorMessage
+          },
+        };
+      });
       
       // Add error message
       setMessages((prev) => [
@@ -2134,11 +2570,14 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           {
             id: `msg_${Date.now()}`,
             role: 'assistant',
-            content: `Sorry, I couldn't generate the workflow: ${err.message}`,
+            content: `Sorry, I couldn't generate the workflow: ${errorMessage}`,
             timestamp: new Date().toISOString(),
           },
       ]);
     } finally {
+      // Ensure generating state is cleared (handles error cases)
+      // Note: In success case, isGeneratingWorkflow is already set to false 
+      // immediately after workflow is generated (before explanation streaming)
       setIsGeneratingWorkflow(false);
     }
   };
@@ -2324,6 +2763,136 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           )}
 
           {messages.map((message, messageIndex) => {
+            // Render step progress message
+            if ((message as any).isStepProgress) {
+              return (
+                <React.Fragment key={message.id}>
+                  <div className="flex gap-3 justify-start">
+                    <div className="max-w-[95%] rounded-lg px-4 py-2 bg-transparent text-foreground">
+                      <div className="flex flex-col gap-2">
+                        {(() => {
+                          // Check if this is a workflow-configuration step progress (separate from generation pipeline)
+                          const configProgress = stepProgress['workflow-configuration'];
+                          if (configProgress && configProgress.status !== 'pending') {
+                            // Render workflow-configuration step
+                            const isInProgress = configProgress.status === 'in-progress';
+                            const isCompleted = configProgress.status === 'completed';
+                            const isFailed = configProgress.status === 'failed';
+                            
+                            return (
+                              <div className="flex items-center gap-2">
+                                {isInProgress && (
+                                  <Loader2 className="h-3.5 w-3.5 text-foreground animate-spin flex-shrink-0" />
+                                )}
+                                {isCompleted && (
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+                                )}
+                                {isFailed && (
+                                  <XCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                                )}
+                                <div className="flex-1">
+                                  {isInProgress && (
+                                    <span className="text-sm text-foreground inline-block relative overflow-hidden">
+                                      <span className="relative z-10">Configuring Workflow</span>
+                                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer-slide" style={{
+                                        animation: 'shimmer 2s infinite',
+                                        backgroundSize: '200% 100%',
+                                        backgroundPosition: '-200% 0',
+                                      }} />
+                                    </span>
+                                  )}
+                                  {isCompleted && (
+                                    <span className="text-sm text-muted-foreground">Workflow Configured</span>
+                                  )}
+                                  {isFailed && (
+                                    <span className="text-sm text-red-500">
+                                      Configuring Workflow - Failed
+                                      {configProgress.error && `: ${configProgress.error}`}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
+                          
+                          // Render generation pipeline steps
+                          const stepConfig = [
+                            { key: 'intent', label: 'Understanding your request', completedLabel: 'Intent Analysed' },
+                            { key: 'node-matching', label: 'Selecting the right integrations', completedLabel: 'Nodes Matched' },
+                            { key: 'workflow-generation', label: 'Designing execution logic', completedLabel: 'Workflow Structure Generated' },
+                            { key: 'node-configuration', label: 'Configuring nodes', completedLabel: 'Nodes Configured' },
+                            { key: 'code-generation', label: 'Generating custom code', completedLabel: 'Custom Code Generated', optional: true },
+                            { key: 'validation', label: 'Validating', completedLabel: 'Workflow Validated' },
+                          ];
+                          
+                          return stepConfig.map((step) => {
+                            const progress = stepProgress[step.key] || { status: 'pending' };
+                            const isInProgress = progress.status === 'in-progress';
+                            const isCompleted = progress.status === 'completed';
+                            const isFailed = progress.status === 'failed';
+                            
+                            // Hide code-generation step if it's not needed (always pending, never went in-progress)
+                            // Only show code-generation if it actually ran (in-progress, completed, or failed)
+                            if (step.key === 'code-generation' && progress.status === 'pending') {
+                              return null;
+                            }
+                            
+                            // Only show steps that have started (in-progress, completed, or failed)
+                            if (progress.status === 'pending') {
+                              return null;
+                            }
+                            
+                            return (
+                              <div key={step.key} className="flex items-center gap-2">
+                                {isInProgress && (
+                                  <Loader2 className="h-3.5 w-3.5 text-foreground animate-spin flex-shrink-0" />
+                                )}
+                                {isCompleted && (
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500/70 dark:text-green-400/70 flex-shrink-0" />
+                                )}
+                                <div className="flex-1">
+                                  {isInProgress ? (
+                                    <p 
+                                      className="text-sm whitespace-pre-wrap inline-block"
+                                      style={{
+                                        background: 'linear-gradient(90deg, hsl(var(--foreground)) 0%, hsl(var(--foreground) / 0.8) 25%, hsl(var(--foreground) / 0.4) 50%, hsl(var(--foreground) / 0.8) 75%, hsl(var(--foreground)) 100%)',
+                                        backgroundSize: '200% 100%',
+                                        backgroundClip: 'text',
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                        animation: 'shimmer 2s ease-in-out infinite',
+                                      }}
+                                    >
+                                      {step.label}
+                                    </p>
+                                  ) : isCompleted ? (
+                                    <p className="text-sm text-muted-foreground">
+                                      {step.completedLabel}
+                                    </p>
+                                  ) : isFailed ? (
+                                    <div className="flex flex-col gap-1">
+                                      <p className="text-sm text-red-600 dark:text-red-400">
+                                        {step.label} - Failed
+                                      </p>
+                                      {progress.error && (
+                                        <p className="text-xs text-red-500 dark:text-red-500/80">
+                                          {progress.error}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </React.Fragment>
+              );
+            }
+            
             return (
               <React.Fragment key={message.id}>
                 <div
@@ -2558,7 +3127,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                <Button
                  onClick={generateWorkflow}
                  variant="outline"
-                 className="gap-2 bg-background text-foreground border-stone-200 dark:border-white/10 hover:bg-accent hover:text-foreground px-10 dark:backdrop-blur-xl dark:bg-white/5 dark:border-white/10 dark:hover:bg-white/10 dark:shadow-[0_4px_10px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] transition-all duration-300 active:scale-[0.98]"
+                 className="gap-2 border border-purple-600/30 dark:border-[#ffffff1a] bg-[#bd28b3ba] text-white hover:opacity-90 px-10 rounded-lg transition-all duration-300 active:scale-[0.98]"
                  size="lg"
                >
                  Generate Workflow
@@ -2566,19 +3135,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
              </div>
            ) : null}
 
-          {isGeneratingWorkflow && (
-            <div className="flex justify-center py-2">
-              <Button 
-                disabled 
-                variant="outline"
-                className="gap-2 bg-background text-foreground border-stone-200 dark:border-white/10 px-10"
-                size="lg"
-              >
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Generating Workflow...
-              </Button>
-            </div>
-          )}
 
           {/* Error Display */}
           {error && (

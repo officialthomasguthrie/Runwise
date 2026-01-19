@@ -161,11 +161,36 @@ export async function POST(request: NextRequest) {
             existingEdges,
             integrationContext,
             onChunk: (jsonChunk: string, isComplete: boolean) => {
-              const data = JSON.stringify({
-                type: 'json-chunk',
-                content: jsonChunk,
-                isComplete,
-              });
+              // The pipeline orchestrator sends two types of chunks:
+              // 1. Step progress: Already a JSON string like {"type":"step-progress","step":"intent",...}
+              // 2. Workflow JSON: Raw workflow JSON strings that need wrapping
+              // We need to detect which type and handle accordingly
+              let data: string;
+              
+              try {
+                // Try to parse the chunk to see if it's already a structured object
+                const parsed = JSON.parse(jsonChunk);
+                if (parsed.type === 'step-progress') {
+                  // Step progress message - pass through as-is (already JSON stringified)
+                  data = jsonChunk;
+                } else {
+                  // Unexpected structured object - wrap it for safety
+                  data = JSON.stringify({
+                    type: 'json-chunk',
+                    content: jsonChunk,
+                    isComplete,
+                  });
+                }
+              } catch (e) {
+                // Not valid JSON yet (incomplete chunk) or raw workflow JSON
+                // Wrap it as a json-chunk for backward compatibility
+                data = JSON.stringify({
+                  type: 'json-chunk',
+                  content: jsonChunk,
+                  isComplete,
+                });
+              }
+              
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             },
             onComplete: async (workflow: any, usage?: { inputTokens: number; outputTokens: number }) => {
