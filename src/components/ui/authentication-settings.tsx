@@ -372,7 +372,7 @@ export function AuthenticationSettings() {
         </div>
 
         {/* Password Change Section Skeleton */}
-        <div className="space-y-4 pt-6 border-t border-stone-200 dark:border-white/20">
+        <div className="space-y-4 pt-6">
           <div>
             <h2 className="text-xl font-semibold text-foreground mb-1">
               Change Password
@@ -530,7 +530,7 @@ export function AuthenticationSettings() {
 
         {/* Password Change Section */}
         {hasEmailPassword() && (
-          <div className="space-y-4 pt-6 border-t border-stone-200 dark:border-white/20">
+          <div className="space-y-4 pt-6">
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-1">
                 Change Password
