@@ -307,6 +307,47 @@ export interface Database {
           updated_at?: string
         }
       }
+      trial_usage: {
+        Row: {
+          id: string
+          user_id: string | null
+          stripe_customer_id: string | null
+          payment_method_fingerprint: string | null
+          payment_method_last4: string | null
+          trial_started_at: string
+          trial_ended_at: string | null
+          subscription_id: string | null
+          plan: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          stripe_customer_id?: string | null
+          payment_method_fingerprint?: string | null
+          payment_method_last4?: string | null
+          trial_started_at: string
+          trial_ended_at?: string | null
+          subscription_id?: string | null
+          plan?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          stripe_customer_id?: string | null
+          payment_method_fingerprint?: string | null
+          payment_method_last4?: string | null
+          trial_started_at?: string
+          trial_ended_at?: string | null
+          subscription_id?: string | null
+          plan?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       node_executions: {
         Row: {
           id: string

@@ -101,7 +101,7 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
   ];
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={0}>
     <aside
       className={cn(
         "relative h-full border-r border-stone-200 dark:border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 hidden md:flex flex-col w-16 z-40",

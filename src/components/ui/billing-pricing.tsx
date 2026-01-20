@@ -282,6 +282,11 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
 
     setLoadingPlan(planName);
 
+    // Determine if this should include a free trial
+    // Only apply trial for Professional plan when user has no current plan (currentPlan === null)
+    const isProfessionalPlan = planName === 'Professional';
+    const shouldApplyTrial = isProfessionalPlan && currentPlan === null;
+
     try {
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
@@ -290,7 +295,8 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
         },
         body: JSON.stringify({
           plan: planId,
-          skipTrial: true, // Skip trial for plan switches from billing settings
+          skipTrial: !shouldApplyTrial, // Skip trial for plan switches, but apply for new "Start Free Trial" clicks
+          trialDays: shouldApplyTrial ? 7 : undefined, // Explicitly set 7-day trial for "Start Free Trial"
           cancelUrl: '/settings?tab=billing', // Return to billing settings on cancel
         }),
       });
