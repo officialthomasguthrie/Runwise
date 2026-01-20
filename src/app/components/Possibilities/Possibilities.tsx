@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, Variants } from "framer-motion";
+import { useState, useEffect } from "react";
 import { AIChatbots } from "./AIChatbots";
 import { ContentCreation } from "./ContentCreation";
 import { LeadGeneration } from "./LeadGeneration";
@@ -8,6 +9,18 @@ import { DataInsights } from "./DataInsights";
 import { AIConsulting } from "./AIConsulting";
 
 export const Posibilities: React.FC = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const headingVariants: Variants = {
     hidden: { opacity: 0, y: 50 },
     visible: {
@@ -56,7 +69,7 @@ export const Posibilities: React.FC = () => {
       <div className="max-w-[364px] md:max-w-[1200px] w-full mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[15px]">
         {/* AI Chatbots */}
         <motion.div
-          initial="hiddenLeft"
+          initial={isMobile ? "hiddenBottom" : "hiddenLeft"}
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}
@@ -78,7 +91,7 @@ export const Posibilities: React.FC = () => {
 
         {/* Lead Generation */}
         <motion.div
-          initial="hiddenRight"
+          initial={isMobile ? "hiddenBottom" : "hiddenRight"}
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}
@@ -91,7 +104,7 @@ export const Posibilities: React.FC = () => {
       <div className="max-w-[364px] md:max-w-[1200px] w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-[15px] mt-[15px]">
         {/* Data Insights */}
         <motion.div
-          initial="hiddenLeft"
+          initial={isMobile ? "hiddenBottom" : "hiddenLeft"}
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}
@@ -102,7 +115,7 @@ export const Posibilities: React.FC = () => {
 
         {/* AI Consulting */}
         <motion.div
-          initial="hiddenRight"
+          initial={isMobile ? "hiddenBottom" : "hiddenRight"}
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}

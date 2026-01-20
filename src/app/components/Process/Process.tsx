@@ -1,11 +1,24 @@
 "use client";
 
 import { motion, Variants } from "framer-motion";
+import { useState, useEffect } from "react";
 import { Prompt } from "./Prompt";
 import { Launch } from "./Launch";
 import { Test } from "./Test";
 
 export const Process: React.FC = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const headingVariants: Variants = {
     hidden: { opacity: 0, y: 50 },
     visible: {
@@ -52,7 +65,7 @@ export const Process: React.FC = () => {
 
       <div className="max-w-[364px] md:max-w-[1200px] w-full mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[30px]">
         <motion.div
-          initial="hiddenLeft"
+          initial={isMobile ? "hiddenBottom" : "hiddenLeft"}
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}
@@ -72,7 +85,7 @@ export const Process: React.FC = () => {
         </motion.div>
 
         <motion.div
-          initial="hiddenRight"
+          initial={isMobile ? "hiddenBottom" : "hiddenRight"}
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}
