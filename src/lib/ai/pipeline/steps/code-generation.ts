@@ -89,15 +89,31 @@ CUSTOM CODE RULES:
 - Return structured data objects (e.g., { result: "...", data: {...} })
 - Handle errors gracefully with try/catch blocks
 - No require(), import, eval(), or process access
-- Access config values via config object (e.g., config.apiKey, config.url)
+- Access config values via config object (e.g., config.url, config.method)
 - Access previous node output via inputData (e.g., inputData.fieldName)
 - Use template syntax {{inputData.field}} is handled by the system, don't parse it in code
 
+INTEGRATION CREDENTIALS (CRITICAL):
+- When your code uses integrations (OpenAI, SendGrid, Twilio, Stripe, Discord, Twitter, etc.), DO NOT use config.apiKey or config.authToken
+- Instead, use context.auth.{serviceName} to access credentials:
+  * OpenAI: context.auth.openai.apiKey
+  * SendGrid: context.auth.sendgrid.apiKey
+  * Twilio: context.auth.twilio.credentials.accountSid and context.auth.twilio.credentials.authToken
+  * Stripe: context.auth.stripe.apiKey
+  * Discord: context.auth.discord.token
+  * Twitter: context.auth.twitter.token
+  * Google: context.auth.google.token
+  * Slack: context.auth.slack.token
+  * GitHub: context.auth.github.token
+- **NEVER** include apiKey, authToken, secretKey, accessToken, or any credential fields in configSchema when using integrations
+- The integration connection UI handles credentials separately - users connect integrations through the integration field, not through configSchema
+- Only use config for non-credential fields like URLs, IDs, parameters, etc.
+
 CONFIG SCHEMA REQUIREMENTS:
-- The configSchema MUST match ALL config values used in the customCode
-- If code uses config.apiKey, schema MUST have apiKey field
+- The configSchema MUST match ALL config values used in the customCode (excluding integration credentials)
 - If code uses config.url, schema MUST have url field
-- Analyze the generated code to extract ALL config references
+- If code uses config.apiKey for an integration (like OpenAI, SendGrid), DO NOT include it in configSchema - use context.auth instead
+- Analyze the generated code to extract ALL config references (but exclude credential fields for integrations)
 - Schema format: Each field is an object with:
   * type: "string" | "number" | "textarea" | "select"
   * label: Human-readable field name
@@ -105,6 +121,46 @@ CONFIG SCHEMA REQUIREMENTS:
   * required: true/false (true if the code requires this value)
   * options: Array of {value, label} objects (only for type: "select")
   * default: Optional default value
+  * **serviceName**: Integration service name (e.g., "slack", "google-sheets", "notion") - REQUIRED for integration-dependent fields
+  * **resourceType**: Type of resource to fetch from integration - REQUIRED for integration-dependent fields
+    * Available resourceTypes:
+      - Google Sheets: "spreadsheet", "sheet", "column"
+      - Google Calendar: "calendar"
+      - Google Drive: "folder"
+      - Google Forms: "form"
+      - Gmail: "label"
+      - Slack: "channel"
+      - GitHub: "repository"
+      - Notion: "database"
+      - Airtable: "base", "table", "field"
+      - Trello: "board", "list"
+      - Discord: "guild", "channel"
+  
+INTEGRATION-DEPENDENT FIELDS (CRITICAL):
+- When your code uses integrations and needs fields that should be selected from the user's connected resources (channels, spreadsheets, databases, etc.), use integration-dependent fields
+- These fields automatically fetch options from the user's connected integration account
+- Format for integration-dependent fields:
+  * Set type: "string" (the UI will render it as a dropdown)
+  * Include serviceName: The integration service name (must match detected integration)
+  * Include resourceType: The type of resource to fetch (channel, spreadsheet, database, etc.)
+  * Do NOT include options: The system fetches them automatically from the integration
+  * Example: { type: "string", label: "Channel", description: "Select a Slack channel", required: true, serviceName: "slack", resourceType: "channel" }
+- Common integration-dependent fields:
+  * Slack: channel → { serviceName: "slack", resourceType: "channel" }
+  * Google Sheets: spreadsheetId → { serviceName: "google-sheets", resourceType: "spreadsheet" }
+  * Google Sheets: sheetName → { serviceName: "google-sheets", resourceType: "sheet" }
+  * Notion: databaseId → { serviceName: "notion", resourceType: "database" }
+  * Airtable: baseId → { serviceName: "airtable", resourceType: "base" }
+  * Airtable: tableId → { serviceName: "airtable", resourceType: "table" }
+  * Trello: boardId → { serviceName: "trello", resourceType: "board" }
+  * Trello: listId → { serviceName: "trello", resourceType: "list" }
+  * GitHub: repository → { serviceName: "github", resourceType: "repository" }
+  * Discord: guildId → { serviceName: "discord", resourceType: "guild" }
+  * Discord: channelId → { serviceName: "discord", resourceType: "channel" }
+  * Google Calendar: calendarId → { serviceName: "google-calendar", resourceType: "calendar" }
+  * Google Drive: folderId → { serviceName: "google-drive", resourceType: "folder" }
+  * Google Forms: formId → { serviceName: "google-forms", resourceType: "form" }
+  * Gmail: labelId → { serviceName: "google-gmail", resourceType: "label" }
 
 ERROR HANDLING:
 - Always wrap API calls in try/catch
@@ -141,7 +197,7 @@ Example 1: Fetch Bitcoin price from CoinGecko
   }
 }
 
-Example 2: Send data to webhook
+Example 2: Send data to webhook (generic webhook - no integration)
 {
   "customCode": "async (inputData, config, context) => { try { const response = await context.http.post(config.webhookUrl, { data: inputData, timestamp: new Date().toISOString() }, { headers: { 'Authorization': \`Bearer \${config.apiKey}\`, 'Content-Type': 'application/json' } }); return { success: true, response: response }; } catch (error) { context.logger.error('Webhook call failed:', error); return { success: false, error: error.message }; } }",
   "configSchema": {
@@ -154,18 +210,134 @@ Example 2: Send data to webhook
     "apiKey": {
       "type": "string",
       "label": "API Key",
-      "description": "API key for authentication",
+      "description": "API key for authentication (for generic webhooks, not integrations)",
       "required": true
     }
   }
 }
 
+Example 3: Call OpenAI API (uses integration - NO apiKey in configSchema)
+{
+  "customCode": "async (inputData, config, context) => { try { const response = await context.http.post('https://api.openai.com/v1/chat/completions', { model: config.model, messages: [{ role: 'user', content: config.prompt }] }, { headers: { 'Authorization': \`Bearer \${context.auth.openai.apiKey}\`, 'Content-Type': 'application/json' } }); return { result: response.choices[0].message.content }; } catch (error) { context.logger.error('OpenAI API call failed:', error); return { error: error.message }; } }",
+  "configSchema": {
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "OpenAI model to use (e.g., 'gpt-3.5-turbo')",
+      "required": true,
+      "default": "gpt-3.5-turbo"
+    },
+    "prompt": {
+      "type": "textarea",
+      "label": "Prompt",
+      "description": "The prompt to send to OpenAI",
+      "required": true
+    }
+  }
+}
+Note: apiKey is NOT in configSchema - it comes from context.auth.openai.apiKey (users connect OpenAI through the integration UI)
+
+Example 4: Send email via SendGrid (uses integration - NO apiKey in configSchema)
+{
+  "customCode": "async (inputData, config, context) => { try { const response = await context.http.post('https://api.sendgrid.com/v3/mail/send', { personalizations: [{ to: [{ email: config.to }] }], from: { email: config.from }, subject: config.subject, content: [{ type: 'text/plain', value: config.body }] }, { headers: { 'Authorization': \`Bearer \${context.auth.sendgrid.apiKey}\`, 'Content-Type': 'application/json' } }); return { success: true, messageId: response.headers['x-message-id'] }; } catch (error) { context.logger.error('SendGrid API call failed:', error); return { success: false, error: error.message }; } }",
+  "configSchema": {
+    "to": {
+      "type": "string",
+      "label": "To Email",
+      "description": "Recipient email address",
+      "required": true
+    },
+    "from": {
+      "type": "string",
+      "label": "From Email",
+      "description": "Sender email address",
+      "required": true
+    },
+    "subject": {
+      "type": "string",
+      "label": "Subject",
+      "description": "Email subject",
+      "required": true
+    },
+    "body": {
+      "type": "textarea",
+      "label": "Body",
+      "description": "Email body content",
+      "required": true
+    }
+  }
+}
+Note: apiKey is NOT in configSchema - it comes from context.auth.sendgrid.apiKey (users connect SendGrid through the integration UI)
+
+Example 5: Post to Slack channel (uses integration-dependent field for channel selection)
+{
+  "customCode": "async (inputData, config, context) => { try { const response = await context.http.post('https://slack.com/api/chat.postMessage', { channel: config.channel, text: config.message }, { headers: { 'Authorization': \`Bearer \${context.auth.slack.token}\`, 'Content-Type': 'application/json' } }); return { success: true, ts: response.ts, channel: response.channel }; } catch (error) { context.logger.error('Slack API call failed:', error); return { success: false, error: error.message }; } }",
+  "configSchema": {
+    "channel": {
+      "type": "string",
+      "label": "Channel",
+      "description": "Select a Slack channel",
+      "required": true,
+      "serviceName": "slack",
+      "resourceType": "channel"
+    },
+    "message": {
+      "type": "textarea",
+      "label": "Message",
+      "description": "Message text to post",
+      "required": true
+    }
+  }
+}
+Note: channel field has serviceName and resourceType - users will see a dropdown of their Slack channels
+
+Example 6: Add row to Google Sheet (uses integration-dependent fields)
+{
+  "customCode": "async (inputData, config, context) => { try { const response = await context.http.post(\`https://sheets.googleapis.com/v4/spreadsheets/\${config.spreadsheetId}/values/\${config.sheetName}:append?valueInputOption=RAW\`, { values: [[config.value]] }, { headers: { 'Authorization': \`Bearer \${context.auth.google.token}\`, 'Content-Type': 'application/json' } }); return { success: true, updatedCells: response.updates?.updatedCells || 0 }; } catch (error) { context.logger.error('Google Sheets API call failed:', error); return { success: false, error: error.message }; } }",
+  "configSchema": {
+    "spreadsheetId": {
+      "type": "string",
+      "label": "Spreadsheet",
+      "description": "Select a Google Sheet",
+      "required": true,
+      "serviceName": "google-sheets",
+      "resourceType": "spreadsheet"
+    },
+    "sheetName": {
+      "type": "string",
+      "label": "Sheet",
+      "description": "Select a sheet within the spreadsheet",
+      "required": true,
+      "serviceName": "google-sheets",
+      "resourceType": "sheet"
+    },
+    "value": {
+      "type": "string",
+      "label": "Value",
+      "description": "Value to add to the sheet",
+      "required": true
+    }
+  }
+}
+Note: spreadsheetId and sheetName have serviceName and resourceType - users will see dropdowns of their Google Sheets
+
 CRITICAL RULES:
 1. The customCode must be valid JavaScript that can be executed
-2. The configSchema must include ALL fields referenced in the code via config.*
-3. Use regex or manual analysis to extract config references from the code
-4. Ensure every config.fieldName in code has a corresponding schema field
-5. Return ONLY valid JSON, no markdown, no explanations outside JSON
+2. The configSchema must include ALL fields referenced in the code via config.* (excluding integration credentials)
+3. **NEVER** include credential fields (apiKey, authToken, secretKey, accessToken, botToken, accountSid, etc.) in configSchema when using integrations
+4. For integrations, use context.auth.{serviceName} to access credentials, not config
+5. **ALWAYS use integration-dependent fields** when your code needs resources from integrations:
+   - If code uses config.channel with Slack → add serviceName: "slack", resourceType: "channel"
+   - If code uses config.spreadsheetId with Google Sheets → add serviceName: "google-sheets", resourceType: "spreadsheet"
+   - If code uses config.databaseId with Notion → add serviceName: "notion", resourceType: "database"
+   - If code uses config.repository with GitHub → add serviceName: "github", resourceType: "repository"
+   - And so on for all integration resources
+6. Use regex or manual analysis to extract config references from the code
+7. Ensure every config.fieldName in code (except credential fields for integrations) has a corresponding schema field
+8. If you detect an integration API in your code, automatically:
+   - Use context.auth instead of config for credentials
+   - Add serviceName and resourceType to fields that should fetch from the integration
+9. Return ONLY valid JSON, no markdown, no explanations outside JSON
 
 Return a JSON object with customCode and configSchema fields.`;
 
@@ -233,7 +405,7 @@ Please generate the customCode and complete configSchema that matches all config
       // Detect integration from API endpoints in customCode
       const detectedIntegration = detectIntegrationFromCode(codeResult.customCode);
       
-      // If integration is detected, add integration field to configSchema
+      // If integration is detected, add integration field to configSchema and remove credential fields
       if (detectedIntegration) {
         // Use a consistent key name for the integration connection field
         const integrationFieldKey = `${detectedIntegration.serviceName}_connection`;
@@ -250,6 +422,21 @@ Please generate the customCode and complete configSchema that matches all config
             credentialType: detectedIntegration.credentialType,
           };
         }
+
+        // Remove any credential fields from configSchema (users connect through integration UI, not configSchema)
+        const credentialFieldNames = [
+          'apiKey', 'api_key', 'authToken', 'auth_token', 'secretKey', 'secret_key',
+          'accessToken', 'access_token', 'botToken', 'bot_token', 'accountSid', 'account_sid',
+          'clientId', 'client_id', 'clientSecret', 'client_secret', 'bearerToken', 'bearer_token',
+          'token', 'key', 'password', 'credential'
+        ];
+        
+        for (const fieldName of credentialFieldNames) {
+          if (configSchema[fieldName]) {
+            console.log(`[Code Generation] Removing credential field '${fieldName}' from configSchema for integration '${detectedIntegration.serviceName}' - credentials are handled through integration connection UI`);
+            delete configSchema[fieldName];
+          }
+        }
       }
 
       // Ensure all config references are in schema
@@ -260,13 +447,29 @@ Please generate the customCode and complete configSchema that matches all config
         }
         
         if (!configSchema[configRef]) {
-          // Add missing config field with default schema
+          // Try to detect if this is an integration-dependent field
+          const integrationFieldInfo = detectIntegrationField(configRef, detectedIntegration);
+          
+          // Add missing config field with schema
           configSchema[configRef] = {
             type: 'string',
             label: configRef.charAt(0).toUpperCase() + configRef.slice(1).replace(/([A-Z])/g, ' $1'),
-            description: `Configuration value for ${configRef}`,
+            description: integrationFieldInfo?.description || `Configuration value for ${configRef}`,
             required: false,
+            ...(integrationFieldInfo && {
+              serviceName: integrationFieldInfo.serviceName,
+              resourceType: integrationFieldInfo.resourceType,
+            }),
           };
+        } else if (detectedIntegration) {
+          // Field exists in schema - check if it should be integration-dependent
+          const integrationFieldInfo = detectIntegrationField(configRef, detectedIntegration);
+          if (integrationFieldInfo && !configSchema[configRef].serviceName) {
+            // Add serviceName and resourceType to existing field
+            configSchema[configRef].serviceName = integrationFieldInfo.serviceName;
+            configSchema[configRef].resourceType = integrationFieldInfo.resourceType;
+            console.log(`[Code Generation] Adding integration-dependent field info to '${configRef}': serviceName=${integrationFieldInfo.serviceName}, resourceType=${integrationFieldInfo.resourceType}`);
+          }
         }
       }
 
@@ -445,6 +648,187 @@ function detectIntegrationFromCode(customCode: string): {
   // Jira API
   if (codeLower.includes('atlassian.net/rest/api') || codeLower.includes('jira')) {
     return { serviceName: 'jira', credentialType: 'oauth' };
+  }
+  
+  return null;
+}
+
+/**
+ * Detects if a config field should be an integration-dependent field
+ * Returns resourceType and serviceName if detected, null otherwise
+ */
+function detectIntegrationField(
+  fieldName: string,
+  detectedIntegration: { serviceName: string; credentialType: 'oauth' | 'api_token' | 'api_key_and_token' } | null
+): { serviceName: string; resourceType: string; description?: string } | null {
+  if (!detectedIntegration) {
+    return null;
+  }
+
+  const fieldLower = fieldName.toLowerCase();
+  const serviceName = detectedIntegration.serviceName;
+
+  // Slack integration fields
+  if (serviceName === 'slack') {
+    if (fieldLower.includes('channel') || fieldLower === 'channel' || fieldLower === 'channelid') {
+      return {
+        serviceName: 'slack',
+        resourceType: 'channel',
+        description: 'Select a Slack channel',
+      };
+    }
+  }
+
+  // Google Sheets integration fields
+  if (serviceName === 'google-sheets' || serviceName === 'google') {
+    if (fieldLower.includes('spreadsheet') || fieldLower === 'spreadsheetid' || fieldLower === 'spreadsheet') {
+      return {
+        serviceName: 'google-sheets',
+        resourceType: 'spreadsheet',
+        description: 'Select a Google Sheet',
+      };
+    }
+    if ((fieldLower.includes('sheet') && !fieldLower.includes('spreadsheet')) || fieldLower === 'sheetname' || fieldLower === 'sheet') {
+      return {
+        serviceName: 'google-sheets',
+        resourceType: 'sheet',
+        description: 'Select a sheet within the spreadsheet',
+      };
+    }
+    if (fieldLower.includes('column') || fieldLower === 'columnname' || fieldLower === 'column') {
+      return {
+        serviceName: 'google-sheets',
+        resourceType: 'column',
+        description: 'Select a column',
+      };
+    }
+  }
+
+  // Google Calendar integration fields
+  if (serviceName === 'google-calendar' || serviceName === 'google') {
+    if (fieldLower.includes('calendar') || fieldLower === 'calendarid' || fieldLower === 'calendar') {
+      return {
+        serviceName: 'google-calendar',
+        resourceType: 'calendar',
+        description: 'Select a Google Calendar',
+      };
+    }
+  }
+
+  // Google Drive integration fields
+  if (serviceName === 'google-drive' || serviceName === 'google') {
+    if (fieldLower.includes('folder') || fieldLower === 'folderid' || fieldLower === 'folder') {
+      return {
+        serviceName: 'google-drive',
+        resourceType: 'folder',
+        description: 'Select a Google Drive folder',
+      };
+    }
+  }
+
+  // Google Forms integration fields
+  if (serviceName === 'google-forms' || serviceName === 'google') {
+    if (fieldLower.includes('form') || fieldLower === 'formid' || fieldLower === 'form') {
+      return {
+        serviceName: 'google-forms',
+        resourceType: 'form',
+        description: 'Select a Google Form',
+      };
+    }
+  }
+
+  // Gmail integration fields
+  if (serviceName === 'google-gmail' || serviceName === 'google') {
+    if (fieldLower.includes('label') || fieldLower === 'labelid' || fieldLower === 'label') {
+      return {
+        serviceName: 'google-gmail',
+        resourceType: 'label',
+        description: 'Select a Gmail label',
+      };
+    }
+  }
+
+  // GitHub integration fields
+  if (serviceName === 'github') {
+    if (fieldLower.includes('repo') || fieldLower === 'repository' || fieldLower === 'repositoryid') {
+      return {
+        serviceName: 'github',
+        resourceType: 'repository',
+        description: 'Select a GitHub repository',
+      };
+    }
+  }
+
+  // Notion integration fields
+  if (serviceName === 'notion') {
+    if (fieldLower.includes('database') || fieldLower === 'databaseid' || fieldLower === 'database') {
+      return {
+        serviceName: 'notion',
+        resourceType: 'database',
+        description: 'Select a Notion database',
+      };
+    }
+  }
+
+  // Airtable integration fields
+  if (serviceName === 'airtable') {
+    if (fieldLower.includes('base') && !fieldLower.includes('database') || fieldLower === 'baseid' || fieldLower === 'base') {
+      return {
+        serviceName: 'airtable',
+        resourceType: 'base',
+        description: 'Select an Airtable base',
+      };
+    }
+    if (fieldLower.includes('table') && !fieldLower.includes('base') || fieldLower === 'tableid' || fieldLower === 'table') {
+      return {
+        serviceName: 'airtable',
+        resourceType: 'table',
+        description: 'Select a table within the base',
+      };
+    }
+    if (fieldLower.includes('field') || fieldLower === 'fieldid' || fieldLower === 'field') {
+      return {
+        serviceName: 'airtable',
+        resourceType: 'field',
+        description: 'Select a field',
+      };
+    }
+  }
+
+  // Trello integration fields
+  if (serviceName === 'trello') {
+    if (fieldLower.includes('board') || fieldLower === 'boardid' || fieldLower === 'board' || fieldLower === 'idboard') {
+      return {
+        serviceName: 'trello',
+        resourceType: 'board',
+        description: 'Select a Trello board',
+      };
+    }
+    if (fieldLower.includes('list') || fieldLower === 'listid' || fieldLower === 'list' || fieldLower === 'idlist') {
+      return {
+        serviceName: 'trello',
+        resourceType: 'list',
+        description: 'Select a list within the board',
+      };
+    }
+  }
+
+  // Discord integration fields
+  if (serviceName === 'discord') {
+    if (fieldLower.includes('guild') || fieldLower === 'guildid' || fieldLower === 'guild' || fieldLower === 'server') {
+      return {
+        serviceName: 'discord',
+        resourceType: 'guild',
+        description: 'Select a Discord server (guild)',
+      };
+    }
+    if (fieldLower.includes('channel') || fieldLower === 'channelid' || fieldLower === 'channel') {
+      return {
+        serviceName: 'discord',
+        resourceType: 'channel',
+        description: 'Select a Discord channel',
+      };
+    }
   }
   
   return null;

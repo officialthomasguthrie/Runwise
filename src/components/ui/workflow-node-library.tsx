@@ -356,21 +356,60 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
     
     // For custom nodes, check configSchema for integration fields
     if (nodeId === 'CUSTOM_GENERATED' && configSchema) {
-      // Find the first integration field in configSchema
+      // Find the first integration field in configSchema (either type === 'integration' or has serviceName/resourceType)
       const integrationField = Object.entries(configSchema).find(
-        ([_, schema]: [string, any]) => schema.type === 'integration'
+        ([_, schema]: [string, any]) => schema.type === 'integration' || (schema.serviceName && schema.resourceType)
       );
       
       if (integrationField) {
         const [_, schema] = integrationField;
         const integrationSchema = schema as any;
         
+        // If it's an integration-dependent field (has serviceName and resourceType), use those
+        if (integrationSchema.serviceName && integrationSchema.resourceType) {
+          // Map integration types to service names and credential types
+          const integrationMapping: Record<string, { serviceName: string; credentialType: 'oauth' | 'api_token' | 'api_key_and_token' }> = {
+            'google': { serviceName: 'google', credentialType: 'oauth' },
+            'google-sheets': { serviceName: 'google-sheets', credentialType: 'oauth' },
+            'google-gmail': { serviceName: 'google-gmail', credentialType: 'oauth' },
+            'google-calendar': { serviceName: 'google-calendar', credentialType: 'oauth' },
+            'google-drive': { serviceName: 'google-drive', credentialType: 'oauth' },
+            'google-forms': { serviceName: 'google-forms', credentialType: 'oauth' },
+            'slack': { serviceName: 'slack', credentialType: 'oauth' },
+            'github': { serviceName: 'github', credentialType: 'oauth' },
+            'notion': { serviceName: 'notion', credentialType: 'oauth' },
+            'airtable': { serviceName: 'airtable', credentialType: 'oauth' },
+            'trello': { serviceName: 'trello', credentialType: 'oauth' },
+            'openai': { serviceName: 'openai', credentialType: 'api_token' },
+            'sendgrid': { serviceName: 'sendgrid', credentialType: 'api_token' },
+          'twilio': { serviceName: 'twilio', credentialType: 'api_key_and_token' },
+          'stripe': { serviceName: 'stripe', credentialType: 'api_token' },
+          'discord': { serviceName: 'discord', credentialType: 'api_token' },
+          'twitter': { serviceName: 'twitter', credentialType: 'api_token' },
+          'paypal': { serviceName: 'paypal', credentialType: 'oauth' },
+          'shopify': { serviceName: 'shopify', credentialType: 'oauth' },
+          'hubspot': { serviceName: 'hubspot', credentialType: 'oauth' },
+          'asana': { serviceName: 'asana', credentialType: 'oauth' },
+          'jira': { serviceName: 'jira', credentialType: 'oauth' },
+        };
+        
+          const mapping = integrationMapping[integrationSchema.serviceName] || { 
+            serviceName: integrationSchema.serviceName, 
+            credentialType: 'oauth' 
+          };
+          return {
+            serviceName: mapping.serviceName as any,
+            credentialType: mapping.credentialType,
+          };
+        }
+        
+        // Otherwise, it's a regular integration connection field
         // Map integrationType/serviceName to our serviceName and credentialType
         const serviceName = integrationSchema.serviceName || integrationSchema.integrationType;
         const integrationType = integrationSchema.integrationType || serviceName;
         
         // Map integration types to service names and credential types
-        const integrationMapping: Record<string, { serviceName: string; credentialType: 'oauth' | 'api_token' | 'api_key_and_token' }> = {
+        const integrationMapping2: Record<string, { serviceName: string; credentialType: 'oauth' | 'api_token' | 'api_key_and_token' }> = {
           'google': { serviceName: 'google', credentialType: 'oauth' },
           'google-sheets': { serviceName: 'google-sheets', credentialType: 'oauth' },
           'google-gmail': { serviceName: 'google-gmail', credentialType: 'oauth' },
@@ -395,13 +434,14 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
           'jira': { serviceName: 'jira', credentialType: 'oauth' },
         };
         
-        const mapping = integrationMapping[integrationType as string] || integrationMapping[serviceName as string];
-        if (mapping) {
+        const mapping2 = integrationMapping2[integrationType as string] || integrationMapping2[serviceName as string] || { 
+          serviceName: serviceName || integrationType, 
+          credentialType: 'oauth' 
+        };
           return {
-            serviceName: mapping.serviceName as any,
-            credentialType: mapping.credentialType,
+          serviceName: mapping2.serviceName as any,
+          credentialType: mapping2.credentialType,
           };
-        }
       }
     }
     
@@ -1007,7 +1047,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   (data.nodeId === 'update-airtable-record' && (key === 'baseId' || key === 'tableId')) ||
                   (data.nodeId === 'create-trello-card' && (key === 'boardId' || key === 'idList')) ||
                   // Discord integration fields (server & channel are handled by IntegrationField)
-                  ((data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && (key === 'guildId' || key === 'channelId'));
+                  ((data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && (key === 'guildId' || key === 'channelId')) ||
+                  // Custom node integration-dependent fields (have serviceName and resourceType)
+                  (data.nodeId === 'CUSTOM_GENERATED' && schema.serviceName && schema.resourceType);
                 
                 const isExcludedField =
                   // Custom nodes - exclude integration fields (rendered at top)
@@ -1468,6 +1510,63 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                         </>
                       )}
                       
+                      {/* Custom node integration-dependent fields (from configSchema serviceName/resourceType) */}
+                      {data.nodeId === 'CUSTOM_GENERATED' && schema.serviceName && schema.resourceType && (
+                        <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                          <IntegrationField
+                            fieldKey={key}
+                            fieldSchema={schema}
+                            value={localConfig[key]}
+                            onChange={(value) => {
+                              handleConfigChange(key, value);
+                              // Clear dependent fields when parent changes (e.g., sheet depends on spreadsheet)
+                              if (schema.resourceType === 'sheet' || schema.resourceType === 'table' || schema.resourceType === 'list') {
+                                // Clear any fields that depend on this one
+                                Object.keys(configSchema).forEach(otherKey => {
+                                  const otherSchema = configSchema[otherKey] as any;
+                                  if (otherSchema.resourceType === 'column' || otherSchema.resourceType === 'field') {
+                                    handleConfigChange(otherKey, '');
+                                  }
+                                });
+                              }
+                            }}
+                            nodeId={id}
+                            serviceName={schema.serviceName as any}
+                            resourceType={schema.resourceType as any}
+                            credentialType={schema.credentialType || 'oauth'}
+                            parentValue={(() => {
+                              // For dependent fields, get parent value from config
+                              // e.g., sheet depends on spreadsheetId
+                              if (schema.resourceType === 'sheet' && localConfig.spreadsheetId) {
+                                return localConfig.spreadsheetId;
+                              }
+                              if (schema.resourceType === 'table' && localConfig.baseId) {
+                                return localConfig.baseId;
+                              }
+                              if (schema.resourceType === 'list' && (localConfig.boardId || localConfig.idBoard)) {
+                                return localConfig.boardId || localConfig.idBoard;
+                              }
+                              if (schema.resourceType === 'column') {
+                                // Column depends on both spreadsheet and sheet
+                                if (localConfig.spreadsheetId && localConfig.sheetName) {
+                                  return { spreadsheetId: localConfig.spreadsheetId, sheetName: localConfig.sheetName };
+                                }
+                              }
+                              if (schema.resourceType === 'field') {
+                                // Field depends on both base and table
+                                if (localConfig.baseId && localConfig.tableId) {
+                                  return { baseId: localConfig.baseId, tableId: localConfig.tableId };
+                                }
+                              }
+                              if (schema.resourceType === 'channel' && schema.serviceName === 'discord' && localConfig.guildId) {
+                                return localConfig.guildId;
+                              }
+                              return undefined;
+                            })()}
+                          />
+                        </div>
+                      )}
+                      
                       {/* Regular string input for non-integration fields */}
                       {!(
                         // Google OAuth integration fields
@@ -1487,7 +1586,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                         (data.nodeId === 'update-airtable-record' && (key === 'baseId' || key === 'tableId' || key === 'apiKey')) ||
                         (data.nodeId === 'create-trello-card' && (key === 'boardId' || key === 'idList' || key === 'apiKey' || key === 'token')) ||
                         // Custom node integration fields (already handled above)
-                        (data.nodeId === 'CUSTOM_GENERATED' && schema.type === 'integration')
+                        (data.nodeId === 'CUSTOM_GENERATED' && schema.type === 'integration') ||
+                        // Custom node integration-dependent fields (already handled above)
+                        (data.nodeId === 'CUSTOM_GENERATED' && schema.serviceName && schema.resourceType)
                       ) && (
                         <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                           <div className="relative">

@@ -66,16 +66,33 @@ You receive an intent analysis with:
 - Custom Requirements: Functionality not covered by library nodes
 
 YOUR JOB:
-1. Match each requirement to available library nodes when possible (PREFER library nodes)
-2. Only create custom nodes when library nodes truly cannot fulfill the requirement
-3. Plan logical connections between nodes (trigger → transform → action flow)
-4. Map data flow between nodes (what data passes from one node to another)
+1. **FIRST**: Check ALL available library nodes to see if any match the requirement
+2. **SECOND**: If no exact match, check if any library node can be configured to work (close match)
+3. **ONLY THEN**: If no library node can fulfill the requirement, create a custom node
+4. Plan logical connections between nodes (trigger → transform → action flow)
+5. Map data flow between nodes (what data passes from one node to another)
 
-DECISION RULES:
-- Check library first: Does a library node match the requirement? → Use library node
-- Library close match: Can a library node be configured to work? → Use library node
-- No library match: Is the requirement truly unique? → Create custom node
-- Always prefer library nodes (80% of cases should use library, 20% custom)
+CRITICAL: YOU MUST CHECK ALL LIBRARY NODES FIRST BEFORE CREATING ANY CUSTOM NODE. Custom nodes are ONLY created when NO library node can fulfill the requirement.
+
+DECISION RULES (STRICT ORDER):
+1. **Check library first**: Does a library node match the requirement exactly? → Use library node
+2. **Check library for close match**: Can a library node be configured to work? → Use library node
+3. **Check all library nodes**: Have you checked EVERY library node in the list? → Keep checking until you've reviewed all
+4. **Only after checking all library nodes**: Is the requirement truly unique with no library alternative? → Create custom node
+5. **Always prefer library nodes**: 95% of cases should use library, only 5% should need custom nodes
+
+COMMON PATTERN MAPPINGS (Use these to match user intents to library nodes):
+- "user signs up", "new user", "user registration", "when someone signs up" → Use "webhook-trigger" (users send webhook data when signup occurs)
+- "new order", "order created", "payment received" → Use "webhook-trigger" or "payment-completed" (if it's a payment)
+- "form submitted", "new form response" → Use "new-form-submission" (Google Forms)
+- "scheduled", "every day", "at a time" → Use "scheduled-time-trigger"
+- "new email", "email received" → Use "new-email-received" (Gmail)
+- "new row added", "sheet updated" → Use "new-row-in-google-sheet"
+- "new message in Slack" → Use "new-message-in-slack"
+- "new issue created" → Use "new-github-issue"
+- Generic webhook/API trigger needs → Use "webhook-trigger"
+
+REMEMBER: Webhook-trigger is the universal trigger for external events. When a user mentions any external event (user signup, order created, form submitted from external source, API call, etc.), they likely need webhook-trigger, not a custom trigger node.
 
 AVAILABLE LIBRARY NODES:
 ${availableNodesList}
@@ -107,12 +124,15 @@ Return a JSON object with these exact fields:
   * Map how data flows between nodes
 
 IMPORTANT RULES:
-1. Node IDs must match library node IDs EXACTLY (case-sensitive)
-2. Only create custom nodes when library truly cannot fulfill requirement
-3. Connections should follow logical flow: triggers → transforms → actions
-4. For library nodes, use the exact ID from the available nodes list above
-5. For custom nodes that will be generated, use descriptive names (will be converted to IDs later)
-6. If intent.isModification is true, consider existing nodes that should be kept
+1. **CHECK ALL LIBRARY NODES FIRST**: Before creating any custom node, you MUST check every single library node in the available list above
+2. Node IDs must match library node IDs EXACTLY (case-sensitive) - check the list carefully
+3. Only create custom nodes when you've verified NO library node can fulfill the requirement
+4. Connections should follow logical flow: triggers → transforms → actions
+5. For library nodes, use the exact ID from the available nodes list above (double-check spelling)
+6. For custom nodes that will be generated, use descriptive names (will be converted to IDs later)
+7. If intent.isModification is true, consider existing nodes that should be kept
+8. When in doubt between library and custom, ALWAYS choose library - it's pre-tested and secure
+9. Common triggers like "user signs up", "new order", "form submitted" should use webhook-trigger unless a more specific library trigger exists
 
 EXAMPLES:
 
@@ -138,19 +158,42 @@ Intent: { goal: "Fetch Bitcoin price and send to Slack", triggers: ["scheduled"]
 Output:
 {
   "libraryNodes": [
-    { "id": "scheduled-trigger", "role": "trigger", "reason": "Matches scheduled trigger requirement" },
+    { "id": "scheduled-time-trigger", "role": "trigger", "reason": "Matches scheduled trigger requirement" },
     { "id": "post-to-slack-channel", "role": "action", "reason": "Matches action requirement to send message to Slack" }
   ],
   "customNodes": [
     { "name": "Fetch Bitcoin Price", "type": "transform", "requirements": "Fetch current Bitcoin price from CoinGecko API (https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd) and return price data", "reason": "Library does not have a node for CoinGecko API, custom node needed" }
   ],
   "connections": [
-    { "from": "scheduled-trigger", "to": "Fetch Bitcoin Price", "reason": "Scheduled trigger should fetch price" },
+    { "from": "scheduled-time-trigger", "to": "Fetch Bitcoin Price", "reason": "Scheduled trigger should fetch price" },
     { "from": "Fetch Bitcoin Price", "to": "post-to-slack-channel", "reason": "Price data should be sent to Slack" }
   ],
   "dataFlow": [
-    { "source": "scheduled-trigger", "target": "Fetch Bitcoin Price", "field": "trigger" },
+    { "source": "scheduled-time-trigger", "target": "Fetch Bitcoin Price", "field": "trigger" },
     { "source": "Fetch Bitcoin Price", "target": "post-to-slack-channel", "field": "price" }
+  ]
+}
+
+Example 3 (CRITICAL - Shows library node preference):
+Intent: { goal: "When a user signs up to my app, send them a welcome email, add them to my Notion CRM, and post a slack alert to the team", triggers: ["user-signup"], actions: ["send-email", "create-notion-page", "post-to-slack"], transforms: [], customRequirements: [] }
+Output:
+{
+  "libraryNodes": [
+    { "id": "webhook-trigger", "role": "trigger", "reason": "User signup events come via webhook from the app - webhook-trigger is the appropriate library node for external app events" },
+    { "id": "send-email", "role": "action", "reason": "Matches action requirement to send welcome email" },
+    { "id": "create-notion-page", "role": "action", "reason": "Matches action requirement to add user to Notion CRM" },
+    { "id": "post-to-slack-channel", "role": "action", "reason": "Matches action requirement to post Slack alert" }
+  ],
+  "customNodes": [],
+  "connections": [
+    { "from": "webhook-trigger", "to": "send-email", "reason": "Webhook data triggers welcome email" },
+    { "from": "webhook-trigger", "to": "create-notion-page", "reason": "Webhook data triggers Notion page creation" },
+    { "from": "webhook-trigger", "to": "post-to-slack-channel", "reason": "Webhook data triggers Slack alert" }
+  ],
+  "dataFlow": [
+    { "source": "webhook-trigger", "target": "send-email", "field": "data" },
+    { "source": "webhook-trigger", "target": "create-notion-page", "field": "data" },
+    { "source": "webhook-trigger", "target": "post-to-slack-channel", "field": "data" }
   ]
 }
 
