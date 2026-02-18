@@ -3283,12 +3283,28 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
           {/* Clarification Analysis Loading State */}
           {isAnalyzingClarification && (
-            <div className="px-1 py-3">
-              <div className="rounded-xl border border-stone-200/80 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] backdrop-blur-sm p-4">
-                <div className="flex items-center gap-2.5 text-sm text-foreground/70">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
-                  <span>Analyzing your request...</span>
-             </div>
+            <div className="flex gap-3 justify-start">
+              <div className="max-w-[95%] rounded-lg px-4 py-2 bg-transparent text-foreground">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 text-foreground animate-spin flex-shrink-0" />
+                    <div className="flex-1">
+                      <p
+                        className="text-sm whitespace-pre-wrap inline-block"
+                        style={{
+                          background: 'linear-gradient(90deg, hsl(var(--foreground)) 0%, hsl(var(--foreground) / 0.8) 25%, hsl(var(--foreground) / 0.4) 50%, hsl(var(--foreground) / 0.8) 75%, hsl(var(--foreground)) 100%)',
+                          backgroundSize: '200% 100%',
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          animation: 'shimmer 2s ease-in-out infinite',
+                        }}
+                      >
+                        Analysing your request
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
