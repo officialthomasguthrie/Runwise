@@ -36,6 +36,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScheduleInput } from '@/components/ui/schedule-input';
 import { CheckCircle, XCircle, ChevronDown, ChevronUp, Settings, AlertCircle, Play, ChevronLeft, Sparkles } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
+import { ExecutionErrorDisplay } from './execution-error-display';
+import { normalizeError } from '@/lib/workflow-execution/error-normalization';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const HorizontalWorkflowIcon = ({ className, ...props }: LucideProps) => (
   <svg
@@ -90,6 +93,7 @@ interface ReactFlowEditorProps {
   onConfigurationStatusChange?: (status: { unconfiguredCount: number; configuredCount: number; totalCount: number }) => void; // Optional: callback when configuration status changes
   onRegisterConfigureCallback?: (callback: () => void) => void; // Optional: register callback to open first unconfigured node
   onRegisterExecuteCallback?: (callback: () => Promise<void>) => void; // Optional: register execute callback for external execution
+  onRegisterStopExecutionCallback?: (callback: () => void) => void; // Optional: register stop execution callback
   onExecutionStateChange?: (state: { isExecuting: boolean; executionStatus: 'idle' | 'queued' | 'running' | 'success' | 'failed'; hasNodes: boolean }) => void; // Optional: callback when execution state changes
   activeView?: 'workspace' | 'executions' | 'settings'; // Optional: active view to display
   onActiveViewChange?: (view: 'workspace' | 'executions' | 'settings') => void; // Optional: callback when view changes
@@ -114,6 +118,7 @@ export const ReactFlowEditor = ({
   onConfigurationStatusChange,
   onRegisterConfigureCallback,
   onRegisterExecuteCallback,
+  onRegisterStopExecutionCallback,
   onExecutionStateChange,
   activeView = 'workspace',
   onActiveViewChange,
@@ -1068,6 +1073,21 @@ export const ReactFlowEditor = ({
     }
   }, [user, isExecuting, nodes, edges, currentWorkflowId, validateWorkflowConfiguration, pollExecutionStatus]);
 
+  // Stop execution function
+  const stopExecution = useCallback(() => {
+    // Clear polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    // Reset state
+    setIsExecuting(false);
+    setExecutionStatus('idle');
+    setExecutionResult(null);
+    setCurrentExecutionId(null);
+    setShowLogs(false);
+  }, []);
+
   // Register execute callback with parent (after executeWorkflow is defined)
   useEffect(() => {
     if (onRegisterExecuteCallback) {
@@ -1077,6 +1097,13 @@ export const ReactFlowEditor = ({
       onRegisterExecuteCallback(executeWrapper);
     }
   }, [onRegisterExecuteCallback, executeWorkflow]);
+
+  // Register stop execution callback
+  useEffect(() => {
+    if (onRegisterStopExecutionCallback) {
+      onRegisterStopExecutionCallback(stopExecution);
+    }
+  }, [onRegisterStopExecutionCallback, stopExecution]);
 
   // Register save callback with parent
   useEffect(() => {
@@ -1320,28 +1347,10 @@ export const ReactFlowEditor = ({
       </ReactFlow>
 
 
-      {/* Execution Status Indicator */}
-      {(isExecuting || executionStatus === 'queued' || executionStatus === 'running') && !executionResult && (
-        <div className="absolute bottom-4 left-4 z-10 bg-background/95 backdrop-blur-sm border border-stone-200 dark:border-white/10 rounded-lg shadow-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
-            <div>
-              <h3 className="font-semibold text-sm">
-                {executionStatus === 'queued' ? 'Workflow Queued' : 'Workflow Running'}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {executionStatus === 'queued' 
-                  ? 'Waiting for execution to start...' 
-                  : 'Executing nodes...'}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Execution Results Panel */}
       {executionResult && (
-        <div className="absolute bottom-4 left-4 right-4 z-10 bg-background/95 backdrop-blur-sm border border-stone-200 dark:border-white/10 rounded-lg shadow-xl">
+        <div className="absolute bottom-4 left-4 right-4 z-10 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl border border-stone-200 dark:border-white/10 rounded-lg shadow-xl">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-stone-200 dark:border-white/10">
             <div className="flex items-center gap-3">
@@ -1352,10 +1361,22 @@ export const ReactFlowEditor = ({
               )}
               <div>
                 <h3 className="font-semibold">
-                  {(executionResult as any)?.message ? 'Scheduled Execution Enabled' : executionResult.status === 'success' ? 'Execution Successful' : 'Execution Failed'}
+                  {(executionResult as any)?.message 
+                    ? 'Scheduled Execution Enabled' 
+                    : executionResult.status === 'success' 
+                    ? 'Execution Successful' 
+                    : executionResult.summary?.failedAtNode
+                    ? `Execution stopped at "${executionResult.summary.failedAtNode}"`
+                    : 'Execution Failed'}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  {executionResult.nodeResults && executionResult.nodeResults.length > 0 ? (
+                  {executionResult.summary ? (
+                    <>
+                      {executionResult.summary.completedNodes} of {executionResult.summary.totalNodes} nodes completed
+                      {executionResult.summary.failedAtNode && ` • Failed at: ${executionResult.summary.failedAtNode}`}
+                      {executionResult.duration > 0 && ` • ${executionResult.duration}ms`}
+                    </>
+                  ) : executionResult.nodeResults && executionResult.nodeResults.length > 0 ? (
                     <>Duration: {executionResult.duration}ms | {executionResult.nodeResults.length} nodes processed</>
                   ) : (
                     <>Scheduled workflow will run automatically</>
@@ -1369,7 +1390,7 @@ export const ReactFlowEditor = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowLogs(!showLogs)}
-                  className="gap-2"
+                  className="gap-2 hover:bg-transparent"
                 >
                   {showLogs ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
                   {showLogs ? 'Hide Logs' : 'Show Logs'}
@@ -1379,6 +1400,7 @@ export const ReactFlowEditor = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setExecutionResult(null)}
+                className="hover:bg-transparent"
               >
                 Close
               </Button>
@@ -1387,43 +1409,52 @@ export const ReactFlowEditor = ({
 
           {/* Logs */}
           {showLogs && executionResult.nodeResults && executionResult.nodeResults.length > 0 && (
-            <div className="p-4 max-h-64 overflow-y-auto space-y-2">
-              {executionResult.nodeResults.map((nodeResult, index) => (
-                <div
-                  key={index}
-                  className={`p-3 rounded-md border ${
-                    nodeResult.status === 'success'
-                      ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
-                      : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {nodeResult.status === 'success' ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-600" />
-                      )}
-                      <span className="font-medium text-sm">{nodeResult.nodeName}</span>
+            <ScrollArea className="max-h-64">
+              <div className="p-4 space-y-2">
+              {executionResult.nodeResults.map((nodeResult, index) => {
+                // Only show error for failed nodes, and prefer normalized error
+                const displayError = nodeResult.normalizedError || 
+                  (nodeResult.status === 'failed' && nodeResult.error 
+                    ? normalizeError(nodeResult.error, { nodeName: nodeResult.nodeName })
+                    : null);
+
+                return (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-md border ${
+                      nodeResult.status === 'success'
+                        ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
+                        : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {nodeResult.status === 'success' ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-600" />
+                        )}
+                        <span className="font-medium text-sm">{nodeResult.nodeName}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{nodeResult.duration}ms</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{nodeResult.duration}ms</span>
+                    {displayError && (
+                      <div className="mt-2">
+                        <ExecutionErrorDisplay error={displayError} showIcon={false} />
+                      </div>
+                    )}
+                    {nodeResult.logs && nodeResult.logs.length > 0 && nodeResult.status === 'success' && (
+                      <div className="mt-2 space-y-1">
+                        {nodeResult.logs.map((log, logIndex) => (
+                          <p key={logIndex} className="text-xs text-muted-foreground font-mono">
+                            [{log.level}] {log.message}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {nodeResult.error && (
-                    <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                      Error: {nodeResult.error}
-                    </p>
-                  )}
-                  {nodeResult.logs && nodeResult.logs.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {nodeResult.logs.map((log, logIndex) => (
-                        <p key={logIndex} className="text-xs text-muted-foreground font-mono">
-                          [{log.level}] {log.message}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               {(executionResult as any)?.message && (
                 <div className="p-3 rounded-md border bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800">
                   <p className="text-sm text-green-600 dark:text-green-400">
@@ -1431,14 +1462,8 @@ export const ReactFlowEditor = ({
                   </p>
                 </div>
               )}
-              {executionResult.error && (
-                <div className="p-3 rounded-md border bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800">
-                  <p className="text-sm text-red-600 dark:text-red-400">
-                    <strong>Error:</strong> {executionResult.error}
-                  </p>
-                </div>
-              )}
-            </div>
+              </div>
+            </ScrollArea>
           )}
         </div>
       )}

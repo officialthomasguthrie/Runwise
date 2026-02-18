@@ -635,7 +635,7 @@ export function getSimplifiedNodeList(): Array<{
 export function detectWorkflowIntent(message: string): boolean {
   const lowerMessage = message.toLowerCase();
   
-  // Explicit workflow creation phrases (must include "workflow" or "automate" with creation verbs)
+  // Explicit workflow creation phrases
   const explicitPhrases = [
     'create workflow',
     'build workflow',
@@ -666,6 +666,9 @@ export function detectWorkflowIntent(message: string): boolean {
     'help me create',
     'help me build',
     'help me make',
+    'i want a workflow',
+    'i need a workflow',
+    'set up an automation',
   ];
   
   // Check for explicit phrases
@@ -677,7 +680,9 @@ export function detectWorkflowIntent(message: string): boolean {
     lowerMessage.includes('build') ||
     lowerMessage.includes('make') ||
     lowerMessage.includes('generate') ||
-    lowerMessage.includes('set up')
+    lowerMessage.includes('set up') ||
+    lowerMessage.includes('want') ||
+    lowerMessage.includes('need')
   );
   
   // Check for "automate" with object (e.g., "automate this", "automate sending emails")
@@ -689,7 +694,30 @@ export function detectWorkflowIntent(message: string): boolean {
     lowerMessage.includes('task')
   );
   
-  return hasExplicitPhrase || hasWorkflowWithVerb || hasAutomateWithObject;
+  // Implicit workflow intent: user describes an automation task naturally
+  // e.g., "send me an email every day", "notify me on slack when...", "every morning, post..."
+  const hasImplicitIntent = (
+    // Scheduling patterns that imply workflow
+    (lowerMessage.match(/\b(every|daily|weekly|monthly|hourly|each)\b/) && (
+      lowerMessage.includes('send') ||
+      lowerMessage.includes('email') ||
+      lowerMessage.includes('notify') ||
+      lowerMessage.includes('post') ||
+      lowerMessage.includes('update') ||
+      lowerMessage.includes('alert') ||
+      lowerMessage.includes('message') ||
+      lowerMessage.includes('slack') ||
+      lowerMessage.includes('sms')
+    )) ||
+    // "When X happens, do Y" patterns
+    (lowerMessage.match(/\bwhen\b.*\b(send|notify|post|email|slack|update|alert|trigger|create)\b/) !== null) ||
+    // "If X then Y" patterns 
+    (lowerMessage.match(/\bif\b.*\b(send|notify|post|email|slack|update|alert)\b/) !== null) ||
+    // Direct action requests that imply automation
+    (lowerMessage.match(/\b(send|notify|post|forward)\b.*\b(every|whenever|each time|daily|at \d)/i) !== null)
+  );
+  
+  return hasExplicitPhrase || hasWorkflowWithVerb || hasAutomateWithObject || hasImplicitIntent;
 }
 
 /**

@@ -11,8 +11,10 @@ import type {
   NodeExecutionResult,
   WorkflowExecutionResult,
   LogEntry,
+  ExecutionSummary,
 } from './types';
 import { resolveConfigTemplates } from './template-resolver';
+import { normalizeError } from './error-normalization';
 
 /**
  * Executes a complete workflow
@@ -181,26 +183,38 @@ export async function executeWorkflow(
       } catch (error: any) {
         const duration = Date.now() - nodeStartTime;
 
+        // Normalize the error
+        const nodeData = (node.data ?? {}) as Record<string, any>;
+        const nodeId = typeof nodeData.nodeId === 'string' ? nodeData.nodeId : node.id;
+        const normalizedError = normalizeError(error, {
+          nodeName: nodeLabel,
+          nodeType: nodeData.nodeId === 'CUSTOM_GENERATED' ? 'custom' : 'library',
+          provider: detectProviderFromNode(nodeId, error),
+        });
+
         // Record failed execution
         nodeResults.push({
           nodeId: node.id,
           nodeName: nodeLabel,
           status: 'failed',
           outputData: null,
-          error: error.message || 'Unknown error',
+          error: error.message || 'Unknown error', // Keep for backward compatibility
+          normalizedError,
           duration,
           logs: nodeLogs,
         });
 
         logs.push({
           level: 'error',
-          message: `Node failed: ${nodeLabel}`,
-          data: { error: error.message },
+          message: normalizedError.title,
+          data: { error: normalizedError.message, code: normalizedError.code },
           timestamp: new Date().toISOString(),
         });
 
-        // Throw to stop execution
-        throw new Error(`Node "${nodeLabel}" failed: ${error.message}`);
+        // Throw normalized error to stop execution
+        const executionError = new Error(normalizedError.message);
+        (executionError as any).normalizedError = normalizedError;
+        throw executionError;
       }
     }
 
@@ -237,6 +251,14 @@ export async function executeWorkflow(
     const completedAt = new Date().toISOString();
     const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
     
+    // Generate execution summary
+    const summary: ExecutionSummary = {
+      status: 'success',
+      message: `Workflow completed successfully. All ${nodeResults.length} node${nodeResults.length !== 1 ? 's' : ''} executed.`,
+      completedNodes: nodeResults.length,
+      totalNodes: nodeResults.length,
+    };
+    
     return {
       executionId,
       workflowId,
@@ -247,14 +269,33 @@ export async function executeWorkflow(
       nodeResults,
       finalOutput,
       logs,
+      summary,
     };
   } catch (error: any) {
     const completedAt = new Date().toISOString();
     const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
 
+    // Get normalized error if available
+    const normalizedError = (error as any).normalizedError || normalizeError(error);
+    
+    // Find the failed node
+    const failedNode = nodeResults.find(nr => nr.status === 'failed');
+    
+    // Generate execution summary
+    const summary: ExecutionSummary = {
+      status: 'failed',
+      message: failedNode 
+        ? `Execution stopped at "${failedNode.nodeName}". ${normalizedError.title}.`
+        : `Workflow execution failed. ${normalizedError.title}.`,
+      failedAtNode: failedNode?.nodeName,
+      completedNodes: nodeResults.filter(nr => nr.status === 'success').length,
+      totalNodes: nodeResults.length,
+    };
+
     logs.push({
       level: 'error',
-      message: `Workflow execution failed: ${error.message}`,
+      message: normalizedError.title,
+      data: { error: normalizedError.message, code: normalizedError.code },
       timestamp: new Date().toISOString(),
     });
     
@@ -267,8 +308,10 @@ export async function executeWorkflow(
       duration,
       nodeResults,
       finalOutput: null,
-      error: error.message || 'Unknown error',
+      error: error.message || 'Unknown error', // Keep for backward compatibility
+      normalizedError,
       logs,
+      summary,
     };
   }
 }
@@ -350,8 +393,48 @@ async function executeLibraryNode(
     const output = await nodeDef.execute(inputData, config, context);
     return output;
   } catch (error: any) {
-    throw new Error(`Library node execution failed: ${error.message}`);
+    // Preserve original error for better normalization
+    throw error;
   }
+}
+
+/**
+ * Detect provider from node ID or error message
+ */
+function detectProviderFromNode(nodeId: string, error: any): string | undefined {
+  const lowerNodeId = nodeId.toLowerCase();
+  const errorMessage = typeof error === 'string' ? error : error?.message || '';
+  const lowerError = errorMessage.toLowerCase();
+
+  // Check node ID
+  if (lowerNodeId.includes('sendgrid') || lowerNodeId.includes('send-email')) return 'sendgrid';
+  if (lowerNodeId.includes('twilio') || lowerNodeId.includes('send-sms')) return 'twilio';
+  if (lowerNodeId.includes('openai') || lowerNodeId.includes('gpt')) return 'openai';
+  if (lowerNodeId.includes('stripe')) return 'stripe';
+  if (lowerNodeId.includes('slack')) return 'slack';
+  if (lowerNodeId.includes('notion')) return 'notion';
+  if (lowerNodeId.includes('airtable')) return 'airtable';
+  if (lowerNodeId.includes('trello')) return 'trello';
+  if (lowerNodeId.includes('github')) return 'github';
+  if (lowerNodeId.includes('discord')) return 'discord';
+  if (lowerNodeId.includes('twitter')) return 'twitter';
+  if (lowerNodeId.includes('paypal')) return 'paypal';
+
+  // Check error message
+  if (lowerError.includes('sendgrid')) return 'sendgrid';
+  if (lowerError.includes('twilio')) return 'twilio';
+  if (lowerError.includes('openai')) return 'openai';
+  if (lowerError.includes('stripe')) return 'stripe';
+  if (lowerError.includes('slack')) return 'slack';
+  if (lowerError.includes('notion')) return 'notion';
+  if (lowerError.includes('airtable')) return 'airtable';
+  if (lowerError.includes('trello')) return 'trello';
+  if (lowerError.includes('github')) return 'github';
+  if (lowerError.includes('discord')) return 'discord';
+  if (lowerError.includes('twitter')) return 'twitter';
+  if (lowerError.includes('paypal')) return 'paypal';
+
+  return undefined;
 }
 
 /**

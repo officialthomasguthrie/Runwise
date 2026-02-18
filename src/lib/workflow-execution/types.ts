@@ -32,6 +32,8 @@ export interface ExecutionContext {
   };
 }
 
+import type { ExecutionError } from './error-normalization';
+
 /**
  * Result of a single node execution
  */
@@ -40,7 +42,8 @@ export interface NodeExecutionResult {
   nodeName: string;
   status: 'success' | 'failed' | 'skipped';
   outputData: any;
-  error?: string;
+  error?: string; // Deprecated: use normalizedError instead
+  normalizedError?: ExecutionError; // Normalized error with user-friendly message
   duration: number; // milliseconds
   logs: LogEntry[];
 }
@@ -67,8 +70,21 @@ export interface WorkflowExecutionResult {
   duration: number; // milliseconds
   nodeResults: NodeExecutionResult[];
   finalOutput: any;
-  error?: string;
+  error?: string; // Deprecated: use normalizedError instead
+  normalizedError?: ExecutionError; // Normalized error with user-friendly message
   logs?: LogEntry[]; // Optional logs from workflow execution
+  summary?: ExecutionSummary; // Human-readable summary of execution
+}
+
+/**
+ * Execution summary describing where and why the run stopped
+ */
+export interface ExecutionSummary {
+  status: 'success' | 'failed' | 'partial';
+  message: string; // Human-readable description
+  failedAtNode?: string; // Node name where execution failed
+  completedNodes: number;
+  totalNodes: number;
 }
 
 /**

@@ -29,8 +29,8 @@ if (typeof window === 'undefined') {
   try {
     const functionIds = allFunctions.map((f, i) => {
       try {
-        // Functions have an id property
-        const id = (f as any)?.id || (f as any)?.fn?.id || `function-${i}`;
+        // Inngest functions store their ID in opts.id
+        const id = (f as any)?.opts?.id || (f as any)?.id || (f as any)?.fn?.id || `function-${i}`;
         return id;
       } catch {
         return `error-${i}`;
@@ -108,6 +108,12 @@ export const PUT = async (req: NextRequest, context?: any) => {
   try {
     return await serveHandler.PUT(req, context);
   } catch (error: any) {
+    // Ignore JSON parsing errors for empty PUT bodies (Inngest sync requests)
+    if (error.message?.includes('Unexpected end of JSON input') || 
+        error.message?.includes('Failed calling `body`')) {
+      // This is expected for Inngest's sync/health check requests
+      return new Response(null, { status: 200 });
+    }
     console.error('[Inngest PUT Error]', {
       error: error.message,
       stack: error.stack,

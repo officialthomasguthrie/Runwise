@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { normalizeError } from '@/lib/workflow-execution/error-normalization';
 
 export async function GET(
   request: NextRequest,
@@ -59,14 +60,9 @@ export async function GET(
     const nodeResultsList = (nodeResults || []) as any[];
     const logsList = (logs || []) as any[];
 
-    const result = {
-      executionId: executionRecord.id,
-      workflowId: executionRecord.workflow_id,
-      status: executionRecord.status,
-      startedAt: executionRecord.started_at,
-      completedAt: executionRecord.completed_at,
-      duration: executionRecord.duration_ms || 0,
-      nodeResults: nodeResultsList.map((nr) => ({
+    // Normalize errors for node results and execution
+    const normalizedNodeResults = nodeResultsList.map((nr) => {
+      const nodeResult: any = {
         nodeId: nr.node_id,
         nodeName: nr.node_name,
         status: nr.status,
@@ -76,14 +72,61 @@ export async function GET(
         logs: logsList
           .filter((log) => log.node_result_id === nr.id)
           .map((log) => ({
-          level: log.level,
-          message: log.message,
-          data: log.data,
-          timestamp: log.timestamp,
-        })),
-      })),
+            level: log.level,
+            message: log.message,
+            data: log.data,
+            timestamp: log.timestamp,
+          })),
+      };
+
+      // Normalize error if present
+      if (nr.status === 'failed' && nr.error) {
+        nodeResult.normalizedError = normalizeError(nr.error, {
+          nodeName: nr.node_name,
+        });
+      }
+
+      return nodeResult;
+    });
+
+    // Normalize execution-level error
+    let normalizedExecutionError = undefined;
+    if (executionRecord.status === 'failed' && executionRecord.error) {
+      normalizedExecutionError = normalizeError(executionRecord.error);
+    }
+
+    // Generate execution summary
+    const completedNodes = normalizedNodeResults.filter(nr => nr.status === 'success').length;
+    const totalNodes = normalizedNodeResults.length;
+    const failedNode = normalizedNodeResults.find(nr => nr.status === 'failed');
+    
+    const summary = executionRecord.status === 'success' ? {
+      status: 'success' as const,
+      message: `Workflow completed successfully. All ${totalNodes} node${totalNodes !== 1 ? 's' : ''} executed.`,
+      completedNodes,
+      totalNodes,
+    } : {
+      status: 'failed' as const,
+      message: failedNode 
+        ? `Execution stopped at "${failedNode.nodeName}". ${normalizedExecutionError?.title || 'An error occurred'}.`
+        : `Workflow execution failed. ${normalizedExecutionError?.title || 'An error occurred'}.`,
+      failedAtNode: failedNode?.nodeName,
+      completedNodes,
+      totalNodes,
+    };
+
+    const result = {
+      executionId: executionRecord.id,
+      workflowId: executionRecord.workflow_id,
+      status: executionRecord.status,
+      startedAt: executionRecord.started_at,
+      completedAt: executionRecord.completed_at,
+      duration: executionRecord.duration_ms || 0,
+      nodeResults: normalizedNodeResults,
       finalOutput: executionRecord.final_output,
       error: executionRecord.error,
+      normalizedError: normalizedExecutionError,
+      summary,
     };
 
     return NextResponse.json(result);

@@ -1,4 +1,4 @@
-/**
+  /**
  * Validation Step
  * Step 5 of the workflow generation pipeline
  * Validates and refines the generated workflow

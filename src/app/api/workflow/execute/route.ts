@@ -96,9 +96,11 @@ export async function POST(request: NextRequest) {
     // Check if workflow has a scheduled trigger
     const hasScheduled = hasScheduledTrigger(body.nodes);
     const scheduleConfig = getScheduleConfig(body.nodes);
+    const isTest = (body as any).isTest === true;
 
-    // If workflow has a scheduled trigger, enable scheduled execution instead of running immediately
-    if (hasScheduled && scheduleConfig) {
+    // If workflow has a scheduled trigger AND it's not a test execution, enable scheduled execution instead of running immediately
+    // For test executions, always execute immediately regardless of trigger type
+    if (hasScheduled && scheduleConfig && !isTest) {
       // Update workflow status to 'active' to enable scheduled execution
       const adminSupabase = createAdminClient();
       const { error: updateError } = await (adminSupabase as any)

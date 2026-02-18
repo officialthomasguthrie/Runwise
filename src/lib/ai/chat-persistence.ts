@@ -210,7 +210,9 @@ export async function loadMessages(
         try {
           const parsed = JSON.parse(msg.content);
           // If it's valid JSON and has step progress structure, mark it as step progress
-          if (parsed && typeof parsed === 'object' && ('intent' in parsed || 'node-matching' in parsed)) {
+          if (parsed && typeof parsed === 'object' && (
+            'intent' in parsed || 'node-matching' in parsed || 'workflow-configuration' in parsed
+          )) {
             (chatMsg as any).isStepProgress = true;
           }
         } catch (e) {

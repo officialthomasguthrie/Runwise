@@ -1110,7 +1110,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   // Trello node - hide boardId until connected, hide idList until boardId selected, hide name/desc/dueDate until board and list are selected
                   (data.nodeId === 'create-trello-card' && (key === 'boardId' || key === 'idList' || key === 'name' || key === 'desc' || key === 'dueDate')) ||
                   // Discord nodes - hide guildId and channelId until Discord is connected
-                  ((data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && (key === 'guildId' || key === 'channelId'));
+                  ((data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && (key === 'guildId' || key === 'channelId')) ||
+                  // Custom nodes - hide integration-dependent resource fields until connected (prevents duplicate Connect buttons)
+                  (data.nodeId === 'CUSTOM_GENERATED' && schema.serviceName && schema.resourceType);
                 
                 // Hide integration-dependent fields if integration is not connected or parent resources not selected
                 if (isIntegrationDependentField) {
@@ -1143,7 +1145,20 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                        (localConfig.boardId && localConfig.idList))) ||
                     // Discord nodes - require Discord connection (guildId for channelId, just connection for guildId)
                     ((data.nodeId === 'send-discord-message' || data.nodeId === 'new-discord-message') && 
-                      (key === 'channelId' ? localConfig.guildId : true))
+                      (key === 'channelId' ? localConfig.guildId : true)) ||
+                    // Custom nodes - show resource fields after connection, with dependency handling
+                    (data.nodeId === 'CUSTOM_GENERATED' && schema.serviceName && schema.resourceType && (() => {
+                      const rt = schema.resourceType;
+                      // Dependent resource fields: only show when parent resource is selected
+                      if (rt === 'sheet') return !!localConfig.spreadsheetId;
+                      if (rt === 'table') return !!localConfig.baseId;
+                      if (rt === 'list') return !!(localConfig.boardId || localConfig.idBoard);
+                      if (rt === 'column') return !!(localConfig.spreadsheetId && localConfig.sheetName);
+                      if (rt === 'field') return !!(localConfig.baseId && localConfig.tableId);
+                      if (rt === 'channel' && schema.serviceName === 'discord') return !!localConfig.guildId;
+                      // Primary resource fields (spreadsheet, base, board, guild, channel, etc.): show when connected
+                      return true;
+                    })())
                   );
                   
                   if (!shouldShowField) {

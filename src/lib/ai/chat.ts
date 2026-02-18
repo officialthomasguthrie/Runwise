@@ -57,23 +57,24 @@ When a user wants to create a workflow, you MUST respond with a confirmation mes
    - What trigger will start the workflow (e.g., "A scheduled trigger that runs daily at 9 AM")
    - What actions will be performed (e.g., "An email action that sends a daily report")
    - How the workflow will work step-by-step
-3. End with: "Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
+3. You MUST end your message with exactly this sentence: "Let me confirm a few details before building this workflow."
 
 IMPORTANT RULES FOR WORKFLOW CONFIRMATION MESSAGES:
 - Do NOT use phrases like "the user" or "you will" - write directly and naturally
 - Describe the workflow as if it already exists: "This workflow will..." or "The workflow includes..."
 - Be specific about triggers, actions, and the flow between them
 - Keep the tone conversational but informative
-- Do NOT automatically generate the workflow - always wait for the button click
+- Do NOT mention any buttons or clicking -- the system handles what happens next automatically
+- You MUST always end workflow confirmation messages with: "Let me confirm a few details before building this workflow."
 
 Example of a good confirmation message:
-"I'll create a workflow that sends a daily email report. Here's the plan:
+"I can build a workflow that sends a daily email report. Here's the plan:
 
 **Trigger:** A scheduled trigger that runs every day at 9 AM
 **Action:** An email action that sends a formatted report to your specified email address
-**How it works:** The workflow will automatically run each morning, generate the report, and send it via email
+**How it works:** The workflow will automatically run each morning, generate the report, and send it via email.
 
-Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
+Let me confirm a few details before building this workflow."
 
 When a user wants to configure a node or fill out a field (e.g., "Set the OpenAI API key to sk-12345", "Fill out the email field with test@example.com", "Make the trigger run every day at 9 AM"), you should:
 1. Acknowledge what you're configuring
@@ -165,27 +166,21 @@ CRITICAL: Never use emojis in your responses. Use only plain text. Never refer t
     const messageLength = aiResponse.length;
     const lastThird = aiResponseLower.slice(Math.floor(messageLength * 0.7)); // Last 30% of message
     
-    // Explicit proposal indicators (must appear in the message)
-    const hasExplicitProposal = 
-      // Direct button mentions (most reliable indicator)
-      (lastThird.includes('generate workflow') && lastThird.includes('button')) ||
-      (lastThird.includes('click') && lastThird.includes('generate') && lastThird.includes('button')) ||
-      (lastThird.includes('generate workflow') && (lastThird.includes('below') || lastThird.includes('button'))) ||
-      // Explicit creation statements near the end
-      (lastThird.includes('i\'ll create') && lastThird.includes('workflow')) ||
-      (lastThird.includes('i will create') && lastThird.includes('workflow')) ||
-      (lastThird.includes('i\'ll build') && lastThird.includes('workflow')) ||
-      (lastThird.includes('i will build') && lastThird.includes('workflow')) ||
-      (lastThird.includes('i\'ll generate') && lastThird.includes('workflow')) ||
-      (lastThird.includes('i will generate') && lastThird.includes('workflow')) ||
-      // Confirmation format with button mention
-      (userHasWorkflowIntent && (
-        (aiResponseLower.includes('generate') && aiResponseLower.includes('button')) ||
-        (aiResponseLower.includes('click') && aiResponseLower.includes('generate') && aiResponseLower.includes('button'))
-      ));
+    // Detect workflow confirmation from AI response
+    const hasMarkerPhrase = aiResponseLower.includes('confirm a few details before building this workflow');
     
-    // Only set shouldGenerateWorkflow if there's an explicit proposal
-    const shouldGenerateWorkflow = hasExplicitProposal && userHasWorkflowIntent;
+    const hasWorkflowConfirmation = hasMarkerPhrase ||
+      (aiResponseLower.includes('generate workflow') && aiResponseLower.includes('button')) ||
+      (aiResponseLower.includes('**trigger') && aiResponseLower.includes('**action')) ||
+      (aiResponseLower.includes('trigger:') && aiResponseLower.includes('action:')) ||
+      (aiResponseLower.includes('i can build') && aiResponseLower.includes('workflow')) ||
+      (aiResponseLower.includes('i\'ll build') && aiResponseLower.includes('workflow')) ||
+      (aiResponseLower.includes('i can create') && aiResponseLower.includes('workflow')) ||
+      (aiResponseLower.includes('i\'ll create') && aiResponseLower.includes('workflow')) ||
+      (lastThird.includes('confirm') && lastThird.includes('detail'));
+    
+    const shouldGenerateWorkflow = (hasWorkflowConfirmation && userHasWorkflowIntent) || 
+      (hasMarkerPhrase && !userHasWorkflowIntent);
     
     const workflowPrompt = shouldGenerateWorkflow
       ? (extractWorkflowPrompt(request.message) || extractWorkflowPrompt(aiResponse) || request.message)
@@ -282,23 +277,24 @@ When a user wants to create a workflow, you MUST respond with a confirmation mes
    - What trigger will start the workflow (e.g., "A scheduled trigger that runs daily at 9 AM")
    - What actions will be performed (e.g., "An email action that sends a daily report")
    - How the workflow will work step-by-step
-3. End with: "Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
+3. You MUST end your message with exactly this sentence: "Let me confirm a few details before building this workflow."
 
 IMPORTANT RULES FOR WORKFLOW CONFIRMATION MESSAGES:
 - Do NOT use phrases like "the user" or "you will" - write directly and naturally
 - Describe the workflow as if it already exists: "This workflow will..." or "The workflow includes..."
 - Be specific about triggers, actions, and the flow between them
 - Keep the tone conversational but informative
-- Do NOT automatically generate the workflow - always wait for the button click
+- Do NOT mention any buttons or clicking -- the system handles what happens next automatically
+- You MUST always end workflow confirmation messages with: "Let me confirm a few details before building this workflow."
 
 Example of a good confirmation message:
-"I'll create a workflow that sends a daily email report. Here's the plan:
+"I can build a workflow that sends a daily email report. Here's the plan:
 
 **Trigger:** A scheduled trigger that runs every day at 9 AM
 **Action:** An email action that sends a formatted report to your specified email address
-**How it works:** The workflow will automatically run each morning, generate the report, and send it via email
+**How it works:** The workflow will automatically run each morning, generate the report, and send it via email.
 
-Click the 'Generate Workflow' button below to create it, or let me know if you'd like any changes."
+Let me confirm a few details before building this workflow."
 
 When a user wants to configure a node or fill out a field (e.g., "Set the OpenAI API key to sk-12345", "Fill out the email field with test@example.com", "Make the trigger run every day at 9 AM"), you should:
 1. Acknowledge what you're configuring
@@ -405,46 +401,55 @@ CRITICAL: Never use emojis in your responses. Use only plain text. Never refer t
     const messageLength = fullMessage.length;
     const lastThird = aiResponseLower.slice(Math.floor(messageLength * 0.7)); // Last 30% of message
     
-    // Explicit proposal indicators (must appear in the message)
-    const hasExplicitProposal = 
-      // Direct button mentions (most reliable indicator)
-      (lastThird.includes('generate workflow') && lastThird.includes('button')) ||
-      (lastThird.includes('click') && lastThird.includes('generate') && lastThird.includes('button')) ||
-      (lastThird.includes('generate workflow') && (lastThird.includes('below') || lastThird.includes('button'))) ||
-      // Explicit creation statements near the end
-      (lastThird.includes('i\'ll create') && lastThird.includes('workflow')) ||
-      (lastThird.includes('i will create') && lastThird.includes('workflow')) ||
-      (lastThird.includes('i\'ll build') && lastThird.includes('workflow')) ||
-      (lastThird.includes('i will build') && lastThird.includes('workflow')) ||
-      (lastThird.includes('i\'ll generate') && lastThird.includes('workflow')) ||
-      (lastThird.includes('i will generate') && lastThird.includes('workflow')) ||
-      // Confirmation format with button mention
-      (userHasWorkflowIntent && (
-        (aiResponseLower.includes('generate') && aiResponseLower.includes('button')) ||
-        (aiResponseLower.includes('click') && aiResponseLower.includes('generate') && aiResponseLower.includes('button'))
-      ));
+    // Detect workflow confirmation from AI response
+    // Primary: deterministic marker phrase the AI is instructed to always include
+    const hasMarkerPhrase = aiResponseLower.includes('confirm a few details before building this workflow');
     
-    // Only set shouldGenerateWorkflow if there's an explicit proposal
-    const shouldGenerateWorkflow = hasExplicitProposal && userHasWorkflowIntent;
+    // Fallback: detect common workflow confirmation patterns across the full message
+    const hasWorkflowConfirmation = hasMarkerPhrase ||
+      // Legacy button mentions (backward compat)
+      (aiResponseLower.includes('generate workflow') && aiResponseLower.includes('button')) ||
+      (aiResponseLower.includes('click') && aiResponseLower.includes('generate') && aiResponseLower.includes('button')) ||
+      // Workflow plan indicators (AI describes trigger + action = workflow plan)
+      (aiResponseLower.includes('**trigger') && aiResponseLower.includes('**action')) ||
+      (aiResponseLower.includes('trigger:') && aiResponseLower.includes('action:')) ||
+      // Explicit build/create statements with workflow
+      (aiResponseLower.includes('i can build') && aiResponseLower.includes('workflow')) ||
+      (aiResponseLower.includes('i\'ll build') && aiResponseLower.includes('workflow')) ||
+      (aiResponseLower.includes('i can create') && aiResponseLower.includes('workflow')) ||
+      (aiResponseLower.includes('i\'ll create') && aiResponseLower.includes('workflow')) ||
+      // Confirm details patterns
+      (lastThird.includes('confirm') && lastThird.includes('detail'));
     
-    const workflowPrompt = shouldGenerateWorkflow
+    // Set shouldGenerateWorkflow if the AI confirmed a workflow request
+    // Must ALSO have user workflow intent to avoid false positives from general chat
+    const shouldGenerateWorkflow = hasWorkflowConfirmation && userHasWorkflowIntent;
+    
+    // If marker phrase matched but user intent wasn't detected (user phrased it informally),
+    // still trigger if the AI is clearly proposing a workflow
+    const shouldGenerateFallback = hasMarkerPhrase && !userHasWorkflowIntent;
+    
+    const finalShouldGenerate = shouldGenerateWorkflow || shouldGenerateFallback;
+    
+    const workflowPrompt = finalShouldGenerate
       ? (extractWorkflowPrompt(request.message) || extractWorkflowPrompt(fullMessage) || request.message)
       : undefined;
 
-    console.log('🔍 Workflow intent analysis:', {
-      userMessage: request.message.substring(0, 50),
+    console.log('🔍 [SERVER] Workflow intent analysis:', {
+      userMessage: request.message.substring(0, 60),
       userHasWorkflowIntent,
-      hasExplicitProposal,
-      shouldGenerateWorkflow,
-      workflowPrompt: workflowPrompt?.substring(0, 50),
-      aiResponsePreview: fullMessage.substring(0, 100)
+      hasMarkerPhrase,
+      hasWorkflowConfirmation,
+      shouldGenerateWorkflow: finalShouldGenerate,
+      workflowPrompt: workflowPrompt?.substring(0, 60),
+      aiResponseLast150: fullMessage.substring(Math.max(0, fullMessage.length - 150)),
     });
 
     // Call onComplete with metadata including token usage
     request.onComplete(fullMessage, {
-      shouldGenerateWorkflow,
+      shouldGenerateWorkflow: finalShouldGenerate,
       workflowPrompt,
-      suggestions: generateSuggestions(fullMessage, shouldGenerateWorkflow),
+      suggestions: generateSuggestions(fullMessage, finalShouldGenerate),
       tokenUsage,
     });
   } catch (error: any) {

@@ -244,6 +244,7 @@ export const workflowExecutor = inngest.createFunction(
         // Override the executionId to match our database record
         result.executionId = executionRecord.executionId;
         
+        // Return result even if failed - we'll check status after saving results
         return result;
       } catch (error: any) {
         // Update execution record with error
@@ -331,7 +332,32 @@ export const workflowExecutor = inngest.createFunction(
       return { saved: true };
     });
 
-    // Step 4: Increment usage counter for executions
+    // Check if execution failed after saving results
+    // This ensures node results are saved even if the workflow failed
+    if (executionResult.status === 'failed') {
+      // Get error message from result or failed node
+      const failedNode = executionResult.nodeResults?.find(nr => nr.status === 'failed');
+      const errorMessage = executionResult.error || failedNode?.error || 'Workflow execution failed';
+      
+      // Log execution failure
+      if (executionLogId) {
+        try {
+          await logInngestExecutionComplete(executionLogId, 'failed', {
+            durationMs: Date.now() - startTime,
+            stepCount: stepCount,
+            errorMessage: errorMessage,
+          });
+        } catch (error) {
+          console.error('[Monitoring] Failed to log execution failure:', error);
+        }
+      }
+      
+      // Throw error so Inngest marks the function as failed
+      // Results are already saved, so this is safe
+      throw new Error(errorMessage);
+    }
+
+    // Step 4: Increment usage counter for executions (only for successful executions)
     await step.run("increment-usage", async () => {
       stepCount++;
       await incrementUsage(userId, "executions", 1, {
@@ -340,7 +366,7 @@ export const workflowExecutor = inngest.createFunction(
       });
     });
 
-    // Log execution completion
+    // Log execution completion (only for successful executions)
     if (executionLogId) {
       try {
         await logInngestExecutionComplete(executionLogId, 'completed', {

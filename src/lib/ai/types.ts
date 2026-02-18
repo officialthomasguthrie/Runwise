@@ -121,3 +121,37 @@ export interface WorkflowGenerationResponse {
   error?: string;
 }
 
+// =====================================================
+// CLARIFICATION QUESTIONNAIRE TYPES
+// =====================================================
+
+/**
+ * A single clarification question for the user
+ */
+export interface ClarificationQuestion {
+  id: string;
+  question: string;
+  type: 'single_choice' | 'multiple_choice' | 'text';
+  options?: string[];
+  placeholder?: string;
+}
+
+/**
+ * Result from the clarification analysis
+ */
+export interface ClarificationAnalysis {
+  needsClarification: boolean;
+  questions: ClarificationQuestion[];
+  confidence: number; // 0-1
+  summary: string;
+}
+
+/**
+ * A user's answer to a clarification question
+ */
+export interface QuestionnaireAnswer {
+  questionId: string;
+  question: string;
+  answer: string | string[];
+}
+

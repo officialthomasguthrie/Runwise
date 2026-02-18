@@ -28,7 +28,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/auth-context';
-import type { ChatMessage } from '@/lib/ai/types';
+import type { ChatMessage, ClarificationQuestion, ClarificationAnalysis, QuestionnaireAnswer } from '@/lib/ai/types';
+import { buildEnrichedPrompt } from '@/lib/ai/clarification';
+import { detectWorkflowIntent } from '@/lib/ai/workflow-generator';
 import { 
   saveConversation, 
   saveMessage, 
@@ -41,6 +43,7 @@ import {
   deleteMessagesAfter
 } from '@/lib/ai/chat-persistence';
 import { UpgradeRequiredModal } from '@/components/ui/upgrade-required-modal';
+import { WorkflowQuestionnaire } from '@/components/ui/workflow-questionnaire';
 
 interface AIChatSidebarProps {
   onWorkflowGenerated?: (workflow: { nodes: any[]; edges: any[]; workflowName?: string }) => void;
@@ -124,7 +127,18 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     'code-generation': { status: 'pending' },
     'validation': { status: 'pending' },
   });
-  const [stepProgressMessageId, setStepProgressMessageId] = useState<string | null>(null);
+  const stepProgressMessageIdRef = useRef<string | null>(null);
+  
+  // Clarification questionnaire state
+  const [clarificationQuestions, setClarificationQuestions] = useState<ClarificationQuestion[]>([]);
+  const [isAnalyzingClarification, setIsAnalyzingClarification] = useState(false);
+  const [questionnaireOriginalPrompt, setQuestionnaireOriginalPrompt] = useState<string | null>(null);
+  
+  // Speculative pre-fetch: start clarification API call in parallel with AI chat response
+  const pendingClarificationRef = useRef<{
+    prompt: string;
+    promise: Promise<ClarificationAnalysis | null>;
+  } | null>(null);
   
   // Chat history state
   const [allConversations, setAllConversations] = useState<ChatConversation[]>([]);
@@ -187,10 +201,9 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     }
   }, [messages]);
 
-  // Auto-scroll to bottom when Generate Workflow button appears
+  // Auto-scroll to bottom when questionnaire or loading state appears
   useEffect(() => {
-    if (workflowPrompt) {
-      // Small delay to ensure the button is rendered
+    if (workflowPrompt || clarificationQuestions.length > 0 || isAnalyzingClarification) {
       setTimeout(() => {
         if (scrollAreaRef.current) {
           const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
@@ -200,7 +213,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         }
       }, 100);
     }
-  }, [workflowPrompt]);
+  }, [workflowPrompt, clarificationQuestions, isAnalyzingClarification]);
 
   // Auto-resize editing textarea based on content (max 85px)
   useEffect(() => {
@@ -395,6 +408,11 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           // Add "Thinking..." message that will be updated incrementally when text arrives
           setMessages((prev) => [...prev, aiMessage]);
 
+          // Speculatively pre-fetch clarification if this looks like a workflow request
+          if (detectWorkflowIntent(userMessage.content)) {
+            startSpeculativeClarification(userMessage.content);
+          }
+
           try {
 
             // Call AI chat API with streaming
@@ -525,13 +543,13 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         const promptToUse = data.metadata?.workflowPrompt || 
                                           extractWorkflowPromptFromResponse(fullMessage) || 
                                           (messages.length > 1 ? messages[messages.length - 2]?.content : '');
-                        setWorkflowPrompt(promptToUse);
-                        console.log('🎯 Workflow generation ready. Setting workflowPrompt:', promptToUse);
+                        console.log('🎯 Workflow intent detected (initial prompt). Triggering clarification with:', promptToUse);
+                        triggerClarification(promptToUse);
                       } else {
                         if (isFieldFillingQuestion) {
                           console.log('🚫 Not showing workflow button - this is a field-filling question');
                         } else {
-                          console.log('❌ No workflow intent detected:', {
+                          console.log('❌ No workflow intent detected (initial prompt):', {
                             shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
                             hasWorkflowPrompt: !!data.metadata?.workflowPrompt,
                             responsePreview: fullMessage.substring(0, 100)
@@ -864,8 +882,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         const promptToUse = data.metadata?.workflowPrompt || 
                                           extractWorkflowPromptFromResponse(fullMessage) || 
                                           (messages.length > 1 ? messages[messages.length - 2]?.content : '');
-                        setWorkflowPrompt(promptToUse);
-                        console.log('🎯 Workflow generation ready. Setting workflowPrompt:', promptToUse);
+                        console.log('🎯 Workflow intent detected (sendMessage). Triggering clarification with:', promptToUse);
+                        triggerClarification(promptToUse);
                       } else {
                         if (isFieldFillingQuestion) {
                           console.log('🚫 Not showing workflow button - this is a field-filling question');
@@ -948,12 +966,25 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     setActiveConversationId(newId);
     setMessages([]);
     setWorkflowPrompt(null);
+    setClarificationQuestions([]);
+    setQuestionnaireOriginalPrompt(null);
+    pendingClarificationRef.current = null;
     setError(null);
     setHasUnsavedMessages(false);
     isNewConversation.current = true;
     titleGeneratedRef.current = false;
     shortTitleGeneratedRef.current = false;
     setShowChatHistory(false);
+    // Reset pipeline step progress for new conversation
+    setStepProgress({
+      'intent': { status: 'pending' },
+      'node-matching': { status: 'pending' },
+      'workflow-generation': { status: 'pending' },
+      'node-configuration': { status: 'pending' },
+      'code-generation': { status: 'pending' },
+      'validation': { status: 'pending' },
+    });
+    stepProgressMessageIdRef.current = null;
 
     // Open a new tab for this conversation immediately (don't save to DB yet)
     const newTab: ChatConversation = {
@@ -995,22 +1026,66 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       return updated.slice(-5);
     });
     
+    // Reset step progress state before loading new conversation
+    setStepProgress({
+      'intent': { status: 'pending' },
+      'node-matching': { status: 'pending' },
+      'workflow-generation': { status: 'pending' },
+      'node-configuration': { status: 'pending' },
+      'code-generation': { status: 'pending' },
+      'validation': { status: 'pending' },
+    });
+    stepProgressMessageIdRef.current = null;
+
     try {
       const { messages: loadedMessages } = await loadMessages(conversationId);
       
-      // Restore step progress from step progress message if it exists
-      const stepProgressMsg = loadedMessages.find((msg) => (msg as any).isStepProgress);
-      if (stepProgressMsg && stepProgressMsg.content) {
+      // Deduplicate step progress messages: keep only the LAST one (has the final state)
+      const stepProgressMessages = loadedMessages.filter((msg) => (msg as any).isStepProgress);
+      let deduplicatedMessages = loadedMessages;
+      
+      if (stepProgressMessages.length > 1) {
+        // Keep only the last step progress message, remove all earlier ones
+        const lastStepMsg = stepProgressMessages[stepProgressMessages.length - 1];
+        deduplicatedMessages = loadedMessages.filter(
+          (msg) => !(msg as any).isStepProgress || msg.id === lastStepMsg.id
+        );
+      }
+      
+      // Restore step progress from the last step progress message
+      const lastStepProgressMsg = stepProgressMessages[stepProgressMessages.length - 1];
+      if (lastStepProgressMsg && lastStepProgressMsg.content) {
         try {
-          const restoredStepProgress = JSON.parse(stepProgressMsg.content);
-          setStepProgress(restoredStepProgress);
-          setStepProgressMessageId(stepProgressMsg.id);
+          const restoredStepProgress = JSON.parse(lastStepProgressMsg.content);
+          // Convert any "in-progress" steps to "completed" since the pipeline
+          // is no longer running when restoring from a saved conversation
+          const finalizedProgress: Record<string, { status: string; error?: string }> = {};
+          for (const [key, value] of Object.entries(restoredStepProgress)) {
+            const step = value as { status: string; error?: string };
+            if (step.status === 'in-progress') {
+              finalizedProgress[key] = { status: 'completed' };
+            } else {
+              finalizedProgress[key] = step;
+            }
+          }
+          setStepProgress(finalizedProgress as any);
+          stepProgressMessageIdRef.current = lastStepProgressMsg.id;
+          
+          // Also update the message content with the finalized progress
+          // so the next save persists the corrected state
+          const msgIndex = deduplicatedMessages.findIndex(m => m.id === lastStepProgressMsg.id);
+          if (msgIndex >= 0) {
+            deduplicatedMessages[msgIndex] = {
+              ...deduplicatedMessages[msgIndex],
+              content: JSON.stringify(finalizedProgress),
+            };
+          }
         } catch (e) {
           console.error('Error parsing step progress from message:', e);
         }
       }
       
-      setMessages(loadedMessages);
+      setMessages(deduplicatedMessages);
       isNewConversation.current = false;
       setHasUnsavedMessages(false);
     } catch (error) {
@@ -1299,11 +1374,13 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     setIsLoading(true);
     setError(null);
     
-    // Clear workflow prompt when user sends a new message
-    // The AI will set it again if it detects workflow intent in the response
+    // Clear workflow prompt and questionnaire when user sends a new message
     setWorkflowPrompt(null);
+    setClarificationQuestions([]);
+    setQuestionnaireOriginalPrompt(null);
+    pendingClarificationRef.current = null;
           
-          // Clear workflow prompt for external messages (Ask AI) - will be set only if AI explicitly proposes workflow
+          // Clear workflow prompt for external messages (Ask AI)
           if (externalMessage) {
             setWorkflowPrompt(null);
           }
@@ -1359,6 +1436,11 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
     // Add "Thinking..." message that will be updated incrementally when text arrives
     setMessages((prev) => [...prev, aiMessage]);
+
+    // Speculatively pre-fetch clarification if this looks like a workflow request
+    if (detectWorkflowIntent(userMessage.content)) {
+      startSpeculativeClarification(userMessage.content);
+    }
 
     try {
 
@@ -1429,31 +1511,23 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   )
                 );
 
-                // Save complete AI message to database
-                const completeAiMessage: ChatMessage = {
-                  id: aiMessageId,
-                  role: 'assistant',
-                  content: fullMessage,
-                  timestamp: new Date().toISOString(),
-                };
-                await saveMessage(completeAiMessage, activeConversationId);
+                // ═══════════════════════════════════════════════════════════
+                // WORKFLOW INTENT DETECTION — runs FIRST, before any async ops
+                // This MUST run before saveMessage/requestAiTitle which are slow async calls
+                // ═══════════════════════════════════════════════════════════
+                console.log('━━━━━━ COMPLETE EVENT (regular send) ━━━━━━');
+                console.log('📨 Server metadata:', {
+                  shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                  workflowPrompt: data.metadata?.workflowPrompt?.substring(0, 80),
+                  hasMetadata: !!data.metadata,
+                });
+                console.log('📝 AI response (last 200 chars):', fullMessage.substring(Math.max(0, fullMessage.length - 200)));
 
-                // Generate AI-based title once, using the earliest available content
-                // Skip if we already generated a short title from the user's first message
-                if (!titleGeneratedRef.current && !shortTitleGeneratedRef.current) {
-                  titleGeneratedRef.current = true;
-                  const source = messages.length > 0 ? messages[0].content : fullMessage;
-                  const aiTitle = await requestAiTitle(source);
-                  const finalTitle = aiTitle || generateConversationTitle(source);
-                  await updateConversationTitle(activeConversationId, finalTitle);
-                  setConversationTitleEverywhere(activeConversationId, finalTitle);
-                }
-
-                // Check for configuration intent and handle it
+                // Check for configuration intent
                 const userMessage = messages.length >= 2 ? messages[messages.length - 2]?.content : '';
                 const userMessageLower = userMessage.toLowerCase();
+                const fullMessageLower = fullMessage.toLowerCase();
                 
-                // Detect configuration requests - including "fill out" when values are provided
                 const hasConfigurationKeywords = userMessageLower.includes('set') ||
                   userMessageLower.includes('configure') ||
                   userMessageLower.includes('fill in') ||
@@ -1467,88 +1541,91 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   userMessageLower.includes('enter') ||
                   userMessageLower.includes('add');
                 
-                // Check if user provided actual values (not just asking for help)
                 const hasValues = userMessageLower.match(/(?:is|to|as|:|=)\s*['"]?[\w\s@.-]+['"]?/i) ||
-                  userMessageLower.includes('sk-') || // API key pattern
-                  userMessageLower.includes('@') || // Email pattern
-                  userMessageLower.match(/\d{1,2}:\d{2}/) || // Time pattern
-                  userMessageLower.match(/\d{4}-\d{2}-\d{2}/); // Date pattern
+                  userMessageLower.includes('sk-') ||
+                  userMessageLower.includes('@') ||
+                  userMessageLower.match(/\d{1,2}:\d{2}/) ||
+                  userMessageLower.match(/\d{4}-\d{2}-\d{2}/);
                 
-                // Should configure if: has config keywords AND (has values OR AI response suggests it can configure)
-                const aiSuggestsConfig = fullMessage.toLowerCase().includes('configure') ||
-                  fullMessage.toLowerCase().includes('setting') ||
-                  fullMessage.toLowerCase().includes('updated') ||
-                  fullMessage.toLowerCase().includes('filled') ||
-                  fullMessage.toLowerCase().includes("i'll set") ||
-                  fullMessage.toLowerCase().includes("i'll configure") ||
-                  fullMessage.toLowerCase().includes("i'll update") ||
-                  fullMessage.toLowerCase().includes("i'll fill") ||
-                  fullMessage.toLowerCase().includes("i will set") ||
-                  fullMessage.toLowerCase().includes("i will configure") ||
-                  fullMessage.toLowerCase().includes("i will update") ||
-                  fullMessage.toLowerCase().includes("i will fill") ||
-                  (fullMessage.toLowerCase().includes('setting') && fullMessage.toLowerCase().includes('to')) ||
-                  (fullMessage.toLowerCase().includes('configuring') && fullMessage.toLowerCase().includes('with'));
+                const aiSuggestsConfig = fullMessageLower.includes('configure') ||
+                  fullMessageLower.includes('setting') ||
+                  fullMessageLower.includes('updated') ||
+                  fullMessageLower.includes('filled') ||
+                  fullMessageLower.includes("i'll set") ||
+                  fullMessageLower.includes("i'll configure") ||
+                  fullMessageLower.includes("i'll update") ||
+                  fullMessageLower.includes("i'll fill") ||
+                  fullMessageLower.includes("i will set") ||
+                  fullMessageLower.includes("i will configure") ||
+                  fullMessageLower.includes("i will update") ||
+                  fullMessageLower.includes("i will fill") ||
+                  (fullMessageLower.includes('setting') && fullMessageLower.includes('to')) ||
+                  (fullMessageLower.includes('configuring') && fullMessageLower.includes('with'));
                 
                 const shouldConfigure = userMessage && hasConfigurationKeywords && (hasValues || aiSuggestsConfig);
 
-                // Check if workflow generation is suggested
-                console.log('🔍 Complete event received (regular send):', {
-                  hasMetadata: !!data.metadata,
-                  shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
-                  workflowPrompt: data.metadata?.workflowPrompt,
-                  fullMetadata: data.metadata
-                });
-                
-                // Determine if this is a workflow modification (not just field configuration)
                 const currentWorkflow = getCurrentWorkflow ? getCurrentWorkflow() : { nodes: [], edges: [] };
                 const hasExistingWorkflow = currentWorkflow.nodes.length > 0;
                 const isWorkflowModification = data.metadata?.shouldGenerateWorkflow && 
                   data.metadata?.workflowPrompt &&
                   hasExistingWorkflow;
                 
-                // Check if AI is just providing instructions (not actually configuring)
-                const isInstructionOnly = fullMessage.toLowerCase().includes('help me fill out') ||
-                  (fullMessage.toLowerCase().includes('help me with') && !hasValues) ||
-                  (fullMessage.toLowerCase().includes('fill out the') && !hasValues && !aiSuggestsConfig) ||
-                  (fullMessage.toLowerCase().includes('here\'s how') && !hasValues) ||
-                  (fullMessage.toLowerCase().includes('you can') && !hasValues);
+                const isInstructionOnly = fullMessageLower.includes('help me fill out') ||
+                  (fullMessageLower.includes('help me with') && !hasValues) ||
+                  (fullMessageLower.includes('fill out the') && !hasValues && !aiSuggestsConfig) ||
+                  (fullMessageLower.includes('here\'s how') && !hasValues) ||
+                  (fullMessageLower.includes('you can') && !hasValues);
+
+                console.log('🧭 Decision variables:', {
+                  shouldConfigure: !!shouldConfigure,
+                  hasExistingWorkflow,
+                  isWorkflowModification: !!isWorkflowModification,
+                  isInstructionOnly,
+                  serverSaysGenerate: data.metadata?.shouldGenerateWorkflow,
+                  serverWorkflowPrompt: !!data.metadata?.workflowPrompt,
+                });
                 
-                // If it's a workflow modification, auto-apply it
                 if (isWorkflowModification && !isInstructionOnly) {
-                  console.log('🚀 Auto-applying workflow modification...');
-                  // Automatically generate the workflow without requiring button click
+                  console.log('🚀 → Branch: AUTO-MODIFY existing workflow');
                   setWorkflowPrompt(data.metadata.workflowPrompt);
-                  // Trigger generation immediately after state update
                   setTimeout(() => {
-                    generateWorkflow();
+                    generateWorkflow(data.metadata.workflowPrompt);
                   }, 100);
                 } else if (shouldConfigure && getCurrentWorkflow && onNodesConfigured && !isWorkflowModification && !isInstructionOnly) {
-                  // Call configuration API for field-only updates (not workflow modifications)
-                  console.log('🔧 Auto-configuring nodes based on user request');
+                  console.log('🔧 → Branch: AUTO-CONFIGURE nodes');
                   handleNodeConfiguration(userMessage, fullMessage);
                 } else if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
-                  // New workflow creation - trust API's judgment on confirmation format
-                  const responseContent = fullMessage.toLowerCase();
-                  
-                  // Check if this is just instructions (not a workflow confirmation)
-                  const isInstructionOnly = fullMessage.toLowerCase().includes('help me fill out') ||
-                    (fullMessage.toLowerCase().includes('help me with') && !hasValues) ||
-                    (fullMessage.toLowerCase().includes('fill out the') && !hasValues && !aiSuggestsConfig);
-                  
-                  if (!isInstructionOnly) {
-                    setWorkflowPrompt(data.metadata.workflowPrompt);
-                    console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
-                  } else {
-                    console.log('🚫 Not showing workflow button - this is an instruction-only message');
-                    setWorkflowPrompt(null);
-                  }
+                  console.log('🎯 → Branch: NEW WORKFLOW — triggering clarification');
+                  triggerClarification(data.metadata.workflowPrompt);
                 } else {
-                  console.log('❌ No workflow intent detected (regular send):', {
-                    shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
-                    hasWorkflowPrompt: !!data.metadata?.workflowPrompt
-                  });
+                  console.log('❌ → Branch: NO WORKFLOW INTENT');
                   setWorkflowPrompt(null);
+                }
+                console.log('━━━━━━ END DECISION ━━━━━━');
+
+                // ═══════════════════════════════════════════════════════════
+                // PERSISTENCE — runs AFTER workflow detection (non-blocking)
+                // Wrapped in try/catch so errors don't break anything
+                // ═══════════════════════════════════════════════════════════
+                try {
+                  const completeAiMessage: ChatMessage = {
+                    id: aiMessageId,
+                    role: 'assistant',
+                    content: fullMessage,
+                    timestamp: new Date().toISOString(),
+                  };
+                  await saveMessage(completeAiMessage, activeConversationId);
+
+                  if (!titleGeneratedRef.current && !shortTitleGeneratedRef.current) {
+                    titleGeneratedRef.current = true;
+                    const source = messages.length > 0 ? messages[0].content : fullMessage;
+                    const aiTitle = await requestAiTitle(source);
+                    const finalTitle = aiTitle || generateConversationTitle(source);
+                    await updateConversationTitle(activeConversationId, finalTitle);
+                    setConversationTitleEverywhere(activeConversationId, finalTitle);
+                  }
+                } catch (persistError) {
+                  console.error('Non-critical error saving message/title:', persistError);
                 }
               } else if (data.type === 'error') {
                 throw new Error(data.error || 'Stream error');
@@ -1624,6 +1701,11 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
         };
         
         setMessages(prev => [...prev, aiMessage]);
+
+        // Speculatively pre-fetch clarification if edited message looks like a workflow request
+        if (detectWorkflowIntent(newContent.trim())) {
+          startSpeculativeClarification(newContent.trim());
+        }
         
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
@@ -1682,19 +1764,19 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     )
                   );
 
-                  const completeAiMessage: ChatMessage = {
-                    id: aiMessageId,
-                    role: 'assistant',
-                    content: fullMessage,
-                    timestamp: new Date().toISOString(),
-                  };
-                  await saveMessage(completeAiMessage, activeConversationId);
+                  // ═══════════════════════════════════════════════════════════
+                  // WORKFLOW INTENT DETECTION — runs FIRST (edit path)
+                  // ═══════════════════════════════════════════════════════════
+                  console.log('━━━━━━ COMPLETE EVENT (edit) ━━━━━━');
+                  console.log('📨 Server metadata:', {
+                    shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
+                    workflowPrompt: data.metadata?.workflowPrompt?.substring(0, 80),
+                  });
 
-                  // Check for configuration intent and handle it
                   const userMessage = messages.length >= 2 ? messages[messages.length - 2]?.content : '';
                   const userMessageLower = userMessage.toLowerCase();
+                  const fullMessageLower = fullMessage.toLowerCase();
                   
-                  // Detect configuration requests - including "fill out" when values are provided
                   const hasConfigurationKeywords = userMessageLower.includes('set') ||
                     userMessageLower.includes('configure') ||
                     userMessageLower.includes('fill in') ||
@@ -1708,78 +1790,60 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                     userMessageLower.includes('enter') ||
                     userMessageLower.includes('add');
                   
-                  // Check if user provided actual values (not just asking for help)
                   const hasValues = userMessageLower.match(/(?:is|to|as|:|=)\s*['"]?[\w\s@.-]+['"]?/i) ||
-                    userMessageLower.includes('sk-') || // API key pattern
-                    userMessageLower.includes('@') || // Email pattern
-                    userMessageLower.match(/\d{1,2}:\d{2}/) || // Time pattern
-                    userMessageLower.match(/\d{4}-\d{2}-\d{2}/); // Date pattern
+                    userMessageLower.includes('sk-') ||
+                    userMessageLower.includes('@') ||
+                    userMessageLower.match(/\d{1,2}:\d{2}/) ||
+                    userMessageLower.match(/\d{4}-\d{2}-\d{2}/);
                   
-                  // Should configure if: has config keywords AND (has values OR AI response suggests it can configure)
-                  const aiSuggestsConfig = fullMessage.toLowerCase().includes('configure') ||
-                    fullMessage.toLowerCase().includes('setting') ||
-                    fullMessage.toLowerCase().includes('updated') ||
-                    fullMessage.toLowerCase().includes('filled');
+                  const aiSuggestsConfig = fullMessageLower.includes('configure') ||
+                    fullMessageLower.includes('setting') ||
+                    fullMessageLower.includes('updated') ||
+                    fullMessageLower.includes('filled');
                   
                   const shouldConfigure = userMessage && hasConfigurationKeywords && (hasValues || aiSuggestsConfig);
 
-                  // Check if workflow generation is suggested
-                  console.log('🔍 Complete event received (edit and send):', {
-                    hasMetadata: !!data.metadata,
-                    shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
-                    workflowPrompt: data.metadata?.workflowPrompt,
-                    fullMetadata: data.metadata
-                  });
-                  
-                  // Determine if this is a workflow modification (not just field configuration)
                   const currentWorkflow = getCurrentWorkflow ? getCurrentWorkflow() : { nodes: [], edges: [] };
                   const hasExistingWorkflow = currentWorkflow.nodes.length > 0;
                   const isWorkflowModification = data.metadata?.shouldGenerateWorkflow && 
                     data.metadata?.workflowPrompt &&
                     hasExistingWorkflow;
                   
-                  // Check if AI is just providing instructions (not actually configuring)
-                  const isInstructionOnly = fullMessage.toLowerCase().includes('help me fill out') ||
-                    (fullMessage.toLowerCase().includes('help me with') && !hasValues) ||
-                    (fullMessage.toLowerCase().includes('fill out the') && !hasValues && !aiSuggestsConfig) ||
-                    (fullMessage.toLowerCase().includes('here\'s how') && !hasValues) ||
-                    (fullMessage.toLowerCase().includes('you can') && !hasValues);
+                  const isInstructionOnly = fullMessageLower.includes('help me fill out') ||
+                    (fullMessageLower.includes('help me with') && !hasValues) ||
+                    (fullMessageLower.includes('fill out the') && !hasValues && !aiSuggestsConfig) ||
+                    (fullMessageLower.includes('here\'s how') && !hasValues) ||
+                    (fullMessageLower.includes('you can') && !hasValues);
                   
-                  // If it's a workflow modification, auto-apply it
                   if (isWorkflowModification && !isInstructionOnly) {
-                    console.log('🚀 Auto-applying workflow modification...');
-                    // Automatically generate the workflow without requiring button click
+                    console.log('🚀 → Branch: AUTO-MODIFY (edit)');
                     setWorkflowPrompt(data.metadata.workflowPrompt);
-                    // Trigger generation immediately after state update
                     setTimeout(() => {
-                      generateWorkflow();
+                      generateWorkflow(data.metadata.workflowPrompt);
                     }, 100);
                   } else if (shouldConfigure && getCurrentWorkflow && onNodesConfigured && !isWorkflowModification && !isInstructionOnly) {
-                    // Call configuration API for field-only updates (not workflow modifications)
-                    console.log('🔧 Auto-configuring nodes based on user request');
+                    console.log('🔧 → Branch: AUTO-CONFIGURE (edit)');
                     handleNodeConfiguration(userMessage, fullMessage);
                   } else if (data.metadata?.shouldGenerateWorkflow && data.metadata?.workflowPrompt) {
-                    // New workflow creation - trust API's judgment on confirmation format
-                    const responseContent = fullMessage.toLowerCase();
-                    
-                    // Check if this is just instructions (not a workflow confirmation)
-                    const isInstructionOnly = fullMessage.toLowerCase().includes('help me fill out') ||
-                      (fullMessage.toLowerCase().includes('help me with') && !hasValues) ||
-                      (fullMessage.toLowerCase().includes('fill out the') && !hasValues && !aiSuggestsConfig);
-                    
-                    if (!isInstructionOnly) {
-                      setWorkflowPrompt(data.metadata.workflowPrompt);
-                      console.log('🎯 Workflow generation ready. Setting workflowPrompt:', data.metadata.workflowPrompt);
-                    } else {
-                      console.log('🚫 Not showing workflow button - this is an instruction-only message');
-                      setWorkflowPrompt(null);
-                    }
+                    console.log('🎯 → Branch: NEW WORKFLOW (edit) — triggering clarification');
+                    triggerClarification(data.metadata.workflowPrompt);
                   } else {
-                    console.log('❌ No workflow intent detected (edit and send):', {
-                      shouldGenerateWorkflow: data.metadata?.shouldGenerateWorkflow,
-                      hasWorkflowPrompt: !!data.metadata?.workflowPrompt
-                    });
+                    console.log('❌ → Branch: NO WORKFLOW INTENT (edit)');
                     setWorkflowPrompt(null);
+                  }
+                  console.log('━━━━━━ END DECISION (edit) ━━━━━━');
+
+                  // Persistence (non-blocking)
+                  try {
+                    const completeAiMessage: ChatMessage = {
+                      id: aiMessageId,
+                      role: 'assistant',
+                      content: fullMessage,
+                      timestamp: new Date().toISOString(),
+                    };
+                    await saveMessage(completeAiMessage, activeConversationId);
+                  } catch (persistError) {
+                    console.error('Non-critical error saving message:', persistError);
                   }
                 } else if (data.type === 'error') {
                   throw new Error(data.error || 'Stream error');
@@ -1829,7 +1893,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     
     // Create or get step progress message ID
     const configStepProgressId = `config-step-progress_${Date.now()}`;
-    setStepProgressMessageId(configStepProgressId);
+    stepProgressMessageIdRef.current = configStepProgressId;
     
     // Create step progress message
     const stepProgressMsg = {
@@ -2006,7 +2070,128 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     }
   };
 
-  const generateWorkflow = async () => {
+  /**
+   * Speculatively start clarification API call in the background.
+   * Called as soon as a user sends a message that looks like a workflow request,
+   * so the result is ready by the time the AI chat response completes.
+   */
+  const startSpeculativeClarification = (prompt: string) => {
+    console.log('[Clarification] 🚀 Starting speculative pre-fetch for:', prompt.substring(0, 80));
+    
+    const promise = fetch('/api/ai/clarification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        conversationHistory: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+      }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          console.error('[Clarification] Pre-fetch API error:', response.status);
+          return null;
+        }
+        const analysis: ClarificationAnalysis = await response.json();
+        console.log('[Clarification] ✅ Pre-fetch complete:', {
+          needsClarification: analysis.needsClarification,
+          questionCount: analysis.questions?.length ?? 0,
+        });
+        return analysis;
+      })
+      .catch((err) => {
+        console.error('[Clarification] Pre-fetch error:', err);
+        return null;
+      });
+    
+    pendingClarificationRef.current = { prompt, promise };
+  };
+
+  /**
+   * Trigger clarification analysis after workflow intent is confirmed by the AI.
+   * Uses the pre-fetched result if available, otherwise makes a fresh call.
+   */
+  const triggerClarification = async (prompt: string) => {
+    console.log('━━━ CLARIFICATION START ━━━');
+    setQuestionnaireOriginalPrompt(prompt);
+    
+    // Check if we already have a pre-fetched result for this prompt
+    let analysis: ClarificationAnalysis | null = null;
+    const pending = pendingClarificationRef.current;
+    
+    if (pending) {
+      console.log('[Clarification] Using pre-fetched result...');
+      setIsAnalyzingClarification(true);
+      analysis = await pending.promise;
+      pendingClarificationRef.current = null;
+    }
+    
+    // If pre-fetch failed or wasn't available, make a fresh call
+    if (!analysis) {
+      console.log('[Clarification] No pre-fetch available, calling API...');
+      setIsAnalyzingClarification(true);
+      try {
+        const response = await fetch('/api/ai/clarification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            conversationHistory: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          }),
+        });
+        
+        if (!response.ok) {
+          console.error('[Clarification] API error:', response.status);
+          setWorkflowPrompt(prompt);
+          setTimeout(() => generateWorkflow(prompt), 100);
+          setIsAnalyzingClarification(false);
+          return;
+        }
+        
+        analysis = await response.json();
+      } catch (err) {
+        console.error('[Clarification] EXCEPTION:', err);
+        setWorkflowPrompt(prompt);
+        setTimeout(() => generateWorkflow(prompt), 100);
+        setIsAnalyzingClarification(false);
+        return;
+      }
+    }
+    
+    // Apply the result (analysis is guaranteed non-null here due to early returns above)
+    if (analysis!.needsClarification && analysis!.questions?.length > 0) {
+      console.log('[Clarification] ✅ SHOWING QUESTIONNAIRE with', analysis!.questions.length, 'questions');
+      setClarificationQuestions(analysis!.questions);
+    } else {
+      console.log('[Clarification] ⚡ No clarification needed, auto-generating...');
+      setWorkflowPrompt(prompt);
+      setTimeout(() => generateWorkflow(prompt), 100);
+    }
+    
+    setIsAnalyzingClarification(false);
+    console.log('━━━ CLARIFICATION END ━━━');
+  };
+
+  /**
+   * Called when the user completes the questionnaire.
+   * Merges answers with the original prompt and triggers workflow generation.
+   */
+  const handleQuestionnaireComplete = (answers: QuestionnaireAnswer[]) => {
+    if (!questionnaireOriginalPrompt) return;
+    
+    const enrichedPrompt = buildEnrichedPrompt(questionnaireOriginalPrompt, answers);
+    console.log('[Questionnaire] Complete. Enriched prompt:', enrichedPrompt.substring(0, 150));
+    
+    // Clear questionnaire state
+    setClarificationQuestions([]);
+    setQuestionnaireOriginalPrompt(null);
+    pendingClarificationRef.current = null;
+    
+    // Set the enriched prompt and auto-generate (pass directly to avoid stale closure)
+    setWorkflowPrompt(enrichedPrompt);
+    setTimeout(() => generateWorkflow(enrichedPrompt), 100);
+  };
+
+  const generateWorkflow = async (directPrompt?: string) => {
     if (!user) return;
     
     // Prevent multiple simultaneous workflow generations
@@ -2031,8 +2216,9 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       }
     }
     
-    // Get workflow prompt - use state if available, otherwise extract from last message
-    let promptToUse = workflowPrompt;
+    // Get workflow prompt - prefer direct parameter (avoids stale closure),
+    // then state, then extract from last message
+    let promptToUse = directPrompt || workflowPrompt;
     if (!promptToUse) {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage?.content) {
@@ -2059,7 +2245,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
       'code-generation': { status: 'pending' },
       'validation': { status: 'pending' },
     });
-    setStepProgressMessageId(null);
+    stepProgressMessageIdRef.current = null;
 
     // Add "Thinking..." message immediately to show during initial delay
     const thinkingMessageId = `thinking_${Date.now()}`;
@@ -2172,10 +2358,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   // (The UI will hide pending code-generation steps)
                   
                   // Create or update step progress message with step progress state stored as JSON
-                  const stepProgressId = stepProgressMessageId || `step-progress_${Date.now()}`;
-                  if (!stepProgressMessageId) {
-                    setStepProgressMessageId(stepProgressId);
+                  if (!stepProgressMessageIdRef.current) {
+                    stepProgressMessageIdRef.current = `step-progress_${Date.now()}`;
                   }
+                  const stepProgressId = stepProgressMessageIdRef.current;
                   
                   // Store step progress state as JSON in message content for persistence
                   const stepProgressMsg = {
@@ -2251,7 +2437,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   };
                   
                   // Update step progress message with final state
-                  const stepProgressId = stepProgressMessageId || `step-progress_${Date.now()}`;
+                  const stepProgressId = stepProgressMessageIdRef.current || `step-progress_${Date.now()}`;
                   const stepProgressMsg = {
                     id: stepProgressId,
                     role: 'assistant' as const,
@@ -2693,15 +2879,14 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
       {/* Chat History Panel - Full Screen */}
       {showChatHistory ? (
-        <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-transparent overflow-x-hidden">
-          <ScrollArea className="flex-1 h-full overflow-y-auto overflow-x-hidden max-w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            <div className="flex-1 min-h-[320px] px-3 py-4 space-y-2">
+        <div className="flex-1 min-h-0 min-w-0 w-full flex flex-col bg-transparent overflow-hidden">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {isLoadingConversations ? (
-                <div className="flex h-full items-center justify-center">
+                <div className="flex h-full min-h-[320px] items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : allConversations.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-center space-y-2 px-4">
+                <div className="flex h-full min-h-[320px] flex-col items-center justify-center text-center space-y-2 px-4">
                   <MessageSquare className="h-10 w-10 text-muted-foreground/40" />
                   <div>
                     <p className="text-sm font-medium text-foreground">No chats yet</p>
@@ -2709,19 +2894,23 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   </div>
                 </div>
               ) : (
-                allConversations.map((conversation) => {
-                  return (
+                allConversations.map((conversation) => (
                     <button
                       key={conversation.id}
                       onClick={() => switchToConversation(conversation.id)}
-                      className={`group relative w-full text-left px-3 py-2 rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl transition-all duration-300 text-foreground ${
+                      className={`group relative w-full text-left px-3 py-2 rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl transition-all duration-300 text-foreground overflow-hidden ${
                         conversation.id === activeConversationId
                           ? 'shadow-sm ring-1 ring-stone-300 dark:ring-white/30'
                           : 'hover:shadow-sm hover:border-stone-300 dark:hover:border-white/30'
                       }`}
                     >
-                      <span className="pr-8 text-sm font-medium leading-tight whitespace-pre-wrap break-words">
+                      <span className="pr-8 text-sm font-medium leading-tight block truncate relative">
                         {conversation.title}
+                        <span className={`absolute right-0 top-0 bottom-0 w-12 pointer-events-none ${
+                          conversation.id === activeConversationId
+                            ? 'bg-gradient-to-r from-transparent via-stone-100/80 to-stone-100 dark:via-zinc-900/80 dark:to-zinc-900/90'
+                            : 'bg-gradient-to-r from-transparent via-stone-100/60 to-stone-100 dark:via-zinc-900/60 dark:to-zinc-900/90'
+                        }`} />
                       </span>
                       <div
                         role="button"
@@ -2734,7 +2923,6 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             e.stopPropagation();
-                            // Create a synthetic mouse event for handleDeleteConversation
                             const syntheticEvent = {
                               stopPropagation: () => e.stopPropagation(),
                             } as React.MouseEvent;
@@ -2747,11 +2935,9 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
                       </div>
                     </button>
-                  );
-                })
+                ))
               )}
-            </div>
-          </ScrollArea>
+          </div>
         </div>
       ) : (
         <>
@@ -2763,8 +2949,11 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           )}
 
           {messages.map((message, messageIndex) => {
-            // Render step progress message
+            // Render step progress message — only render the FIRST one found
+            // (deduplication on load should ensure there's at most one, but be defensive)
             if ((message as any).isStepProgress) {
+              const isFirstStepProgress = messages.findIndex((m) => (m as any).isStepProgress) === messageIndex;
+              if (!isFirstStepProgress) return null;
               return (
                 <React.Fragment key={message.id}>
                   <div className="flex gap-3 justify-start">
@@ -2916,6 +3105,22 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                 setEditingMessageId(null);
                                 setEditingMessageContent(message.content);
                               }
+                            }}
+                            onBlur={(e) => {
+                              // Don't close if clicking the submit button (it's inside the same container)
+                              if (e.relatedTarget && (e.relatedTarget as HTMLElement).closest?.('button[title="Send Message"]')) {
+                                return;
+                              }
+                              // Close edit mode and keep the edited text in the message bubble
+                              const editedText = editingMessageContent.trim();
+                              if (editedText && editedText !== message.content) {
+                                setMessages((prev) =>
+                                  prev.map((m) =>
+                                    m.id === message.id ? { ...m, content: editedText } : m
+                                  )
+                                );
+                              }
+                              setEditingMessageId(null);
                             }}
                             className="w-full bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-14 focus:border-white/80 dark:focus:border-white/20 focus:ring-0 transition-all scrollbar-hide overflow-y-auto"
                             style={{
@@ -3076,64 +3281,26 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
 
           {/* Loading state is now handled by showing the streaming message */}
 
-          {/* Workflow Generation Button - Show when AI proposes a workflow */}
-          {(() => {
-            const lastMessage = messages[messages.length - 1];
-            // Show button if:
-            // 1. workflowPrompt is set (AI has provided confirmation), OR
-            // 2. Last message content suggests workflow proposal (fallback detection)
-            // 3. Not currently generating workflow
-            // 4. Last message exists and is from assistant
-            // 5. Last message is NOT a workflow generation message (success or explanation)
-            // 6. Last message is NOT marked as workflowGenerated (to avoid showing after generation)
-            const isWorkflowMessage = lastMessage && (
-              (lastMessage as any).workflowGeneratedSuccess || 
-              (lastMessage as any).workflowGenerated
-            );
-            
-            // Check if last message explicitly proposes a workflow (strict detection)
-            // Only show button if AI explicitly mentions generating/creating workflow, especially near the end
-            const lastMessageContent = lastMessage?.content?.toLowerCase() || '';
-            const messageLength = lastMessage?.content?.length || 0;
-            const lastThird = lastMessageContent.slice(Math.floor(messageLength * 0.7)); // Last 30% of message
-            
-            // Explicit proposal indicators - must be clear proposal language, especially near the end
-            const proposesWorkflow = lastMessageContent && (
-              // Direct button mentions (most reliable)
-              (lastThird.includes('generate workflow') && lastThird.includes('button')) ||
-              (lastThird.includes('click') && lastThird.includes('generate') && lastThird.includes('button')) ||
-              (lastThird.includes('generate workflow') && (lastThird.includes('below') || lastThird.includes('button'))) ||
-              // Explicit creation statements near the end
-              (lastThird.includes('i\'ll create') && lastThird.includes('workflow')) ||
-              (lastThird.includes('i will create') && lastThird.includes('workflow')) ||
-              (lastThird.includes('i\'ll build') && lastThird.includes('workflow')) ||
-              (lastThird.includes('i will build') && lastThird.includes('workflow')) ||
-              (lastThird.includes('i\'ll generate') && lastThird.includes('workflow')) ||
-              (lastThird.includes('i will generate') && lastThird.includes('workflow'))
-            );
-            
-            // If proposesWorkflow but workflowPrompt not set, extract it for use in button click
-            // We'll use the extracted prompt directly in generateWorkflow function
-            const shouldShow = (workflowPrompt || proposesWorkflow) && 
-                              !isGeneratingWorkflow && 
-                              lastMessage && 
-                              lastMessage.role === 'assistant' &&
-                              !isWorkflowMessage &&
-                              !hasReachedFreeLimit; // Don't show if paywall is active
-            
-            return shouldShow;
-          })() ? (
-             <div className="flex justify-center py-2">
-               <Button
-                 onClick={generateWorkflow}
-                 variant="outline"
-                 className="gap-2 border border-purple-600/30 dark:border-[#ffffff1a] bg-[#bd28b3ba] text-white hover:opacity-90 px-10 rounded-lg transition-all duration-300 active:scale-[0.98]"
-                 size="lg"
-               >
-                 Generate Workflow
-               </Button>
+          {/* Clarification Analysis Loading State */}
+          {isAnalyzingClarification && (
+            <div className="px-1 py-3">
+              <div className="rounded-xl border border-stone-200/80 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] backdrop-blur-sm p-4">
+                <div className="flex items-center gap-2.5 text-sm text-foreground/70">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
+                  <span>Analyzing your request...</span>
              </div>
-           ) : null}
+              </div>
+            </div>
+          )}
+
+          {/* Clarification Questionnaire */}
+          {clarificationQuestions.length > 0 && !isGeneratingWorkflow && (
+            <WorkflowQuestionnaire
+              questions={clarificationQuestions}
+              onComplete={handleQuestionnaireComplete}
+              isGenerating={isGeneratingWorkflow}
+            />
+          )}
 
 
           {/* Error Display */}

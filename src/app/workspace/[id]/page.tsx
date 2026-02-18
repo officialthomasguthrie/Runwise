@@ -12,7 +12,7 @@ import { ExecutionsView } from "@/components/ui/executions-view";
 import { SettingsView } from "@/components/ui/settings-view";
 import { saveWorkflowFromEditor } from "@/lib/workflows/client";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check, Zap, Sparkles } from "lucide-react";
+import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check, Zap, Sparkles, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
 import { nodeRegistry } from "@/lib/nodes/registry";
 import type { NodeDefinition } from "@/lib/nodes/types";
@@ -487,6 +487,7 @@ export default function WorkspacePage() {
   const updateWorkflowRef = useRef<((nodes: any[], edges: any[]) => void) | null>(null);
   const getWorkflowRef = useRef<(() => { nodes: any[], edges: any[] }) | null>(null);
   const executeWorkflowRef = useRef<(() => Promise<void>) | null>(null);
+  const stopExecutionRef = useRef<(() => void) | null>(null);
   const saveWorkflowRef = useRef<(() => Promise<void>) | null>(null);
   const undoRef = useRef<(() => void) | null>(null);
   const redoRef = useRef<(() => void) | null>(null);
@@ -594,6 +595,11 @@ export default function WorkspacePage() {
   const handleRegisterExecuteCallback = useCallback((callback: () => Promise<void>) => {
     console.log('🎯 Registering execute callback');
     executeWorkflowRef.current = callback;
+  }, []);
+
+  const handleRegisterStopExecutionCallback = useCallback((callback: () => void) => {
+    console.log('🎯 Registering stop execution callback');
+    stopExecutionRef.current = callback;
   }, []);
 
   const handleExecutionStateChange = useCallback((state: { isExecuting: boolean; executionStatus: 'idle' | 'queued' | 'running' | 'success' | 'failed'; hasNodes: boolean }) => {
@@ -1224,6 +1230,17 @@ export default function WorkspacePage() {
                 >
                   <Eraser className="h-4 w-4 md:h-5 md:w-5" />
                 </button>
+                {isExecuting ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="pointer-events-auto inline-flex items-center gap-1.5 md:gap-2.5 rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm font-medium text-foreground shadow-sm opacity-60 cursor-not-allowed"
+                  >
+                    <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                    <span className="hidden sm:inline">Running...</span>
+                    <span className="sm:hidden">Running...</span>
+                  </button>
+                ) : (
                 <button
                   type="button"
                   onClick={() => {
@@ -1243,35 +1260,19 @@ export default function WorkspacePage() {
                       });
                     }
                   }}
-                  disabled={!hasNodes || isExecuting}
+                    disabled={!hasNodes}
                   className="pointer-events-auto inline-flex items-center gap-1.5 md:gap-2.5 rounded-sm border border-stone-200 dark:border-white/10 bg-background/95 px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-white/40 dark:hover:bg-zinc-900/40 disabled:cursor-not-allowed disabled:opacity-60"
                   title={
                     !hasNodes
                       ? 'Add nodes to test the workflow'
-                      : isExecuting
-                      ? 'Workflow is currently running'
                       : 'Run a test execution of this workflow'
                   }
                 >
-                  {isExecuting ? (
-                    <>
-                      <div className="h-3 w-3 md:h-4 md:w-4 animate-spin rounded-full border-b-2 border-foreground" />
-                      <span>
-                        {executionStatus === 'queued'
-                          ? 'Queued'
-                          : executionStatus === 'running'
-                          ? 'Running'
-                          : 'Executing'}
-                      </span>
-                    </>
-                  ) : (
-                    <>
                       <FlaskConical className="h-4 w-4 md:h-5 md:w-5" />
                       <span className="hidden sm:inline">Test Workflow</span>
                       <span className="sm:hidden">Test</span>
-                    </>
-                  )}
                 </button>
+                )}
               </div>
             </div>
 
@@ -1298,6 +1299,7 @@ export default function WorkspacePage() {
                 onRegisterUpdateCallback={handleRegisterUpdateCallback}
                 onRegisterGetWorkflowCallback={handleRegisterGetWorkflowCallback}
                 onRegisterExecuteCallback={handleRegisterExecuteCallback}
+                onRegisterStopExecutionCallback={handleRegisterStopExecutionCallback}
                 onExecutionStateChange={handleExecutionStateChange}
                 onRegisterUndoRedoCallbacks={handleRegisterUndoRedoCallbacks}
                 onRegisterSaveCallback={handleRegisterSaveCallback}
