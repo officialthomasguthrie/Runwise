@@ -27,13 +27,25 @@ export async function generateCustomCode(
 
     const workflow = { ...context.workflow };
     
-    // Find all custom nodes that need code generation
+    // Find all custom nodes that need code generation.
+    // Treat comment-only strings and placeholder strings as "no code" so that
+    // workflow-generation step scaffolding comments don't block code generation.
+    const isRealCode = (code: unknown): boolean => {
+      if (!code || typeof code !== 'string') return false;
+      const trimmed = code.trim();
+      if (trimmed.length === 0) return false;
+      // Treat comment-only strings as no code
+      if (/^\/\*[\s\S]*\*\/$/.test(trimmed)) return false;
+      if (/^\/\/.*$/.test(trimmed)) return false;
+      // Treat placeholder strings that don't look like actual async functions
+      if (!trimmed.includes('async') && !trimmed.includes('=>') && !trimmed.includes('function')) return false;
+      return true;
+    };
+
     const customNodesNeedingCode = workflow.nodes.filter((node) => {
-      const nodeDataFilter = node.data as any; // Type assertion since AIGeneratedWorkflow interface is restrictive
+      const nodeDataFilter = node.data as any;
       const nodeId = nodeDataFilter?.nodeId;
-      const hasCustomCode = !!nodeDataFilter?.customCode && typeof nodeDataFilter.customCode === 'string' && nodeDataFilter.customCode.trim().length > 0;
-      
-      return nodeId === 'CUSTOM_GENERATED' && !hasCustomCode;
+      return nodeId === 'CUSTOM_GENERATED' && !isRealCode(nodeDataFilter?.customCode);
     });
 
     // If no custom nodes need code, return workflow unchanged
@@ -63,283 +75,246 @@ export async function generateCustomCode(
       const nodeRequirements = nodeData?.metadata?.requirements || nodeDescription;
 
       // System prompt focused on code generation
-      const systemPrompt = `You are an expert JavaScript code generator for workflow automation nodes. Your task is to generate custom code for workflow nodes that require custom functionality.
+      const systemPrompt = `You are an expert JavaScript code generator for workflow automation nodes. Generate production-ready code with proper configuration fields.
 
-INPUT:
-You receive a custom node that needs code generation:
+NODE TO BUILD:
 - Description: ${nodeDescription}
 - Requirements: ${nodeRequirements}
 - Node type: ${nodeData?.metadata?.type || 'transform'}
 
-YOUR JOB:
-Generate complete, functional JavaScript code that:
-1. Fulfills the node's requirements
-2. Uses the correct format: async (inputData, config, context) => { ... }
-3. Includes proper error handling with try/catch
-4. Uses context.http.get/post/put/delete for HTTP requests
-5. Uses context.logger for logging
-6. Returns structured data objects
-7. Includes a complete configSchema that matches ALL config values used in the code
+════════════════════════════════════════════════════
+PARAMETERIZATION MANDATE — MOST IMPORTANT RULE
+════════════════════════════════════════════════════
+Every meaningful value in your code MUST come from config.*, not be hardcoded.
+A node with an empty configSchema is BROKEN — users cannot configure it.
 
-CUSTOM CODE RULES:
-- Format: async (inputData, config, context) => { /* your code */ return result; }
-- Always use async/await for API calls
-- Use context.http.get/post/put/delete for HTTP requests (NOT fetch or axios)
+ALWAYS put these in config:
+✅ API-specific identifiers → config.cryptoId, config.stockSymbol, config.countryCode, config.city, config.searchQuery
+✅ API keys for non-integrated services → config.apiKey
+✅ Resource names/IDs → config.spreadsheetId, config.databaseId, config.repoName, config.tableName
+✅ Selectable parameters → config.currency, config.language, config.format, config.unit, config.model
+✅ Limits/thresholds → config.limit, config.maxResults, config.threshold
+✅ Message templates → config.subject, config.message, config.prompt, config.template
+✅ Endpoint paths → config.webhookUrl, config.baseUrl, config.endpoint
+
+NEVER hardcode these — always use config.*:
+❌ "bitcoin" → ✅ config.cryptoId (default: "bitcoin")
+❌ "usd" → ✅ config.currency (select field, default: "usd")
+❌ "London" → ✅ config.city
+❌ "10" as a limit → ✅ config.limit (default: 10)
+❌ any query parameter that a user might want to change
+
+MINIMUM configSchema REQUIREMENT:
+Every node MUST have at least 1 configSchema field. Nodes calling APIs must have fields for their key parameters.
+If you cannot identify configurable parameters, think harder — there is always something configurable.
+
+════════════════════════════════════════════════════
+CODE RULES
+════════════════════════════════════════════════════
+- Format: async (inputData, config, context) => { ... return result; }
+- Use context.http.get/post/put/delete for ALL HTTP requests (never fetch or axios)
 - Use context.logger.info/error/warn for logging
-- Return structured data objects (e.g., { result: "...", data: {...} })
-- Handle errors gracefully with try/catch blocks
-- No require(), import, eval(), or process access
-- Access config values via config object (e.g., config.url, config.method)
-- Access previous node output via inputData (e.g., inputData.fieldName)
-- Use template syntax {{inputData.field}} is handled by the system, don't parse it in code
+- Always wrap in try/catch, return { success: false, error: error.message } on failure
+- Return structured objects with success: true/false and meaningful fields
+- No require(), import, eval(), process access
 
-INTEGRATION CREDENTIALS (CRITICAL):
-- When your code uses integrations (OpenAI, SendGrid, Twilio, Stripe, Discord, Twitter, etc.), DO NOT use config.apiKey or config.authToken
-- Instead, use context.auth.{serviceName} to access credentials:
+════════════════════════════════════════════════════
+INTEGRATION CREDENTIALS
+════════════════════════════════════════════════════
+For known integrations, use context.auth — NOT config — for credentials:
+  * Google (Sheets, Gmail, Drive, Calendar): context.auth.google.token
+  * Slack: context.auth.slack.token
+  * GitHub: context.auth.github.token
+  * Notion: context.auth.notion.token
+  * Airtable: context.auth.airtable.token
   * OpenAI: context.auth.openai.apiKey
   * SendGrid: context.auth.sendgrid.apiKey
-  * Twilio: context.auth.twilio.credentials.accountSid and context.auth.twilio.credentials.authToken
+  * Twilio: context.auth.twilio.credentials.accountSid / .authToken
   * Stripe: context.auth.stripe.apiKey
   * Discord: context.auth.discord.token
   * Twitter: context.auth.twitter.token
-  * Google: context.auth.google.token
-  * Slack: context.auth.slack.token
-  * GitHub: context.auth.github.token
-- **NEVER** include apiKey, authToken, secretKey, accessToken, or any credential fields in configSchema when using integrations
-- The integration connection UI handles credentials separately - users connect integrations through the integration field, not through configSchema
-- Only use config for non-credential fields like URLs, IDs, parameters, etc.
 
-CONFIG SCHEMA REQUIREMENTS:
-- The configSchema MUST match ALL config values used in the customCode (excluding integration credentials)
-- If code uses config.url, schema MUST have url field
-- If code uses config.apiKey for an integration (like OpenAI, SendGrid), DO NOT include it in configSchema - use context.auth instead
-- Analyze the generated code to extract ALL config references (but exclude credential fields for integrations)
-- Schema format: Each field is an object with:
+For generic/unknown/public APIs: config.apiKey in configSchema IS correct.
+NEVER put apiKey/authToken/secretKey/accessToken in configSchema for the known integrations above.
+
+════════════════════════════════════════════════════
+CONFIG SCHEMA FORMAT
+════════════════════════════════════════════════════
+Each field:
   * type: "string" | "number" | "textarea" | "select"
-  * label: Human-readable field name
-  * description: What this field is for
-  * required: true/false (true if the code requires this value)
-  * options: Array of {value, label} objects (only for type: "select")
-  * default: Optional default value
-  * **serviceName**: Integration service name (e.g., "slack", "google-sheets", "notion") - REQUIRED for integration-dependent fields
-  * **resourceType**: Type of resource to fetch from integration - REQUIRED for integration-dependent fields
-    * Available resourceTypes:
-      - Google Sheets: "spreadsheet", "sheet", "column"
-      - Google Calendar: "calendar"
-      - Google Drive: "folder"
-      - Google Forms: "form"
-      - Gmail: "label"
-      - Slack: "channel"
-      - GitHub: "repository"
-      - Notion: "database"
-      - Airtable: "base", "table", "field"
-      - Trello: "board", "list"
-      - Discord: "guild", "channel"
-  
-INTEGRATION-DEPENDENT FIELDS (CRITICAL):
-- When your code uses integrations and needs fields that should be selected from the user's connected resources (channels, spreadsheets, databases, etc.), use integration-dependent fields
-- These fields automatically fetch options from the user's connected integration account
-- Format for integration-dependent fields:
-  * Set type: "string" (the UI will render it as a dropdown)
-  * Include serviceName: The integration service name (must match detected integration)
-  * Include resourceType: The type of resource to fetch (channel, spreadsheet, database, etc.)
-  * Do NOT include options: The system fetches them automatically from the integration
-  * Example: { type: "string", label: "Channel", description: "Select a Slack channel", required: true, serviceName: "slack", resourceType: "channel" }
-- Common integration-dependent fields:
-  * Slack: channel → { serviceName: "slack", resourceType: "channel" }
-  * Google Sheets: spreadsheetId → { serviceName: "google-sheets", resourceType: "spreadsheet" }
-  * Google Sheets: sheetName → { serviceName: "google-sheets", resourceType: "sheet" }
-  * Notion: databaseId → { serviceName: "notion", resourceType: "database" }
-  * Airtable: baseId → { serviceName: "airtable", resourceType: "base" }
-  * Airtable: tableId → { serviceName: "airtable", resourceType: "table" }
-  * Trello: boardId → { serviceName: "trello", resourceType: "board" }
-  * Trello: listId → { serviceName: "trello", resourceType: "list" }
-  * GitHub: repository → { serviceName: "github", resourceType: "repository" }
-  * Discord: guildId → { serviceName: "discord", resourceType: "guild" }
-  * Discord: channelId → { serviceName: "discord", resourceType: "channel" }
-  * Google Calendar: calendarId → { serviceName: "google-calendar", resourceType: "calendar" }
-  * Google Drive: folderId → { serviceName: "google-drive", resourceType: "folder" }
-  * Google Forms: formId → { serviceName: "google-forms", resourceType: "form" }
-  * Gmail: labelId → { serviceName: "google-gmail", resourceType: "label" }
+  * label: Human-readable name (e.g. "Cryptocurrency ID", NOT "cryptoId")
+  * description: Purpose + examples (e.g. "CoinGecko ID, e.g. 'bitcoin', 'ethereum', 'solana'")
+  * required: true if code breaks without it
+  * default: Always provide sensible defaults when possible
+  * options: [{value, label}] array — only for "select" type
 
-ERROR HANDLING:
-- Always wrap API calls in try/catch
-- Log errors using context.logger.error()
-- Return error information in the result if needed
-- Don't throw unhandled errors
+For integration-dependent resource fields (Slack channels, Sheets spreadsheets, etc.):
+  * Add serviceName: "slack" | "google-sheets" | "notion" | "github" | etc.
+  * Add resourceType: "channel" | "spreadsheet" | "sheet" | "database" | "repository" | etc.
+  * Omit options — the UI fetches them automatically
 
-OUTPUT STRUCTURE:
-Return a JSON object with these exact fields:
+════════════════════════════════════════════════════
+EXAMPLES — Study these carefully
+════════════════════════════════════════════════════
+
+Example 1: Fetch crypto price — public API, all params in config (CORRECT)
 {
-  "customCode": "async (inputData, config, context) => { /* your code */ return result; }",
-  "configSchema": {
-    "fieldName": {
-      "type": "string",
-      "label": "Field Label",
-      "description": "What this field is for",
-      "required": true
-    }
-  }
-}
-
-EXAMPLES:
-
-Example 1: Fetch Bitcoin price from CoinGecko
-{
-  "customCode": "async (inputData, config, context) => { try { const response = await context.http.get(\`https://api.coingecko.com/api/v3/simple/price?ids=\${config.cryptoId}&vs_currencies=usd\`); return { price: response[config.cryptoId].usd, timestamp: new Date().toISOString() }; } catch (error) { context.logger.error('Failed to fetch crypto price:', error); return { error: error.message, price: null }; } }",
+  "customCode": "async (inputData, config, context) => { try { const cryptoId = config.cryptoId || 'bitcoin'; const currency = config.currency || 'usd'; const response = await context.http.get(\`https://api.coingecko.com/api/v3/simple/price?ids=\${encodeURIComponent(cryptoId)}&vs_currencies=\${currency}\`); const price = response[cryptoId]?.[currency]; if (price === undefined) { return { success: false, error: \`No price found for \${cryptoId}\`, cryptoId, currency }; } return { success: true, cryptoId, currency, price, formattedPrice: \`\${price} \${currency.toUpperCase()}\`, timestamp: new Date().toISOString() }; } catch (error) { context.logger.error('Failed to fetch crypto price:', error); return { success: false, error: error.message }; } }",
   "configSchema": {
     "cryptoId": {
       "type": "string",
       "label": "Cryptocurrency ID",
-      "description": "The CoinGecko cryptocurrency ID (e.g., 'bitcoin', 'ethereum')",
-      "required": true
+      "description": "CoinGecko cryptocurrency ID, e.g. 'bitcoin', 'ethereum', 'solana', 'cardano'",
+      "required": true,
+      "default": "bitcoin"
+    },
+    "currency": {
+      "type": "select",
+      "label": "Currency",
+      "description": "Target currency for price conversion",
+      "required": true,
+      "default": "usd",
+      "options": [
+        {"value": "usd", "label": "USD ($)"},
+        {"value": "eur", "label": "EUR (€)"},
+        {"value": "gbp", "label": "GBP (£)"},
+        {"value": "jpy", "label": "JPY (¥)"},
+        {"value": "aud", "label": "AUD (A$)"},
+        {"value": "btc", "label": "BTC (₿)"},
+        {"value": "eth", "label": "ETH (Ξ)"}
+      ]
     }
   }
 }
 
-Example 2: Send data to webhook (generic webhook - no integration)
+Example 2: Get weather — API key in config (OpenWeather is NOT a built-in integration)
 {
-  "customCode": "async (inputData, config, context) => { try { const response = await context.http.post(config.webhookUrl, { data: inputData, timestamp: new Date().toISOString() }, { headers: { 'Authorization': \`Bearer \${config.apiKey}\`, 'Content-Type': 'application/json' } }); return { success: true, response: response }; } catch (error) { context.logger.error('Webhook call failed:', error); return { success: false, error: error.message }; } }",
+  "customCode": "async (inputData, config, context) => { try { const city = config.city || 'London'; const units = config.units || 'metric'; const url = \`https://api.openweathermap.org/data/2.5/weather?q=\${encodeURIComponent(city)}&units=\${units}&appid=\${config.apiKey}\`; const data = await context.http.get(url); return { success: true, city: data.name, country: data.sys.country, temperature: data.main.temp, feelsLike: data.main.feels_like, humidity: data.main.humidity, description: data.weather[0].description, windSpeed: data.wind.speed, units }; } catch (error) { context.logger.error('Weather fetch failed:', error); return { success: false, error: error.message }; } }",
+  "configSchema": {
+    "city": {
+      "type": "string",
+      "label": "City",
+      "description": "City name to get weather for, e.g. 'London', 'New York', 'Tokyo'",
+      "required": true,
+      "default": "London"
+    },
+    "apiKey": {
+      "type": "string",
+      "label": "OpenWeatherMap API Key",
+      "description": "Your API key from openweathermap.org (free tier available)",
+      "required": true
+    },
+    "units": {
+      "type": "select",
+      "label": "Temperature Units",
+      "description": "Unit system for temperature values",
+      "required": false,
+      "default": "metric",
+      "options": [
+        {"value": "metric", "label": "Celsius (metric)"},
+        {"value": "imperial", "label": "Fahrenheit (imperial)"},
+        {"value": "standard", "label": "Kelvin (standard)"}
+      ]
+    }
+  }
+}
+
+Example 3: Generic webhook POST — URL in config
+{
+  "customCode": "async (inputData, config, context) => { try { const headers = { 'Content-Type': 'application/json' }; if (config.apiKey) headers['Authorization'] = \`Bearer \${config.apiKey}\`; const payload = { data: inputData, timestamp: new Date().toISOString() }; const response = await context.http.post(config.webhookUrl, payload, { headers }); return { success: true, response }; } catch (error) { context.logger.error('Webhook call failed:', error); return { success: false, error: error.message }; } }",
   "configSchema": {
     "webhookUrl": {
       "type": "string",
       "label": "Webhook URL",
-      "description": "The URL to send the webhook request to",
+      "description": "The URL to POST data to",
       "required": true
     },
     "apiKey": {
       "type": "string",
-      "label": "API Key",
-      "description": "API key for authentication (for generic webhooks, not integrations)",
-      "required": true
+      "label": "API Key (optional)",
+      "description": "Bearer token for Authorization header (leave blank if not needed)",
+      "required": false
     }
   }
 }
 
-Example 3: Call OpenAI API (uses integration - NO apiKey in configSchema)
+Example 4: Add row to Google Sheets — integration auth + integration-dependent fields
 {
-  "customCode": "async (inputData, config, context) => { try { const response = await context.http.post('https://api.openai.com/v1/chat/completions', { model: config.model, messages: [{ role: 'user', content: config.prompt }] }, { headers: { 'Authorization': \`Bearer \${context.auth.openai.apiKey}\`, 'Content-Type': 'application/json' } }); return { result: response.choices[0].message.content }; } catch (error) { context.logger.error('OpenAI API call failed:', error); return { error: error.message }; } }",
-  "configSchema": {
-    "model": {
-      "type": "string",
-      "label": "Model",
-      "description": "OpenAI model to use (e.g., 'gpt-3.5-turbo')",
-      "required": true,
-      "default": "gpt-3.5-turbo"
-    },
-    "prompt": {
-      "type": "textarea",
-      "label": "Prompt",
-      "description": "The prompt to send to OpenAI",
-      "required": true
-    }
-  }
-}
-Note: apiKey is NOT in configSchema - it comes from context.auth.openai.apiKey (users connect OpenAI through the integration UI)
-
-Example 4: Send email via SendGrid (uses integration - NO apiKey in configSchema)
-{
-  "customCode": "async (inputData, config, context) => { try { const response = await context.http.post('https://api.sendgrid.com/v3/mail/send', { personalizations: [{ to: [{ email: config.to }] }], from: { email: config.from }, subject: config.subject, content: [{ type: 'text/plain', value: config.body }] }, { headers: { 'Authorization': \`Bearer \${context.auth.sendgrid.apiKey}\`, 'Content-Type': 'application/json' } }); return { success: true, messageId: response.headers['x-message-id'] }; } catch (error) { context.logger.error('SendGrid API call failed:', error); return { success: false, error: error.message }; } }",
-  "configSchema": {
-    "to": {
-      "type": "string",
-      "label": "To Email",
-      "description": "Recipient email address",
-      "required": true
-    },
-    "from": {
-      "type": "string",
-      "label": "From Email",
-      "description": "Sender email address",
-      "required": true
-    },
-    "subject": {
-      "type": "string",
-      "label": "Subject",
-      "description": "Email subject",
-      "required": true
-    },
-    "body": {
-      "type": "textarea",
-      "label": "Body",
-      "description": "Email body content",
-      "required": true
-    }
-  }
-}
-Note: apiKey is NOT in configSchema - it comes from context.auth.sendgrid.apiKey (users connect SendGrid through the integration UI)
-
-Example 5: Post to Slack channel (uses integration-dependent field for channel selection)
-{
-  "customCode": "async (inputData, config, context) => { try { const response = await context.http.post('https://slack.com/api/chat.postMessage', { channel: config.channel, text: config.message }, { headers: { 'Authorization': \`Bearer \${context.auth.slack.token}\`, 'Content-Type': 'application/json' } }); return { success: true, ts: response.ts, channel: response.channel }; } catch (error) { context.logger.error('Slack API call failed:', error); return { success: false, error: error.message }; } }",
-  "configSchema": {
-    "channel": {
-      "type": "string",
-      "label": "Channel",
-      "description": "Select a Slack channel",
-      "required": true,
-      "serviceName": "slack",
-      "resourceType": "channel"
-    },
-    "message": {
-      "type": "textarea",
-      "label": "Message",
-      "description": "Message text to post",
-      "required": true
-    }
-  }
-}
-Note: channel field has serviceName and resourceType - users will see a dropdown of their Slack channels
-
-Example 6: Add row to Google Sheet (uses integration-dependent fields)
-{
-  "customCode": "async (inputData, config, context) => { try { const response = await context.http.post(\`https://sheets.googleapis.com/v4/spreadsheets/\${config.spreadsheetId}/values/\${config.sheetName}:append?valueInputOption=RAW\`, { values: [[config.value]] }, { headers: { 'Authorization': \`Bearer \${context.auth.google.token}\`, 'Content-Type': 'application/json' } }); return { success: true, updatedCells: response.updates?.updatedCells || 0 }; } catch (error) { context.logger.error('Google Sheets API call failed:', error); return { success: false, error: error.message }; } }",
+  "customCode": "async (inputData, config, context) => { try { const token = context.auth.google.token; const values = config.rowData ? config.rowData.split(',').map(v => v.trim()) : Object.values(inputData); const url = \`https://sheets.googleapis.com/v4/spreadsheets/\${config.spreadsheetId}/values/\${encodeURIComponent(config.sheetName || 'Sheet1')}:append?valueInputOption=USER_ENTERED\`; const response = await context.http.post(url, { values: [values] }, { headers: { Authorization: \`Bearer \${token}\`, 'Content-Type': 'application/json' } }); return { success: true, updatedCells: response.updates?.updatedCells || 0, updatedRange: response.updates?.updatedRange }; } catch (error) { context.logger.error('Google Sheets append failed:', error); return { success: false, error: error.message }; } }",
   "configSchema": {
     "spreadsheetId": {
       "type": "string",
       "label": "Spreadsheet",
-      "description": "Select a Google Sheet",
+      "description": "Select the Google Spreadsheet to write to",
       "required": true,
       "serviceName": "google-sheets",
       "resourceType": "spreadsheet"
     },
     "sheetName": {
       "type": "string",
-      "label": "Sheet",
-      "description": "Select a sheet within the spreadsheet",
-      "required": true,
+      "label": "Sheet Tab",
+      "description": "Name of the tab within the spreadsheet",
+      "required": false,
+      "default": "Sheet1",
       "serviceName": "google-sheets",
       "resourceType": "sheet"
     },
-    "value": {
+    "rowData": {
       "type": "string",
-      "label": "Value",
-      "description": "Value to add to the sheet",
-      "required": true
+      "label": "Row Data (comma-separated)",
+      "description": "Values to add as a row, comma-separated. Leave blank to use all input data.",
+      "required": false
     }
   }
 }
-Note: spreadsheetId and sheetName have serviceName and resourceType - users will see dropdowns of their Google Sheets
 
-CRITICAL RULES:
-1. The customCode must be valid JavaScript that can be executed
-2. The configSchema must include ALL fields referenced in the code via config.* (excluding integration credentials)
-3. **NEVER** include credential fields (apiKey, authToken, secretKey, accessToken, botToken, accountSid, etc.) in configSchema when using integrations
-4. For integrations, use context.auth.{serviceName} to access credentials, not config
-5. **ALWAYS use integration-dependent fields** when your code needs resources from integrations:
-   - If code uses config.channel with Slack → add serviceName: "slack", resourceType: "channel"
-   - If code uses config.spreadsheetId with Google Sheets → add serviceName: "google-sheets", resourceType: "spreadsheet"
-   - If code uses config.databaseId with Notion → add serviceName: "notion", resourceType: "database"
-   - If code uses config.repository with GitHub → add serviceName: "github", resourceType: "repository"
-   - And so on for all integration resources
-6. Use regex or manual analysis to extract config references from the code
-7. Ensure every config.fieldName in code (except credential fields for integrations) has a corresponding schema field
-8. If you detect an integration API in your code, automatically:
-   - Use context.auth instead of config for credentials
-   - Add serviceName and resourceType to fields that should fetch from the integration
-9. Return ONLY valid JSON, no markdown, no explanations outside JSON
+Example 5: Create GitHub issue — integration auth + integration-dependent field
+{
+  "customCode": "async (inputData, config, context) => { try { const token = context.auth.github.token; const [owner, repo] = (config.repository || '').split('/'); if (!owner || !repo) { return { success: false, error: 'Repository must be in format owner/repo' }; } const body = { title: config.title || inputData.title || 'New Issue', body: config.body || inputData.body || '', labels: config.labels ? config.labels.split(',').map(l => l.trim()) : [] }; const response = await context.http.post(\`https://api.github.com/repos/\${owner}/\${repo}/issues\`, body, { headers: { Authorization: \`Bearer \${token}\`, 'Content-Type': 'application/json', 'User-Agent': 'Runwise-Workflow' } }); return { success: true, issueNumber: response.number, issueUrl: response.html_url, title: response.title }; } catch (error) { context.logger.error('GitHub issue creation failed:', error); return { success: false, error: error.message }; } }",
+  "configSchema": {
+    "repository": {
+      "type": "string",
+      "label": "Repository",
+      "description": "Select the GitHub repository",
+      "required": true,
+      "serviceName": "github",
+      "resourceType": "repository"
+    },
+    "title": {
+      "type": "string",
+      "label": "Issue Title",
+      "description": "Title for the GitHub issue (can use {{inputData.field}} syntax)",
+      "required": false
+    },
+    "body": {
+      "type": "textarea",
+      "label": "Issue Body",
+      "description": "Description for the issue (can use {{inputData.field}} syntax)",
+      "required": false
+    },
+    "labels": {
+      "type": "string",
+      "label": "Labels (comma-separated)",
+      "description": "Comma-separated label names, e.g. 'bug, urgent'",
+      "required": false
+    }
+  }
+}
 
-Return a JSON object with customCode and configSchema fields.`;
+════════════════════════════════════════════════════
+VALIDATION CHECKLIST (apply before returning)
+════════════════════════════════════════════════════
+Before generating your JSON output, verify:
+☑ configSchema has AT LEAST 1 field (never return empty {})
+☑ Every config.fieldName used in code has a matching configSchema entry
+☑ No credential fields in configSchema for known integrations (use context.auth instead)
+☑ All fields have label, description, type, required
+☑ Sensible defaults provided where applicable
+☑ Integration resource fields have serviceName + resourceType
+☑ code is wrapped in try/catch
+☑ Return value has success: true/false
+
+Return ONLY a JSON object with "customCode" and "configSchema" keys.`;
 
       // Build user message with node requirements
       const userMessage = `Generate custom code for a workflow node with these requirements:
@@ -347,37 +322,34 @@ Return a JSON object with customCode and configSchema fields.`;
 Description: ${nodeDescription}
 Requirements: ${nodeRequirements}
 
-Please generate the customCode and complete configSchema that matches all config values used in the code.`;
+Remember: configSchema MUST have at least 1 field. Use config.* for every parameter a user might want to configure — never hardcode values like cryptocurrency IDs, city names, query parameters, limits, etc.`;
 
-      // Call OpenAI API
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: userMessage,
-          },
-        ],
-        temperature: 0.3, // Lower temperature for more deterministic code
-        max_tokens: 2000, // May need more for complex code
-      });
-
-      // Extract response and token usage
-      const responseContent = completion.choices[0]?.message?.content;
-      const tokenUsage = {
-        inputTokens: completion.usage?.prompt_tokens || 0,
-        outputTokens: completion.usage?.completion_tokens || 0,
+      // Helper: call OpenAI and parse the result
+      const callCodeGen = async (msgs: { role: 'system' | 'user' | 'assistant'; content: string }[]) => {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          response_format: { type: 'json_object' },
+          messages: msgs,
+          temperature: 0.3,
+          max_tokens: 2500,
+        });
+        return {
+          content: completion.choices[0]?.message?.content || null,
+          inputTokens: completion.usage?.prompt_tokens || 0,
+          outputTokens: completion.usage?.completion_tokens || 0,
+        };
       };
 
-      totalInputTokens += tokenUsage.inputTokens;
-      totalOutputTokens += tokenUsage.outputTokens;
+      // First attempt
+      const attempt1 = await callCodeGen([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ]);
 
-      if (!responseContent) {
+      totalInputTokens += attempt1.inputTokens;
+      totalOutputTokens += attempt1.outputTokens;
+
+      if (!attempt1.content) {
         console.warn(`No response from OpenAI for node ${node.id}, skipping code generation`);
         continue;
       }
@@ -385,10 +357,9 @@ Please generate the customCode and complete configSchema that matches all config
       // Parse JSON response
       let codeResult: { customCode?: string; configSchema?: Record<string, any> };
       try {
-        codeResult = JSON.parse(responseContent);
+        codeResult = JSON.parse(attempt1.content);
       } catch (parseError) {
         console.error(`Error parsing code generation response for node ${node.id}:`, parseError);
-        console.error('Response content:', responseContent);
         continue;
       }
 
@@ -398,12 +369,61 @@ Please generate the customCode and complete configSchema that matches all config
         continue;
       }
 
+      // ── Retry if configSchema is empty ────────────────────────────────────
+      // An empty configSchema means users can't configure the node — always retry once.
+      const schemaIsEmpty = !codeResult.configSchema || Object.keys(codeResult.configSchema).length === 0;
+      if (schemaIsEmpty) {
+        console.warn(`[Code Generation] configSchema is empty for node ${node.id} — retrying with stricter parameterization prompt`);
+
+        const retryUserMessage = `PROBLEM: Your previous response had an EMPTY configSchema. That is NOT acceptable.
+
+You must generate code that uses config.* variables for every user-configurable value.
+
+Node description: ${nodeDescription}
+Node requirements: ${nodeRequirements}
+
+Previous code (for reference — FIX the hardcoded values):
+${codeResult.customCode}
+
+REQUIRED FIXES:
+1. Identify every hardcoded value (API identifiers, query params, IDs, limits, names, etc.)
+2. Replace each hardcoded value with config.fieldName
+3. Add a configSchema entry for EVERY config.fieldName used in the code
+4. The configSchema MUST have at least 1 field — returning {} will break the node
+
+Regenerate both customCode and configSchema now.`;
+
+        const attempt2 = await callCodeGen([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+          { role: 'assistant', content: attempt1.content },
+          { role: 'user', content: retryUserMessage },
+        ]);
+
+        totalInputTokens += attempt2.inputTokens;
+        totalOutputTokens += attempt2.outputTokens;
+
+        if (attempt2.content) {
+          try {
+            const retryResult = JSON.parse(attempt2.content);
+            if (retryResult.customCode && typeof retryResult.customCode === 'string') {
+              codeResult = retryResult;
+              console.log(`[Code Generation] Retry succeeded for node ${node.id}, configSchema keys: ${Object.keys(retryResult.configSchema || {}).join(', ')}`);
+            }
+          } catch {
+            console.warn(`[Code Generation] Could not parse retry response for node ${node.id}, using original`);
+          }
+        }
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
       // Validate and extract config references from code
       const configSchema = codeResult.configSchema || {};
-      const configReferences = extractConfigReferences(codeResult.customCode);
+      const finalCode = codeResult.customCode!;
+      const configReferences = extractConfigReferences(finalCode);
 
       // Detect integration from API endpoints in customCode
-      const detectedIntegration = detectIntegrationFromCode(codeResult.customCode);
+      const detectedIntegration = detectIntegrationFromCode(finalCode);
       
       // If integration is detected, add integration field to configSchema and remove credential fields
       if (detectedIntegration) {
@@ -479,7 +499,7 @@ Please generate the customCode and complete configSchema that matches all config
       }
 
       const nodeDataUpdate = node.data as any;
-      nodeDataUpdate.customCode = codeResult.customCode;
+      nodeDataUpdate.customCode = finalCode;
       nodeDataUpdate.configSchema = configSchema;
 
       // Ensure metadata exists

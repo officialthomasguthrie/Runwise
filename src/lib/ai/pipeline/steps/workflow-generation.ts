@@ -120,9 +120,9 @@ OUTPUT MAPPING (CRITICAL):
 CUSTOM NODES (From Plan):
 - If plan includes customNodes, create placeholder nodes with nodeId: "CUSTOM_GENERATED"
 - Include description based on requirements from plan
-- DO NOT include customCode yet (that's generated in next step)
-- DO NOT include configSchema yet (that's generated with the code)
-- Just create the node structure - code generation comes later
+- NEVER include customCode or configSchema fields (code generation in next step handles this)
+- ALWAYS include a metadata object with: name, type ("trigger"/"transform"/"action"), and requirements (detailed description of what the node must do, which API to call, what parameters to use, what to return)
+- The requirements field in metadata is how the code generator knows what to build — be specific and detailed
 
 NODE ID GENERATION:
 - Generate unique IDs for nodes (e.g., "node-1", "node-2", "trigger-1", "action-1")
@@ -137,12 +137,24 @@ Return a JSON object with this exact structure:
       "type": "workflow-node",
       "position": { "x": 0, "y": 0 },
       "data": {
-        "nodeId": "library-node-id-or-CUSTOM_GENERATED",
+        "nodeId": "library-node-id",
         "label": "Node Name",
-        "description": "A short, clear description of what this node does (REQUIRED for all nodes)",
-        "customCode": "/* only if CUSTOM_GENERATED - leave empty for now, will be generated in next step */",
-        "configSchema": { /* only if CUSTOM_GENERATED - leave empty for now */ },
-        "metadata": { /* only if CUSTOM_GENERATED */ }
+        "description": "A short, clear description of what this node does (REQUIRED for all nodes)"
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "workflow-node",
+      "position": { "x": 0, "y": 0 },
+      "data": {
+        "nodeId": "CUSTOM_GENERATED",
+        "label": "Custom Node Name",
+        "description": "A short, clear description of what this custom node does (REQUIRED)",
+        "metadata": {
+          "name": "Custom Node Name",
+          "type": "transform",
+          "requirements": "Detailed description of exactly what this node must do, including which API to call, what parameters to use, and what to return"
+        }
       }
     }
   ],
@@ -171,9 +183,10 @@ CRITICAL RULES:
 5. Create edges based on plan's connections array
 6. All positions must be {x: 0, y: 0} (auto-layout handles positioning)
 7. DO NOT include actual config values - users configure through UI
-8. For custom nodes, leave customCode and configSchema empty (generated in next step)
-9. Ensure all node IDs in edges match actual node IDs generated
-10. Return ONLY valid JSON, no markdown, no explanations outside JSON`;
+8. For custom nodes: NEVER include customCode or configSchema fields — these are generated in the next step. Only include nodeId, label, description, and metadata (with requirements).
+9. The metadata.requirements field for custom nodes is CRITICAL — it must describe in detail what the node should do, which API/service to call, what parameters are needed, and what data to return.
+10. Ensure all node IDs in edges match actual node IDs generated
+11. Return ONLY valid JSON, no markdown, no explanations outside JSON`;
 
     // Build user message with plan
     const userMessage = `Generate a complete workflow JSON structure based on the workflow plan provided in the system prompt.
