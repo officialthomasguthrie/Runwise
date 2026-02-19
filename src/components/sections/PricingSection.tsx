@@ -27,7 +27,10 @@ const CurrentPlanButton = () => (
 )
 
 export default function PricingSection() {
-  const { subscriptionTier } = useAuth()
+  const { subscriptionTier, subscriptionStatus } = useAuth()
+
+  // True when the user has previously cancelled a paid subscription
+  const hasCancelledPlan = subscriptionStatus === 'cancelled'
 
   // Determine current plan from subscription tier
   // Map: personal -> "personal", pro/professional -> "professional", enterprise/enterprises -> "enterprise"
@@ -95,7 +98,7 @@ export default function PricingSection() {
           plan="pro-monthly"
           className="w-full gap-2 justify-center font-geist"
         >
-          {currentPlan ? "Switch to Professional" : "Start Free Trial"}
+          {currentPlan ? "Switch to Professional" : hasCancelledPlan ? "Get Started" : "Start Free Trial"}
         </ProCheckoutButton>
       ),
     },

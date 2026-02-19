@@ -25,6 +25,20 @@ async function checkTrialEligibility(
 
   // Check 1: If user is logged in, check if they've used a trial before in our database
   if (userId) {
+    // Check if the user has ever had a paid subscription (including cancelled ones)
+    const { data: userRecord } = await adminSupabase
+      .from('users')
+      .select('stripe_customer_id, subscription_status')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (userRecord && (userRecord as any).subscription_status === 'cancelled') {
+      return {
+        eligible: false,
+        reason: 'Your account previously had a subscription. You can purchase a plan directly without a trial.',
+      };
+    }
+
     const { data: existingTrial, error } = await adminSupabase
       .from('trial_usage')
       .select('id')

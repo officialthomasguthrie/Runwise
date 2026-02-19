@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, Variants } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
-import { CreditCard, Edit, Trash2, AlertCircle, Loader2, Save, X, CreditCard as CreditCardIcon, Calendar } from "lucide-react";
+import { CreditCard, Edit, Trash2, AlertCircle, Loader2, Save, X, CreditCard as CreditCardIcon, Calendar, XCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,12 +24,15 @@ interface BillingPricingProps {
 }
 
 export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier: subscriptionTierProp }) => {
-  const { user, subscriptionTier: authSubscriptionTier } = useAuth();
+  const { user, subscriptionTier: authSubscriptionTier, subscriptionStatus, refreshSubscription } = useAuth();
   const supabase = createClient();
 
   // Use subscription tier from auth context (most reliable source), fallback to prop, then to 'free'
   // This ensures we always have a value and it's always up-to-date
   const subscriptionTier = authSubscriptionTier ?? subscriptionTierProp ?? 'free';
+
+  // True when the user has previously cancelled a paid subscription — they cannot use a free trial again
+  const hasCancelledPlan = subscriptionStatus === 'cancelled';
 
   // Determine current plan from subscription_tier (memoized for stability)
   // Map: free -> null (no current plan), personal -> personal, pro/professional -> professional, enterprise/enterprises -> enterprises
@@ -71,6 +74,12 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
   const [showAddCardModal, setShowAddCardModal] = useState(false);
+
+  // Cancel plan state
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelSuccess, setCancelSuccess] = useState(false);
 
   // Load payment methods from Stripe
   useEffect(() => {
@@ -264,6 +273,25 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
   };
 
   // Handle plan switch/checkout
+  const handleCancelPlan = async () => {
+    setIsCancelling(true);
+    setCancelError(null);
+    try {
+      const response = await fetch('/api/stripe/cancel-subscription', { method: 'POST' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to cancel subscription.');
+      }
+      await refreshSubscription();
+      setCancelSuccess(true);
+      setShowCancelConfirm(false);
+    } catch (err: any) {
+      setCancelError(err.message ?? 'Failed to cancel. Please try again.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const handleCheckout = async (planName: string) => {
     // Map plan names to plan IDs
     const planIdMap: Record<string, string | null> = {
@@ -282,10 +310,11 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
 
     setLoadingPlan(planName);
 
-    // Determine if this should include a free trial
-    // Only apply trial for Professional plan when user has no current plan (currentPlan === null)
+    // Determine if this should include a free trial.
+    // Trial is only offered for Professional when the user has no current plan
+    // AND has never previously cancelled a subscription.
     const isProfessionalPlan = planName === 'Professional';
-    const shouldApplyTrial = isProfessionalPlan && currentPlan === null;
+    const shouldApplyTrial = isProfessionalPlan && currentPlan === null && !hasCancelledPlan;
 
     try {
       const response = await fetch('/api/stripe/create-checkout-session', {
@@ -481,9 +510,39 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
 
           {/* CTA Button */}
           {currentPlan === "personal" ? (
-            <button disabled className="border border-gray-300 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-xl w-full rounded-lg py-1.5 px-3 cursor-not-allowed text-xs font-normal text-foreground opacity-60 transition-all">
-              Current Plan
-            </button>
+            cancelSuccess ? (
+              <p className="text-xs text-center text-muted-foreground py-1.5">Plan cancelled. You are now on the free plan.</p>
+            ) : !showCancelConfirm ? (
+              <button
+                onClick={() => { setShowCancelConfirm(true); setCancelError(null); }}
+                className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/10 w-full rounded-lg py-1.5 px-3 cursor-pointer text-xs font-normal text-muted-foreground transition-all flex items-center justify-center gap-1.5"
+              >
+                <XCircle className="w-3.5 h-3.5 text-red-400/80 flex-shrink-0" />
+                Cancel Plan
+              </button>
+            ) : (
+              <div className="rounded-md border border-red-400/40 bg-red-500/5 p-3 space-y-2">
+                <p className="text-xs font-medium">Cancel your plan?</p>
+                <p className="text-xs text-muted-foreground">Your subscription will be cancelled <strong>immediately</strong> and you will be moved to the free plan.</p>
+                {cancelError && <p className="text-xs text-red-500">{cancelError}</p>}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCancelPlan}
+                    disabled={isCancelling}
+                    className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/15 rounded-md py-1 px-2.5 text-xs text-muted-foreground disabled:opacity-50 transition-all"
+                  >
+                    {isCancelling ? 'Cancelling…' : 'Yes, cancel'}
+                  </button>
+                  <button
+                    onClick={() => { setShowCancelConfirm(false); setCancelError(null); }}
+                    disabled={isCancelling}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Keep plan
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             <button 
               onClick={() => handleCheckout(plans[0].name)}
@@ -571,9 +630,39 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
 
           {/* CTA Button */}
           {currentPlan === "professional" ? (
-            <button disabled className="border border-gray-300 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-xl w-full rounded-lg py-1.5 px-3 cursor-not-allowed text-xs font-normal text-foreground opacity-60 transition-all">
-              Current Plan
-            </button>
+            cancelSuccess ? (
+              <p className="text-xs text-center text-muted-foreground py-1.5">Plan cancelled. You are now on the free plan.</p>
+            ) : !showCancelConfirm ? (
+              <button
+                onClick={() => { setShowCancelConfirm(true); setCancelError(null); }}
+                className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/10 w-full rounded-lg py-1.5 px-3 cursor-pointer text-xs font-normal text-muted-foreground transition-all flex items-center justify-center gap-1.5"
+              >
+                <XCircle className="w-3.5 h-3.5 text-red-400/80 flex-shrink-0" />
+                Cancel Plan
+              </button>
+            ) : (
+              <div className="rounded-md border border-red-400/40 bg-red-500/5 p-3 space-y-2">
+                <p className="text-xs font-medium">Cancel your plan?</p>
+                <p className="text-xs text-muted-foreground">Your subscription will be cancelled <strong>immediately</strong> and you will be moved to the free plan.</p>
+                {cancelError && <p className="text-xs text-red-500">{cancelError}</p>}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCancelPlan}
+                    disabled={isCancelling}
+                    className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/15 rounded-md py-1 px-2.5 text-xs text-muted-foreground disabled:opacity-50 transition-all"
+                  >
+                    {isCancelling ? 'Cancelling…' : 'Yes, cancel'}
+                  </button>
+                  <button
+                    onClick={() => { setShowCancelConfirm(false); setCancelError(null); }}
+                    disabled={isCancelling}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Keep plan
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             <button 
               onClick={() => handleCheckout(plans[1].name)}
@@ -582,7 +671,13 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
             >
               <div className="flex items-end justify-center gap-1">
                 <p className="text-xs font-normal leading-[1.2em] text-white">
-                  {loadingPlan === plans[1].name ? 'Redirecting...' : currentPlan === null ? 'Start Free Trial' : 'Switch to Professional'}
+                  {loadingPlan === plans[1].name
+                    ? 'Redirecting...'
+                    : currentPlan !== null
+                      ? 'Switch to Professional'
+                      : hasCancelledPlan
+                        ? 'Get Started'
+                        : 'Start Free Trial'}
                 </p>
 
                 {loadingPlan !== plans[1].name && (
@@ -661,9 +756,39 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
 
           {/* CTA Button */}
           {currentPlan === "enterprises" ? (
-            <button disabled className="border border-gray-300 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-xl w-full rounded-lg py-1.5 px-3 cursor-not-allowed text-xs font-normal text-foreground opacity-60 transition-all">
-              Current Plan
-            </button>
+            cancelSuccess ? (
+              <p className="text-xs text-center text-muted-foreground py-1.5">Plan cancelled. You are now on the free plan.</p>
+            ) : !showCancelConfirm ? (
+              <button
+                onClick={() => { setShowCancelConfirm(true); setCancelError(null); }}
+                className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/10 w-full rounded-lg py-1.5 px-3 cursor-pointer text-xs font-normal text-muted-foreground transition-all flex items-center justify-center gap-1.5"
+              >
+                <XCircle className="w-3.5 h-3.5 text-red-400/80 flex-shrink-0" />
+                Cancel Plan
+              </button>
+            ) : (
+              <div className="rounded-md border border-red-400/40 bg-red-500/5 p-3 space-y-2">
+                <p className="text-xs font-medium">Cancel your plan?</p>
+                <p className="text-xs text-muted-foreground">Your subscription will be cancelled <strong>immediately</strong> and you will be moved to the free plan.</p>
+                {cancelError && <p className="text-xs text-red-500">{cancelError}</p>}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCancelPlan}
+                    disabled={isCancelling}
+                    className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/15 rounded-md py-1 px-2.5 text-xs text-muted-foreground disabled:opacity-50 transition-all"
+                  >
+                    {isCancelling ? 'Cancelling…' : 'Yes, cancel'}
+                  </button>
+                  <button
+                    onClick={() => { setShowCancelConfirm(false); setCancelError(null); }}
+                    disabled={isCancelling}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Keep plan
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             <button 
               onClick={() => window.open('https://cal.com/thomas-guthrie/runwise-enterprise-consultation', '_blank')}

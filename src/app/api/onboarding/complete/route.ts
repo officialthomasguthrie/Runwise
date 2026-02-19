@@ -96,6 +96,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Assign a random profile picture using the same logic as email/password signup.
+    // Hash the email so the same address always gets the same image.
+    const profileImages = ['/Profile2.jpg', '/Profile3.jpg', '/Profile4.jpg'];
+    const emailHash = email.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+    const randomAvatar = profileImages[emailHash % profileImages.length];
+
     const { data: createdUser, error: createUserError } =
       await adminSupabase.auth.admin.createUser({
         email,
@@ -104,6 +110,7 @@ export async function POST(request: NextRequest) {
         user_metadata: {
           first_name: firstName,
           last_name: lastName,
+          avatar_url: randomAvatar,
         },
       });
 

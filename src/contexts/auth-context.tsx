@@ -10,6 +10,8 @@ interface AuthContextType {
   loading: boolean;
   // Subscription tier from public.users (e.g. 'free', 'pro', 'enterprise')
   subscriptionTier: string | null;
+  // Subscription status from public.users (e.g. 'active', 'cancelled', 'past_due')
+  subscriptionStatus: string | null;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
@@ -29,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
   const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   
   useEffect(() => {
     // Only create Supabase client on client side
@@ -43,26 +46,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const loadSubscriptionTier = async (currentUser: User | null) => {
       if (!currentUser) {
         setSubscriptionTier(null);
+        setSubscriptionStatus(null);
         return;
       }
 
       try {
         const { data, error } = await (supabase
           .from('users') as any)
-          .select('subscription_tier')
+          .select('subscription_tier, subscription_status')
           .eq('id', currentUser.id)
           .single();
 
         if (error) {
           console.error('Auth: Error loading subscription tier:', error);
           setSubscriptionTier('free');
+          setSubscriptionStatus(null);
           return;
         }
 
         setSubscriptionTier((data as any)?.subscription_tier || 'free');
+        setSubscriptionStatus((data as any)?.subscription_status || null);
       } catch (error) {
         console.error('Auth: Unexpected error loading subscription tier:', error);
         setSubscriptionTier('free');
+        setSubscriptionStatus(null);
       }
     };
     
@@ -188,11 +195,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (refreshedSession) {
           setSession(refreshedSession);
         }
-        // Refresh subscription tier from users table
+        // Refresh subscription tier and status from users table
         try {
           const { data, error: tierError } = await (supabase
             .from('users') as any)
-            .select('subscription_tier')
+            .select('subscription_tier, subscription_status')
             .eq('id', refreshedUser.id)
             .single();
 
@@ -200,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('Auth: Error refreshing subscription tier:', tierError);
           } else {
             setSubscriptionTier((data as any)?.subscription_tier || 'free');
+            setSubscriptionStatus((data as any)?.subscription_status || null);
           }
         } catch (tierError) {
           console.error('Auth: Unexpected error refreshing subscription tier:', tierError);
@@ -220,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const { data, error: tierError } = await (supabase
         .from('users') as any)
-        .select('subscription_tier')
+        .select('subscription_tier, subscription_status')
         .eq('id', currentUser.id)
         .single();
 
@@ -228,6 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Auth: Error in refreshSubscription:', tierError);
       } else {
         setSubscriptionTier((data as any)?.subscription_tier || 'free');
+        setSubscriptionStatus((data as any)?.subscription_status || null);
       }
     } catch (error) {
       console.error('Auth: Unexpected error in refreshSubscription:', error);
@@ -257,6 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     loading,
     subscriptionTier,
+    subscriptionStatus,
     signUp,
     signIn,
     signInWithGoogle,

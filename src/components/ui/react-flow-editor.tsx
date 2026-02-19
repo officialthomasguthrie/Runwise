@@ -662,19 +662,41 @@ export const ReactFlowEditor = ({
           loadedWorkflow.workflow_data
         );
         console.log('📊 Deserialized:', loadedNodes.length, 'nodes,', loadedEdges.length, 'edges');
-        const loadedNodesWithDirection = loadedNodes.map((node) => ({
+
+        // Always apply Dagre layout on load so nodes are never overlapping.
+        // Dagre is deterministic (same graph → same result) so this is safe
+        // across save/reload cycles. Template nodes and AI-generated workflows
+        // frequently have positions that are too close together or at {0,0}.
+        let finalNodes = loadedNodes;
+        let finalEdges = loadedEdges;
+
+        if (loadedNodes.length > 1) {
+          console.log('🎨 Applying Dagre auto-layout on load to ensure proper spacing');
+          const { nodes: ln, edges: le } = getLayoutedElements(loadedNodes, loadedEdges, {
+            direction: layoutDirection,
+          });
+          finalNodes = ln;
+          finalEdges = le;
+        }
+
+        const loadedNodesWithDirection = finalNodes.map((node) => ({
           ...node,
           data: {
             ...node.data,
             layoutDirection,
           },
         }));
+        const orientedEdges = orientEdges(finalEdges, layoutDirection);
         setNodes(loadedNodesWithDirection);
-        const orientedEdges = orientEdges(loadedEdges, layoutDirection);
         setEdges(orientedEdges);
         // Initialize history with loaded workflow
         setHistory([{ nodes: loadedNodesWithDirection, edges: orientedEdges }]);
         setHistoryIndex(0);
+
+        // Fit view after a short delay so React Flow has time to render
+        setTimeout(() => {
+          reactFlowInstance.current?.fitView({ padding: 0.2, duration: 300 });
+        }, 150);
       } else {
         console.log('⚠️ Workflow has no workflow_data, using empty nodes/edges');
         setNodes([]);

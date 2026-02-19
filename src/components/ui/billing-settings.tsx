@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase-client";
 import { 
   CreditCard, 
   DollarSign, 
@@ -24,7 +25,8 @@ import {
   Crown,
   Star,
   Building,
-  User
+  User,
+  XCircle
 } from "lucide-react";
 
 interface PaymentMethod {
@@ -59,9 +61,15 @@ interface BillingHistory {
 }
 
 export function BillingSettings() {
-  const { user } = useAuth();
+  const { user, refreshSubscription } = useAuth();
+  const supabase = createClient();
+
+  // Real subscription data from DB / Stripe
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('active');
+  const [hasStripeSubscription, setHasStripeSubscription] = useState(false);
+
   const [subscription, setSubscription] = useState<Subscription>({
-    id: 'sub_123',
+    id: '',
     plan: 'pro',
     status: 'active',
     currentPeriodStart: new Date().toISOString(),
@@ -70,78 +78,79 @@ export function BillingSettings() {
     currency: 'USD',
     interval: 'month'
   });
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    {
-      id: 'pm_1',
-      type: 'card',
-      last4: '4242',
-      brand: 'visa',
-      expiryMonth: 12,
-      expiryYear: 2025,
-      isDefault: true
-    }
-  ]);
-  const [billingHistory, setBillingHistory] = useState<BillingHistory[]>([
-    {
-      id: 'inv_1',
-      date: new Date().toISOString(),
-      amount: 29,
-      currency: 'USD',
-      status: 'paid',
-      description: 'Pro Plan - Monthly',
-      invoiceUrl: '#'
-    },
-    {
-      id: 'inv_2',
-      date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-      amount: 29,
-      currency: 'USD',
-      status: 'paid',
-      description: 'Pro Plan - Monthly',
-      invoiceUrl: '#'
-    }
-  ]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [billingHistory, setBillingHistory] = useState<BillingHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [saveMessage, setSaveMessage] = useState('');
 
-  // Load billing data
+  // Cancel plan state
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  // Load real subscription info from the database
   useEffect(() => {
     const loadBillingData = async () => {
       if (!user) return;
-
       try {
         setIsLoading(true);
-        // In a real app, this would load from billing API
-        // For now, we'll use mock data
+        const { data, error } = await (supabase
+          .from('users') as any)
+          .select('subscription_tier, subscription_status, stripe_subscription_id, subscription_started_at, subscription_expires_at')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && data) {
+          const tier = (data as any).subscription_tier ?? 'free';
+          const status = (data as any).subscription_status ?? 'active';
+          const stripeSubId = (data as any).stripe_subscription_id ?? null;
+          setSubscriptionStatus(status);
+          setHasStripeSubscription(!!stripeSubId && tier !== 'free');
+          setSubscription(prev => ({
+            ...prev,
+            plan: tier === 'professional' || tier === 'pro' ? 'pro' : tier === 'personal' ? 'pro' : 'free',
+            status: status as any,
+            currentPeriodStart: (data as any).subscription_started_at ?? prev.currentPeriodStart,
+            currentPeriodEnd: (data as any).subscription_expires_at ?? prev.currentPeriodEnd,
+          }));
+        }
       } catch (error) {
         console.error('Error loading billing data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-
     loadBillingData();
   }, [user]);
 
-  // Handle plan change
-  const handlePlanChange = async (newPlan: 'free' | 'pro' | 'enterprise') => {
-    setIsSaving(true);
-    setSaveStatus('idle');
-
+  // Handle immediate plan cancellation via Stripe
+  const handleCancelPlan = async () => {
+    setIsCancelling(true);
+    setCancelError(null);
     try {
-      // In a real app, this would update the subscription
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      setSubscription(prev => ({ ...prev, plan: newPlan }));
+      const response = await fetch('/api/stripe/cancel-subscription', {
+        method: 'POST',
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to cancel subscription.');
+      }
+      // Refresh auth subscription tier so UI reflects free plan immediately
+      await refreshSubscription();
+      setHasStripeSubscription(false);
+      setSubscriptionStatus('cancelled');
+      setSubscription(prev => ({ ...prev, plan: 'free', status: 'cancelled' }));
+      setShowCancelConfirm(false);
       setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (error) {
-      console.error('Error changing plan:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 5000);
+      setSaveMessage('Your plan has been cancelled. You are now on the free plan.');
+      setTimeout(() => setSaveStatus('idle'), 6000);
+    } catch (error: any) {
+      console.error('Error cancelling plan:', error);
+      setCancelError(error.message ?? 'Failed to cancel. Please try again.');
     } finally {
-      setIsSaving(false);
+      setIsCancelling(false);
     }
   };
 
@@ -293,24 +302,55 @@ export function BillingSettings() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => handlePlanChange('free')}
-              disabled={isSaving || subscription.plan === 'free'}
-              variant="outline"
-              size="sm"
-            >
-              Downgrade to Free
-            </Button>
-            <Button
-              onClick={() => handlePlanChange('enterprise')}
-              disabled={isSaving || subscription.plan === 'enterprise'}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-              size="sm"
-            >
-              Upgrade to Enterprise
-            </Button>
-          </div>
+          {/* Cancel Plan — only shown for users with an active paid Stripe subscription */}
+          {hasStripeSubscription && subscriptionStatus !== 'cancelled' && (
+            <div className="mt-2">
+              {!showCancelConfirm ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setShowCancelConfirm(true); setCancelError(null); }}
+                  className="border-red-400/60 bg-red-500/5 text-muted-foreground hover:bg-red-500/10 hover:text-foreground hover:border-red-400"
+                >
+                  <XCircle className="h-3.5 w-3.5 mr-1.5 text-red-400/80" />
+                  Cancel Plan
+                </Button>
+              ) : (
+                <div className="rounded-md border border-red-400/40 bg-red-500/5 p-4 space-y-3">
+                  <p className="text-sm font-medium text-foreground">Cancel your plan?</p>
+                  <p className="text-xs text-muted-foreground">
+                    Your subscription will be cancelled <strong>immediately</strong>. You will be moved to the free plan and will lose access to paid features right away.
+                  </p>
+                  {cancelError && (
+                    <p className="text-xs text-red-500">{cancelError}</p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleCancelPlan}
+                      disabled={isCancelling}
+                      className="border-red-400/60 bg-red-500/5 text-muted-foreground hover:bg-red-500/15 hover:text-foreground hover:border-red-400"
+                      variant="outline"
+                    >
+                      {isCancelling ? (
+                        <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Cancelling…</>
+                      ) : (
+                        'Yes, cancel immediately'
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { setShowCancelConfirm(false); setCancelError(null); }}
+                      disabled={isCancelling}
+                    >
+                      Keep plan
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -475,7 +515,7 @@ export function BillingSettings() {
           {saveStatus === 'success' && (
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="h-4 w-4" />
-              <span className="text-sm">Billing settings updated successfully!</span>
+              <span className="text-sm">{saveMessage || 'Billing settings updated successfully!'}</span>
             </div>
           )}
           {saveStatus === 'error' && (

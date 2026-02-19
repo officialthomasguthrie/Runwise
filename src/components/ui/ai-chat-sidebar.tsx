@@ -2840,10 +2840,10 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
           <Button
             variant="ghost"
             size="icon"
-            className={`h-8 w-8 transition-all duration-300 focus:ring-0 focus-visible:ring-0 active:bg-transparent ${
+            className={`h-8 w-8 transition-all duration-300 focus:ring-0 focus-visible:ring-0 active:bg-transparent hover:bg-transparent ${
               showChatHistory
                 ? 'text-foreground'
-                : 'text-muted-foreground hover:bg-white/20 dark:hover:bg-zinc-900/20'
+                : 'text-muted-foreground'
             }`}
             title="Chat History"
             onClick={() => setShowChatHistory(!showChatHistory)}
