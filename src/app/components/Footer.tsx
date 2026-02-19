@@ -67,6 +67,20 @@ export const Footer: React.FC = () => {
                 />
               </Link>
             </li>
+
+            <li>
+              <Link
+                href="https://discord.gg/YdAq6TEZv7"
+                target="_blank"
+                className="bg-transparent rounded-lg w-7.5 h-7.5 flex items-center justify-center"
+              >
+                <img
+                  src="/assets/icons/discord.svg"
+                  alt="discord"
+                  className="w-5 h-5"
+                />
+              </Link>
+            </li>
           </ul>
         </div>
 

@@ -169,6 +169,16 @@ CRITICAL RULES:
 7. For template syntax ({{inputData.field}}), keep it as-is if it's already there, don't override
 8. Don't fill fields that are template references (they map data between nodes)
 
+WEBHOOK DATA FLOW RULE (CRITICAL):
+- When a workflow uses a "webhook-trigger" node, every field from the incoming JSON body is available DIRECTLY as {{inputData.fieldName}} in all downstream nodes
+- The payload is passed FLAT — do NOT use {{inputData.payload.field}} or {{inputData.data.field}}
+- Infer the likely payload fields from the user's description and pre-fill downstream nodes:
+  - "new user signup" → {{inputData.email}}, {{inputData.name}}, {{inputData.plan}}
+  - "new order / purchase" → {{inputData.orderId}}, {{inputData.amount}}, {{inputData.customerEmail}}
+  - "support ticket" → {{inputData.ticketId}}, {{inputData.subject}}, {{inputData.message}}
+  - When in doubt, use descriptive placeholder names like {{inputData.email}}, {{inputData.name}}
+- Always pre-fill downstream node config fields with these template references so the workflow works out of the box
+
 EXAMPLES:
 User says: "Create a workflow that runs daily at 9 AM"
 - Fill: scheduled trigger schedule="0 9 * * *" (cron format for daily at 9 AM)

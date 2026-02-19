@@ -477,8 +477,9 @@ const scheduledTimeTriggerExecute = async (inputData: any, config: any, context:
 };
 
 const webhookTriggerExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  // Webhook triggers receive data directly
-  return { data: inputData, ...inputData };
+  // Pass the webhook payload straight through so every field sent by the
+  // caller is directly referenceable in downstream nodes as {{inputData.field}}.
+  return inputData;
 };
 
 const newGitHubIssueExecute = async (inputData: any, config: any, context: ExecutionContext) => {
@@ -3559,15 +3560,15 @@ export const nodeRegistry: NodeRegistry = {
     id: 'webhook-trigger',
     name: 'Webhook Trigger',
     type: 'trigger',
-    description: 'Triggers when data is received via webhook endpoint.',
+    description: 'Triggers when an external app sends a POST request to the webhook URL. All fields in the JSON body are passed directly as outputs — e.g. if the payload contains { "email": "...", "name": "..." } you can reference them in any downstream node as {{inputData.email}} and {{inputData.name}}.',
     icon: 'Webhook',
     category: 'trigger',
     inputs: [],
     outputs: [
-      { name: 'data', type: 'object', description: 'Webhook payload data' },
+      { name: 'payload fields', type: 'object', description: 'Every field from the JSON body sent by the caller is available directly. For example, if the caller sends { "email": "x", "plan": "pro" }, reference them as {{inputData.email}} and {{inputData.plan}} in any downstream node. Internal metadata is available as {{inputData._webhookPath}}, {{inputData._receivedAt}}, and {{inputData._headers}}.' },
     ],
     configSchema: {
-      path: { type: 'string', label: 'Webhook Path', description: 'Unique webhook path', required: true },
+      path: { type: 'string', label: 'Webhook Path', description: 'Unique path for this webhook trigger (e.g. "new-signup"). Your full webhook URL will be: https://yourdomain.com/api/webhooks/{path}', required: true },
     },
     execute: webhookTriggerExecute,
     code: webhookTriggerExecute.toString(),

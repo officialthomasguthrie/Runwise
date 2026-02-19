@@ -117,6 +117,13 @@ OUTPUT MAPPING (CRITICAL):
 - Only use static values for fields that don't depend on previous nodes (API keys, static text, etc.)
 - DO NOT include actual config values - users will fill these in through the UI
 
+WEBHOOK TRIGGER DATA FLOW (CRITICAL):
+- When a workflow starts with a "webhook-trigger" node, ALL fields from the caller's JSON body are available DIRECTLY on inputData in every downstream node
+- Example: if the caller sends { "email": "x@y.com", "name": "Alice", "plan": "pro", "price": 49 }, then in the next node use {{inputData.email}}, {{inputData.name}}, {{inputData.plan}}, {{inputData.price}}
+- NEVER use {{inputData.payload.field}} or {{inputData.data.field}} — the payload IS inputData, flat
+- Infer likely payload fields from the workflow description (e.g. "new user signup" → email, name, plan; "new order" → orderId, amount, customerEmail)
+- Always use these inferred field names in downstream node configs so the workflow is ready to use out of the box
+
 CUSTOM NODES (From Plan):
 - If plan includes customNodes, create placeholder nodes with nodeId: "CUSTOM_GENERATED"
 - Include description based on requirements from plan

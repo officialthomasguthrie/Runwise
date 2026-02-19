@@ -3,7 +3,7 @@
  * Renders any node from the node library using the same UI template
  */
 
-import { memo, useState, useEffect, useCallback } from "react";
+import { memo, useState, useEffect, useCallback, useRef } from "react";
 import { Handle, Position, useReactFlow, type Node, type Edge } from "@xyflow/react";
 import * as LucideIcons from "lucide-react";
 import { useTheme } from "next-themes";
@@ -16,7 +16,7 @@ import {
   BaseNodeHeader,
   BaseNodeHeaderTitle,
 } from "@/components/base-node";
-import { Trash2, Zap, Info, CheckCircle2, Check, Loader2, ExternalLink } from "lucide-react";
+import { Trash2, Zap, Info, CheckCircle2, Check, Loader2, ExternalLink, Copy, CopyCheck, FlaskConical } from "lucide-react";
 import { getNodeById } from "@/lib/nodes/registry";
 import type { NodeDefinition } from "@/lib/nodes/types";
 import { ScheduleInput } from "@/components/ui/schedule-input";
@@ -160,7 +160,16 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
     
     // Get node definition to know actual output structure
     let outputFields: string[] = [];
-    if (nodeId) {
+
+    // For webhook-trigger nodes, prefer real sample fields captured via "Test Webhook"
+    const webhookSampleFields: string[] | null =
+      nodeId === 'webhook-trigger' && Array.isArray((nodeData.config || {})?._webhookSampleFields)
+        ? (nodeData.config as any)._webhookSampleFields
+        : null;
+
+    if (webhookSampleFields && webhookSampleFields.length > 0) {
+      outputFields = webhookSampleFields;
+    } else if (nodeId) {
       const nodeDef = getNodeById(nodeId);
       if (nodeDef?.outputs) {
         outputFields = nodeDef.outputs.map(output => output.name);
@@ -176,7 +185,7 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
       fullPath: 'inputData'
     });
     
-    // Add specific output fields from node definition
+    // Add specific output fields from node definition (or webhook sample)
     if (outputFields.length > 0) {
       outputFields.forEach(field => {
         outputs.push({
@@ -187,8 +196,8 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
           fullPath: `inputData.${field}`
         });
       });
-    } else {
-      // Fallback to common fields if node definition doesn't specify outputs
+    } else if (nodeId !== 'webhook-trigger') {
+      // Fallback to common fields only for non-webhook nodes
       const commonFields = ['summary', 'text', 'content', 'body', 'message', 'result', 'data', 'output', 'email', 'subject', 'from', 'to', 'reply', 'response', 'id', 'status', 'success'];
       commonFields.forEach(field => {
         outputs.push({
@@ -257,12 +266,41 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
   // Local config state for form fields
   const [localConfig, setLocalConfig] = useState<Record<string, any>>(data.config || {});
   const isExpanded = data.isExpanded || false;
+
+  // Webhook test state (only used for webhook-trigger nodes)
+  const [webhookTestState, setWebhookTestState] = useState<'idle' | 'waiting' | 'received' | 'error'>('idle');
+  const [webhookSampleFields, setWebhookSampleFields] = useState<string[]>([]);
+  const [urlCopied, setUrlCopied] = useState(false);
+  const [fieldCopied, setFieldCopied] = useState<string | null>(null);
+  const webhookPollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const webhookPollStartRef = useRef<number>(0);
+
   const [integrationStatus, setIntegrationStatus] = useState<{serviceName?: 'google' | 'google-sheets' | 'google-gmail' | 'google-calendar' | 'google-drive' | 'google-forms' | 'slack' | 'github' | 'notion' | 'airtable' | 'trello' | 'openai' | 'sendgrid' | 'twilio' | 'stripe' | 'discord' | 'twitter' | 'paypal' | 'shopify' | 'hubspot' | 'asana' | 'jira'; isConnected: boolean | null; credentialType?: 'oauth' | 'api_token' | 'api_key_and_token'}>({isConnected: null});
 
   // Update local config when data.config changes externally
   useEffect(() => {
     setLocalConfig(data.config || {});
   }, [data.config]);
+
+  // Restore webhook sample fields from saved config on mount/update
+  useEffect(() => {
+    if (data.nodeId === 'webhook-trigger') {
+      const savedFields = (data.config || {})?._webhookSampleFields;
+      if (Array.isArray(savedFields) && savedFields.length > 0) {
+        setWebhookSampleFields(savedFields);
+        setWebhookTestState('received');
+      }
+    }
+  }, [data.nodeId, data.config]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (webhookPollingRef.current) {
+        clearInterval(webhookPollingRef.current);
+      }
+    };
+  }, []);
 
   // Map serviceName to slug for logo lookup
   const getServiceSlug = (serviceName?: string): string | null => {
@@ -630,6 +668,77 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
       data.onConfigure();
     }
   };
+
+  // ─── Webhook test helpers ─────────────────────────────────────────────────
+  const startWebhookTest = useCallback(() => {
+    if (webhookPollingRef.current) clearInterval(webhookPollingRef.current);
+    setWebhookTestState('waiting');
+    webhookPollStartRef.current = Date.now();
+
+    const workflowId = data.workflowId as string | undefined;
+    if (!workflowId) {
+      setWebhookTestState('error');
+      return;
+    }
+
+    // Poll every 2 seconds for up to 2 minutes
+    webhookPollingRef.current = setInterval(async () => {
+      if (Date.now() - webhookPollStartRef.current > 120_000) {
+        clearInterval(webhookPollingRef.current!);
+        webhookPollingRef.current = null;
+        setWebhookTestState('error');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/webhooks/sample/${workflowId}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.sample && json.sample.payload && typeof json.sample.payload === 'object') {
+          clearInterval(webhookPollingRef.current!);
+          webhookPollingRef.current = null;
+          const fields = Object.keys(json.sample.payload).filter(k => !k.startsWith('_'));
+          setWebhookSampleFields(fields);
+          setWebhookTestState('received');
+          // Persist the sample field names into the node config so getMentionOptions
+          // can use them for downstream node dropdowns
+          if (data.onConfigUpdate && fields.length > 0) {
+            const updatedConfig = { ...localConfig, _webhookSampleFields: fields };
+            setLocalConfig(updatedConfig);
+            data.onConfigUpdate(id, updatedConfig);
+          }
+        }
+      } catch {
+        // ignore transient fetch errors, keep polling
+      }
+    }, 2000);
+  }, [data, id, localConfig]);
+
+  const stopWebhookTest = useCallback(() => {
+    if (webhookPollingRef.current) {
+      clearInterval(webhookPollingRef.current);
+      webhookPollingRef.current = null;
+    }
+    setWebhookTestState('idle');
+  }, []);
+
+  const copyWebhookUrl = useCallback(() => {
+    const path = localConfig.path || '';
+    if (!path) return;
+    const url = `${window.location.origin}/api/webhooks/${path}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 2000);
+    });
+  }, [localConfig.path]);
+
+  const copyField = useCallback((field: string) => {
+    const ref = `{{inputData.${field}}}`;
+    navigator.clipboard.writeText(ref).then(() => {
+      setFieldCopied(field);
+      setTimeout(() => setFieldCopied(null), 1500);
+    });
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Check if node is fully configured
   const isFullyConfigured = (): boolean => {
@@ -1740,6 +1849,114 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                 Save Configuration
               </Button>
             </div>
+
+            {/* ── Webhook Test Section (webhook-trigger only) ──────────────── */}
+            {data.nodeId === 'webhook-trigger' && (
+              <div
+                className="mt-4 space-y-3 border-t border-white/10 pt-4"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                {/* Webhook URL display */}
+                {localConfig.path && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Your Webhook URL</p>
+                    <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2">
+                      <p className="flex-1 truncate text-xs font-mono text-foreground/80">
+                        {typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/{localConfig.path}
+                      </p>
+                      <button
+                        onClick={copyWebhookUrl}
+                        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                        title="Copy URL"
+                      >
+                        {urlCopied ? (
+                          <CopyCheck className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Test Webhook button / status */}
+                {webhookTestState === 'idle' || webhookTestState === 'error' ? (
+                  <div className="space-y-1">
+                    <Button
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); startWebhookTest(); }}
+                      className="nodrag w-full justify-center text-xs backdrop-blur-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-200 text-foreground"
+                    >
+                      <FlaskConical className="h-3.5 w-3.5 mr-2" />
+                      {webhookTestState === 'error' ? 'Retry Test Webhook' : 'Test Webhook'}
+                    </Button>
+                    {webhookTestState === 'error' && (
+                      <p className="text-xs text-red-400 text-center">Timed out. Make sure you send a request to the URL above.</p>
+                    )}
+                    {webhookSampleFields.length > 0 && (
+                      <p className="text-xs text-muted-foreground text-center">Last sample: {webhookSampleFields.length} field{webhookSampleFields.length !== 1 ? 's' : ''} detected</p>
+                    )}
+                  </div>
+                ) : webhookTestState === 'waiting' ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Waiting for a webhook request…
+                    </div>
+                    <p className="text-center text-xs text-muted-foreground/60">
+                      Send a real POST request to your webhook URL, then we'll show you all the fields it contains.
+                    </p>
+                    <Button
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); stopWebhookTest(); }}
+                      className="nodrag w-full justify-center text-xs bg-transparent border border-white/10 hover:bg-white/5 text-muted-foreground"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : /* received */ (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs text-green-400">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Webhook received! Fields detected:
+                    </div>
+                    {webhookSampleFields.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No fields found in payload.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {webhookSampleFields.map((field) => (
+                          <button
+                            key={field}
+                            onClick={() => copyField(field)}
+                            title={`Copy {{inputData.${field}}}`}
+                            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-foreground/80 hover:bg-white/10 hover:text-foreground transition-colors"
+                          >
+                            {fieldCopied === field ? (
+                              <CopyCheck className="h-3 w-3 text-green-400" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                            {field}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground/60">
+                      Click a field chip to copy its reference (e.g. <span className="font-mono">{"{{inputData.email}}"}</span>), then paste it into any downstream node.
+                    </p>
+                    <Button
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); startWebhookTest(); }}
+                      className="nodrag w-full justify-center text-xs bg-transparent border border-white/10 hover:bg-white/5 text-muted-foreground"
+                    >
+                      Re-test Webhook
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* ─────────────────────────────────────────────────────────────── */}
           </div>
         )}
 

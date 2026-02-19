@@ -96,6 +96,28 @@ export async function POST(
       const nodes = workflow.workflow_data.nodes as Node[];
       const edges = workflow.workflow_data.edges || [];
 
+      // Always save the latest payload as a sample — used by the UI "Test Webhook"
+      // feature so users can see what fields their app sends and click to insert
+      // {{inputData.fieldName}} references into downstream node configs.
+      try {
+        await (supabase as any)
+          .from('workflows')
+          .update({
+            workflow_data: {
+              ...workflow.workflow_data,
+              lastWebhookSample: {
+                payload,
+                receivedAt: new Date().toISOString(),
+                webhookPath,
+              },
+            },
+          })
+          .eq('id', workflow.id);
+      } catch (sampleErr) {
+        // Non-critical — don't fail the webhook trigger if sample save fails
+        console.warn('Could not save webhook sample:', sampleErr);
+      }
+
       // Send event to trigger workflow execution
       await inngest.send({
         name: 'workflow/execute',
@@ -104,10 +126,17 @@ export async function POST(
           nodes: nodes,
           edges: edges,
           triggerData: {
-            webhookPath: webhookPath,
-            payload: payload,
-            headers: headers,
-            receivedAt: new Date().toISOString(),
+            // Spread the payload fields flat so downstream nodes can reference
+            // any field directly as {{inputData.fieldName}} without needing
+            // to know about the internal "payload" wrapper.
+            ...(typeof payload === 'object' && payload !== null && !Array.isArray(payload)
+              ? payload
+              : { _body: payload }),
+            // Prefix internal webhook metadata with _ to avoid clashing with
+            // payload fields the user's app might send.
+            _webhookPath: webhookPath,
+            _headers: headers,
+            _receivedAt: new Date().toISOString(),
           },
           userId: workflow.user_id,
           triggerType: 'webhook',

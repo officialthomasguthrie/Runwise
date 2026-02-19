@@ -1207,6 +1207,7 @@ export const ReactFlowEditor = ({
         onAskAI: onAskAI,
         onAskNodeInfo: onAskNodeInfo,
         onOpenAddNodeSidebar: onOpenAddNodeSidebar, // Pass sidebar opener to placeholder nodes
+        workflowId: currentWorkflowId, // Let nodes (e.g. webhook-trigger) fetch workflow-specific data
       }
     }));
   }, [nodes, layoutDirection, expandedNodeId, handleNodeConfigUpdate, onAskAI, onAskNodeInfo, onOpenAddNodeSidebar]);
