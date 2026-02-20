@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, Loader2, Crown, Rocket, Clock, Zap, Activity, BarChart, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/auth-context";
 
 interface UpgradeRequiredModalProps {
   open: boolean;
@@ -24,6 +25,10 @@ export function UpgradeRequiredModal({
 }: UpgradeRequiredModalProps) {
   const router = useRouter();
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const { subscriptionStatus } = useAuth();
+
+  // Users who have previously cancelled a plan have already used their free trial
+  const hasCancelledPlan = subscriptionStatus === 'cancelled';
 
   if (!open) return null;
 
@@ -81,8 +86,8 @@ export function UpgradeRequiredModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          plan: upgradePlan,
-          skipTrial: upgradePlan === "pro-monthly" ? false : false,
+          plan: "pro-monthly",
+          skipTrial: true,
           cancelUrl: "/dashboard",
           source,
         }),
@@ -179,7 +184,7 @@ export function UpgradeRequiredModal({
               {/* CTA Buttons */}
               <div className="pt-2 flex gap-2">
                 <button
-                  onClick={handleStartFreeTrial}
+                  onClick={hasCancelledPlan ? handleUpgradeNow : handleStartFreeTrial}
                   disabled={isCheckoutLoading}
                   className="flex-1 border border-purple-600/30 dark:border-[#ffffff1a] bg-[#bd28b3ba] rounded-md py-2 px-3 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -188,6 +193,8 @@ export function UpgradeRequiredModal({
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Loading...
                     </>
+                  ) : hasCancelledPlan ? (
+                    "Upgrade to Pro"
                   ) : (
                     "Start Free Trial"
                   )}
