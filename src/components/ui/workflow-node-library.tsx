@@ -1844,7 +1844,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   handleSave();
                 }}
                 variant="ghost"
-                className="nodrag w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+                className="nodrag w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-none dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
               >
                 Save Configuration
               </Button>
@@ -1970,7 +1970,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
               }
             }}
             variant="ghost"
-            className={`nodrag mt-2 w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground ${isExpanded ? 'hidden' : ''}`}
+            className={`nodrag mt-2 w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-none dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground ${isExpanded ? 'hidden' : ''}`}
           >
             {isFullyConfigured() ? 'Open Configuration' : 'Configure'}
           </Button>
@@ -2014,7 +2014,7 @@ function OAuthDisconnectButton({
       variant="ghost"
       onClick={handleDisconnect}
       disabled={isDisconnecting}
-      className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+      className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-none dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
     >
       {isDisconnecting ? (
         <>
@@ -2070,7 +2070,7 @@ function ApiTokenDisconnectButton({
       variant="ghost"
       onClick={handleDisconnect}
       disabled={isDisconnecting}
-      className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+      className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-none dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
     >
       {isDisconnecting ? (
         <>
