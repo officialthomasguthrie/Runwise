@@ -1851,34 +1851,32 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
             </div>
 
             {/* ── Webhook Test Section (webhook-trigger only) ──────────────── */}
-            {data.nodeId === 'webhook-trigger' && (
+            {data.nodeId === 'webhook-trigger' && localConfig.path?.length > 0 && (
               <div
                 className="mt-4 space-y-3 border-t border-gray-200 dark:border-white/10 pt-4"
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
               >
                 {/* Webhook URL display */}
-                {localConfig.path && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground">Your Webhook URL</p>
-                    <div className="flex items-center gap-2 rounded-md border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 py-2">
-                      <p className="flex-1 truncate text-xs font-mono text-foreground/80">
-                        {typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/{localConfig.path}
-                      </p>
-                      <button
-                        onClick={copyWebhookUrl}
-                        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                        title="Copy URL"
-                      >
-                        {urlCopied ? (
-                          <CopyCheck className="h-3.5 w-3.5 text-green-500" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                    </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Your Webhook URL</p>
+                  <div className="flex items-center gap-2 rounded-md border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 py-2">
+                    <p className="flex-1 truncate text-xs font-mono text-foreground/80">
+                      {typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/{localConfig.path}
+                    </p>
+                    <button
+                      onClick={copyWebhookUrl}
+                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                      title="Copy URL"
+                    >
+                      {urlCopied ? (
+                        <CopyCheck className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
                   </div>
-                )}
+                </div>
 
                 {/* Test Webhook button / status */}
                 {webhookTestState === 'idle' || webhookTestState === 'error' ? (
