@@ -3560,7 +3560,7 @@ export const nodeRegistry: NodeRegistry = {
     id: 'webhook-trigger',
     name: 'Webhook Trigger',
     type: 'trigger',
-    description: 'Triggers when an external app sends a POST request to the webhook URL. All fields in the JSON body are passed directly as outputs — e.g. if the payload contains { "email": "...", "name": "..." } you can reference them in any downstream node as {{inputData.email}} and {{inputData.name}}.',
+    description: 'Triggers when an external app sends a request to this webhook URL. All fields from the payload are available in downstream nodes.',
     icon: 'Webhook',
     category: 'trigger',
     inputs: [],
