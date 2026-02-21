@@ -667,7 +667,7 @@ export function IntegrationField({
               type="button"
               onClick={handleConnect}
               variant="ghost"
-              className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+              className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-none dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
             >
               {(() => {
                 const slug = getServiceSlug();
@@ -743,7 +743,7 @@ export function IntegrationField({
                   window.addEventListener('message', handleMessage);
                 }}
               variant="ghost"
-              className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+              className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-none dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
               >
                   {(() => {
                     const slug = getServiceSlug();
@@ -817,7 +817,7 @@ export function IntegrationField({
               type="button"
               onClick={handleSaveCredentials}
               variant="ghost"
-              className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+              className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-none dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
               disabled={isSavingToken}
             >
               {isSavingToken ? (
@@ -971,7 +971,7 @@ export function IntegrationField({
             type="button"
             onClick={handleSaveCredentials}
             variant="ghost"
-            className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+            className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-none dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
             disabled={isSavingToken || !tokenInput.trim()}
           >
             {isSavingToken ? (
@@ -1025,7 +1025,7 @@ export function IntegrationField({
             onClick={handleDisconnect}
             variant="ghost"
             disabled={isDisconnecting}
-            className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
+            className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-none dark:shadow-none hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
           >
             {isDisconnecting ? (
               <>
