@@ -1167,23 +1167,22 @@ export default function WorkspacePage() {
             )}
             {/* Top Center Navigation Bar and Run Button */}
             <div className="absolute top-2 md:top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 md:gap-3">
-            <nav className="flex items-center gap-0.5 md:gap-1 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl border border-white/40 dark:border-white/10 rounded-lg px-1 md:px-2 py-1 md:py-1.5 shadow-lg">
+            <nav className="flex items-center gap-0.5 md:gap-1 bg-white/80 dark:bg-zinc-900/60 backdrop-blur-xl border border-gray-300 dark:border-white/10 rounded-lg px-1 md:px-2 py-1 md:py-1.5 shadow-none dark:shadow-lg">
               <button
                 onClick={() => setActiveView('workspace')}
                 className={`px-2 md:px-3 py-1 md:py-1.5 rounded-sm text-xs md:text-sm font-medium transition-all duration-200 border ${
                   activeView === 'workspace'
-                    ? 'bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 border-stone-200 dark:border-white/20 shadow-sm text-foreground' 
+                    ? 'bg-gray-100 dark:bg-gradient-to-br dark:from-zinc-900/90 dark:to-zinc-900/60 border-gray-300 dark:border-white/20 shadow-none dark:shadow-sm text-foreground' 
                     : 'border-transparent text-foreground'
                 }`}
               >
                 Workspace
               </button>
-              <div className="h-4 w-px bg-stone-300 dark:bg-white/20" />
               <button
                 onClick={() => setActiveView('executions')}
                 className={`px-2 md:px-3 py-1 md:py-1.5 rounded-sm text-xs md:text-sm font-medium transition-all duration-200 border ${
                   activeView === 'executions'
-                    ? 'bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 border-stone-200 dark:border-white/20 shadow-sm text-foreground' 
+                    ? 'bg-gray-100 dark:bg-gradient-to-br dark:from-zinc-900/90 dark:to-zinc-900/60 border-gray-300 dark:border-white/20 shadow-none dark:shadow-sm text-foreground' 
                     : 'border-transparent text-foreground'
                 }`}
               >
