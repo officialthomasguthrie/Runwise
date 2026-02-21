@@ -1853,7 +1853,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
             {/* ── Webhook Test Section (webhook-trigger only) ──────────────── */}
             {data.nodeId === 'webhook-trigger' && (
               <div
-                className="mt-4 space-y-3 border-t border-white/10 pt-4"
+                className="mt-4 space-y-3 border-t border-gray-200 dark:border-white/10 pt-4"
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
               >
@@ -1861,7 +1861,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                 {localConfig.path && (
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground">Your Webhook URL</p>
-                    <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2">
+                    <div className="flex items-center gap-2 rounded-md border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 py-2">
                       <p className="flex-1 truncate text-xs font-mono text-foreground/80">
                         {typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/{localConfig.path}
                       </p>
@@ -1886,13 +1886,13 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                     <Button
                       variant="ghost"
                       onClick={(e) => { e.stopPropagation(); startWebhookTest(); }}
-                      className="nodrag w-full justify-center text-xs backdrop-blur-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-200 text-foreground"
+                      className="nodrag w-full justify-center text-xs backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-200 text-foreground"
                     >
                       <FlaskConical className="h-3.5 w-3.5 mr-2" />
                       {webhookTestState === 'error' ? 'Retry Test Webhook' : 'Test Webhook'}
                     </Button>
                     {webhookTestState === 'error' && (
-                      <p className="text-xs text-red-400 text-center">Timed out. Make sure you send a request to the URL above.</p>
+                      <p className="text-xs text-red-500 dark:text-red-400 text-center">Timed out. Make sure you send a request to the URL above.</p>
                     )}
                     {webhookSampleFields.length > 0 && (
                       <p className="text-xs text-muted-foreground text-center">Last sample: {webhookSampleFields.length} field{webhookSampleFields.length !== 1 ? 's' : ''} detected</p>
@@ -1910,14 +1910,14 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                     <Button
                       variant="ghost"
                       onClick={(e) => { e.stopPropagation(); stopWebhookTest(); }}
-                      className="nodrag w-full justify-center text-xs bg-transparent border border-white/10 hover:bg-white/5 text-muted-foreground"
+                      className="nodrag w-full justify-center text-xs bg-transparent border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 text-muted-foreground"
                     >
                       Cancel
                     </Button>
                   </div>
                 ) : /* received */ (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs text-green-400">
+                    <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Webhook received! Fields detected:
                     </div>
@@ -1930,10 +1930,10 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             key={field}
                             onClick={() => copyField(field)}
                             title={`Copy {{inputData.${field}}}`}
-                            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-foreground/80 hover:bg-white/10 hover:text-foreground transition-colors"
+                            className="inline-flex items-center gap-1 rounded-full border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 px-2.5 py-0.5 text-xs text-foreground hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                           >
                             {fieldCopied === field ? (
-                              <CopyCheck className="h-3 w-3 text-green-400" />
+                              <CopyCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
                             ) : (
                               <Copy className="h-3 w-3" />
                             )}
@@ -1942,13 +1942,13 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                         ))}
                       </div>
                     )}
-                    <p className="text-xs text-muted-foreground/60">
+                    <p className="text-xs text-muted-foreground/70">
                       Click a field chip to copy its reference (e.g. <span className="font-mono">{"{{inputData.email}}"}</span>), then paste it into any downstream node.
                     </p>
                     <Button
                       variant="ghost"
                       onClick={(e) => { e.stopPropagation(); startWebhookTest(); }}
-                      className="nodrag w-full justify-center text-xs bg-transparent border border-white/10 hover:bg-white/5 text-muted-foreground"
+                      className="nodrag w-full justify-center text-xs bg-transparent border border-gray-300 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 text-muted-foreground"
                     >
                       Re-test Webhook
                     </Button>
