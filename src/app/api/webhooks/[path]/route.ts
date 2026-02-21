@@ -43,12 +43,13 @@ export async function POST(
       headers[key] = value;
     });
 
-    // Find active workflows with matching webhook path
+    // Fetch all workflows (any status) so we can:
+    //  a) save the sample payload for testing even while the workflow is a draft
+    //  b) only trigger execution for active workflows
     const supabase = createAdminClient();
     const { data: workflows, error } = await (supabase as any)
       .from('workflows')
-      .select('id, workflow_data, user_id, name')
-      .eq('status', 'active');
+      .select('id, workflow_data, user_id, name, status');
 
     if (error) {
       console.error('Error fetching workflows for webhook:', error);
@@ -58,29 +59,19 @@ export async function POST(
       );
     }
 
-    if (!workflows || workflows.length === 0) {
-      return NextResponse.json(
-        { error: 'No active workflows found' },
-        { status: 404 }
-      );
-    }
-
-    // Find workflows with webhook triggers matching this path
-    const matchingWorkflows = workflows.filter((workflow: any) => {
+    // Find ALL workflows (any status) that have a webhook-trigger matching this path
+    const matchesPath = (workflow: any): boolean => {
       if (!workflow.workflow_data?.nodes) return false;
-      
       const nodes = workflow.workflow_data.nodes as Node[];
       const webhookTrigger = nodes.find(
         node => node.data?.nodeId === 'webhook-trigger'
       );
-
       if (!webhookTrigger) return false;
-
       const config = (webhookTrigger.data?.config || {}) as Record<string, any>;
-      const triggerPath = config.path as string | undefined;
+      return (config.path as string | undefined) === webhookPath;
+    };
 
-      return triggerPath === webhookPath;
-    });
+    const matchingWorkflows = (workflows || []).filter(matchesPath);
 
     if (matchingWorkflows.length === 0) {
       return NextResponse.json(
@@ -89,16 +80,14 @@ export async function POST(
       );
     }
 
-    // Trigger all matching workflows
     const triggeredWorkflows: string[] = [];
 
     for (const workflow of matchingWorkflows) {
       const nodes = workflow.workflow_data.nodes as Node[];
       const edges = workflow.workflow_data.edges || [];
 
-      // Always save the latest payload as a sample — used by the UI "Test Webhook"
-      // feature so users can see what fields their app sends and click to insert
-      // {{inputData.fieldName}} references into downstream node configs.
+      // Always save the latest payload as a sample regardless of workflow status.
+      // This lets users test their webhook while the workflow is still a draft.
       try {
         await (supabase as any)
           .from('workflows')
@@ -114,11 +103,12 @@ export async function POST(
           })
           .eq('id', workflow.id);
       } catch (sampleErr) {
-        // Non-critical — don't fail the webhook trigger if sample save fails
         console.warn('Could not save webhook sample:', sampleErr);
       }
 
-      // Send event to trigger workflow execution
+      // Only trigger execution for active workflows
+      if (workflow.status !== 'active') continue;
+
       await inngest.send({
         name: 'workflow/execute',
         data: {
@@ -126,14 +116,9 @@ export async function POST(
           nodes: nodes,
           edges: edges,
           triggerData: {
-            // Spread the payload fields flat so downstream nodes can reference
-            // any field directly as {{inputData.fieldName}} without needing
-            // to know about the internal "payload" wrapper.
             ...(typeof payload === 'object' && payload !== null && !Array.isArray(payload)
               ? payload
               : { _body: payload }),
-            // Prefix internal webhook metadata with _ to avoid clashing with
-            // payload fields the user's app might send.
             _webhookPath: webhookPath,
             _headers: headers,
             _receivedAt: new Date().toISOString(),
@@ -172,12 +157,11 @@ export async function GET(
   try {
     const { path: webhookPath } = await params;
     
-    // Check if any active workflow has this webhook path
+    // Check if any workflow (any status) has this webhook path
     const supabase = createAdminClient();
     const { data: workflows, error } = await (supabase as any)
       .from('workflows')
-      .select('id, workflow_data, user_id, name')
-      .eq('status', 'active');
+      .select('id, workflow_data, user_id, name, status');
 
     if (error) {
       return NextResponse.json(
@@ -186,15 +170,8 @@ export async function GET(
       );
     }
 
-    if (!workflows || workflows.length === 0) {
-      return NextResponse.json(
-        { error: 'No active workflows found' },
-        { status: 404 }
-      );
-    }
-
     // Check if any workflow matches this path
-    const hasMatchingWorkflow = workflows.some((workflow: any) => {
+    const hasMatchingWorkflow = (workflows || []).some((workflow: any) => {
       if (!workflow.workflow_data?.nodes) return false;
       
       const nodes = workflow.workflow_data.nodes as Node[];
