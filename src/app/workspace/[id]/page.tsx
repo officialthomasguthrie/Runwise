@@ -1172,7 +1172,7 @@ export default function WorkspacePage() {
                 onClick={() => setActiveView('workspace')}
                 className={`px-2 md:px-3 py-1 md:py-1.5 rounded-sm text-xs md:text-sm font-medium transition-all duration-200 border ${
                   activeView === 'workspace'
-                    ? 'bg-gray-100 dark:bg-gradient-to-br dark:from-zinc-900/90 dark:to-zinc-900/60 border-gray-300 dark:border-white/20 shadow-none dark:shadow-sm text-foreground' 
+                    ? 'bg-gray-100 dark:bg-zinc-800/80 border-gray-300 dark:border-white/20 shadow-none dark:shadow-sm text-foreground' 
                     : 'border-transparent text-foreground'
                 }`}
               >
@@ -1182,7 +1182,7 @@ export default function WorkspacePage() {
                 onClick={() => setActiveView('executions')}
                 className={`px-2 md:px-3 py-1 md:py-1.5 rounded-sm text-xs md:text-sm font-medium transition-all duration-200 border ${
                   activeView === 'executions'
-                    ? 'bg-gray-100 dark:bg-gradient-to-br dark:from-zinc-900/90 dark:to-zinc-900/60 border-gray-300 dark:border-white/20 shadow-none dark:shadow-sm text-foreground' 
+                    ? 'bg-gray-100 dark:bg-zinc-800/80 border-gray-300 dark:border-white/20 shadow-none dark:shadow-sm text-foreground' 
                     : 'border-transparent text-foreground'
                 }`}
               >
