@@ -40,6 +40,53 @@ export async function configureNodes(
       apiKey: process.env.OPENAI_API_KEY,
     });
 
+    // Build a reverse-adjacency map so we can find upstream nodes for any given node
+    // edges: { source → node that produces data, target → node that consumes data }
+    const upstreamMap = new Map<string, string[]>(); // target nodeId → [source nodeIds]
+    for (const edge of context.workflow.edges) {
+      if (!upstreamMap.has(edge.target)) upstreamMap.set(edge.target, []);
+      upstreamMap.get(edge.target)!.push(edge.source);
+    }
+
+    /** BFS to collect all (transitive) upstream node IDs for a given node */
+    const getAllUpstream = (nodeId: string): string[] => {
+      const visited = new Set<string>();
+      const queue = upstreamMap.get(nodeId)?.slice() ?? [];
+      while (queue.length) {
+        const current = queue.shift()!;
+        if (visited.has(current)) continue;
+        visited.add(current);
+        (upstreamMap.get(current) ?? []).forEach(id => queue.push(id));
+      }
+      return [...visited];
+    };
+
+    /** Return the list of available {{inputData.x}} references for upstream nodes */
+    const getAvailableVariables = (upstreamNodeIds: string[]): string[] => {
+      const vars: string[] = [];
+      for (const uid of upstreamNodeIds) {
+        const upstreamNode = context.workflow.nodes.find(n => n.id === uid);
+        if (!upstreamNode) continue;
+        const upstreamNodeData = upstreamNode.data as any;
+        const upstreamNodeId = upstreamNodeData.nodeId;
+        const upstreamLabel = upstreamNodeData.label || upstreamNodeId || uid;
+
+        // "All data" from this node is always available
+        vars.push(`{{inputData}} — all output from "${upstreamLabel}"`);
+
+        // Specific output fields from registry
+        if (upstreamNodeId && upstreamNodeId !== 'CUSTOM_GENERATED') {
+          const def = getNodeById(upstreamNodeId);
+          if (def?.outputs && def.outputs.length > 0) {
+            for (const output of def.outputs) {
+              vars.push(`{{inputData.${output.name}}} — "${output.name}" from "${upstreamLabel}"`);
+            }
+          }
+        }
+      }
+      return vars;
+    };
+
     // Build node configuration context
     const nodesWithSchemas = context.workflow.nodes.map((node) => {
       const nodeData = node.data as any;
@@ -60,6 +107,10 @@ export async function configureNodes(
         ([_, field]: [string, any]) => field.type !== 'integration'
       );
 
+      // Compute upstream variables for this node
+      const upstreamNodeIds = getAllUpstream(node.id);
+      const availableVariables = getAvailableVariables(upstreamNodeIds);
+
       return {
         nodeId: node.id,
         label: nodeData.label || nodeId || 'Unknown',
@@ -74,6 +125,7 @@ export async function configureNodes(
           default: field.default || null,
         })),
         currentConfig: nodeData.config || {},
+        availableVariables,
       };
     });
 
@@ -101,12 +153,18 @@ export async function configureNodes(
               `    - ${field.key} (${field.type}${field.required ? ', required' : ', optional'}): ${field.label} - ${field.description}${field.options ? ` - Options: ${JSON.stringify(field.options)}` : ''}`
           )
           .join('\n');
+
+        const varsSection = (node as any).availableVariables?.length > 0
+          ? `  Available Input Variables (ONLY use these for template references):\n${(node as any).availableVariables.map((v: string) => `    • ${v}`).join('\n')}`
+          : `  Available Input Variables: none (this is the first/only node — do not use any {{inputData.*}} references)`;
+
         return `Node ID: ${node.nodeId}
   Name: ${node.label}
   Type: ${node.nodeType}
   Configurable Fields:
 ${fieldsList}
-  Current Config: ${JSON.stringify(node.currentConfig)}`;
+  Current Config: ${JSON.stringify(node.currentConfig)}
+${varsSection}`;
       })
       .join('\n\n');
 
@@ -167,17 +225,13 @@ CRITICAL RULES:
 5. Convert times correctly: "9 AM" → "0 9 * * *", "9 PM" → "0 21 * * *", "12 PM" → "0 12 * * *", "12 AM" → "0 0 * * *"
 6. For select fields, match the value to one of the provided options
 7. For template syntax ({{inputData.field}}), keep it as-is if it's already there, don't override
-8. Don't fill fields that are template references (they map data between nodes)
 
-WEBHOOK DATA FLOW RULE (CRITICAL):
-- When a workflow uses a "webhook-trigger" node, every field from the incoming JSON body is available DIRECTLY as {{inputData.fieldName}} in all downstream nodes
-- The payload is passed FLAT — do NOT use {{inputData.payload.field}} or {{inputData.data.field}}
-- Infer the likely payload fields from the user's description and pre-fill downstream nodes:
-  - "new user signup" → {{inputData.email}}, {{inputData.name}}, {{inputData.plan}}
-  - "new order / purchase" → {{inputData.orderId}}, {{inputData.amount}}, {{inputData.customerEmail}}
-  - "support ticket" → {{inputData.ticketId}}, {{inputData.subject}}, {{inputData.message}}
-  - When in doubt, use descriptive placeholder names like {{inputData.email}}, {{inputData.name}}
-- Always pre-fill downstream node config fields with these template references so the workflow works out of the box
+TEMPLATE VARIABLE RULE (CRITICAL):
+- Each node lists its "Available Input Variables" above.
+- You MUST ONLY use {{inputData.*}} references that appear in that node's "Available Input Variables" list.
+- NEVER invent variable names that are not listed. If no variables are listed, do not use any {{inputData.*}} references.
+- For webhook-trigger nodes specifically: the payload is flat, so use {{inputData.fieldName}} directly (not {{inputData.payload.fieldName}}).
+- Infer likely payload field names from the user's description (e.g. "new signup" → {{inputData.email}}, {{inputData.name}}, {{inputData.plan}}) and pre-fill downstream fields accordingly.
 
 EXAMPLES:
 User says: "Create a workflow that runs daily at 9 AM"
