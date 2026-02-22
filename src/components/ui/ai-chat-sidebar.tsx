@@ -3122,7 +3122,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                               }
                               setEditingMessageId(null);
                             }}
-                            className="w-full bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-14 focus:border-gray-400 dark:focus:border-white/20 focus:ring-0 transition-all scrollbar-hide overflow-y-auto"
+                            className="w-full bg-gray-50 dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground py-3 px-4 pr-14 focus:border-gray-400 dark:focus:border-white/20 focus:ring-0 transition-all scrollbar-hide overflow-y-auto"
                             style={{
                               minHeight: '48px',
                               maxHeight: '85px',
@@ -3165,7 +3165,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                             setEditingMessageId(message.id);
                             setEditingMessageContent(message.content);
                           }}
-                          className="w-full bg-white/80 dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg px-4 py-3 cursor-text transition-all duration-300 overflow-hidden relative hover:bg-white/80 dark:hover:bg-white/5 active:bg-white/80 dark:active:bg-white/5"
+                          className="w-full bg-gray-50 dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg px-4 py-3 cursor-text transition-all duration-300 overflow-hidden relative hover:bg-gray-50 dark:hover:bg-white/5 active:bg-gray-50 dark:active:bg-white/5"
                           style={{ 
                             maxHeight: '85px',
                             minHeight: '48px',
@@ -3352,7 +3352,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                   onKeyDown={handleKeyDown}
                 placeholder={hasReachedFreeLimit ? "Upgrade to continue chatting..." : "Ask me anything..."}
                 disabled={isLoading || hasReachedFreeLimit}
-                className="w-full bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground/60 py-3 px-4 pr-14 focus:border-white/80 dark:focus:border-white/20 focus:ring-0 transition-all scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto"
+                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground/60 py-3 px-4 pr-14 focus:border-gray-400 dark:focus:border-white/20 focus:ring-0 transition-all scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto"
                   rows={1}
                   style={{
                   minHeight: '75px',
