@@ -135,6 +135,19 @@ function findAllUpstreamNodes(currentNodeId: string, nodes: Node[], edges: Edge[
 /**
  * Get available outputs from source nodes for mention input
  */
+/** Converts a raw field/output name into a clean, human-readable label. */
+function toReadableLabel(raw: string): string {
+  // Special cases
+  if (raw === 'inputData') return 'All Data';
+  if (raw === 'payload fields') return 'All Fields';
+
+  // Replace underscores/hyphens with spaces, then Title Case each word
+  return raw
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase → words
+    .replace(/[_-]+/g, ' ')              // snake_case / kebab-case → spaces
+    .replace(/\b\w/g, (c) => c.toUpperCase()); // Title Case
+}
+
 function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
   nodeId: string;
   nodeName: string;
@@ -156,7 +169,7 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
     
     const nodeData = (sourceNode.data ?? {}) as any;
     const nodeId = nodeData.nodeId;
-    const nodeName = nodeData.label || sourceNode.id;
+    const nodeName = nodeData.label || (nodeId ? getNodeById(nodeId)?.name : null) || sourceNode.id;
     
     // Get node definition to know actual output structure
     let outputFields: string[] = [];
@@ -176,15 +189,6 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
       }
     }
     
-    // Helper: convert a raw field name to a readable label
-    const fieldLabel = (field: string): string => {
-      return field
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/[_\s]+/g, ' ')
-        .replace(/\b\w/g, (l) => l.toUpperCase())
-        .trim();
-    };
-
     // Add all data option
     outputs.push({
       nodeId: sourceNodeId,
@@ -201,7 +205,7 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
           nodeId: sourceNodeId,
           nodeName,
           path: `inputData.${field}`,
-          displayPath: fieldLabel(field),
+          displayPath: toReadableLabel(field),
           fullPath: `inputData.${field}`
         });
       });
@@ -213,7 +217,7 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
           nodeId: sourceNodeId,
           nodeName,
           path: `inputData.${field}`,
-          displayPath: fieldLabel(field),
+          displayPath: toReadableLabel(field),
           fullPath: `inputData.${field}`
         });
       });

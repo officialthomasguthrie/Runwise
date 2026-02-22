@@ -3226,7 +3226,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                           <div className="flex flex-col gap-2">
                             <button
                               onClick={() => router.push('/settings?tab=billing')}
-                              className="w-full rounded-lg border border-[#ffffff1a] bg-[#bd28b3ba] py-2 px-4 cursor-pointer flex items-center justify-center gap-2 hover:bg-[#bd28b3da] transition-all"
+                              className="w-full rounded-lg border border-purple-600/30 dark:border-[#ffffff1a] bg-[#bd28b3ba] py-2 px-4 cursor-pointer flex items-center justify-center gap-2 hover:bg-[#bd28b3da] transition-all"
                             >
                               <span className="text-xs text-white font-medium">See Plans</span>
                               <img src="/assets/icons/arrow-top.svg" className="w-3 h-3 brightness-0 invert" alt="arrow" />
@@ -3254,7 +3254,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                   console.error('Error starting checkout:', error);
                                 }
                               }}
-                              className="w-full rounded-lg border border-white/20 bg-white/10 dark:bg-white/5 py-2 px-4 cursor-pointer flex items-center justify-center hover:bg-white/20 dark:hover:bg-white/10 transition-all"
+                              className="w-full rounded-lg border border-gray-300 dark:border-white/20 bg-gray-100 dark:bg-white/5 py-2 px-4 cursor-pointer flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/10 transition-all"
                             >
                               <span className="text-xs text-foreground font-medium">Upgrade</span>
                             </button>
