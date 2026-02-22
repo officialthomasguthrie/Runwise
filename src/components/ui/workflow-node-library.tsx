@@ -176,12 +176,21 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
       }
     }
     
+    // Helper: convert a raw field name to a readable label
+    const fieldLabel = (field: string): string => {
+      return field
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/[_\s]+/g, ' ')
+        .replace(/\b\w/g, (l) => l.toUpperCase())
+        .trim();
+    };
+
     // Add all data option
     outputs.push({
       nodeId: sourceNodeId,
       nodeName,
       path: 'inputData',
-      displayPath: `${nodeName} (all data)`,
+      displayPath: 'All Data',
       fullPath: 'inputData'
     });
     
@@ -192,7 +201,7 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
           nodeId: sourceNodeId,
           nodeName,
           path: `inputData.${field}`,
-          displayPath: `${nodeName} → ${field}`,
+          displayPath: fieldLabel(field),
           fullPath: `inputData.${field}`
         });
       });
@@ -204,7 +213,7 @@ function getMentionOptions(sourceNodeIds: string[], nodes: Node[]): Array<{
           nodeId: sourceNodeId,
           nodeName,
           path: `inputData.${field}`,
-          displayPath: `${nodeName} → ${field}`,
+          displayPath: fieldLabel(field),
           fullPath: `inputData.${field}`
         });
       });
