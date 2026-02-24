@@ -5,6 +5,15 @@ compatibility_date = "2024-01-01"
 [triggers]
 crons = ["* * * * *"] # Every 1 minute
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
 [env.production]
 name = "runwise-polling-triggers"
 
