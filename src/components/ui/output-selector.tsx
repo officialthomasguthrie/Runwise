@@ -1,7 +1,8 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowDown01Icon, ArrowUp01Icon, Link02Icon, ViewIcon } from "@hugeicons/core-free-icons";
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Link2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -148,14 +149,14 @@ export function OutputSelector({
             className="h-8 w-8 p-0"
             title="Select output from previous node"
           >
-            <Link2 className={cn("h-4 w-4", hasTemplate && "text-blue-600 dark:text-blue-400")} />
+            <HugeiconsIcon icon={Link02Icon} className={cn("h-4 w-4", hasTemplate && "text-blue-600 dark:text-blue-400")} />
           </Button>
         )}
       </div>
       
       {hasTemplate && (
         <div className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
-          <Eye className="h-3 w-3" />
+          <HugeiconsIcon icon={ViewIcon} className="h-3 w-3" />
           <span>Using output from previous node</span>
         </div>
       )}
@@ -174,7 +175,7 @@ export function OutputSelector({
                 className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <Link2 className="h-3 w-3 text-muted-foreground" />
+                  <HugeiconsIcon icon={Link02Icon} className="h-3 w-3 text-muted-foreground" />
                   <span className="font-medium">{output.displayPath}</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5 ml-5">

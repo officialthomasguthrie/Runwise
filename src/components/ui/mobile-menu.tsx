@@ -1,8 +1,10 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { BarChartIcon, Cancel01Icon, DashboardCircleIcon, Menu01Icon, Settings01Icon, UserGroupIcon, UserIcon, WorkflowCircle01Icon } from "@hugeicons/core-free-icons";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, LayoutDashboard, Workflow, Zap, Users, BarChart3, Settings, User, X } from "lucide-react";
+import { Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -51,7 +53,7 @@ export function MobileMenu({ children }: MobileMenuProps) {
         onClick={toggleMenu}
         className="fixed top-4 right-20 z-[60] md:hidden bg-background/80 backdrop-blur-sm border border-border"
       >
-        <Menu className="h-5 w-5" />
+        <HugeiconsIcon icon={Menu01Icon} className="h-5 w-5" />
       </Button>
 
       {/* Mobile Sidebar Overlay */}
@@ -83,17 +85,17 @@ export function MobileMenu({ children }: MobileMenuProps) {
                         ? "bg-gradient-to-r from-purple-500 to-pink-500" 
                         : "hover:bg-muted"
                     )}>
-                      <LayoutDashboard className={cn(
-                        "w-4 h-4",
-                        pathname === "/dashboard" ? "text-white" : "text-muted-foreground"
-                      )} />
+                      <HugeiconsIcon icon={DashboardCircleIcon} className={cn(
+                                                                  "w-4 h-4",
+                                                                  pathname === "/dashboard" ? "text-white" : "text-muted-foreground"
+                                                                )} />
                     </div>
                   </Link>
                   
                   {/* Workflows Icon */}
                   <Link href="/workflows" onClick={closeMenu}>
                     <div className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-muted cursor-pointer">
-                      <Workflow className="w-4 h-4 text-muted-foreground" />
+                      <HugeiconsIcon icon={WorkflowCircle01Icon} className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </Link>
                   
@@ -107,14 +109,14 @@ export function MobileMenu({ children }: MobileMenuProps) {
                   {/* Teams Icon */}
                   <Link href="/teams" onClick={closeMenu}>
                     <div className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-muted cursor-pointer">
-                      <Users className="w-4 h-4 text-muted-foreground" />
+                      <HugeiconsIcon icon={UserGroupIcon} className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </Link>
                   
                   {/* Analytics Icon */}
                   <Link href="/analytics" onClick={closeMenu}>
                     <div className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-muted cursor-pointer">
-                      <BarChart3 className="w-4 h-4 text-muted-foreground" />
+                      <HugeiconsIcon icon={BarChartIcon} className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </Link>
                 </div>
@@ -124,14 +126,14 @@ export function MobileMenu({ children }: MobileMenuProps) {
                   {/* Settings Icon */}
                   <Link href="/settings" onClick={closeMenu}>
                     <div className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-muted cursor-pointer">
-                      <Settings className="w-4 h-4 text-muted-foreground" />
+                      <HugeiconsIcon icon={Settings01Icon} className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </Link>
                   
                   {/* Account Icon */}
                   <Link href="/settings/profile" onClick={closeMenu}>
                     <div className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-muted cursor-pointer">
-                      <User className="w-4 h-4 text-muted-foreground" />
+                      <HugeiconsIcon icon={UserIcon} className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </Link>
                 </div>

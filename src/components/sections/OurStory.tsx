@@ -1,8 +1,10 @@
 "use client"
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { BulbIcon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Lightbulb, Users, Zap } from "lucide-react"
+import { Zap } from "lucide-react"
 import FadeContent from "@/components/ui/FadeContent"
 
 interface OurStoryProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -52,7 +54,7 @@ const OurStory = React.forwardRef<HTMLDivElement, OurStoryProps>(
                      <div className="grid gap-6 sm:grid-cols-3 max-w-5xl mx-auto">
                        <div className="flex flex-col items-center text-center gap-4">
                          <div className="flex-shrink-0 w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                           <Lightbulb className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                           <HugeiconsIcon icon={BulbIcon} className="w-8 h-8 text-purple-600 dark:text-purple-400" />
                          </div>
                          <div>
                            <h3 className="font-semibold text-foreground font-geist mb-2">Simple Vision</h3>
@@ -62,7 +64,7 @@ const OurStory = React.forwardRef<HTMLDivElement, OurStoryProps>(
 
                        <div className="flex flex-col items-center text-center gap-4">
                          <div className="flex-shrink-0 w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                           <Users className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                           <HugeiconsIcon icon={UserGroupIcon} className="w-8 h-8 text-purple-600 dark:text-purple-400" />
                          </div>
                          <div>
                            <h3 className="font-semibold text-foreground font-geist mb-2">Real Problem</h3>

@@ -1,8 +1,9 @@
 "use client"
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRight01Icon, CallRinging01Icon, MoveRightIcon } from "@hugeicons/core-free-icons";
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { MoveRight, PhoneCall, ArrowRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import FadeContent from "@/components/ui/FadeContent"
@@ -60,14 +61,14 @@ const AboutCTA = React.forwardRef<HTMLDivElement, AboutCTAProps>(
                            variant="outline"
                            className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-geist"
                          >
-                           Buy Runwise Pro <MoveRight className="w-4 h-4" />
+                           Buy Runwise Pro <HugeiconsIcon icon={MoveRightIcon} className="w-4 h-4" />
                          </ProCheckoutButton>
 
                          <Button 
                            variant="outline" 
                            className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-geist"
                          >
-                           Schedule a demo <PhoneCall className="w-4 h-4" />
+                           Schedule a demo <HugeiconsIcon icon={CallRinging01Icon} className="w-4 h-4" />
                          </Button>
                        </div>
 
@@ -79,9 +80,9 @@ const AboutCTA = React.forwardRef<HTMLDivElement, AboutCTAProps>(
                  <FadeContent delay={200} duration={800}>
                    <div className="mt-12 text-center">
                      <div className="inline-flex items-center gap-2 text-muted-foreground font-geist">
-                       <ArrowRight className="w-4 h-4" />
+                       <HugeiconsIcon icon={ArrowRight01Icon} className="w-4 h-4" />
                        <span>Ready to transform your workflows?</span>
-                       <ArrowRight className="w-4 h-4" />
+                       <HugeiconsIcon icon={ArrowRight01Icon} className="w-4 h-4" />
                      </div>
                    </div>
                  </FadeContent>

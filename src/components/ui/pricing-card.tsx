@@ -1,9 +1,9 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRight01Icon, CheckmarkBadge01Icon } from "@hugeicons/core-free-icons";
 import * as React from "react";
 import NumberFlow from "@number-flow/react";
-import { ArrowRight, BadgeCheck } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -39,7 +39,7 @@ export function PricingCard({ tier, paymentFrequency }: PricingCardProps) {
       {...tier.ctaButtonProps}
     >
       {tier.cta}
-      <ArrowRight className="ml-2 h-4 w-4" />
+      <HugeiconsIcon icon={ArrowRight01Icon} className="ml-2 h-4 w-4" />
     </Button>
   );
 
@@ -92,7 +92,7 @@ export function PricingCard({ tier, paymentFrequency }: PricingCardProps) {
                   : "text-muted-foreground"
               )}
             >
-              <BadgeCheck className="h-4 w-4" />
+              <HugeiconsIcon icon={CheckmarkBadge01Icon} className="h-4 w-4" />
               {feature}
             </li>
           ))}

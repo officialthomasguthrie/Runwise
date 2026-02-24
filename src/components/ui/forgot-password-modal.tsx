@@ -1,7 +1,8 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 
 interface ForgotPasswordModalProps {
@@ -98,7 +99,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
           className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
           aria-label="Close"
         >
-          <X className="w-4 h-4" />
+          <HugeiconsIcon icon={Cancel01Icon} className="w-4 h-4" />
         </button>
 
         <div className="space-y-4">

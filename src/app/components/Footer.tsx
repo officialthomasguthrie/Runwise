@@ -1,14 +1,25 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { useTheme } from "next-themes";
+import { Sun, Moon } from "lucide-react";
 
 export const Footer: React.FC = () => {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const isLegalPage = pathname === "/terms" || pathname === "/privacy";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isLight = mounted && theme !== "dark";
+  const toggleTheme = () => setTheme(isLight ? "dark" : "light");
 
   const handleSmoothScroll = (
     event: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
@@ -34,8 +45,12 @@ export const Footer: React.FC = () => {
       <div className="max-w-[1200px] w-full mx-auto flex gap-6 md:gap-8 flex-col md:flex-row md:justify-between relative z-30">
         <div className="flex flex-col gap-7.5">
           <div>
-            <Link href="/" className="text-[28px] font-medium">
-              Runwise
+            <Link href="/" className="inline-block">
+              <img
+                src={isLight ? "/runwise-logo-light.png" : "/runwise-logo-dark.png"}
+                alt="Runwise"
+                className="h-[31px] w-auto object-contain"
+              />
             </Link>
 
             <p className="max-w-[350px] text-[#ffffffb3] text-base leading-[1.2em] -tracking-[.02em] font-light mt-2.5">
@@ -157,12 +172,34 @@ export const Footer: React.FC = () => {
         </div>
       </div>
 
-      {/* Copyright */}
+      {/* Copyright + Theme Toggle */}
       <div className="w-full border-t border-[#ffffff1a] mt-6 pt-4 pb-0 relative z-30">
-        <div className="max-w-[1200px] w-full mx-auto">
-          <p className="text-center text-sm text-[#ffffff80] font-light leading-[1.4em] -tracking-[.02em]">
+        <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between gap-4">
+          <p className="text-sm text-[#ffffff80] font-light leading-[1.4em] -tracking-[.02em]">
             © {new Date().getFullYear()} Runwise. All rights reserved.
           </p>
+
+          {/* Dark / Light mode toggle */}
+          {mounted && (
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={isLight ? "Switch to dark mode" : "Switch to light mode"}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#ffffff1a] text-[#ffffff80] hover:text-white transition-colors text-xs"
+            >
+              {isLight ? (
+                <>
+                  <Moon className="w-3.5 h-3.5" />
+                  <span>Dark</span>
+                </>
+              ) : (
+                <>
+                  <Sun className="w-3.5 h-3.5" />
+                  <span>Light</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </footer>

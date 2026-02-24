@@ -1,17 +1,15 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { BarChartIcon, Calendar01Icon, Call02Icon, Camera01Icon, Cancel01Icon, CheckmarkSquare01Icon, Clock01Icon, CloudIcon, CodeIcon, CompassIcon, CreditCardIcon, DatabaseIcon, DropletIcon, Edit02Icon, Facebook01Icon, FileAttachmentIcon, GithubIcon, GlobeIcon, HardDriveIcon, HelpCircleIcon, Image01Icon, InstagramIcon, Key01Icon, Layers01Icon, Linkedin01Icon, Loading02Icon, Location01Icon, LockIcon, Mail01Icon, Message01Icon, Mic01Icon, MusicNote01Icon, Notification01Icon, PackageIcon, Plug01Icon, Search01Icon, ShoppingCart01Icon, SlackIcon, Tick01Icon, TrelloIcon, TwitterIcon, UserGroupIcon, Video01Icon, WebhookIcon, Wifi01Icon, YoutubeIcon } from "@hugeicons/core-free-icons";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-client";
 import {
-  Slack, FileSpreadsheet, Mail, Calendar, Database, Cloud, Check, Edit2, Webhook, Github,
-  Trello, FileText, DollarSign, ShoppingCart, Users, MessageSquare, Bell, Zap,
-  Box, Droplet, Twitter, Facebook, Instagram, Linkedin, Youtube, Music,
-  Camera, Image, Video, Mic, Phone, Clock, MapPin, Compass,
-  CreditCard, ShieldCheck, Lock, Key, Server, HardDrive, Wifi, Globe,
-  Code, Terminal, Package, Layers, CheckSquare, BarChart3, HelpCircle, Search, Plug, X, Loader2
+  FileSpreadsheet, DollarSign, Zap,
+  Box, ShieldCheck, Server, Terminal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -195,46 +193,46 @@ export function IntegrationsSettings() {
     serviceName?: string;
   }> = [
     { id: 'all-1', name: 'Google Sheets', description: 'Spreadsheet management', icon: FileSpreadsheet, slug: 'googlesheets', gradient: 'from-green-500/20 to-emerald-500/20', iconColor: 'text-green-400', category: 'Productivity', serviceName: 'google-sheets' },
-    { id: 'all-1b', name: 'Google Forms', description: 'Form submissions', icon: FileText, slug: 'googleforms', gradient: 'from-purple-500/20 to-violet-500/20', iconColor: 'text-purple-400', category: 'Productivity', serviceName: 'google-forms' },
-    { id: 'all-2', name: 'Slack', description: 'Team communication', icon: Slack, slug: 'slack', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'Communication', serviceName: 'slack' },
-    { id: 'all-3', name: 'Gmail', description: 'Email service', icon: Mail, slug: 'gmail', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Communication', serviceName: 'google-gmail' },
-    { id: 'all-4', name: 'Google Calendar', description: 'Calendar events', icon: Calendar, slug: 'googlecalendar', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Productivity', serviceName: 'google-calendar' },
-    { id: 'all-5', name: 'PostgreSQL', description: 'Database management', icon: Database, slug: 'postgresql', gradient: 'from-indigo-500/20 to-blue-500/20', iconColor: 'text-indigo-400', category: 'Database' },
-    { id: 'all-6', name: 'AWS S3', description: 'Cloud storage', icon: Cloud, slug: 'amazons3', gradient: 'from-orange-500/20 to-yellow-500/20', iconColor: 'text-orange-400', category: 'Storage' },
-    { id: 'all-8', name: 'GitHub', description: 'Code repositories', icon: Github, slug: 'github', gradient: 'from-gray-500/20 to-slate-500/20', iconColor: 'text-gray-400', category: 'Development', serviceName: 'github' },
-    { id: 'all-9', name: 'Trello', description: 'Project boards', icon: Trello, slug: 'trello', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Productivity', serviceName: 'trello' },
-    { id: 'all-10', name: 'Notion', description: 'Note taking', icon: FileText, slug: 'notion', gradient: 'from-gray-500/20 to-zinc-500/20', iconColor: 'text-gray-400', category: 'Productivity', serviceName: 'notion' },
+    { id: 'all-1b', name: 'Google Forms', description: 'Form submissions', icon: FileAttachmentIcon, slug: 'googleforms', gradient: 'from-purple-500/20 to-violet-500/20', iconColor: 'text-purple-400', category: 'Productivity', serviceName: 'google-forms' },
+    { id: 'all-2', name: 'Slack', description: 'Team communication', icon: SlackIcon, slug: 'slack', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'Communication', serviceName: 'slack' },
+    { id: 'all-3', name: 'Gmail', description: 'Email service', icon: Mail01Icon, slug: 'gmail', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Communication', serviceName: 'google-gmail' },
+    { id: 'all-4', name: 'Google Calendar', description: 'Calendar events', icon: Calendar01Icon, slug: 'googlecalendar', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Productivity', serviceName: 'google-calendar' },
+    { id: 'all-5', name: 'PostgreSQL', description: 'Database management', icon: DatabaseIcon, slug: 'postgresql', gradient: 'from-indigo-500/20 to-blue-500/20', iconColor: 'text-indigo-400', category: 'Database' },
+    { id: 'all-6', name: 'AWS S3', description: 'Cloud storage', icon: CloudIcon, slug: 'amazons3', gradient: 'from-orange-500/20 to-yellow-500/20', iconColor: 'text-orange-400', category: 'Storage' },
+    { id: 'all-8', name: 'GitHub', description: 'Code repositories', icon: GithubIcon, slug: 'github', gradient: 'from-gray-500/20 to-slate-500/20', iconColor: 'text-gray-400', category: 'Development', serviceName: 'github' },
+    { id: 'all-9', name: 'Trello', description: 'Project boards', icon: TrelloIcon, slug: 'trello', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Productivity', serviceName: 'trello' },
+    { id: 'all-10', name: 'Notion', description: 'Note taking', icon: FileAttachmentIcon, slug: 'notion', gradient: 'from-gray-500/20 to-zinc-500/20', iconColor: 'text-gray-400', category: 'Productivity', serviceName: 'notion' },
     { id: 'all-11', name: 'Stripe', description: 'Payment processing', icon: DollarSign, slug: 'stripe', gradient: 'from-purple-500/20 to-violet-500/20', iconColor: 'text-purple-400', category: 'Payment' },
-    { id: 'all-12', name: 'Shopify', description: 'E-commerce platform', icon: ShoppingCart, slug: 'shopify', gradient: 'from-green-500/20 to-lime-500/20', iconColor: 'text-green-400', category: 'E-commerce' },
-    { id: 'all-13', name: 'HubSpot', description: 'CRM platform', icon: Users, slug: 'hubspot', gradient: 'from-orange-500/20 to-red-500/20', iconColor: 'text-orange-400', category: 'CRM' },
-    { id: 'all-14', name: 'Discord', description: 'Community chat', icon: MessageSquare, slug: 'discord', gradient: 'from-indigo-500/20 to-purple-500/20', iconColor: 'text-indigo-400', category: 'Communication', serviceName: 'discord' },
-    { id: 'all-15', name: 'Twilio', description: 'SMS & voice', icon: Phone, slug: 'twilio', gradient: 'from-red-500/20 to-pink-500/20', iconColor: 'text-red-400', category: 'Communication', serviceName: 'twilio' },
-    { id: 'all-16', name: 'SendGrid', description: 'Email delivery', icon: Mail, slug: 'sendgrid', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Communication', serviceName: 'sendgrid' },
+    { id: 'all-12', name: 'Shopify', description: 'E-commerce platform', icon: ShoppingCart01Icon, slug: 'shopify', gradient: 'from-green-500/20 to-lime-500/20', iconColor: 'text-green-400', category: 'E-commerce' },
+    { id: 'all-13', name: 'HubSpot', description: 'CRM platform', icon: UserGroupIcon, slug: 'hubspot', gradient: 'from-orange-500/20 to-red-500/20', iconColor: 'text-orange-400', category: 'CRM' },
+    { id: 'all-14', name: 'Discord', description: 'Community chat', icon: Message01Icon, slug: 'discord', gradient: 'from-indigo-500/20 to-purple-500/20', iconColor: 'text-indigo-400', category: 'Communication', serviceName: 'discord' },
+    { id: 'all-15', name: 'Twilio', description: 'SMS & voice', icon: Call02Icon, slug: 'twilio', gradient: 'from-red-500/20 to-pink-500/20', iconColor: 'text-red-400', category: 'Communication', serviceName: 'twilio' },
+    { id: 'all-16', name: 'SendGrid', description: 'Email delivery', icon: Mail01Icon, slug: 'sendgrid', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Communication', serviceName: 'sendgrid' },
     { id: 'all-17', name: 'Zapier', description: 'Workflow automation', icon: Zap, slug: 'zapier', gradient: 'from-orange-500/20 to-amber-500/20', iconColor: 'text-orange-400', category: 'Automation' },
     { id: 'all-18', name: 'Dropbox', description: 'File storage', icon: Box, slug: 'dropbox', gradient: 'from-blue-500/20 to-sky-500/20', iconColor: 'text-blue-400', category: 'Storage' },
-    { id: 'all-19', name: 'Google Drive', description: 'Cloud storage', icon: Cloud, slug: 'googledrive', gradient: 'from-yellow-500/20 to-green-500/20', iconColor: 'text-yellow-400', category: 'Storage', serviceName: 'google-drive' },
-    { id: 'all-20', name: 'Airtable', description: 'Database tables', icon: Database, slug: 'airtable', gradient: 'from-yellow-500/20 to-orange-500/20', iconColor: 'text-yellow-400', category: 'Database', serviceName: 'airtable' },
-    { id: 'all-21', name: 'Twitter', description: 'Social media', icon: Twitter, slug: 'x', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Social', serviceName: 'twitter' },
-    { id: 'all-22', name: 'Facebook', description: 'Social network', icon: Facebook, slug: 'facebook', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Social' },
-    { id: 'all-23', name: 'Instagram', description: 'Photo sharing', icon: Instagram, slug: 'instagram', gradient: 'from-pink-500/20 to-purple-500/20', iconColor: 'text-pink-400', category: 'Social' },
-    { id: 'all-24', name: 'LinkedIn', description: 'Professional network', icon: Linkedin, slug: 'linkedin', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Social' },
-    { id: 'all-25', name: 'YouTube', description: 'Video platform', icon: Youtube, slug: 'youtube', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Social' },
-    { id: 'all-26', name: 'Spotify', description: 'Music streaming', icon: Music, slug: 'spotify', gradient: 'from-green-500/20 to-emerald-500/20', iconColor: 'text-green-400', category: 'Media' },
-    { id: 'all-27', name: 'Figma', description: 'Design tool', icon: Layers, slug: 'figma', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'Design' },
-    { id: 'all-28', name: 'Canva', description: 'Graphic design', icon: Image, slug: 'canva', gradient: 'from-cyan-500/20 to-blue-500/20', iconColor: 'text-cyan-400', category: 'Design' },
-    { id: 'all-29', name: 'Zoom', description: 'Video conferencing', icon: Video, slug: 'zoom', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Communication' },
-    { id: 'all-30', name: 'Microsoft Teams', description: 'Team collaboration', icon: Users, slug: 'microsoftteams', gradient: 'from-purple-500/20 to-blue-500/20', iconColor: 'text-purple-400', category: 'Communication' },
-    { id: 'all-31', name: 'Asana', description: 'Task management', icon: CheckSquare, slug: 'asana', gradient: 'from-pink-500/20 to-red-500/20', iconColor: 'text-pink-400', category: 'Productivity' },
-    { id: 'all-32', name: 'Jira', description: 'Issue tracking', icon: Trello, slug: 'jira', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Development' },
-    { id: 'all-33', name: 'MongoDB', description: 'NoSQL database', icon: Database, slug: 'mongodb', gradient: 'from-green-500/20 to-teal-500/20', iconColor: 'text-green-400', category: 'Database' },
+    { id: 'all-19', name: 'Google Drive', description: 'Cloud storage', icon: CloudIcon, slug: 'googledrive', gradient: 'from-yellow-500/20 to-green-500/20', iconColor: 'text-yellow-400', category: 'Storage', serviceName: 'google-drive' },
+    { id: 'all-20', name: 'Airtable', description: 'Database tables', icon: DatabaseIcon, slug: 'airtable', gradient: 'from-yellow-500/20 to-orange-500/20', iconColor: 'text-yellow-400', category: 'Database', serviceName: 'airtable' },
+    { id: 'all-21', name: 'Twitter', description: 'Social media', icon: TwitterIcon, slug: 'x', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Social', serviceName: 'twitter' },
+    { id: 'all-22', name: 'Facebook', description: 'Social network', icon: Facebook01Icon, slug: 'facebook', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Social' },
+    { id: 'all-23', name: 'Instagram', description: 'Photo sharing', icon: InstagramIcon, slug: 'instagram', gradient: 'from-pink-500/20 to-purple-500/20', iconColor: 'text-pink-400', category: 'Social' },
+    { id: 'all-24', name: 'LinkedIn', description: 'Professional network', icon: Linkedin01Icon, slug: 'linkedin', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Social' },
+    { id: 'all-25', name: 'YouTube', description: 'Video platform', icon: YoutubeIcon, slug: 'youtube', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Social' },
+    { id: 'all-26', name: 'Spotify', description: 'Music streaming', icon: MusicNote01Icon, slug: 'spotify', gradient: 'from-green-500/20 to-emerald-500/20', iconColor: 'text-green-400', category: 'Media' },
+    { id: 'all-27', name: 'Figma', description: 'Design tool', icon: Layers01Icon, slug: 'figma', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'Design' },
+    { id: 'all-28', name: 'Canva', description: 'Graphic design', icon: Image01Icon, slug: 'canva', gradient: 'from-cyan-500/20 to-blue-500/20', iconColor: 'text-cyan-400', category: 'Design' },
+    { id: 'all-29', name: 'Zoom', description: 'Video conferencing', icon: Video01Icon, slug: 'zoom', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Communication' },
+    { id: 'all-30', name: 'Microsoft Teams', description: 'Team collaboration', icon: UserGroupIcon, slug: 'microsoftteams', gradient: 'from-purple-500/20 to-blue-500/20', iconColor: 'text-purple-400', category: 'Communication' },
+    { id: 'all-31', name: 'Asana', description: 'Task management', icon: CheckmarkSquare01Icon, slug: 'asana', gradient: 'from-pink-500/20 to-red-500/20', iconColor: 'text-pink-400', category: 'Productivity' },
+    { id: 'all-32', name: 'Jira', description: 'Issue tracking', icon: TrelloIcon, slug: 'jira', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Development' },
+    { id: 'all-33', name: 'MongoDB', description: 'NoSQL database', icon: DatabaseIcon, slug: 'mongodb', gradient: 'from-green-500/20 to-teal-500/20', iconColor: 'text-green-400', category: 'Database' },
     { id: 'all-34', name: 'Redis', description: 'Cache database', icon: Server, slug: 'redis', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Database' },
-    { id: 'all-35', name: 'Salesforce', description: 'CRM platform', icon: Cloud, slug: 'salesforce', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'CRM' },
-    { id: 'all-36', name: 'Mailchimp', description: 'Email marketing', icon: Mail, slug: 'mailchimp', gradient: 'from-yellow-500/20 to-orange-500/20', iconColor: 'text-yellow-400', category: 'Marketing' },
-    { id: 'all-37', name: 'Google Analytics', description: 'Website analytics', icon: BarChart3, slug: 'googleanalytics', gradient: 'from-orange-500/20 to-red-500/20', iconColor: 'text-orange-400', category: 'Analytics' },
-    { id: 'all-38', name: 'Intercom', description: 'Customer messaging', icon: MessageSquare, slug: 'intercom', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Support' },
-    { id: 'all-39', name: 'Zendesk', description: 'Help desk software', icon: HelpCircle, slug: 'zendesk', gradient: 'from-green-500/20 to-teal-500/20', iconColor: 'text-green-400', category: 'Support' },
+    { id: 'all-35', name: 'Salesforce', description: 'CRM platform', icon: CloudIcon, slug: 'salesforce', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'CRM' },
+    { id: 'all-36', name: 'Mailchimp', description: 'Email marketing', icon: Mail01Icon, slug: 'mailchimp', gradient: 'from-yellow-500/20 to-orange-500/20', iconColor: 'text-yellow-400', category: 'Marketing' },
+    { id: 'all-37', name: 'Google Analytics', description: 'Website analytics', icon: BarChartIcon, slug: 'googleanalytics', gradient: 'from-orange-500/20 to-red-500/20', iconColor: 'text-orange-400', category: 'Analytics' },
+    { id: 'all-38', name: 'Intercom', description: 'Customer messaging', icon: Message01Icon, slug: 'intercom', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Support' },
+    { id: 'all-39', name: 'Zendesk', description: 'Help desk software', icon: HelpCircleIcon, slug: 'zendesk', gradient: 'from-green-500/20 to-teal-500/20', iconColor: 'text-green-400', category: 'Support' },
     { id: 'all-40', name: 'OpenAI', description: 'AI language models', icon: Zap, slug: 'openai', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'AI', serviceName: 'openai' },
-    { id: 'all-41', name: 'PayPal', description: 'Payment processing', icon: CreditCard, slug: 'paypal', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Payment' }
+    { id: 'all-41', name: 'PayPal', description: 'Payment processing', icon: CreditCardIcon, slug: 'paypal', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'Payment' }
   ];
 
   // Helper function to safely parse JSON from response
@@ -332,7 +330,7 @@ export function IntegrationsSettings() {
               id: `connected-${serviceName}`,
               name: serviceNameMap[normalizedServiceName] || (normalizedServiceName ? normalizedServiceName.charAt(0).toUpperCase() + normalizedServiceName.slice(1) : 'Unknown Integration'),
               description: 'Connected integration',
-              icon: Plug,
+              icon: Plug01Icon,
               gradient: 'from-gray-500/20 to-slate-500/20',
               iconColor: 'text-gray-400',
               status: 'active',
@@ -616,7 +614,7 @@ export function IntegrationsSettings() {
                     >
                       {disconnectingService === integration.serviceName ? (
                         <>
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          <HugeiconsIcon icon={Loading02Icon} className="h-3 w-3 mr-1 animate-spin" />
                           Disconnecting...
                         </>
                       ) : (
@@ -632,7 +630,7 @@ export function IntegrationsSettings() {
           <div className="rounded-lg border border-stone-200 dark:border-white/20 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-8">
             <div className="flex flex-col items-center justify-center text-center space-y-3">
               <div className="p-3 rounded-full bg-muted/50 dark:bg-gray-500/20">
-                <Plug className="h-6 w-6 text-muted-foreground" />
+                <HugeiconsIcon icon={Plug01Icon} className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-1">No configured integrations</h3>
@@ -700,7 +698,7 @@ export function IntegrationsSettings() {
                     disabled
                     className="w-full justify-center backdrop-blur-xl bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 text-green-700 dark:text-green-400 text-xs py-1.5 h-auto cursor-not-allowed"
                   >
-                    <Check className="h-3 w-3 mr-1.5" />
+                    <HugeiconsIcon icon={Tick01Icon} className="h-3 w-3 mr-1.5" />
                     Connected
                   </Button>
                 ) : integration.serviceName ? (
@@ -709,7 +707,7 @@ export function IntegrationsSettings() {
                     onClick={() => integration.serviceName && handleConnect(integration.serviceName)}
                     className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground text-xs py-1.5 h-auto"
                   >
-                    <Plug className="h-3 w-3 mr-1.5" />
+                    <HugeiconsIcon icon={Plug01Icon} className="h-3 w-3 mr-1.5" />
                     Connect
                 </Button>
                 ) : (
@@ -721,7 +719,7 @@ export function IntegrationsSettings() {
                     }}
                     className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground text-xs py-1.5 h-auto"
                   >
-                    <Clock className="h-3 w-3 mr-1.5" />
+                    <HugeiconsIcon icon={Clock01Icon} className="h-3 w-3 mr-1.5" />
                     Coming Soon
                   </Button>
                 )}

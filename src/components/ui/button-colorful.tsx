@@ -1,6 +1,7 @@
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ArrowUpRight } from "lucide-react";
 
 interface ButtonColorfulProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     label?: string;
@@ -37,7 +38,7 @@ export function ButtonColorful({
             {/* Content */}
             <div className="relative flex items-center justify-center gap-2">
                 <span className="text-zinc-900 dark:text-white">{label}</span>
-                <ArrowUpRight className="w-3.5 h-3.5 text-zinc-900/90 dark:text-white/90" />
+                <HugeiconsIcon icon={ArrowUpRight01Icon} className="w-3.5 h-3.5 text-zinc-900/90 dark:text-white/90" />
             </div>
         </Button>
     );

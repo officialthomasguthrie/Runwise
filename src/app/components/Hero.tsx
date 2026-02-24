@@ -1,14 +1,59 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Marquee from "react-fast-marquee";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { HeroPromptInput } from "@/components/ui/hero-prompt-input";
+import TextType from "@/components/ui/text-type";
+import { createClient } from "@/lib/supabase-client";
 
 export const Hero: React.FC = () => {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleHeroSend = async (message: string) => {
+    // Store prompt so dashboard can pick it up after redirect
+    if (typeof window !== "undefined") {
+      localStorage.setItem("heroPrompt", message);
+    }
+
+    if (user) {
+      // Logged in: create workflow and go directly to workspace
+      try {
+        const supabase = createClient();
+        const { data } = await (supabase as any)
+          .from("workflows")
+          .insert({
+            name: "Untitled Workflow",
+            status: "draft",
+            user_id: user.id,
+            workflow_data: { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } },
+          })
+          .select()
+          .single();
+        if (data?.id) {
+          router.push(`/workspace/${data.id}?prompt=${encodeURIComponent(message)}`);
+          return;
+        }
+      } catch {
+        // fallback
+      }
+      router.push(`/dashboard?prompt=${encodeURIComponent(message)}`);
+    } else {
+      router.push("/signup");
+    }
+  };
+
+  const isLight = mounted && theme !== "dark";
 
   type Brand = {
     src: string;
@@ -30,7 +75,7 @@ export const Hero: React.FC = () => {
 
   return (
     <section
-      className="pt-[180px] px-6 md:px-10 pb-[100px] relative flex flex-col justify-center items-center gap-9 overflow-hidden"
+      className="pt-[130px] px-6 md:px-10 pb-[60px] relative flex flex-col justify-center items-center gap-6 overflow-hidden"
       id="hero"
     >
       {/* Top Content */}
@@ -39,59 +84,45 @@ export const Hero: React.FC = () => {
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
         viewport={{ once: true }}
-        className="flex flex-col items-center gap-y-[15px] relative z-30"
+        className="flex flex-col items-center gap-y-[12px] relative z-30"
       >
-        <div className="border border-[#ffffff30] backdrop-blur-md bg-[#ffffff08] text-white h-[32.8px] w-fit rounded-lg flex items-center px-[13px] text-sm font-light text-center leading-[1.2em] shadow-[0_8px_32px_0_rgba(255,255,255,0.1)]" style={{ borderRadius: '8px' }}>
+        <div className="border border-[#ffffff30] backdrop-blur-md bg-[#ffffff08] text-white h-[28px] w-fit rounded-lg flex items-center px-[11px] text-xs font-light text-center leading-[1.2em] shadow-[0_8px_32px_0_rgba(255,255,255,0.1)]" style={{ borderRadius: '8px' }}>
           Introducing Runwise
         </div>
 
         <div>
-          <h1 className="max-w-[900px] mx-auto text-[35px] md:text-[60px] font-medium -tracking-[.02em] leading-[1.1em] text-center">
+          <h1 className="max-w-[800px] mx-auto text-[30px] md:text-[52px] font-medium -tracking-[.02em] leading-[1.1em] text-center">
             Turn natural language prompts into functional automations
           </h1>
 
-          <p className="max-w-[500px] mx-auto text-[#fffc] text-base md:text-lg font-normal leading-[1.5em] text-center mt-[15px]">
-            Runwise turns plain English prompts into fully functional AI workflows and automations
+          <p className="max-w-[480px] mx-auto text-[#fffc] text-sm md:text-base font-normal leading-[1.5em] text-center mt-[10px]">
+            Runwise is the world's first fully generative no-code workflow builder designed for non-technical teams
           </p>
 
-          <div className="flex items-center justify-center gap-[15px] mt-8">
-            {/* Start Building/Dashboard BTN - Only show after loading completes */}
+          <div className="w-full max-w-2xl mx-auto mt-4">
             {!loading && (
-              <button 
-                onClick={() => {
-                  if (user) {
-                    router.push("/dashboard");
-                  } else if (typeof window !== "undefined") {
-                    window.open("/signup", "_blank", "noopener,noreferrer");
-                  }
-                }}
-                className="border border-[#ffffff1a] bg-[#bd28b3ba] max-w-[140.77px] w-full min-h-[38px] py-2.5 rounded-lg px-[15px] cursor-pointer flex items-center justify-center"
-              >
-                <div className="flex items-center justify-center gap-[5px]">
-                  <p className="text-sm">{user ? "Dashboard" : "Start Building"}</p>
-                  <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" alt="Arrow icon" />
-                </div>
-              </button>
-            )}
-
-            {/* See Plans BTN */}
-            <button 
-              onClick={() => {
-                const pricingSection = document.getElementById("pricing");
-                if (pricingSection) {
-                  const headerOffset = 80;
-                  const elementPosition = pricingSection.getBoundingClientRect().top;
-                  const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                  window.scrollTo({
-                    top: offsetPosition,
-                    behavior: "smooth",
-                  });
+              <HeroPromptInput
+                placeholder={
+                  <TextType
+                    text={[
+                      "Send a welcome email when a user signs up",
+                      "Generate and post social media content every Monday",
+                      "Summarize daily sales data and send to my email",
+                      "Create Slack notifications for new customer feedback",
+                      "Automatically backup database files every week",
+                    ]}
+                    typingSpeed={40}
+                    deletingSpeed={25}
+                    pauseDuration={2000}
+                    loop={true}
+                    showCursor={false}
+                    cursorCharacter="|"
+                  />
                 }
-              }}
-              className="border border-[#ffffff1a] max-w-[93.19px] w-full min-h-[38px] py-2.5 rounded-lg px-[15px] cursor-pointer flex items-center justify-center"
-            >
-              <span className="text-sm">See Plans</span>
-            </button>
+                onSend={handleHeroSend}
+                className="w-full"
+              />
+            )}
           </div>
         </div>
       </motion.div>
@@ -110,12 +141,16 @@ export const Hero: React.FC = () => {
               <div key={`${brand.src}-${index}`} className="flex items-center gap-2.5 mr-12">
                 <img
                   src={brand.src}
-                  className="h-6 object-contain brightness-0 invert opacity-90"
+                  className={`h-6 object-contain brightness-0 ${
+                    isLight ? "opacity-45" : "invert opacity-90"
+                  }`}
                   loading="lazy"
                   alt={brand.name}
                 />
                 <span 
-                  className="text-white text-sm font-medium whitespace-nowrap"
+                  className={`text-sm font-medium whitespace-nowrap ${
+                    isLight ? "text-black/45" : "text-white"
+                  }`}
                   style={{ fontFamily: brand.fontFamily }}
                 >
                   {brand.name}
@@ -129,10 +164,10 @@ export const Hero: React.FC = () => {
       {/* Right & Left Gradients */}
       <motion.div
         initial={{ opacity: 0, x: 40 }}
-        whileInView={{ opacity: 0.55, x: 0 }}
+        whileInView={{ opacity: isLight ? 0.32 : 0.55, x: 0 }}
         transition={{ duration: 1, ease: "easeOut" }}
         viewport={{ once: true }}
-        className="z-10 w-[1085px] h-[184px] absolute bottom-[30px] -right-[46px] overflow-hidden blur-[60px]"
+        className={`z-10 w-[1085px] h-[184px] absolute bottom-[30px] -right-[46px] overflow-hidden blur-[60px] ${isLight ? "saturate-[0.85]" : ""}`}
         aria-hidden="true"
       >
         <img src="/assets/img1.svg" className="w-full h-full" alt="" />
@@ -140,10 +175,10 @@ export const Hero: React.FC = () => {
 
       <motion.div
         initial={{ opacity: 0, x: -40 }}
-        whileInView={{ opacity: 0.55, x: 0 }}
+        whileInView={{ opacity: isLight ? 0.32 : 0.55, x: 0 }}
         transition={{ duration: 1, ease: "easeOut" }}
         viewport={{ once: true }}
-        className="z-10 w-[1085px] h-[184px] absolute top-[30px] -left-[46px] overflow-hidden blur-[60px]"
+        className={`z-10 w-[1085px] h-[184px] absolute top-[30px] -left-[46px] overflow-hidden blur-[60px] ${isLight ? "saturate-[0.85]" : ""}`}
         aria-hidden="true"
       >
         <img src="/assets/img2.svg" className="w-full h-full" alt="" />

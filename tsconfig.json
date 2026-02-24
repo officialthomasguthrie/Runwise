@@ -37,6 +37,7 @@
   ],
   "exclude": [
     "node_modules",
-    "cloudflare-worker"
+    "cloudflare-worker",
+    "hugeicons-migrate-backup-2026-02-23T01-17-07-075Z"
   ]
 }

@@ -74,13 +74,19 @@ export async function configureNodes(
         // "All data" from this node is always available
         vars.push(`{{inputData}} — all output from "${upstreamLabel}"`);
 
-        // Specific output fields from registry
+        // Specific output fields from registry (library nodes) or metadata (custom nodes)
         if (upstreamNodeId && upstreamNodeId !== 'CUSTOM_GENERATED') {
           const def = getNodeById(upstreamNodeId);
           if (def?.outputs && def.outputs.length > 0) {
             for (const output of def.outputs) {
               vars.push(`{{inputData.${output.name}}} — "${output.name}" from "${upstreamLabel}"`);
             }
+          }
+        } else if (upstreamNodeId === 'CUSTOM_GENERATED') {
+          // Custom nodes declare their outputs in metadata.outputs (set by code-generation step)
+          const declaredOutputs: string[] = upstreamNodeData?.metadata?.outputs ?? [];
+          for (const field of declaredOutputs) {
+            vars.push(`{{inputData.${field}}} — "${field}" from "${upstreamLabel}"`);
           }
         }
       }

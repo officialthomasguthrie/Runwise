@@ -1,7 +1,8 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Cancel01Icon, Loading02Icon } from "@hugeicons/core-free-icons";
 import * as React from 'react';
-import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
 
 export interface IntegrationFieldConfig {
   key: string;
@@ -201,7 +201,7 @@ export function ConnectIntegrationModal({
             className="text-gray-400 hover:text-gray-600 transition-colors p-1 -mt-1 -mr-1"
             aria-label="Close"
           >
-            <X className="h-5 w-5" />
+            <HugeiconsIcon icon={Cancel01Icon} className="h-5 w-5" />
           </button>
         </div>
 
@@ -323,7 +323,7 @@ export function ConnectIntegrationModal({
           >
             {isConnecting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin" />
                 Connecting...
               </>
             ) : (
@@ -416,7 +416,7 @@ export function ConnectIntegrationModal({
             className="text-gray-400 hover:text-gray-600 transition-colors p-1 -mt-1 -mr-1"
             aria-label="Close"
           >
-            <X className="h-5 w-5" />
+            <HugeiconsIcon icon={Cancel01Icon} className="h-5 w-5" />
           </button>
         </div>
 
@@ -538,7 +538,7 @@ export function ConnectIntegrationModal({
           >
             {isConnecting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin" />
                 Connecting...
               </>
             ) : (

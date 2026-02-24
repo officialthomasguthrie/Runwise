@@ -1,15 +1,25 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { UserIcon } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter, usePathname } from "next/navigation";
-import { User } from "lucide-react";
+import { useTheme } from "next-themes";
 
 export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("");
+  const [mounted, setMounted] = useState(false);
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isLight = mounted && theme !== "dark";
   
   // Always call hooks unconditionally (React rules)
   const { user, loading } = useAuth();
@@ -151,12 +161,20 @@ export const Header: React.FC = () => {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 w-full h-auto overflow-hidden" style={{ borderRadius: '8px' }}>
         <nav
-          className={`px-5 md:px-10 py-4 md:py-5 flex relative overflow-hidden items-center transition-all duration-300 bg-black md:bg-transparent border-b md:border-none border-[#ffffff1a] rounded-lg`}
+          className={`px-5 md:px-10 py-4 md:py-5 flex relative overflow-hidden items-center transition-all duration-300 md:bg-transparent border-b md:border-none rounded-lg ${
+            isLight
+              ? "bg-stone-100 border-black/10"
+              : "bg-black border-[#ffffff1a]"
+          }`}
           style={{ borderRadius: '8px' }}
         >
           <div
-            className={`w-full mx-auto flex-1 md:py-2.5 md:px-4.5 relative overflow-visible transition-all duration-500 ease-in-out md:border border-[#ffffff1a] rounded-lg bg-black/50 md:backdrop-blur-[10px] ${
+            className={`w-full mx-auto flex-1 md:py-2.5 md:px-4.5 relative overflow-visible transition-all duration-500 ease-in-out md:border rounded-lg md:backdrop-blur-[20px] ${
               isScrolled ? "max-w-[642px]" : "max-w-[1200px]"
+            } ${
+              isLight
+                ? "md:border-black/10 bg-white/60 md:bg-white/50 md:shadow-[0_4px_24px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)]"
+                : "md:border-[#ffffff1a] bg-black/50"
             }`}
             style={{ borderRadius: '8px' }}
           >
@@ -170,10 +188,10 @@ export const Header: React.FC = () => {
                 onClick={handleLogoClick}
               >
                 <img
-                  src="/assets/runwise-logo.avif"
+                  src={isLight ? "/runwise-logo-light.png" : "/runwise-logo-dark.png"}
                   alt="runwise logo"
                   loading="lazy"
-                  className="h-full w-full object-cover hidden md:block"
+                  className="h-full w-full object-contain hidden md:block"
                 />
 
                 <img
@@ -191,9 +209,13 @@ export const Header: React.FC = () => {
                     key={link.name}
                     href={link.href}
                     className={`rounded py-[5px] px-2 relative text-sm font-normal leading-[1.2em] transition-all duration-300 ${
-                      activeSection === link.href.replace("#", "")
-                        ? "bg-[#ffffff1a]"
-                        : "hover:bg-[#ffffff1a]"
+                      isLight
+                        ? activeSection === link.href.replace("#", "")
+                          ? "bg-black/8 text-gray-900"
+                          : "hover:bg-black/6 text-gray-700"
+                        : activeSection === link.href.replace("#", "")
+                          ? "bg-[#ffffff1a]"
+                          : "hover:bg-[#ffffff1a]"
                     }`}
                     onClick={(event) => handleNavClick(event, link.href)}
                   >
@@ -213,8 +235,12 @@ export const Header: React.FC = () => {
                         router.push("/login");
                       }
                     }}
-                    className={`border border-[#ffffff30] bg-transparent text-white rounded-lg cursor-pointer flex items-center justify-center ${
+                    className={`rounded-lg cursor-pointer flex items-center justify-center ${
                       isScrolled ? "h-[34px] w-[34px]" : "h-[38px] px-4"
+                    } ${
+                      isLight
+                        ? "border border-black/15 bg-transparent text-gray-800"
+                        : "border border-[#ffffff30] bg-transparent text-white"
                     }`}
                   >
                     {!isScrolled && (
@@ -223,7 +249,7 @@ export const Header: React.FC = () => {
                       </span>
                     )}
                     {isScrolled && (
-                      <User className="w-4 h-4" />
+                      <HugeiconsIcon icon={UserIcon} className="w-4 h-4" />
                     )}
                   </button>
                 )}
@@ -279,19 +305,25 @@ export const Header: React.FC = () => {
                 <div className="relative w-5 h-5">
                   {/* Hamburger bars / Close X - same position */}
                   <span
-                    className={`absolute top-0 left-1/2 -translate-x-1/2 w-[27px] h-[2px] bg-white transition-all duration-300 ease-in-out ${
+                    className={`absolute top-0 left-1/2 -translate-x-1/2 w-[27px] h-[2px] transition-all duration-300 ease-in-out ${
+                      isLight ? "bg-gray-800" : "bg-white"
+                    } ${
                       isMenuOpen
                         ? "rotate-45 top-1/2 -translate-y-1/2"
                         : "top-0"
                     }`}
                   />
                   <span
-                    className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[27px] h-[2px] bg-white transition-all duration-300 ease-in-out ${
+                    className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[27px] h-[2px] transition-all duration-300 ease-in-out ${
+                      isLight ? "bg-gray-800" : "bg-white"
+                    } ${
                       isMenuOpen ? "opacity-0" : "opacity-100"
                     }`}
                   />
                   <span
-                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-[27px] h-[2px] bg-white transition-all duration-300 ease-in-out ${
+                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-[27px] h-[2px] transition-all duration-300 ease-in-out ${
+                      isLight ? "bg-gray-800" : "bg-white"
+                    } ${
                       isMenuOpen
                         ? "-rotate-45 top-1/2 -translate-y-1/2"
                         : "bottom-0"
@@ -306,7 +338,9 @@ export const Header: React.FC = () => {
 
       {/* Mobile Menu */}
       <div
-        className={`fixed left-0 right-0 z-50 bg-black transition-all duration-500 ease-in-out md:hidden ${
+        className={`fixed left-0 right-0 z-50 transition-all duration-500 ease-in-out md:hidden ${
+          isLight ? "bg-stone-50/95 backdrop-blur-xl" : "bg-black"
+        } ${
           isMenuOpen
             ? "top-[64px] opacity-100 visible translate-y-0"
             : "top-[64px] opacity-0 invisible pointer-events-none -translate-y-full"
@@ -319,9 +353,13 @@ export const Header: React.FC = () => {
                 key={link.name}
                 href={link.href}
                 className={`rounded py-[5px] px-2 relative text-sm font-normal leading-[1.2em] transition-all duration-300 ${
-                  activeSection === link.href.replace("#", "")
-                    ? "bg-[#ffffff1a]"
-                    : "hover:bg-[#ffffff1a]"
+                  isLight
+                    ? activeSection === link.href.replace("#", "")
+                      ? "bg-black/8 text-gray-900"
+                      : "hover:bg-black/6 text-gray-700"
+                    : activeSection === link.href.replace("#", "")
+                      ? "bg-[#ffffff1a]"
+                      : "hover:bg-[#ffffff1a]"
                 }`}
                 onClick={(event) => {
                       handleNavClick(event, link.href);
@@ -345,7 +383,11 @@ export const Header: React.FC = () => {
                   }
                   closeMenu();
                 }}
-                className="w-full border border-[#ffffff30] bg-transparent text-white rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center"
+                className={`w-full rounded-lg py-2.5 px-4 cursor-pointer flex items-center justify-center ${
+                  isLight
+                    ? "border border-black/15 bg-transparent text-gray-800"
+                    : "border border-[#ffffff30] bg-transparent text-white"
+                }`}
               >
                 <span className="text-sm font-normal leading-[1.2em]">
                   Login

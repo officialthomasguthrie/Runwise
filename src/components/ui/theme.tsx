@@ -1,18 +1,9 @@
 "use client"
 
+import { Check, ChevronDown, Leaf, Monitor, Moon, Sun, Sunset, Waves } from "lucide-react";
 import React, { useEffect, useState } from "react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AnimatePresence, motion } from "framer-motion"
-import {
-  Check,
-  ChevronDown,
-  Monitor,
-  Moon, 
-  Sun,
-  Sunset,
-  Trees,
-  Waves,
-} from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { cn } from "@/lib/utils"
@@ -30,7 +21,7 @@ const themeIcons = {
   system: Monitor,
   sunset: Sunset,
   ocean: Waves,
-  forest: Trees,
+  forest: Leaf,
 }
 
 export type ThemeToggleVariant =
@@ -155,15 +146,9 @@ export function Theme({
             transition={{ duration: 0.3 }}
           >
             {isLight ? (
-              <Sun
-                size={size === "sm" ? 10 : size === "md" ? 12 : 14}
-                className="text-yellow-500"
-              />
+              <Sun size={size === "sm" ? 10 : size === "md" ? 12 : 14} className="text-yellow-500" />
             ) : (
-              <Moon
-                size={size === "sm" ? 10 : size === "md" ? 12 : 14}
-                className="text-slate-700"
-              />
+              <Moon size={size === "sm" ? 10 : size === "md" ? 12 : 14} className="text-slate-700" />
             )}
           </motion.div>
         </motion.div>

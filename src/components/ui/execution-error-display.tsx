@@ -1,10 +1,5 @@
-/**
- * Execution Error Display Component
- * Displays normalized errors with severity levels and collapsible technical details
- */
-
+import { AlertTriangle, ChevronDown, ChevronUp, Info, XCircle } from "lucide-react";
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, AlertCircle, AlertTriangle, Info, XCircle } from 'lucide-react';
 import type { ExecutionError } from '@/lib/workflow-execution/error-normalization';
 
 interface ExecutionErrorDisplayProps {

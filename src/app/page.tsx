@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { SmoothScroll } from "@/components/ui/smooth-scroll";
 import { Benefits } from "./components/Benefits";
 import { FAQ } from "./components/FAQ";
 import { Footer } from "./components/Footer";
@@ -115,6 +116,7 @@ export default function Home() {
       />
       
       <main className="landing-page">
+        <SmoothScroll />
         <Header />
         <Hero />
         <WhoWeAre />

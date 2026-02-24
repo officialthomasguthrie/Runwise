@@ -184,7 +184,8 @@ Example 1: Fetch crypto price — public API, all params in config (CORRECT)
         {"value": "eth", "label": "ETH (Ξ)"}
       ]
     }
-  }
+  },
+  "outputs": ["cryptoId", "currency", "price", "formattedPrice", "timestamp"]
 }
 
 Example 2: Get weather — API key in config (OpenWeather is NOT a built-in integration)
@@ -302,6 +303,15 @@ Example 5: Create GitHub issue — integration auth + integration-dependent fiel
 }
 
 ════════════════════════════════════════════════════
+OUTPUTS DECLARATION (REQUIRED)
+════════════════════════════════════════════════════
+You MUST also declare what fields your code returns in an "outputs" array.
+- List every top-level key your return object contains (besides "success" and "error")
+- These field names will be shown to users in downstream nodes as available variables
+- Example: if you return { success: true, price: 1234, currency: "usd", timestamp: "..." }
+  → outputs: ["price", "currency", "timestamp"]
+- Be specific and accurate — these become the {{inputData.fieldName}} references users see
+
 VALIDATION CHECKLIST (apply before returning)
 ════════════════════════════════════════════════════
 Before generating your JSON output, verify:
@@ -313,8 +323,9 @@ Before generating your JSON output, verify:
 ☑ Integration resource fields have serviceName + resourceType
 ☑ code is wrapped in try/catch
 ☑ Return value has success: true/false
+☑ outputs array lists every field returned (excluding success/error)
 
-Return ONLY a JSON object with "customCode" and "configSchema" keys.`;
+Return ONLY a JSON object with "customCode", "configSchema", and "outputs" keys.`;
 
       // Build user message with node requirements
       const userMessage = `Generate custom code for a workflow node with these requirements:
@@ -355,7 +366,7 @@ Remember: configSchema MUST have at least 1 field. Use config.* for every parame
       }
 
       // Parse JSON response
-      let codeResult: { customCode?: string; configSchema?: Record<string, any> };
+      let codeResult: { customCode?: string; configSchema?: Record<string, any>; outputs?: string[] };
       try {
         codeResult = JSON.parse(attempt1.content);
       } catch (parseError) {
@@ -405,7 +416,7 @@ Regenerate both customCode and configSchema now.`;
 
         if (attempt2.content) {
           try {
-            const retryResult = JSON.parse(attempt2.content);
+            const retryResult: { customCode?: string; configSchema?: Record<string, any>; outputs?: string[] } = JSON.parse(attempt2.content);
             if (retryResult.customCode && typeof retryResult.customCode === 'string') {
               codeResult = retryResult;
               console.log(`[Code Generation] Retry succeeded for node ${node.id}, configSchema keys: ${Object.keys(retryResult.configSchema || {}).join(', ')}`);
@@ -507,6 +518,15 @@ Regenerate both customCode and configSchema now.`;
         nodeDataUpdate.metadata = {};
       }
       nodeDataUpdate.metadata.generatedBy = 'ai';
+
+      // Persist declared output fields so downstream nodes can reference them
+      // as available {{inputData.fieldName}} variables.
+      if (Array.isArray(codeResult.outputs) && codeResult.outputs.length > 0) {
+        nodeDataUpdate.metadata.outputs = codeResult.outputs.filter(
+          (f: any) => typeof f === 'string' && f.length > 0
+        );
+        console.log(`[Code Generation] Node ${node.id} declares outputs: ${nodeDataUpdate.metadata.outputs.join(', ')}`);
+      }
     }
 
     // Return updated workflow

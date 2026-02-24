@@ -1,10 +1,10 @@
 'use client';
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeft01Icon, ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 import { Suspense, useEffect, useMemo, useState, FormEvent, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
-
 type Status = 'loading' | 'ready' | 'submitting' | 'signed-in' | 'error';
 
 // Glass input wrapper component matching signup page
@@ -196,7 +196,7 @@ function CheckoutSuccessContent() {
         onClick={handleGoBack}
         className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground rounded-lg backdrop-blur-sm"
       >
-        <ArrowLeft className="w-3 h-3" />
+        <HugeiconsIcon icon={ArrowLeft01Icon} className="w-3 h-3" />
         Go Back
       </button>
 
@@ -283,9 +283,9 @@ function CheckoutSuccessContent() {
                         className="absolute inset-y-0 right-1.5 flex items-center"
                       >
                         {showPassword ? (
-                          <EyeOff className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
+                          <HugeiconsIcon icon={ViewOffIcon} className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
                         ) : (
-                          <Eye className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
+                          <HugeiconsIcon icon={ViewIcon} className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
                         )}
                       </button>
                     </div>

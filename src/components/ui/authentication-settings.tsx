@@ -1,10 +1,11 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Add01Icon, Cancel01Icon, Delete02Icon, FloppyDiskIcon, Loading02Icon, LockIcon, Mail01Icon, Tick01Icon, ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase-client";
 import { useTheme } from "next-themes";
-import { Mail, Lock, Check, X, Plus, Trash2, Eye, EyeOff, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -220,7 +221,7 @@ export function AuthenticationSettings() {
   const getProviderIcon = (provider: string) => {
     switch (provider) {
       case 'email':
-        return <Mail className="h-5 w-5" />;
+        return <HugeiconsIcon icon={Mail01Icon} className="h-5 w-5" />;
       case 'google':
         return (
           <img 
@@ -238,7 +239,7 @@ export function AuthenticationSettings() {
           />
         );
       default:
-        return <Lock className="h-5 w-5" />;
+        return <HugeiconsIcon icon={LockIcon} className="h-5 w-5" />;
     }
   };
 
@@ -448,7 +449,7 @@ export function AuthenticationSettings() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
-                    <Check className="h-3 w-3" />
+                    <HugeiconsIcon icon={Tick01Icon} className="h-3 w-3" />
                     <span>Connected</span>
                   </div>
                   {!method.isPrimary && (
@@ -458,7 +459,7 @@ export function AuthenticationSettings() {
                       onClick={() => handleUnlinkClick(method)}
                       className="h-8 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
-                      <Trash2 className="h-3 w-3 mr-1" />
+                      <HugeiconsIcon icon={Delete02Icon} className="h-3 w-3 mr-1" />
                       Unlink
                     </Button>
                   )}
@@ -490,7 +491,7 @@ export function AuthenticationSettings() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-semibold text-foreground">Google</h4>
-                      <Plus className="h-3 w-3 text-muted-foreground" />
+                      <HugeiconsIcon icon={Add01Icon} className="h-3 w-3 text-muted-foreground" />
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Sign in with your Google account
@@ -516,7 +517,7 @@ export function AuthenticationSettings() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-semibold text-foreground">Microsoft</h4>
-                      <Plus className="h-3 w-3 text-muted-foreground" />
+                      <HugeiconsIcon icon={Add01Icon} className="h-3 w-3 text-muted-foreground" />
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Sign in with your Microsoft account
@@ -554,13 +555,13 @@ export function AuthenticationSettings() {
                     placeholder="Enter current password"
                     className="pl-10 pr-10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-0 focus-visible:border-stone-400 dark:focus-visible:border-white/40 focus-visible:bg-white/60 dark:focus-visible:bg-zinc-900/60 transition-all duration-300 placeholder:text-muted-foreground/70"
                   />
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
+                  <HugeiconsIcon icon={LockIcon} className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
                   <button
                     type="button"
                     onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground/60 hover:text-foreground"
                   >
-                    {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPasswords.current ? <HugeiconsIcon icon={ViewOffIcon} className="h-4 w-4" /> : <HugeiconsIcon icon={ViewIcon} className="h-4 w-4" />}
                   </button>
                 </div>
                 {passwordErrors.currentPassword && (
@@ -581,13 +582,13 @@ export function AuthenticationSettings() {
                     placeholder="Enter new password (min. 8 characters)"
                     className="pl-10 pr-10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-0 focus-visible:border-stone-400 dark:focus-visible:border-white/40 focus-visible:bg-white/60 dark:focus-visible:bg-zinc-900/60 transition-all duration-300 placeholder:text-muted-foreground/70"
                   />
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
+                  <HugeiconsIcon icon={LockIcon} className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
                   <button
                     type="button"
                     onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground/60 hover:text-foreground"
                   >
-                    {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPasswords.new ? <HugeiconsIcon icon={ViewOffIcon} className="h-4 w-4" /> : <HugeiconsIcon icon={ViewIcon} className="h-4 w-4" />}
                   </button>
                 </div>
                 {passwordErrors.newPassword && (
@@ -608,13 +609,13 @@ export function AuthenticationSettings() {
                     placeholder="Confirm new password"
                     className="pl-10 pr-10 backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border-stone-200 dark:border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-0 focus-visible:border-stone-400 dark:focus-visible:border-white/40 focus-visible:bg-white/60 dark:focus-visible:bg-zinc-900/60 transition-all duration-300 placeholder:text-muted-foreground/70"
                   />
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
+                  <HugeiconsIcon icon={LockIcon} className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/60 dark:text-foreground/60 z-10 pointer-events-none" />
                   <button
                     type="button"
                     onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground/60 hover:text-foreground"
                   >
-                    {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPasswords.confirm ? <HugeiconsIcon icon={ViewOffIcon} className="h-4 w-4" /> : <HugeiconsIcon icon={ViewIcon} className="h-4 w-4" />}
                   </button>
                 </div>
                 {passwordErrors.confirmPassword && (
@@ -631,17 +632,17 @@ export function AuthenticationSettings() {
                 >
                   {isChangingPassword ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 mr-2 animate-spin" />
                       Changing...
                     </>
                   ) : passwordChangeStatus === 'success' ? (
                     <>
-                      <Check className="h-4 w-4 mr-2" />
+                      <HugeiconsIcon icon={Tick01Icon} className="h-4 w-4 mr-2" />
                       Password Changed
                     </>
                   ) : (
                     <>
-                      <Save className="h-4 w-4 mr-2" />
+                      <HugeiconsIcon icon={FloppyDiskIcon} className="h-4 w-4 mr-2" />
                       Change Password
                     </>
                   )}

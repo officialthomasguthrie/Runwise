@@ -990,3 +990,110 @@ input:-webkit-autofill:active {
 .mention-token-x:hover {
   opacity: 0.9;
 }
+
+/* ============================================================
+   LANDING PAGE – LIGHT MODE
+   Overrides the dark defaults when `.dark` is NOT on <html>.
+   Purple/gradient elements are explicitly preserved.
+   ============================================================ */
+
+/* Page + body background */
+html:not(.dark):has(main.landing-page),
+html:not(.dark):has(main.landing-page) body {
+  background-color: #f5f3ef !important;
+}
+
+html:not(.dark) main.landing-page {
+  background-color: #f5f3ef !important;
+  color: #1a1a1a !important;
+}
+
+/* ── Section / footer backgrounds ───────────────────────── */
+html:not(.dark) main.landing-page section,
+html:not(.dark) main.landing-page footer {
+  background-color: transparent !important;
+}
+
+/* ── Explicit background overrides ──────────────────────── */
+html:not(.dark) main.landing-page .bg-black {
+  background-color: #f5f3ef !important;
+}
+html:not(.dark) main.landing-page .bg-black\/50 {
+  background-color: rgba(245,243,239,0.6) !important;
+}
+html:not(.dark) main.landing-page .bg-\[\#0d0d0d\] {
+  background-color: #e8e5de !important;
+}
+html:not(.dark) main.landing-page .bg-\[\#ffffff0f\] {
+  background-color: rgba(0,0,0,0.05) !important;
+}
+html:not(.dark) main.landing-page .bg-\[\#ffffff14\] {
+  background-color: rgba(0,0,0,0.07) !important;
+}
+html:not(.dark) main.landing-page .bg-\[\#ffffff08\] {
+  background-color: rgba(0,0,0,0.03) !important;
+}
+
+/* ── Border overrides ────────────────────────────────────── */
+html:not(.dark) main.landing-page .border-\[\#ffffff1a\] {
+  border-color: rgba(0,0,0,0.1) !important;
+}
+html:not(.dark) main.landing-page .border-\[\#ffffff30\] {
+  border-color: rgba(0,0,0,0.18) !important;
+}
+
+/* ── Text colour overrides ───────────────────────────────── */
+html:not(.dark) main.landing-page .text-white {
+  color: #1a1a1a !important;
+}
+html:not(.dark) main.landing-page .hover\:text-white:hover {
+  color: #000000 !important;
+}
+html:not(.dark) main.landing-page .text-\[\#ffffffb3\],
+html:not(.dark) main.landing-page .text-\[\#ffffffB3\] {
+  color: rgba(0,0,0,0.5) !important;
+}
+html:not(.dark) main.landing-page .text-\[\#ffffffcc\] {
+  color: rgba(0,0,0,0.6) !important;
+}
+html:not(.dark) main.landing-page .text-\[\#ffffff80\] {
+  color: rgba(0,0,0,0.38) !important;
+}
+html:not(.dark) main.landing-page .text-\[\#fffc\] {
+  color: rgba(0,0,0,0.55) !important;
+}
+
+/* ── Component-specific icon overrides ──────────────────────── */
+
+/* Footer social icons (x, instagram, discord) → gray */
+html:not(.dark) main.landing-page footer img[src*="/assets/icons/"] {
+  filter: brightness(0) opacity(0.45);
+}
+
+/* FAQ dropdown arrow → dark */
+html:not(.dark) main.landing-page img[src*="down-arrow"] {
+  filter: brightness(0) opacity(0.7);
+}
+
+/* Pricing plan header icons (inside bg-[#ffffff14] boxes) → dark gray */
+html:not(.dark) main.landing-page .bg-\[\#ffffff14\] img {
+  filter: brightness(0) opacity(0.55);
+}
+
+/* Benefits section icons (inside bg-white/20 boxes) → dark gray */
+html:not(.dark) main.landing-page .bg-white\/20 img {
+  filter: brightness(0) opacity(0.55);
+}
+
+/* ── Restore white text/bg inside purple / gradient elements ─ */
+html:not(.dark) main.landing-page .bg-\[\#bd28b3ba\],
+html:not(.dark) main.landing-page .bg-\[\#bd28b3ba\] *,
+html:not(.dark) main.landing-page .bg-\[\#bd28b3ba\] span,
+html:not(.dark) main.landing-page .bg-\[\#bd28b3ba\] p {
+  color: white !important;
+}
+/* The "Start Building" CTA uses a gradient class */
+html:not(.dark) main.landing-page .start-building-btn,
+html:not(.dark) main.landing-page .start-building-btn * {
+  color: white !important;
+}

@@ -1,12 +1,12 @@
 "use client";
 
+import { ArrowRight, ExternalLink, FileText, MessageCircle, Video } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, MessageCircle, Video, FileText, HelpCircle, Search, ChevronRight, ExternalLink } from "lucide-react";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
 
@@ -61,7 +61,7 @@ export default function HelpCenterPage() {
                         className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
                       >
                         <span>Read Guide</span>
-                        <ChevronRight className="w-4 h-4 ml-2" />
+                        <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
                   </div>
@@ -77,7 +77,7 @@ export default function HelpCenterPage() {
                         className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
                       >
                         <span>Watch Videos</span>
-                        <ChevronRight className="w-4 h-4 ml-2" />
+                        <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
                   </div>
@@ -93,7 +93,7 @@ export default function HelpCenterPage() {
                         className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
                       >
                         <span>Start Chat</span>
-                        <ChevronRight className="w-4 h-4 ml-2" />
+                        <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
                   </div>
@@ -134,7 +134,7 @@ export default function HelpCenterPage() {
                         className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
                       >
                         <span>Browse FAQ</span>
-                        <ChevronRight className="w-4 h-4 ml-2" />
+                        <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
                   </div>
@@ -150,7 +150,7 @@ export default function HelpCenterPage() {
                         className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground"
                       >
                         <span>Search</span>
-                        <ChevronRight className="w-4 h-4 ml-2" />
+                        <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
                   </div>

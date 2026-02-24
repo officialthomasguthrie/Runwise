@@ -1,9 +1,10 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Delete02Icon, Loading02Icon } from "@hugeicons/core-free-icons";
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase-client';
-import { Loader2, Trash2 } from 'lucide-react';
 import type { Database } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -178,7 +179,7 @@ type WorkflowSettingsUpdate = Pick<
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <HugeiconsIcon icon={Loading02Icon} className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -334,7 +335,7 @@ type WorkflowSettingsUpdate = Pick<
                     disabled={isSaving}
                     className="gap-2"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <HugeiconsIcon icon={Delete02Icon} className="h-4 w-4" />
                     Delete
                   </Button>
                 </div>
@@ -346,7 +347,7 @@ type WorkflowSettingsUpdate = Pick<
           {isSaving && (
             <div className="flex justify-end pt-4 border-t border-border">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin" />
                 <span>Saving...</span>
               </div>
             </div>

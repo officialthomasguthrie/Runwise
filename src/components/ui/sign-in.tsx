@@ -1,5 +1,6 @@
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeft01Icon, ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 import React, { useState } from 'react';
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { ForgotPasswordModal } from './forgot-password-modal';
 
 // --- HELPER COMPONENTS (ICONS) ---
@@ -83,7 +84,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
           onClick={onGoBack}
           className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground rounded-lg backdrop-blur-sm"
         >
-          <ArrowLeft className="w-3 h-3" />
+          <HugeiconsIcon icon={ArrowLeft01Icon} className="w-3 h-3" />
           Go Back
         </button>
       )}
@@ -109,7 +110,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                   <div className="relative" suppressHydrationWarning={true}>
                     <input name="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" autoComplete="new-password" className="w-full bg-transparent text-xs p-1.5 pr-7 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-1.5 flex items-center">
-                      {showPassword ? <EyeOff className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />}
+                      {showPassword ? <HugeiconsIcon icon={ViewOffIcon} className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" /> : <HugeiconsIcon icon={ViewIcon} className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />}
                     </button>
                   </div>
                 </GlassInputWrapper>

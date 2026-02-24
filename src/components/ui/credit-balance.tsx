@@ -1,8 +1,9 @@
 'use client';
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AlertCircleIcon, Coins01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { Coins, AlertCircle } from 'lucide-react';
 
 interface CreditBalance {
   balance: number;
@@ -59,7 +60,7 @@ export function CreditBalance() {
   if (loading) {
     return (
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background/50 border border-border">
-        <Coins className="w-4 h-4 text-muted-foreground animate-pulse" />
+        <HugeiconsIcon icon={Coins01Icon} className="w-4 h-4 text-muted-foreground animate-pulse" />
         <span className="text-xs text-muted-foreground">Loading...</span>
       </div>
     );
@@ -68,7 +69,7 @@ export function CreditBalance() {
   if (error || !creditData) {
     return (
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20">
-        <AlertCircle className="w-4 h-4 text-destructive" />
+        <HugeiconsIcon icon={AlertCircleIcon} className="w-4 h-4 text-destructive" />
         <span className="text-xs text-destructive">Error loading credits</span>
       </div>
     );
@@ -82,7 +83,7 @@ export function CreditBalance() {
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background/50 border border-border hover:bg-background/70 transition-colors">
-      <Coins className={`w-4 h-4 ${isVeryLow ? 'text-destructive' : isLow ? 'text-yellow-500' : 'text-foreground'}`} />
+      <HugeiconsIcon icon={Coins01Icon} className={`w-4 h-4 ${isVeryLow ? 'text-destructive' : isLow ? 'text-yellow-500' : 'text-foreground'}`} />
       <div className="flex flex-col">
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-medium text-foreground">

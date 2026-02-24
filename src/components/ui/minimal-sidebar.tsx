@@ -1,22 +1,10 @@
 "use client";
 
+import { BarChart2, ChevronLeft, ChevronRight, FileText, HelpCircle, History, LayoutDashboard, MessageSquare, Plug, Settings, Workflow } from "lucide-react";
 import React, { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import {
-  LayoutDashboard,
-  Workflow,
-  History,
-  Settings,
-  Plug,
-  MessageSquare,
-  HelpCircle,
-  FileText,
-  BarChart3,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -31,7 +19,7 @@ const navItems: NavItem[] = [
   { label: "Runs", href: "/runs", icon: History },
   { label: "Integrations", href: "/integrations", icon: Plug },
   { label: "Templates", href: "/templates", icon: FileText },
-  { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "Analytics", href: "/analytics", icon: BarChart2 },
   { label: "Feedback", href: "/feedback", icon: MessageSquare },
   { label: "Help", href: "/help", icon: HelpCircle },
   { label: "Settings", href: "/settings", icon: Settings },

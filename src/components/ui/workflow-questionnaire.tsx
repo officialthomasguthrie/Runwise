@@ -1,7 +1,8 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeft01Icon, ArrowRight01Icon, Loading02Icon, Tick01Icon } from "@hugeicons/core-free-icons";
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronRight, ChevronLeft, Check, Loader2 } from 'lucide-react';
 import type { ClarificationQuestion, QuestionnaireAnswer } from '@/lib/ai/types';
 
 interface WorkflowQuestionnaireProps {
@@ -128,7 +129,7 @@ export const WorkflowQuestionnaire: React.FC<WorkflowQuestionnaireProps> = ({
       <div className="px-1 py-3">
         <div className="rounded-xl border border-stone-200/80 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] backdrop-blur-sm p-4">
           <div className="flex items-center gap-2.5 text-sm text-foreground/70">
-            <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
+            <HugeiconsIcon icon={Loading02Icon} className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
             <span>Building your workflow...</span>
           </div>
         </div>
@@ -255,7 +256,7 @@ export const WorkflowQuestionnaire: React.FC<WorkflowQuestionnaireProps> = ({
                           }`}
                         >
                           {isSelected && (
-                            <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                            <HugeiconsIcon icon={Tick01Icon} className="w-2.5 h-2.5 text-white" strokeWidth={3} />
                           )}
                         </div>
                         <span>{option}</span>
@@ -295,7 +296,7 @@ export const WorkflowQuestionnaire: React.FC<WorkflowQuestionnaireProps> = ({
               disabled={isAnimating}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 text-foreground/50 hover:text-foreground/80 hover:bg-stone-100/60 dark:hover:bg-white/5 active:scale-[0.97] disabled:opacity-40"
             >
-              <ChevronLeft className="h-3 w-3" />
+              <HugeiconsIcon icon={ArrowLeft01Icon} className="h-3 w-3" />
               <span>Back</span>
             </button>
           ) : (
@@ -313,18 +314,18 @@ export const WorkflowQuestionnaire: React.FC<WorkflowQuestionnaireProps> = ({
           >
             {isGenerating ? (
               <>
-                <Loader2 className="h-3 w-3 animate-spin" />
+                <HugeiconsIcon icon={Loading02Icon} className="h-3 w-3 animate-spin" />
                 <span>Building...</span>
               </>
             ) : isLastQuestion ? (
               <>
                 <span>Build Workflow</span>
-                <Check className="h-3 w-3" />
+                <HugeiconsIcon icon={Tick01Icon} className="h-3 w-3" />
               </>
             ) : (
               <>
                 <span>Next</span>
-                <ChevronRight className="h-3 w-3" />
+                <HugeiconsIcon icon={ArrowRight01Icon} className="h-3 w-3" />
               </>
             )}
           </button>

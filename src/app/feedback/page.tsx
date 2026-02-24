@@ -1,5 +1,7 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckmarkCircle01Icon, SentIcon, StarIcon } from "@hugeicons/core-free-icons";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Star, Send, CheckCircle } from "lucide-react";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
 
@@ -108,7 +109,7 @@ export default function FeedbackPage() {
                           : 'text-stone-200 dark:text-zinc-700 hover:text-yellow-400'
                       }`}
                     >
-                      <Star className="w-6 h-6 fill-current" />
+                      <HugeiconsIcon icon={StarIcon} className="w-6 h-6 fill-current" />
                     </button>
                   ))}
                   {rating > 0 && (
@@ -133,7 +134,7 @@ export default function FeedbackPage() {
                 <CardContent className="p-0">
                   {isSubmitted ? (
                     <div className="text-center py-8">
-                      <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                      <HugeiconsIcon icon={CheckmarkCircle01Icon} className="w-16 h-16 text-green-400 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">Thank you!</h3>
                       <p className="text-sm text-muted-foreground">
                         Your feedback has been submitted successfully. We appreciate your input!
@@ -242,7 +243,7 @@ export default function FeedbackPage() {
                             </>
                           ) : (
                             <>
-                              <Send className="w-4 h-4 mr-2" />
+                              <HugeiconsIcon icon={SentIcon} className="w-4 h-4 mr-2" />
                               Submit Feedback
                             </>
                           )}

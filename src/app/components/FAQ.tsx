@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, Variants } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 
 type FAQItem = {
   question: string;
@@ -14,31 +15,40 @@ export const FAQ: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>();
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isLight = mounted && theme !== "dark";
 
   const faqs: FAQItem[] = [
     {
       question: "What is Runwise?",
       answer:
-        "Runwise is an AI-powered automation platform that converts plain-English prompts into workflows—no coding required.",
+        "Runwise is the world's first fully generative no-code workflow builder designed for non-technical teams. Our software turns natural language prompts into fully functional AI workflows and automations, allowing anyone to bring autonomy to their life in just minutes.",
     },
     {
       question: "How does Runwise work?",
       answer:
-        "You describe what you want in natural language, and Runwise generates a workflow using AI.",
+        "Runwise uses AI to convert plain English prompts into fully executable AI workflows and automations. Our fine-tuned AI model builds, debugs, and maintains your workflows for seamless integration.",
     },
     {
       question: "Do I need technical experience?",
       answer:
-        "No. Runwise is for everyone—from non-technical founders to developers.",
+        "No. Runwise is built for non-technical users. You don't need to code — just describe what you want to automate and build it visually.",
     },
     {
       question: "What can I automate?",
       answer:
-        "Anything from operations, notifications, data processing, agents, integrations, and more.",
+        "Anything repetitive. Lead capture, emails, CRM updates, AI tasks, notifications, data syncing, onboarding flows, and more.",
     },
     {
       question: "Does Runwise integrate with other tools?",
-      answer: "Yes, we support many integrations and offer custom workflows.",
+      answer:
+        "Yes. Runwise connects with popular apps and APIs, so you can automate workflows across your existing tools.",
     },
   ];
 
@@ -128,26 +138,28 @@ export const FAQ: React.FC = () => {
           </div>
         ))}
 
-        {/* Background Blur */}
-        <div
-          className="absolute w-[923px] h-[328px] opacity-60 blur-[50px] z-0 overflow-hidden"
-          style={{
-            left: "calc(50% - 461.5px)",
-            top: "calc(50.1377% - 164px)",
-          }}
-        >
-          <img
-            src="/assets/img4.png"
-            alt="img"
-            className="opacity-50 bg-cover bg-center"
-          />
-        </div>
+        {/* Background Blur — hidden in light mode */}
+        {!isLight && (
+          <div
+            className="absolute w-[923px] h-[328px] opacity-60 blur-[50px] z-0 overflow-hidden"
+            style={{
+              left: "calc(50% - 461.5px)",
+              top: "calc(50.1377% - 164px)",
+            }}
+          >
+            <img
+              src="/assets/img4.png"
+              alt="img"
+              className="opacity-50 bg-cover bg-center"
+            />
+          </div>
+        )}
       </motion.div>
 
       {/* CTA */}
       <div
         className="max-w-[950px] w-full mx-auto py-[65px] flex flex-col justify-center items-center"
-        style={{
+        style={isLight ? {} : {
           background: "radial-gradient(21% 42%, rgba(189, 40, 179, 0.35) 0%, rgba(56, 54, 61, 0) 100%)",
         }}
       >

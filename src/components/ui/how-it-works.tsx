@@ -1,7 +1,9 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Layers01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
-import { Layers, Search, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import type React from "react";
 
 // The main props for the HowItWorks component
@@ -63,7 +65,7 @@ export const HowItWorks: React.FC<HowItWorksProps> = ({
 }) => {
   const stepsData = [
     {
-      icon: <Search className="h-6 w-6" />,
+      icon: <HugeiconsIcon icon={Search01Icon} className="h-6 w-6" />,
       title: "Describe Your Workflow",
       description:
         "Simply tell Runwise what you want to accomplish using natural language. Our AI understands context and intent.",
@@ -74,7 +76,7 @@ export const HowItWorks: React.FC<HowItWorksProps> = ({
       ],
     },
     {
-      icon: <Layers className="h-6 w-6" />,
+      icon: <HugeiconsIcon icon={Layers01Icon} className="h-6 w-6" />,
       title: "AI Generates Your Workflow",
       description:
         "Our advanced AI analyzes your request and creates a fully functional workflow with all necessary integrations.",

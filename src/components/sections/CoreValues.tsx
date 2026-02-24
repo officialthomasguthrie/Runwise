@@ -3,14 +3,12 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { 
-  Zap, 
-  Users, 
-  Brain, 
-  Shield, 
-  Eye,
+  Zap,
   Heart,
-  Star,
-  CheckCircle
+  Brain,
+  Shield,
+  Eye,
+  Users,
 } from "lucide-react"
 import FadeContent from "@/components/ui/FadeContent"
 
@@ -164,8 +162,8 @@ const CoreValues = React.forwardRef<HTMLDivElement, CoreValuesProps>(
                 <div className="relative bg-gradient-to-br from-muted/50 to-muted/30 dark:from-muted/20 dark:to-muted/10 rounded-2xl p-8 border border-border/50">
                   <div className="flex items-center justify-center mb-4">
                     <Heart className="w-6 h-6 text-pink-500 mr-2" />
-                    <Star className="w-5 h-5 text-purple-500 mr-2" />
-                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <Zap className="w-5 h-5 text-purple-500 mr-2" />
+                    <Heart className="w-5 h-5 text-green-500" />
                   </div>
                   <blockquote className="text-lg font-medium text-foreground font-geist italic mb-2">
                     "These values aren't just words on a wall—they're the foundation of every decision we make."

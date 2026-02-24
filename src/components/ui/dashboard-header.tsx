@@ -1,9 +1,10 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Logout01Icon } from "@hugeicons/core-free-icons";
 import React from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import Link from "next/link";
@@ -59,7 +60,7 @@ export default function DashboardHeader() {
             onClick={handleSignOut}
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted"
           >
-            <LogOut className="h-4 w-4" />
+            <HugeiconsIcon icon={Logout01Icon} className="h-4 w-4" />
             <span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AlertCircleIcon, CheckmarkCircle01Icon, Clock01Icon, ComputerIcon, Delete02Icon, Key01Icon, Loading02Icon, Location01Icon, LockIcon, Refresh01Icon, Shield01Icon, SmartPhone01Icon, ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
@@ -8,22 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { 
-  Shield, 
-  Lock, 
-  Key, 
-  Smartphone, 
-  Monitor, 
-  MapPin, 
-  Clock, 
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Eye,
-  EyeOff,
-  Trash2,
-  RefreshCw
-} from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
 
 interface SecuritySession {
@@ -206,7 +192,7 @@ export function SecuritySettings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin" />
+        <HugeiconsIcon icon={Loading02Icon} className="h-6 w-6 animate-spin" />
         <span className="ml-2 text-muted-foreground">Loading security settings...</span>
       </div>
     );
@@ -219,7 +205,7 @@ export function SecuritySettings() {
         <div className="mb-6">
           <div>
             <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Shield className="h-5 w-5" />
+              <HugeiconsIcon icon={Shield01Icon} className="h-5 w-5" />
               Security Settings
             </h2>
             <p className="text-muted-foreground mt-1">
@@ -232,7 +218,7 @@ export function SecuritySettings() {
       {/* Password Management */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Lock className="h-4 w-4" />
+          <HugeiconsIcon icon={LockIcon} className="h-4 w-4" />
           Password Management
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -259,9 +245,9 @@ export function SecuritySettings() {
                 onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
               >
                 {showPasswords.current ? (
-                  <EyeOff className="h-4 w-4" />
+                  <HugeiconsIcon icon={ViewOffIcon} className="h-4 w-4" />
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <HugeiconsIcon icon={ViewIcon} className="h-4 w-4" />
                 )}
               </Button>
             </div>
@@ -289,9 +275,9 @@ export function SecuritySettings() {
                 onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
               >
                 {showPasswords.new ? (
-                  <EyeOff className="h-4 w-4" />
+                  <HugeiconsIcon icon={ViewOffIcon} className="h-4 w-4" />
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <HugeiconsIcon icon={ViewIcon} className="h-4 w-4" />
                 )}
               </Button>
             </div>
@@ -319,9 +305,9 @@ export function SecuritySettings() {
                 onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
               >
                 {showPasswords.confirm ? (
-                  <EyeOff className="h-4 w-4" />
+                  <HugeiconsIcon icon={ViewOffIcon} className="h-4 w-4" />
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <HugeiconsIcon icon={ViewIcon} className="h-4 w-4" />
                 )}
               </Button>
             </div>
@@ -337,12 +323,12 @@ export function SecuritySettings() {
           >
             {isSaving ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin mr-2" />
                 Updating Password...
               </>
             ) : (
               <>
-                <Key className="h-4 w-4 mr-2" />
+                <HugeiconsIcon icon={Key01Icon} className="h-4 w-4 mr-2" />
                 Update Password
               </>
             )}
@@ -355,7 +341,7 @@ export function SecuritySettings() {
       {/* Two-Factor Authentication */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Smartphone className="h-4 w-4" />
+          <HugeiconsIcon icon={SmartPhone01Icon} className="h-4 w-4" />
           Two-Factor Authentication
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -365,7 +351,7 @@ export function SecuritySettings() {
         <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-md">
-              <Smartphone className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <HugeiconsIcon icon={SmartPhone01Icon} className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
               <h4 className="font-medium">Authenticator App</h4>
@@ -395,7 +381,7 @@ export function SecuritySettings() {
       {/* Active Sessions */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Monitor className="h-4 w-4" />
+          <HugeiconsIcon icon={ComputerIcon} className="h-4 w-4" />
           Active Sessions
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -407,7 +393,7 @@ export function SecuritySettings() {
             <div key={session.id} className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
               <div className="flex items-center gap-4">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                  <Monitor className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <HugeiconsIcon icon={ComputerIcon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -420,11 +406,11 @@ export function SecuritySettings() {
                   </div>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
+                      <HugeiconsIcon icon={Location01Icon} className="h-3 w-3" />
                       {session.location}
                     </div>
                     <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
+                      <HugeiconsIcon icon={Clock01Icon} className="h-3 w-3" />
                       {new Date(session.lastActive).toLocaleDateString()}
                     </div>
                   </div>
@@ -437,7 +423,7 @@ export function SecuritySettings() {
                   onClick={() => handleTerminateSession(session.id)}
                   className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <HugeiconsIcon icon={Delete02Icon} className="h-4 w-4 mr-2" />
                   Terminate
                 </Button>
               )}
@@ -451,20 +437,20 @@ export function SecuritySettings() {
         <div className="flex items-center gap-2">
           {saveStatus === 'success' && (
             <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="h-4 w-4" />
+              <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-4 w-4" />
               <span className="text-sm">Security settings updated successfully!</span>
             </div>
           )}
           {saveStatus === 'error' && (
             <div className="flex items-center gap-2 text-red-600">
-              <AlertCircle className="h-4 w-4" />
+              <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4" />
               <span className="text-sm">Failed to update security settings. Please try again.</span>
             </div>
           )}
         </div>
         
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Shield className="h-4 w-4" />
+          <HugeiconsIcon icon={Shield01Icon} className="h-4 w-4" />
           <span>Last updated: {new Date().toLocaleDateString()}</span>
         </div>
       </div>

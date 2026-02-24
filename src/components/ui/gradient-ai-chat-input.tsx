@@ -1,8 +1,10 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowDown01Icon, Cancel01Icon, SentIcon, Tick01Icon } from "@hugeicons/core-free-icons";
+import { ArrowUp } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Send, ChevronDown, X, Check, ArrowUp } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +32,7 @@ interface GradientAIChatInputProps {
   enableAnimations?: boolean;
   className?: string;
   disabled?: boolean;
+  textareaHeight?: number;
 
   // Dropdown options
   dropdownOptions?: DropdownOption[];
@@ -59,6 +62,7 @@ export function GradientAIChatInput({
   enableAnimations = true,
   className,
   disabled = false,
+  textareaHeight = 100,
 
   // Dropdown options - no defaults, only show if provided
   dropdownOptions,
@@ -221,7 +225,7 @@ export function GradientAIChatInput({
                   disabled && "opacity-50 cursor-not-allowed"
                 )}
                 style={{
-                  height: "100px",
+                  height: `${textareaHeight}px`,
                   outline: "none !important",
                   boxShadow: "none !important",
                   scrollbarWidth: "none",
@@ -258,7 +262,7 @@ export function GradientAIChatInput({
                 damping: 25,
               }}
             >
-              <ArrowUp className="w-5 h-5 text-white" />
+              <ArrowUp className="w-4 h-4 text-white" />
             </motion.button>
           </div>
 
@@ -294,10 +298,10 @@ export function GradientAIChatInput({
                 <span className="text-muted-foreground font-medium">
                   {selectedOption ? selectedOption.label : "Select"}
                 </span>
-                <ChevronDown className={cn(
-                  "w-3 h-3 transition-transform",
-                  isDropdownOpen && "rotate-180"
-                )} />
+                <HugeiconsIcon icon={ArrowDown01Icon} className={cn(
+                                                        "w-3 h-3 transition-transform",
+                                                        isDropdownOpen && "rotate-180"
+                                                      )} />
               </motion.button>
 
               {/* Dropdown menu */}
@@ -324,7 +328,7 @@ export function GradientAIChatInput({
                       >
                         <span className="flex-1">{option.label}</span>
                         {selectedOption?.id === option.id && (
-                          <Check className="w-3 h-3 text-foreground" />
+                          <HugeiconsIcon icon={Tick01Icon} className="w-3 h-3 text-foreground" />
                         )}
                       </button>
                     ))}

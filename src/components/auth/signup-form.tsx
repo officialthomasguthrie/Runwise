@@ -1,12 +1,13 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AlertCircleIcon, LockIcon, Mail01Icon, UserIcon, ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Eye, EyeOff, Mail, User, Lock, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
 export function SignupForm() {
@@ -83,7 +84,7 @@ export function SignupForm() {
         {error && (
           <div className="mb-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
             <div className="flex items-center">
-              <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mr-2" />
+              <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4 text-red-600 dark:text-red-400 mr-2" />
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           </div>
@@ -94,7 +95,7 @@ export function SignupForm() {
             <div className="space-y-2">
               <Label htmlFor="firstName">First name</Label>
               <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <HugeiconsIcon icon={UserIcon} className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="firstName"
                   name="firstName"
@@ -110,7 +111,7 @@ export function SignupForm() {
             <div className="space-y-2">
               <Label htmlFor="lastName">Last name</Label>
               <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <HugeiconsIcon icon={UserIcon} className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="lastName"
                   name="lastName"
@@ -128,7 +129,7 @@ export function SignupForm() {
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <HugeiconsIcon icon={Mail01Icon} className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="email"
                 name="email"
@@ -145,7 +146,7 @@ export function SignupForm() {
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <HugeiconsIcon icon={LockIcon} className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="password"
                 name="password"
@@ -161,7 +162,7 @@ export function SignupForm() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
               >
-                {showPassword ? <EyeOff /> : <Eye />}
+                {showPassword ? <HugeiconsIcon icon={ViewOffIcon} /> : <HugeiconsIcon icon={ViewIcon} />}
               </button>
             </div>
           </div>
@@ -169,7 +170,7 @@ export function SignupForm() {
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm password</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <HugeiconsIcon icon={LockIcon} className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -185,7 +186,7 @@ export function SignupForm() {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
               >
-                {showConfirmPassword ? <EyeOff /> : <Eye />}
+                {showConfirmPassword ? <HugeiconsIcon icon={ViewOffIcon} /> : <HugeiconsIcon icon={ViewIcon} />}
               </button>
             </div>
           </div>

@@ -1,8 +1,9 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeft01Icon, ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -111,7 +112,7 @@ function ResetPasswordContent() {
         onClick={handleGoBack}
         className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground rounded-lg backdrop-blur-sm"
       >
-        <ArrowLeft className="w-3 h-3" />
+        <HugeiconsIcon icon={ArrowLeft01Icon} className="w-3 h-3" />
         Go Back
       </button>
 
@@ -154,9 +155,9 @@ function ResetPasswordContent() {
                         disabled={loading}
                       >
                         {showPassword ? (
-                          <EyeOff className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
+                          <HugeiconsIcon icon={ViewOffIcon} className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
                         ) : (
-                          <Eye className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
+                          <HugeiconsIcon icon={ViewIcon} className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
                         )}
                       </button>
                     </div>
@@ -182,9 +183,9 @@ function ResetPasswordContent() {
                         disabled={loading}
                       >
                         {showConfirmPassword ? (
-                          <EyeOff className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
+                          <HugeiconsIcon icon={ViewOffIcon} className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
                         ) : (
-                          <Eye className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
+                          <HugeiconsIcon icon={ViewIcon} className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />
                         )}
                       </button>
                     </div>

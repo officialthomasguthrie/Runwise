@@ -7,12 +7,11 @@ import { createClient } from "@/lib/supabase-client";
 import SearchComponent from "@/components/ui/animated-glowing-search-bar";
 import { useTheme } from "next-themes";
 import {
-  Slack, FileSpreadsheet, Mail, Calendar, Database, Cloud, Check, Edit2, Webhook, Github,
-  Trello, FileText, DollarSign, ShoppingCart, Users, MessageSquare, Bell, Zap,
-  Box, Droplet, Twitter, Facebook, Instagram, Linkedin, Youtube, Music,
-  Camera, Image, Video, Mic, Phone, Clock, MapPin, Compass,
-  CreditCard, ShieldCheck, Lock, Key, Server, HardDrive, Wifi, Globe,
-  Code, Terminal, Package, Layers, CheckSquare, BarChart3, HelpCircle, Search, Plug, X, Loader2
+  BarChart2, Calendar, Check, CheckSquare, Clock, Cloud, CreditCard,
+  Database, DollarSign, Facebook, FileSpreadsheet, FileText, Github,
+  HelpCircle, Image, Instagram, Layers, Linkedin, Loader2, Mail, MessageSquare,
+  Music, Phone, Plug, Server, ShoppingCart, Slack, Trello, Twitter,
+  Users, Video, Youtube, Zap, Box, ShieldCheck, Terminal,
 } from "lucide-react";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
@@ -209,7 +208,7 @@ function IntegrationsPageContent() {
     { id: 'all-34', name: 'Redis', description: 'Cache database', icon: Server, slug: 'redis', gradient: 'from-red-500/20 to-orange-500/20', iconColor: 'text-red-400', category: 'Database' },
     { id: 'all-35', name: 'Salesforce', description: 'CRM platform', icon: Cloud, slug: 'salesforce', gradient: 'from-blue-500/20 to-cyan-500/20', iconColor: 'text-blue-400', category: 'CRM' },
     { id: 'all-36', name: 'Mailchimp', description: 'Email marketing', icon: Mail, slug: 'mailchimp', gradient: 'from-yellow-500/20 to-orange-500/20', iconColor: 'text-yellow-400', category: 'Marketing' },
-    { id: 'all-37', name: 'Google Analytics', description: 'Website analytics', icon: BarChart3, slug: 'googleanalytics', gradient: 'from-orange-500/20 to-red-500/20', iconColor: 'text-orange-400', category: 'Analytics' },
+    { id: 'all-37', name: 'Google Analytics', description: 'Website analytics', icon: BarChart2, slug: 'googleanalytics', gradient: 'from-orange-500/20 to-red-500/20', iconColor: 'text-orange-400', category: 'Analytics' },
     { id: 'all-38', name: 'Intercom', description: 'Customer messaging', icon: MessageSquare, slug: 'intercom', gradient: 'from-blue-500/20 to-indigo-500/20', iconColor: 'text-blue-400', category: 'Support' },
     { id: 'all-39', name: 'Zendesk', description: 'Help desk software', icon: HelpCircle, slug: 'zendesk', gradient: 'from-green-500/20 to-teal-500/20', iconColor: 'text-green-400', category: 'Support' },
     { id: 'all-40', name: 'OpenAI', description: 'AI language models', icon: Zap, slug: 'openai', gradient: 'from-purple-500/20 to-pink-500/20', iconColor: 'text-purple-400', category: 'AI', serviceName: 'openai' },

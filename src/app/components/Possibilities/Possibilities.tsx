@@ -1,7 +1,6 @@
 "use client";
 
 import { motion, Variants } from "framer-motion";
-import { useState, useEffect } from "react";
 import { AIChatbots } from "./AIChatbots";
 import { ContentCreation } from "./ContentCreation";
 import { LeadGeneration } from "./LeadGeneration";
@@ -9,18 +8,6 @@ import { DataInsights } from "./DataInsights";
 import { AIConsulting } from "./AIConsulting";
 
 export const Posibilities: React.FC = () => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768); // md breakpoint
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
   const headingVariants: Variants = {
     hidden: { opacity: 0, y: 50 },
     visible: {
@@ -31,12 +18,9 @@ export const Posibilities: React.FC = () => {
   };
 
   const boxVariants: Variants = {
-    hiddenLeft: { opacity: 0, x: -60 },
-    hiddenBottom: { opacity: 0, y: 60 },
-    hiddenRight: { opacity: 0, x: 60 },
+    hidden: { opacity: 0, y: 40 },
     visible: {
       opacity: 1,
-      x: 0,
       y: 0,
       transition: { duration: 0.7, ease: "easeOut" },
     },
@@ -69,33 +53,33 @@ export const Posibilities: React.FC = () => {
       <div className="max-w-[364px] md:max-w-[1200px] w-full mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[15px]">
         {/* AI Chatbots */}
         <motion.div
-          initial={isMobile ? "hiddenBottom" : "hiddenLeft"}
+          initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.1 }}
         >
           <AIChatbots />
         </motion.div>
 
         {/* Content Creation */}
         <motion.div
-          initial="hiddenBottom"
+          initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.2 }}
         >
           <ContentCreation />
         </motion.div>
 
         {/* Lead Generation */}
         <motion.div
-          initial={isMobile ? "hiddenBottom" : "hiddenRight"}
+          initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.3 }}
         >
           <LeadGeneration />
         </motion.div>
@@ -104,22 +88,22 @@ export const Posibilities: React.FC = () => {
       <div className="max-w-[364px] md:max-w-[1200px] w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-[15px] mt-[15px]">
         {/* Data Insights */}
         <motion.div
-          initial={isMobile ? "hiddenBottom" : "hiddenLeft"}
+          initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.1 }}
         >
           <DataInsights />
         </motion.div>
 
         {/* AI Consulting */}
         <motion.div
-          initial={isMobile ? "hiddenBottom" : "hiddenRight"}
+          initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
           variants={boxVariants}
-          transition={{ delay: 1.0 }}
+          transition={{ delay: 0.2 }}
         >
           <AIConsulting />
         </motion.div>

@@ -1,12 +1,13 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRight01Icon, Cancel01Icon, Clock01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-client";
 import { GridCard } from "@/components/ui/grid-card";
-import { Clock, ArrowRight, Trash2, X } from "lucide-react";
 import type { Database } from "@/types/database";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
@@ -277,7 +278,7 @@ export default function WorkflowsPage() {
                               }}
                               className="absolute right-2 top-2 z-20 inline-flex items-center justify-center rounded-md border border-stone-200 dark:border-white/10 bg-background/80 p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-background"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <HugeiconsIcon icon={Delete02Icon} className="h-4 w-4" />
                             </button>
                             <GridCard
                               className="h-32 cursor-pointer transition-colors hover:border-pink-400/50"
@@ -312,14 +313,14 @@ export default function WorkflowsPage() {
                                       </button>
                                     )}
                                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                      <Clock className="h-3 w-3" />
+                                      <HugeiconsIcon icon={Clock01Icon} className="h-3 w-3" />
                                       <span>{new Date(w.updated_at).toLocaleString()}</span>
                                     </div>
                                   </div>
                                 </div>
                                 <div className="relative z-10 flex items-center justify-between">
                                   <span className="text-sm text-muted-foreground capitalize">{w.status}</span>
-                                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                  <HugeiconsIcon icon={ArrowRight01Icon} className="h-4 w-4 text-muted-foreground" />
                                 </div>
                               </div>
                             </GridCard>
@@ -338,7 +339,7 @@ export default function WorkflowsPage() {
                           <Link href="/dashboard">
                             <div className="flex items-center gap-2 text-sm md:text-base text-pink-400 hover:text-pink-300 transition-colors cursor-pointer">
                               <span>Get started</span>
-                              <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
+                              <HugeiconsIcon icon={ArrowRight01Icon} className="w-4 h-4 md:w-5 md:h-5" />
             </div>
                           </Link>
                         </div>
@@ -363,7 +364,7 @@ export default function WorkflowsPage() {
                 onClick={() => setConfirmDeleteId(null)}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <X className="h-4 w-4" />
+                <HugeiconsIcon icon={Cancel01Icon} className="h-4 w-4" />
               </button>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">

@@ -1,16 +1,9 @@
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AlignBoxMiddleRightIcon, AlignBoxTopLeftIcon, ArrowUpRight01Icon, BrokenBoneIcon, ClipboardIcon, DeleteColumnIcon, SignatureIcon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import React from "react";
 import { BentoGridNew, BentoGridItem } from "@/components/ui/bento-grid-new";
 import FadeContent from "@/components/ui/FadeContent";
-import {
-  IconArrowWaveRightUp,
-  IconBoxAlignRightFilled,
-  IconBoxAlignTopLeft,
-  IconClipboardCopy,
-  IconFileBroken,
-  IconSignature,
-  IconTableColumn,
-} from "@tabler/icons-react";
 
 export default function BentoGridDemo() {
   return (
@@ -56,42 +49,42 @@ const items = [
     title: "Natural Language Processing",
     description: "Transform complex instructions into executable workflows using advanced NLP.",
     header: <Skeleton />,
-    icon: <IconClipboardCopy className="h-4 w-4 text-purple-400" />,
+    icon: <HugeiconsIcon icon={ClipboardIcon} className="h-4 w-4 text-purple-400" />,
   },
   {
     title: "Intelligent Automation",
     description: "AI-powered workflow generation that adapts to your specific needs and context.",
     header: <Skeleton />,
-    icon: <IconFileBroken className="h-4 w-4 text-purple-400" />,
+    icon: <HugeiconsIcon icon={BrokenBoneIcon} className="h-4 w-4 text-purple-400" />,
   },
   {
     title: "Smart Integration",
     description: "Seamlessly connect with 100+ tools and services for comprehensive workflows.",
     header: <Skeleton />,
-    icon: <IconSignature className="h-4 w-4 text-purple-400" />,
+    icon: <HugeiconsIcon icon={SignatureIcon} className="h-4 w-4 text-purple-400" />,
   },
   {
     title: "Real-Time Execution",
     description: "Watch your workflows come to life with live progress tracking and instant feedback.",
     header: <Skeleton />,
-    icon: <IconTableColumn className="h-4 w-4 text-purple-400" />,
+    icon: <HugeiconsIcon icon={DeleteColumnIcon} className="h-4 w-4 text-purple-400" />,
   },
   {
     title: "Advanced Analytics",
     description: "Gain insights into workflow performance with detailed analytics and reporting.",
     header: <Skeleton />,
-    icon: <IconArrowWaveRightUp className="h-4 w-4 text-purple-400" />,
+    icon: <HugeiconsIcon icon={ArrowUpRight01Icon} className="h-4 w-4 text-purple-400" />,
   },
   {
     title: "Custom Templates",
     description: "Create and share reusable workflow templates for your team and organization.",
     header: <Skeleton />,
-    icon: <IconBoxAlignTopLeft className="h-4 w-4 text-purple-400" />,
+    icon: <HugeiconsIcon icon={AlignBoxTopLeftIcon} className="h-4 w-4 text-purple-400" />,
   },
   {
     title: "Enterprise Security",
     description: "Bank-grade security with enterprise features for large-scale deployments.",
     header: <Skeleton />,
-    icon: <IconBoxAlignRightFilled className="h-4 w-4 text-purple-400" />,
+    icon: <HugeiconsIcon icon={AlignBoxMiddleRightIcon} className="h-4 w-4 text-purple-400" />,
   },
 ];

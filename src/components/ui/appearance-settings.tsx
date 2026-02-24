@@ -1,5 +1,7 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AlertCircleIcon, CheckmarkCircle01Icon, ColorPickerIcon, ComputerIcon, Layout01Icon, Loading02Icon, Maximize02Icon, Minimize02Icon, MoonIcon, Sun01Icon, TextIcon, ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
@@ -7,21 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { 
-  Palette, 
-  Sun, 
-  Moon, 
-  Monitor, 
-  Type, 
-  Layout, 
-  Eye, 
-  EyeOff,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
   Zap,
-  Grid3X3,
-  Maximize2,
-  Minimize2
+  Grid3X3
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -127,7 +116,7 @@ export function AppearanceSettings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin" />
+        <HugeiconsIcon icon={Loading02Icon} className="h-6 w-6 animate-spin" />
         <span className="ml-2 text-muted-foreground">Loading appearance settings...</span>
       </div>
     );
@@ -140,7 +129,7 @@ export function AppearanceSettings() {
         <div className="mb-6">
           <div>
             <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Palette className="h-5 w-5" />
+              <HugeiconsIcon icon={ColorPickerIcon} className="h-5 w-5" />
               Appearance Settings
             </h2>
             <p className="text-muted-foreground mt-1">
@@ -153,7 +142,7 @@ export function AppearanceSettings() {
       {/* Theme Selection */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Sun className="h-4 w-4" />
+          <HugeiconsIcon icon={Sun01Icon} className="h-4 w-4" />
           Theme
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -170,7 +159,7 @@ export function AppearanceSettings() {
             onClick={() => handleSettingChange('theme', 'light')}
           >
             <div className="flex items-center gap-3 mb-2">
-              <Sun className="h-5 w-5 text-yellow-600" />
+              <HugeiconsIcon icon={Sun01Icon} className="h-5 w-5 text-yellow-600" />
               <span className="font-medium">Light</span>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -187,7 +176,7 @@ export function AppearanceSettings() {
             onClick={() => handleSettingChange('theme', 'dark')}
           >
             <div className="flex items-center gap-3 mb-2">
-              <Moon className="h-5 w-5 text-blue-600" />
+              <HugeiconsIcon icon={MoonIcon} className="h-5 w-5 text-blue-600" />
               <span className="font-medium">Dark</span>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -204,7 +193,7 @@ export function AppearanceSettings() {
             onClick={() => handleSettingChange('theme', 'system')}
           >
             <div className="flex items-center gap-3 mb-2">
-              <Monitor className="h-5 w-5 text-gray-600" />
+              <HugeiconsIcon icon={ComputerIcon} className="h-5 w-5 text-gray-600" />
               <span className="font-medium">System</span>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -219,7 +208,7 @@ export function AppearanceSettings() {
       {/* Typography */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Type className="h-4 w-4" />
+          <HugeiconsIcon icon={TextIcon} className="h-4 w-4" />
           Typography
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -266,7 +255,7 @@ export function AppearanceSettings() {
       {/* Layout & Density */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Layout className="h-4 w-4" />
+          <HugeiconsIcon icon={Layout01Icon} className="h-4 w-4" />
           Layout & Density
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -308,7 +297,7 @@ export function AppearanceSettings() {
       {/* Accessibility */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Eye className="h-4 w-4" />
+          <HugeiconsIcon icon={ViewIcon} className="h-4 w-4" />
           Accessibility
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -337,7 +326,7 @@ export function AppearanceSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                <EyeOff className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <HugeiconsIcon icon={ViewOffIcon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-medium">Reduce Motion</h4>
@@ -355,7 +344,7 @@ export function AppearanceSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-md">
-                <Eye className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                <HugeiconsIcon icon={ViewIcon} className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
                 <h4 className="font-medium">High Contrast</h4>
@@ -388,7 +377,7 @@ export function AppearanceSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-md">
-                <Minimize2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <HugeiconsIcon icon={Minimize02Icon} className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <h4 className="font-medium">Collapsed Sidebar</h4>
@@ -428,13 +417,13 @@ export function AppearanceSettings() {
         <div className="flex items-center gap-2">
           {saveStatus === 'success' && (
             <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="h-4 w-4" />
+              <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-4 w-4" />
               <span className="text-sm">Appearance settings saved successfully!</span>
             </div>
           )}
           {saveStatus === 'error' && (
             <div className="flex items-center gap-2 text-red-600">
-              <AlertCircle className="h-4 w-4" />
+              <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4" />
               <span className="text-sm">Failed to save appearance settings. Please try again.</span>
             </div>
           )}
@@ -455,12 +444,12 @@ export function AppearanceSettings() {
           >
             {isSaving ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin mr-2" />
                 Saving...
               </>
             ) : (
               <>
-                <Palette className="h-4 w-4 mr-2" />
+                <HugeiconsIcon icon={ColorPickerIcon} className="h-4 w-4 mr-2" />
                 Save Settings
               </>
             )}

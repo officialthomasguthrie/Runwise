@@ -1,5 +1,6 @@
 "use client";
 
+import { RotateCw, ZoomIn, ZoomOut } from "lucide-react";
 import { useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { RotateCw, ZoomIn, ZoomOut, X } from "lucide-react";
 import type { Area, Point } from "react-easy-crop";
 
 interface AvatarCropModalProps {

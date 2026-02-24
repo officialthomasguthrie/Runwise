@@ -1,12 +1,13 @@
 "use client"
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { SentIcon } from "@hugeicons/core-free-icons";
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Send } from "lucide-react"
 import FadeContent from "@/components/ui/FadeContent"
 
 interface ContactFormProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -153,7 +154,7 @@ const ContactForm = React.forwardRef<HTMLDivElement, ContactFormProps>(
                     className="gap-3 bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500 text-white font-geist px-8 py-3 text-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg"
                   >
                     Send Message
-                    <Send className="w-5 h-5" />
+                    <HugeiconsIcon icon={SentIcon} className="w-5 h-5" />
                   </Button>
                 </div>
               </form>

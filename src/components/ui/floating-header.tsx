@@ -1,7 +1,8 @@
 'use client';
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Menu01Icon, UserIcon } from "@hugeicons/core-free-icons";
 import React from 'react';
-import { MenuIcon, User } from 'lucide-react';
 import { Sheet, SheetContent, SheetFooter } from '@/components/ui/sheet';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -146,7 +147,7 @@ export function FloatingHeader() {
 									/>
 								) : null}
 								<AvatarFallback className="bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center">
-									<User className="h-3 w-3" />
+									<HugeiconsIcon icon={UserIcon} className="h-3 w-3" />
 								</AvatarFallback>
 							</Avatar>
 							<span className="hidden sm:inline text-sm font-medium text-foreground">
@@ -166,7 +167,7 @@ export function FloatingHeader() {
 							onClick={() => setOpen(!open)}
 							className="sm:hidden"
 						>
-							<MenuIcon className="size-4" />
+							<HugeiconsIcon icon={Menu01Icon} className="size-4" />
 						</Button>
 						<SheetContent
 							className="bg-background/95 supports-[backdrop-filter]:bg-background/80 gap-0 backdrop-blur-lg border-border"
@@ -208,7 +209,7 @@ export function FloatingHeader() {
 														/>
 													) : null}
 													<AvatarFallback className="bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center">
-														<User className="h-3 w-3" />
+														<HugeiconsIcon icon={UserIcon} className="h-3 w-3" />
 													</AvatarFallback>
 												</Avatar>
 												<span className="text-sm font-medium text-foreground">
