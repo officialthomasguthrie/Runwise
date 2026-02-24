@@ -444,6 +444,7 @@ export default function DashboardPage() {
                       }
                       onSend={handleSend}
                       className="w-full max-w-full md:max-w-2xl"
+                      enableShadows={false}
                     />
                   </motion.div>
 

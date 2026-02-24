@@ -82,6 +82,13 @@ async function getGoogleClient(userId: string, serviceName: string = 'google-she
 }
 
 /**
+ * Get a valid Google OAuth access token for a user (handles auto-refresh)
+ */
+export async function getGoogleAccessToken(userId: string, serviceName: string = 'google-sheets'): Promise<string> {
+  return getGoogleClient(userId, serviceName);
+}
+
+/**
  * Fetch user's Google Spreadsheets
  */
 export async function getGoogleSpreadsheets(userId: string): Promise<GoogleSpreadsheet[]> {
