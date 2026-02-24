@@ -6,8 +6,8 @@ import {
   sendTestNotification,
   workflowExecutor,
   scheduledWorkflowTrigger,
-  scheduledWorkflowsRunner,
   // pollingWorkflowTrigger, // Removed - polling now handled by Cloudflare Worker
+  // scheduledWorkflowsRunner, // Removed - scheduling now handled by Cloudflare Worker
 } from "../../../inngest/functions";
 import { monthlyCreditReset } from "../../../inngest/functions-credits";
 import type { NextRequest } from "next/server";
@@ -21,8 +21,8 @@ const allFunctions = [
   sendTestNotification,
   workflowExecutor,
   scheduledWorkflowTrigger,
-  scheduledWorkflowsRunner,
   // pollingWorkflowTrigger, // Removed - polling now handled by Cloudflare Worker
+  // scheduledWorkflowsRunner, // Removed - scheduling now handled by Cloudflare Worker
   monthlyCreditReset,
 ];
 
@@ -52,10 +52,6 @@ if (typeof window === 'undefined') {
     // Verify critical functions exist by checking function names/IDs
     const functionNames = functionIds.join(' ');
     const hasScheduled = functionNames.includes('scheduled-workflow-trigger');
-    const hasRunner = functionNames.includes('scheduled-workflows-runner');
-    if (!hasRunner) {
-      console.error('[Inngest] CRITICAL: scheduled-workflows-runner cron function is missing!');
-    }
     // Polling is now handled by Cloudflare Worker, not Inngest
     // const hasPolling = functionNames.includes('polling-workflow-trigger');
     

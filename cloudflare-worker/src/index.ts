@@ -46,97 +46,158 @@ interface PollResult {
 
 export default {
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    console.log('[Polling Worker] Cron triggered at', new Date().toISOString());
+    const now = new Date().toISOString();
+    console.log('[Worker] Cron triggered at', now);
 
-    try {
-      const dueTriggers = await getDuePollingTriggers(env, 50);
+    // Run polling triggers and scheduled triggers concurrently
+    await Promise.allSettled([
+      runPollingTriggers(env),
+      runScheduledTriggers(env),
+    ]);
 
-      if (dueTriggers.length === 0) {
-        console.log('[Polling Worker] No due triggers found');
-        return;
-      }
+    console.log('[Worker] Cron run complete');
+  },
+};
 
-      console.log(`[Polling Worker] Found ${dueTriggers.length} due triggers`);
+// ─── Polling Triggers ────────────────────────────────────────────────────────
 
-      const results = { polled: 0, triggered: 0, errors: 0 };
+async function runPollingTriggers(env: Env): Promise<void> {
+  try {
+    const dueTriggers = await getDuePollingTriggers(env, 50);
 
-      for (const trigger of dueTriggers) {
-        try {
-          results.polled++;
+    if (dueTriggers.length === 0) {
+      console.log('[Polling] No due triggers');
+      return;
+    }
 
-          // Delegate polling to Next.js API (handles OAuth, token refresh, API calls)
-          const pollResult = await executeTrigger(env, trigger);
+    console.log(`[Polling] Found ${dueTriggers.length} due triggers`);
 
-          if (pollResult.reason === 'workflow_inactive') {
-            console.log(`[Polling Worker] Workflow ${trigger.workflow_id} is inactive — disabling trigger`);
+    let triggered = 0;
+    let errors = 0;
+
+    for (const trigger of dueTriggers) {
+      try {
+        const pollResult = await executeTrigger(env, trigger);
+
+        if (pollResult.reason === 'workflow_inactive') {
+          await disableTrigger(env, trigger.id);
+          continue;
+        }
+
+        if (pollResult.error) {
+          console.error(`[Polling] Error for trigger ${trigger.id}:`, pollResult.error);
+          errors++;
+          await updateTriggerNextPoll(env, trigger.id, 300);
+          continue;
+        }
+
+        if (pollResult.hasNewData && pollResult.newData && pollResult.newData.length > 0) {
+          const workflowData = await getWorkflowData(env, trigger.workflow_id);
+
+          if (!workflowData) {
             await disableTrigger(env, trigger.id);
             continue;
           }
 
-          if (pollResult.error) {
-            console.error(
-              `[Polling Worker] Error polling trigger ${trigger.id} (${trigger.trigger_type}):`,
-              pollResult.error
-            );
-            results.errors++;
-            // Reschedule for retry in 5 minutes
-            await updateTriggerNextPoll(env, trigger.id, 300);
-            continue;
-          }
+          const eventId = `${trigger.id}:${pollResult.newCursor || pollResult.newTimestamp || Date.now()}`;
 
-          if (pollResult.hasNewData && pollResult.newData && pollResult.newData.length > 0) {
-            console.log(
-              `[Polling Worker] New data for trigger ${trigger.id}: ${pollResult.newData.length} items`
-            );
+          await sendToInngest(env, {
+            eventId,
+            workflowId: trigger.workflow_id,
+            nodes: workflowData.nodes,
+            edges: workflowData.edges,
+            userId: workflowData.user_id,
+            triggerType: trigger.trigger_type,
+            items: pollResult.newData,
+            triggerId: trigger.id,
+          });
 
-            // Fetch workflow data (nodes, edges, user_id) to send the execute event
-            const workflowData = await getWorkflowData(env, trigger.workflow_id);
-
-            if (!workflowData) {
-              console.error(`[Polling Worker] Workflow ${trigger.workflow_id} not found or inactive`);
-              await disableTrigger(env, trigger.id);
-              continue;
-            }
-
-            const eventId = `${trigger.id}:${pollResult.newCursor || pollResult.newTimestamp || Date.now()}`;
-
-            await sendToInngest(env, {
-              eventId,
-              workflowId: trigger.workflow_id,
-              nodes: workflowData.nodes,
-              edges: workflowData.edges,
-              userId: workflowData.user_id,
-              triggerType: trigger.trigger_type,
-              items: pollResult.newData,
-              triggerId: trigger.id,
-            });
-
-            results.triggered++;
-          }
-
-          // Update trigger state and next_poll_at
-          await updateTriggerAfterPoll(
-            env,
-            trigger.id,
-            pollResult.newCursor || null,
-            pollResult.newTimestamp || null,
-            trigger.poll_interval
-          );
-        } catch (error: any) {
-          console.error(`[Polling Worker] Exception for trigger ${trigger.id}:`, error.message);
-          results.errors++;
-          await updateTriggerNextPoll(env, trigger.id, 300);
+          triggered++;
         }
-      }
 
-      console.log(
-        `[Polling Worker] Completed: Polled ${results.polled}, Triggered ${results.triggered}, Errors ${results.errors}`
-      );
-    } catch (error: any) {
-      console.error('[Polling Worker] Fatal error:', error);
+        await updateTriggerAfterPoll(
+          env,
+          trigger.id,
+          pollResult.newCursor || null,
+          pollResult.newTimestamp || null,
+          trigger.poll_interval
+        );
+      } catch (error: any) {
+        console.error(`[Polling] Exception for trigger ${trigger.id}:`, error.message);
+        errors++;
+        await updateTriggerNextPoll(env, trigger.id, 300);
+      }
     }
-  },
-};
+
+    console.log(`[Polling] Done: triggered=${triggered}, errors=${errors}`);
+  } catch (error: any) {
+    console.error('[Polling] Fatal error:', error.message);
+  }
+}
+
+// ─── Scheduled Triggers ──────────────────────────────────────────────────────
+
+interface DueWorkflow {
+  workflowId: string;
+  nodes: any[];
+  edges: any[];
+  userId: string;
+  cronExpression: string;
+  timezone: string;
+}
+
+async function runScheduledTriggers(env: Env): Promise<void> {
+  try {
+    const appUrl = env.APP_URL || 'https://runwiseai.app';
+
+    const response = await fetch(`${appUrl}/api/scheduled/get-due-workflows`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`[Scheduled] API responded ${response.status}: ${await response.text()}`);
+      return;
+    }
+
+    const { due } = (await response.json()) as { due: DueWorkflow[] };
+
+    if (!due || due.length === 0) {
+      console.log('[Scheduled] No due scheduled workflows');
+      return;
+    }
+
+    console.log(`[Scheduled] Found ${due.length} due workflows`);
+
+    for (const workflow of due) {
+      try {
+        const eventId = `scheduled:${workflow.workflowId}:${Date.now()}`;
+        await sendWorkflowExecuteToInngest(env, eventId, {
+          workflowId: workflow.workflowId,
+          nodes: workflow.nodes,
+          edges: workflow.edges,
+          userId: workflow.userId,
+          triggerType: 'scheduled',
+          triggerData: {
+            triggerTime: new Date().toISOString(),
+            schedule: workflow.cronExpression,
+            timezone: workflow.timezone,
+          },
+        });
+        console.log(`[Scheduled] Fired workflow ${workflow.workflowId} (cron: ${workflow.cronExpression})`);
+      } catch (error: any) {
+        console.error(`[Scheduled] Error firing workflow ${workflow.workflowId}:`, error.message);
+      }
+    }
+  } catch (error: any) {
+    console.error('[Scheduled] Fatal error:', error.message);
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
  * Call the Next.js polling execute endpoint to handle OAuth + API call
@@ -227,7 +288,50 @@ async function getWorkflowData(
 }
 
 /**
- * Send workflow/execute event to Inngest
+ * Generic workflow/execute event sender — accepts any triggerData shape
+ */
+async function sendWorkflowExecuteToInngest(
+  env: Env,
+  eventId: string,
+  data: {
+    workflowId: string;
+    nodes: any[];
+    edges: any[];
+    userId: string;
+    triggerType: string;
+    triggerData: Record<string, any>;
+  }
+): Promise<void> {
+  const inngestUrl = env.INNGEST_BASE_URL || 'https://api.inngest.com';
+
+  const response = await fetch(`${inngestUrl}/v1/events`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${env.INNGEST_EVENT_KEY}`,
+    },
+    body: JSON.stringify({
+      name: 'workflow/execute',
+      id: eventId,
+      data: {
+        workflowId: data.workflowId,
+        nodes: data.nodes,
+        edges: data.edges,
+        userId: data.userId,
+        triggerType: data.triggerType,
+        triggerData: data.triggerData,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to send Inngest event: ${response.statusText} - ${errorText}`);
+  }
+}
+
+/**
+ * Send workflow/execute event to Inngest (polling format — wraps items in triggerData)
  */
 async function sendToInngest(
   env: Env,

@@ -8,7 +8,7 @@ import { getPlanLimits, subscriptionTierToPlanId } from "@/lib/plans/config";
 import { hasScheduledTrigger, getScheduleConfig } from "@/lib/workflows/schedule-utils";
 // @ts-ignore - cron-parser has incorrect type definitions
 import parseExpression from "cron-parser";
-import { scheduleNextWorkflowRun, calculateNextRunTime } from "@/lib/workflows/schedule-scheduler";
+import { scheduleNextWorkflowRun } from "@/lib/workflows/schedule-scheduler";
 import { logInngestExecutionStart, logInngestExecutionComplete } from "@/lib/inngest/monitoring";
 
 // ============================================================================
@@ -386,99 +386,6 @@ export const workflowExecutor = inngest.createFunction(
       nodeCount: executionResult.nodeResults?.length || 0,
     };
   },
-);
-
-// ============================================================================
-// SCHEDULED WORKFLOWS RUNNER (Cron-Based — Primary Trigger Mechanism)
-// ============================================================================
-
-/**
- * Scheduled Workflows Runner
- *
- * Runs every minute via Inngest cron. Scans all active workflows that have a
- * scheduled-time-trigger node and fires any that are due.
- *
- * This is the AUTHORITATIVE scheduler and does not depend on events being sent
- * during workflow activation. Even if the activation-time event send fails, this
- * cron function will pick it up on the next due minute.
- */
-export const scheduledWorkflowsRunner = inngest.createFunction(
-  { id: "scheduled-workflows-runner", name: "Scheduled Workflows Runner" },
-  { cron: "* * * * *" },
-  async ({ step }) => {
-    const now = new Date();
-
-    const firedIds = await step.run("check-and-fire-scheduled-workflows", async () => {
-      const supabase = createAdminClient();
-
-      const { data: workflows, error } = await supabase
-        .from('workflows')
-        .select('id, workflow_data, user_id')
-        .eq('status', 'active');
-
-      if (error || !workflows?.length) return [];
-
-      const fired: string[] = [];
-
-      for (const workflow of workflows) {
-        const nodes: any[] = (workflow as any).workflow_data?.nodes || [];
-        const scheduleNode = nodes.find((n: any) => n.data?.nodeId === 'scheduled-time-trigger');
-        if (!scheduleNode) continue;
-
-        const config: any = scheduleNode.data?.config || {};
-        const cronExpression: string = config.schedule;
-        const timezone: string = config.timezone || 'UTC';
-        if (!cronExpression) continue;
-
-        // Check whether the cron expression fired within the last minute
-        try {
-          const nextAfterOneMinuteAgo = calculateNextRunTime(
-            cronExpression,
-            timezone,
-            new Date(now.getTime() - 60 * 1000)
-          );
-          if (nextAfterOneMinuteAgo > now) continue; // Not yet time
-        } catch (e) {
-          console.error(`[Scheduled Runner] Invalid cron "${cronExpression}" for workflow ${(workflow as any).id}:`, e);
-          continue;
-        }
-
-        // Idempotency: skip if a run already started in the last 2 minutes
-        const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
-        const { data: recentRuns } = await supabase
-          .from('workflow_executions')
-          .select('id')
-          .eq('workflow_id', (workflow as any).id)
-          .gte('started_at', twoMinutesAgo)
-          .limit(1);
-
-        if (recentRuns?.length) continue;
-
-        await inngest.send({
-          name: 'workflow/execute',
-          data: {
-            workflowId: (workflow as any).id,
-            nodes: (workflow as any).workflow_data.nodes,
-            edges: (workflow as any).workflow_data.edges || [],
-            userId: (workflow as any).user_id,
-            triggerType: 'scheduled',
-            triggerData: {
-              triggerTime: now.toISOString(),
-              cron: cronExpression,
-              timezone,
-            },
-          },
-        });
-
-        fired.push((workflow as any).id);
-        console.log(`[Scheduled Runner] Fired workflow ${(workflow as any).id} (cron: ${cronExpression})`);
-      }
-
-      return fired;
-    });
-
-    return { fired: firedIds.length, workflowIds: firedIds };
-  }
 );
 
 // ============================================================================
