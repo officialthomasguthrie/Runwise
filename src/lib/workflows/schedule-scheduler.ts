@@ -5,10 +5,7 @@
 
 import { inngest } from '@/inngest/client';
 import type { Node, Edge } from '@xyflow/react';
-// @ts-ignore - cron-parser has incorrect type definitions
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const cronParser = require('cron-parser');
-const parseExpression = cronParser.parseExpression as (cronExpression: string, options?: any) => any;
+import { CronExpressionParser } from 'cron-parser';
 import { getScheduleConfig } from './schedule-utils';
 
 export interface ScheduledWorkflowData {
@@ -29,7 +26,7 @@ export function calculateNextRunTime(
   fromDate?: Date
 ): Date {
   const currentDate = fromDate || new Date();
-  const interval = parseExpression(cronExpression, {
+  const interval = CronExpressionParser.parse(cronExpression, {
     tz: timezone,
     currentDate: currentDate,
   });

@@ -6,8 +6,6 @@ import type { Node, Edge } from "@xyflow/react";
 import { assertWithinLimit, incrementUsage } from "@/lib/usage";
 import { getPlanLimits, subscriptionTierToPlanId } from "@/lib/plans/config";
 import { hasScheduledTrigger, getScheduleConfig } from "@/lib/workflows/schedule-utils";
-// @ts-ignore - cron-parser has incorrect type definitions
-import parseExpression from "cron-parser";
 import { scheduleNextWorkflowRun } from "@/lib/workflows/schedule-scheduler";
 import { logInngestExecutionStart, logInngestExecutionComplete } from "@/lib/inngest/monitoring";
 
