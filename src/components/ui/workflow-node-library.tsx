@@ -509,7 +509,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
     if (nodeId === 'new-form-submission') {
       return { serviceName: 'google-forms', credentialType: 'oauth' };
     }
-    if (nodeId === 'new-email-received') {
+    if (nodeId === 'new-email-received' || nodeId === 'send-email-gmail') {
       return { serviceName: 'google-gmail', credentialType: 'oauth' };
     }
     if (nodeId === 'create-calendar-event') {
@@ -1229,6 +1229,8 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   (data.nodeId === 'new-form-submission' && key === 'pollInterval') ||
                   // Gmail node - hide lastCheck until label is selected; categoryId is rendered inline
                   (data.nodeId === 'new-email-received' && (key === 'lastCheck' || key === 'categoryId')) ||
+                  // Gmail send node - hide threadId unless reply mode is active
+                  (data.nodeId === 'send-email-gmail' && key === 'threadId') ||
                   // Slack nodes - hide message until channel is selected
                   ((data.nodeId === 'post-to-slack-channel' || data.nodeId === 'new-message-in-slack') && key === 'message') ||
                   // Notion node - hide databaseId until connected, hide title/content until database is selected
@@ -1256,6 +1258,8 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                     (data.nodeId === 'new-form-submission' && localConfig.formId) ||
                     // Gmail node - require labelId
                     (data.nodeId === 'new-email-received' && localConfig.labelId) ||
+                    // Gmail send node - threadId only shows when reply mode is active
+                    (data.nodeId === 'send-email-gmail' && localConfig.replyToThread === 'yes') ||
                     // Slack nodes - require channel
                     ((data.nodeId === 'post-to-slack-channel' || data.nodeId === 'new-message-in-slack') && localConfig.channel) ||
                     // Notion node - databaseId shows when connected, title/content require databaseId

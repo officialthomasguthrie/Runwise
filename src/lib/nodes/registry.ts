@@ -14,6 +14,68 @@ const getAuthToken = (context: ExecutionContext, service: string): string => {
 // ACTION NODES
 // ============================================================================
 
+const sendEmailGmailExecute = async (inputData: any, config: any, context: ExecutionContext) => {
+  const { to, subject, body, cc, bcc, replyToThread, threadId } = config;
+
+  if (!to?.trim()) throw new Error('Send Email via Gmail: "To" address is required.');
+  if (!subject?.trim()) throw new Error('Send Email via Gmail: "Subject" is required.');
+
+  const { getGoogleAccessToken } = await import('@/lib/integrations/google');
+  const accessToken = await getGoogleAccessToken(context.userId, 'google-gmail');
+
+  if (!accessToken) {
+    throw new Error('Gmail not connected. Please connect your Google account in the integrations settings.');
+  }
+
+  // Build RFC 2822 MIME message — Gmail API requires this format
+  const lines: string[] = [
+    `To: ${to}`,
+    ...(cc ? [`Cc: ${cc}`] : []),
+    ...(bcc ? [`Bcc: ${bcc}`] : []),
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=utf-8',
+    '',
+    body || '',
+  ];
+  const rawMessage = lines.join('\r\n');
+
+  // Base64url encode — required by the Gmail REST API
+  const encoded = Buffer.from(rawMessage, 'utf-8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  const requestBody: any = { raw: encoded };
+
+  // Attaching threadId makes Gmail deliver the message as a reply in the same thread
+  if (replyToThread === 'yes' && threadId?.trim()) {
+    requestBody.threadId = threadId.trim();
+  }
+
+  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    let errorMessage = response.statusText;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData?.error?.message || errorMessage;
+    } catch { /* ignore parse errors */ }
+    throw new Error(`Gmail send failed: ${errorMessage}`);
+  }
+
+  const result = await response.json();
+  return { success: true, messageId: result.id, threadId: result.threadId, status: 'sent' };
+};
+
 const sendEmailExecute = async (inputData: any, config: any, context: ExecutionContext) => {
   const { to, subject, body, from, cc, bcc } = config;
   
@@ -3234,11 +3296,85 @@ const speechToTextExecute = async (inputData: any, config: any, context: Executi
 
 export const nodeRegistry: NodeRegistry = {
   // ACTION NODES
+  'send-email-gmail': {
+    id: 'send-email-gmail',
+    name: 'Send Email via Gmail',
+    type: 'action',
+    description: 'Send an email from your connected Gmail account. No extra accounts needed — just connect Google.',
+    icon: 'Mail',
+    category: 'communication',
+    inputs: [
+      { name: 'data', type: 'object', description: 'Input data from previous node' },
+    ],
+    outputs: [
+      { name: 'success', type: 'boolean', description: 'Whether the email was sent successfully' },
+      { name: 'messageId', type: 'string', description: 'Gmail message ID' },
+      { name: 'threadId', type: 'string', description: 'Gmail thread ID' },
+    ],
+    configSchema: {
+      to: {
+        type: 'string',
+        label: 'To',
+        description: 'Who to send the email to',
+        required: true,
+        placeholder: 'e.g. friend@example.com — or use {{inputData.email.fromEmail}} to reply to whoever emailed you',
+      },
+      subject: {
+        type: 'string',
+        label: 'Subject',
+        description: 'Email subject line',
+        required: true,
+        placeholder: 'e.g. Hello! — or use Re: {{inputData.email.subject}}',
+      },
+      body: {
+        type: 'textarea',
+        label: 'Message',
+        description: 'What to say in the email. HTML is supported for formatting.',
+        required: true,
+        placeholder: 'Write your message here...',
+      },
+      cc: {
+        type: 'string',
+        label: 'CC (optional)',
+        description: 'Send a copy to another address',
+        required: false,
+        placeholder: 'e.g. manager@example.com',
+      },
+      bcc: {
+        type: 'string',
+        label: 'BCC (optional)',
+        description: 'Send a hidden copy to another address',
+        required: false,
+        placeholder: 'e.g. archive@example.com',
+      },
+      replyToThread: {
+        type: 'select',
+        label: 'Send as a reply?',
+        description: 'Reply inside an existing email thread instead of starting a new conversation',
+        required: false,
+        default: '',
+        options: [
+          { value: '', label: 'No — start a new email' },
+          { value: 'yes', label: 'Yes — reply in an existing thread' },
+        ],
+      },
+      threadId: {
+        type: 'string',
+        label: 'Thread ID',
+        description: 'The email thread to reply to. If this workflow was triggered by a received email, use {{inputData.email.threadId}} here.',
+        required: false,
+        placeholder: '{{inputData.email.threadId}}',
+      },
+    },
+    execute: sendEmailGmailExecute,
+    code: sendEmailGmailExecute.toString(),
+  },
+
   'send-email': {
     id: 'send-email',
-    name: 'Send Email',
+    name: 'Send Email via SendGrid',
     type: 'action',
-    description: 'Sends an email to specified recipients using SendGrid or SMTP.',
+    description: 'Sends an email using a connected SendGrid account.',
     icon: 'Mail',
     category: 'communication',
     inputs: [
