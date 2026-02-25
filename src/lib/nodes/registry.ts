@@ -3352,9 +3352,9 @@ export const nodeRegistry: NodeRegistry = {
         label: 'Send as a reply?',
         description: 'Reply inside an existing email thread instead of starting a new conversation',
         required: false,
-        default: '',
+        default: 'no',
         options: [
-          { value: '', label: 'No — start a new email' },
+          { value: 'no', label: 'No — start a new email' },
           { value: 'yes', label: 'Yes — reply in an existing thread' },
         ],
       },

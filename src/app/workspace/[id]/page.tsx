@@ -167,7 +167,7 @@ export default function WorkspacePage() {
     // Google nodes
     if (nodeId === 'new-row-in-google-sheet') return 'google-sheets';
     if (nodeId === 'new-form-submission') return 'google-forms';
-    if (nodeId === 'new-email-received') return 'google-gmail';
+    if (nodeId === 'new-email-received' || nodeId === 'send-email-gmail') return 'google-gmail';
     if (nodeId === 'create-calendar-event') return 'google-calendar';
     if (nodeId === 'upload-file-to-google-drive' || nodeId === 'file-uploaded') return 'google-drive';
     
