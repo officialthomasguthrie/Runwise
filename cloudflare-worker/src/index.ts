@@ -95,7 +95,15 @@ async function runPollingTriggers(env: Env): Promise<void> {
             continue;
           }
 
-          const eventId = `${trigger.id}:${pollResult.newCursor || pollResult.newTimestamp || Date.now()}`;
+          // Use sorted message IDs so Inngest correctly deduplicates re-polls of the same emails
+          const msgIds = pollResult.newData
+            .map((m: any) => m.id)
+            .filter(Boolean)
+            .sort()
+            .join(',');
+          const eventId = `${trigger.id}:${msgIds || pollResult.newCursor || pollResult.newTimestamp || Date.now()}`;
+
+          console.log(`[Polling] Trigger ${trigger.id}: found ${pollResult.newData.length} item(s), eventId=${eventId}`);
 
           await sendToInngest(env, {
             eventId,
@@ -121,7 +129,7 @@ async function runPollingTriggers(env: Env): Promise<void> {
       } catch (error: any) {
         console.error(`[Polling] Exception for trigger ${trigger.id}:`, error.message);
         errors++;
-        await updateTriggerNextPoll(env, trigger.id, 300);
+        await updateTriggerNextPoll(env, trigger.id, trigger.poll_interval || 60);
       }
     }
 
@@ -301,7 +309,7 @@ async function updateTriggerAfterPoll(
   if (newCursor !== null) updateData.last_cursor = newCursor;
   if (newTimestamp !== null) updateData.last_seen_timestamp = newTimestamp;
 
-  await fetch(`${env.SUPABASE_URL}/rest/v1/polling_triggers?id=eq.${triggerId}`, {
+  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/polling_triggers?id=eq.${triggerId}`, {
     method: 'PATCH',
     headers: {
       apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -311,6 +319,13 @@ async function updateTriggerAfterPoll(
     },
     body: JSON.stringify(updateData),
   });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    console.error(`[Polling] Failed to update trigger ${triggerId}: HTTP ${response.status} ${body}`);
+  } else {
+    console.log(`[Polling] Trigger ${triggerId} updated: next_poll_at=${nextPollAt}${newTimestamp ? `, last_seen=${newTimestamp}` : ''}`);
+  }
 }
 
 /**

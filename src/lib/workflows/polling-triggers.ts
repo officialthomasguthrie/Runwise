@@ -12,7 +12,7 @@ export interface PollingTriggerConfig {
   workflowId: string;
   triggerType: string;
   config: Record<string, any>;
-  pollInterval?: number; // seconds, default 300 (5 minutes)
+  pollInterval?: number; // seconds, default 60 (1 minute)
 }
 
 /**
@@ -22,7 +22,7 @@ export async function createPollingTrigger(
   workflowId: string,
   triggerType: string,
   config: Record<string, any>,
-  pollInterval: number = 300 // Default 5 minutes
+  pollInterval: number = 60 // Default 1 minute
 ): Promise<void> {
   try {
     const supabase = createAdminClient();
@@ -117,10 +117,10 @@ export function getPollingTriggerFromNodes(nodes: Node[]): {
   const config: Record<string, any> = triggerNode.data?.config || {};
   
   // Extract poll_interval from config if present (in seconds)
-  // Default to 300 (5 minutes) if not specified
+  // Default to 60 (1 minute) if not specified
   const pollInterval = config['pollInterval'] 
     ? parseInt(String(config['pollInterval'])) * 60 // Convert minutes to seconds
-    : 300; // Default 5 minutes
+    : 60; // Default 1 minute
 
   return {
     triggerType,

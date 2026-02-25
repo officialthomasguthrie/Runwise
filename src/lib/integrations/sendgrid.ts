@@ -20,14 +20,24 @@ async function getSendGridApiKey(userId: string): Promise<string> {
 /**
  * Parse an RFC 5322 address string into { email, name? }.
  * Handles both bare "email@example.com" and "Name <email@example.com>" formats.
+ * Throws if the resulting email address is clearly invalid.
  */
-function parseAddress(input: string): { email: string; name?: string } {
-  if (!input) return { email: '' };
-  const match = input.trim().match(/^"?([^"<]+?)"?\s*<([^>]+)>\s*$/);
-  if (match) {
-    return { email: match[2].trim(), name: match[1].trim() || undefined };
+function parseAddress(input: string, fieldName = 'address'): { email: string; name?: string } {
+  if (!input || !input.trim()) {
+    throw new Error(`Send Email: "${fieldName}" is empty. Check your workflow configuration — make sure the field is filled in or the template variable resolves to a valid email address.`);
   }
-  return { email: input.trim() };
+  const trimmed = input.trim();
+  const angleMatch = trimmed.match(/^"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  if (angleMatch) {
+    const email = angleMatch[2].trim();
+    const name = angleMatch[1].trim() || undefined;
+    return { email, name };
+  }
+  // Basic sanity check: must contain @ and a dot after it
+  if (!trimmed.includes('@') || !trimmed.split('@')[1]?.includes('.')) {
+    throw new Error(`Send Email: "${fieldName}" resolved to "${trimmed}" which is not a valid email address. If you are using a template like {{inputData.email.from}}, make sure the trigger node ran successfully and the field exists.`);
+  }
+  return { email: trimmed };
 }
 
 /**
@@ -55,12 +65,12 @@ export async function sendEmail(
     },
     body: JSON.stringify({
       personalizations: [{
-        to: [parseAddress(params.to)],
-        ...(params.cc && { cc: [parseAddress(params.cc)] }),
-        ...(params.bcc && { bcc: [parseAddress(params.bcc)] }),
+        to: [parseAddress(params.to, 'to')],
+        ...(params.cc && { cc: [parseAddress(params.cc, 'cc')] }),
+        ...(params.bcc && { bcc: [parseAddress(params.bcc, 'bcc')] }),
         subject: params.subject
       }],
-      from: parseAddress(params.from),
+      from: parseAddress(params.from, 'from'),
       content: [
         ...(params.text ? [{ type: 'text/plain', value: params.text }] : []),
         ...(params.html ? [{ type: 'text/html', value: params.html }] : [])

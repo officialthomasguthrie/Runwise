@@ -122,11 +122,18 @@ async function pollGmail(
 
   if (messageIds.length === 0) return { hasNewData: false };
 
+  // Use format=metadata with only the headers we need — avoids fetching multi-KB base64 email bodies
+  // internalDate, id, threadId, labelIds, snippet are always returned with metadata format
+  const metadataHeaders = ['From', 'To', 'Subject', 'Date']
+    .map(h => `metadataHeaders=${h}`)
+    .join('&');
+
   const rawMessages = await Promise.all(
     messageIds.slice(0, 10).map((msg: any) =>
-      fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }).then((r) => r.json())
+      fetch(
+        `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&${metadataHeaders}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      ).then((r) => r.json())
     )
   );
 
@@ -134,7 +141,11 @@ async function pollGmail(
     ...rawMessages.map((m: any) => (m.internalDate ? parseInt(m.internalDate) : 0))
   );
 
-  // Normalize messages so downstream templates can use {{items[0].from}}, {{items[0].subject}} etc.
+  if (latestTimestamp === 0 || !isFinite(latestTimestamp)) {
+    return { hasNewData: false };
+  }
+
+  // Normalize messages — no `raw` field to keep the Inngest event payload small
   const messages = rawMessages.map((m: any) => {
     const getHeader = (name: string) =>
       (m?.payload?.headers || []).find((h: any) => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
@@ -152,7 +163,6 @@ async function pollGmail(
       date: getHeader('Date'),
       snippet: m.snippet || '',
       labelIds: m.labelIds || [],
-      raw: m,
     };
   });
 
