@@ -137,16 +137,29 @@ async function pollGmail(
     )
   );
 
+  // Gmail's `after:` query only has day-level precision with large Unix timestamps,
+  // so we filter client-side to only messages strictly newer than last_seen_timestamp.
+  const lastCheckMs = lastTimestamp
+    ? new Date(lastTimestamp).getTime()
+    : Date.now() - 3600000;
+
+  const freshMessages = rawMessages.filter((m: any) => {
+    const msgTs = m.internalDate ? parseInt(m.internalDate) : 0;
+    return msgTs > lastCheckMs;
+  });
+
+  if (freshMessages.length === 0) return { hasNewData: false };
+
   const latestTimestamp = Math.max(
-    ...rawMessages.map((m: any) => (m.internalDate ? parseInt(m.internalDate) : 0))
+    ...freshMessages.map((m: any) => parseInt(m.internalDate))
   );
 
-  if (latestTimestamp === 0 || !isFinite(latestTimestamp)) {
+  if (!isFinite(latestTimestamp)) {
     return { hasNewData: false };
   }
 
   // Normalize messages — no `raw` field to keep the Inngest event payload small
-  const messages = rawMessages.map((m: any) => {
+  const messages = freshMessages.map((m: any) => {
     const getHeader = (name: string) =>
       (m?.payload?.headers || []).find((h: any) => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
     const from = getHeader('From');

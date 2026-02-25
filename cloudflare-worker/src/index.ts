@@ -72,6 +72,10 @@ async function runPollingTriggers(env: Env): Promise<void> {
     let errors = 0;
 
     for (const trigger of dueTriggers) {
+      // Capture start time before any HTTP calls so next_poll_at is computed
+      // relative to when this poll cycle began, not when it finished.
+      const pollStartTime = Date.now();
+
       try {
         const pollResult = await executeTrigger(env, trigger);
 
@@ -83,7 +87,7 @@ async function runPollingTriggers(env: Env): Promise<void> {
         if (pollResult.error) {
           console.error(`[Polling] Error for trigger ${trigger.id}:`, pollResult.error);
           errors++;
-          await updateTriggerNextPoll(env, trigger.id, 300);
+          await updateTriggerNextPoll(env, trigger.id, trigger.poll_interval || 60, pollStartTime);
           continue;
         }
 
@@ -124,12 +128,13 @@ async function runPollingTriggers(env: Env): Promise<void> {
           trigger.id,
           pollResult.newCursor || null,
           pollResult.newTimestamp || null,
-          trigger.poll_interval
+          trigger.poll_interval,
+          pollStartTime
         );
       } catch (error: any) {
         console.error(`[Polling] Exception for trigger ${trigger.id}:`, error.message);
         errors++;
-        await updateTriggerNextPoll(env, trigger.id, trigger.poll_interval || 60);
+        await updateTriggerNextPoll(env, trigger.id, trigger.poll_interval || 60, pollStartTime);
       }
     }
 
@@ -295,16 +300,20 @@ async function disableTrigger(env: Env, triggerId: string): Promise<void> {
 }
 
 /**
- * Update trigger after successful poll (cursor, timestamp, next_poll_at)
+ * Update trigger after successful poll (cursor, timestamp, next_poll_at).
+ * Uses pollStartTime (captured before any HTTP calls) so that HTTP latency does not
+ * push next_poll_at past the next cron boundary, which would cause the trigger to be
+ * skipped an extra minute and only fire every 2 minutes instead of every 1 minute.
  */
 async function updateTriggerAfterPoll(
   env: Env,
   triggerId: string,
   newCursor: string | null,
   newTimestamp: string | null,
-  pollInterval: number
+  pollInterval: number,
+  pollStartTime: number
 ): Promise<void> {
-  const nextPollAt = new Date(Date.now() + pollInterval * 1000).toISOString();
+  const nextPollAt = new Date(pollStartTime + pollInterval * 1000).toISOString();
   const updateData: any = { next_poll_at: nextPollAt, updated_at: new Date().toISOString() };
   if (newCursor !== null) updateData.last_cursor = newCursor;
   if (newTimestamp !== null) updateData.last_seen_timestamp = newTimestamp;
@@ -329,10 +338,10 @@ async function updateTriggerAfterPoll(
 }
 
 /**
- * Update only next_poll_at (for retries / errors)
+ * Update only next_poll_at (for retries / errors).
  */
-async function updateTriggerNextPoll(env: Env, triggerId: string, delaySeconds: number): Promise<void> {
-  const nextPollAt = new Date(Date.now() + delaySeconds * 1000).toISOString();
+async function updateTriggerNextPoll(env: Env, triggerId: string, delaySeconds: number, pollStartTime: number): Promise<void> {
+  const nextPollAt = new Date(pollStartTime + delaySeconds * 1000).toISOString();
   await fetch(`${env.SUPABASE_URL}/rest/v1/polling_triggers?id=eq.${triggerId}`, {
     method: 'PATCH',
     headers: {
