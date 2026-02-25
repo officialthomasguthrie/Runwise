@@ -238,7 +238,7 @@ async function sendToInngest(
     triggerId: string;
   }
 ): Promise<void> {
-  const inngestUrl = env.INNGEST_BASE_URL || 'https://api.inngest.com';
+  const inngestUrl = env.INNGEST_BASE_URL || 'https://inn.gs';
 
   const response = await fetch(`${inngestUrl}/e/${env.INNGEST_EVENT_KEY}`, {
     method: 'POST',
