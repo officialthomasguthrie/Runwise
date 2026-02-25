@@ -31,6 +31,22 @@ export function resolveTemplate(
       for (let i = 1; i < keys.length; i++) {
         result = result?.[keys[i]];
       }
+      // Fallback: when the direct inputData doesn't have the field (e.g. a multi-node
+      // chain where the immediate source doesn't pass through upstream data), search
+      // all previous node outputs in execution order for the same path.
+      if ((result === undefined || result === null) && previousOutputs) {
+        for (const prevOutput of Object.values(previousOutputs)) {
+          if (typeof prevOutput !== 'object' || prevOutput === null) continue;
+          let found: any = prevOutput;
+          for (let i = 1; i < keys.length; i++) {
+            found = found?.[keys[i]];
+          }
+          if (found !== undefined && found !== null) {
+            result = found;
+            break;
+          }
+        }
+      }
     } else if (previousOutputs && keys.length > 1) {
       // Try to find by node ID (first key might be node ID)
       const nodeId = keys[0];

@@ -49,9 +49,11 @@ const sendEmailGmailExecute = async (inputData: any, config: any, context: Execu
 
   const requestBody: any = { raw: encoded };
 
-  // Attaching threadId makes Gmail deliver the message as a reply in the same thread
-  if (replyToThread === 'yes' && threadId?.trim()) {
-    requestBody.threadId = threadId.trim();
+  // Attaching threadId makes Gmail deliver the message as a reply in the same thread.
+  // Skip if threadId is empty OR still contains {{ }} (unresolved template variable).
+  const resolvedThreadId = threadId?.trim();
+  if (replyToThread === 'yes' && resolvedThreadId && !resolvedThreadId.includes('{{')) {
+    requestBody.threadId = resolvedThreadId;
   }
 
   const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {

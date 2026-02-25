@@ -135,13 +135,13 @@ export async function executeWorkflow(
         const nodeData = (node.data ?? {}) as Record<string, any>;
         const originalConfig = nodeData.config || {};
         
-        // Build previous outputs map for template resolution
+        // Build previous outputs map for template resolution.
+        // Include ALL executed node outputs (not just direct sources) so that
+        // {{inputData.field}} can fall back to earlier nodes in the chain and
+        // {{nodeId.field}} references work across multiple hops.
         const previousOutputs: Record<string, any> = {};
-        sourceNodeIds.forEach((sourceId) => {
-          const output = nodeOutputs.get(sourceId);
-          if (output !== undefined) {
-            previousOutputs[sourceId] = output;
-          }
+        nodeOutputs.forEach((output, nodeId) => {
+          previousOutputs[nodeId] = output;
         });
         
         // Resolve templates in config
