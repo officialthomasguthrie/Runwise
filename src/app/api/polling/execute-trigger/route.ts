@@ -102,10 +102,6 @@ async function pollGmail(
   lastTimestamp: string | null
 ): Promise<{ hasNewData: boolean; newData?: any[]; newTimestamp?: string }> {
   const accessToken = await getGoogleAccessToken(userId, 'google-gmail');
-  // +1 second so the `after:` filter strictly excludes the last-seen email
-  const lastCheck = lastTimestamp
-    ? Math.floor(new Date(lastTimestamp).getTime() / 1000) + 1
-    : Math.floor((Date.now() - 3600000) / 1000);
 
   // When Inbox is selected and a real category is set, filter by that category label instead
   // Treat '' and 'all' as "no specific category" (keep INBOX)
@@ -113,8 +109,13 @@ async function pollGmail(
   const categoryId = config?.categoryId;
   const hasCategory = categoryId && categoryId !== '' && categoryId !== 'all';
   const labelId = (baseLabel === 'INBOX' && hasCategory) ? categoryId : baseLabel;
+
+  // Fetch the latest 20 messages by label only — no search query.
+  // Using q=after:{unix_timestamp} hits Gmail's search index which can take several minutes
+  // to index newly arrived messages, causing missed triggers. Fetching by label and filtering
+  // client-side on internalDate is immediate and reliable.
   const listResponse = await fetch(
-    `https://www.googleapis.com/gmail/v1/users/me/messages?q=after:${lastCheck}&maxResults=10&labelIds=${labelId}`,
+    `https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=20&labelIds=${encodeURIComponent(labelId)}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
@@ -134,7 +135,7 @@ async function pollGmail(
     .join('&');
 
   const rawMessages = await Promise.all(
-    messageIds.slice(0, 10).map((msg: any) =>
+    messageIds.slice(0, 20).map((msg: any) =>
       fetch(
         `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&${metadataHeaders}`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -142,8 +143,8 @@ async function pollGmail(
     )
   );
 
-  // Gmail's `after:` query only has day-level precision with large Unix timestamps,
-  // so we filter client-side to only messages strictly newer than last_seen_timestamp.
+  // Filter client-side to only messages strictly newer than the last-seen timestamp.
+  // This is the sole deduplication mechanism — no dependency on Gmail's search index.
   const lastCheckMs = lastTimestamp
     ? new Date(lastTimestamp).getTime()
     : Date.now() - 3600000;
