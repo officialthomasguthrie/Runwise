@@ -31,7 +31,7 @@ function buildCategorizedNodeList(
       heading: 'COMMUNICATION NODES',
       description: 'Pre-built nodes for sending messages and notifications.',
       nodeIds: [
-        'send-email', 'post-to-slack-channel', 'send-discord-message',
+        'send-email-gmail', 'send-email', 'post-to-slack-channel', 'send-discord-message',
         'send-sms-via-twilio', 'post-to-x',
       ],
     },
@@ -249,7 +249,10 @@ AI & Content Generation:
 - "speech to text", "transcribe", "transcription" → Use "speech-to-text"
 
 Communication:
-- "send email", "email notification", "email alert" → Use "send-email"
+- "send email", "email notification", "email alert", "reply to email", "auto-reply", "send a Gmail" → Use "send-email-gmail" BY DEFAULT (user just needs their Google account connected — no extra setup)
+  - Exception: If the user explicitly mentions "SendGrid" → Use "send-email" instead
+  - Exception: If the workflow has no Google/Gmail connection at all AND the user has SendGrid set up → Use "send-email"
+  - The "send-email-gmail" node also supports replying to an existing thread (set replyToThread: "yes" and threadId)
 - "post to Slack", "Slack message", "Slack alert", "Slack notification", "notify team on Slack" → Use "post-to-slack-channel"
 - "send Discord message", "Discord notification" → Use "send-discord-message"
 - "send SMS", "text message" → Use "send-sms-via-twilio"
@@ -303,7 +306,7 @@ ANTI-PATTERNS (NEVER DO THESE):
 ❌ Using a TRIGGER node as an ACTION (e.g., using "new-row-in-google-sheet" to WRITE a row — that's a trigger, not an action. Create a custom "Add Row to Google Sheet" node instead)
 ❌ Creating a custom "Generate AI Content" or "Analyze with ChatGPT" node → ALWAYS use "generate-ai-content" from the library
 ❌ Creating a custom "Summarize Text" node → ALWAYS use "generate-summary-with-ai" from the library
-❌ Creating a custom "Send Email" node → ALWAYS use "send-email" from the library
+❌ Creating a custom "Send Email" node → ALWAYS use "send-email-gmail" (or "send-email" if SendGrid is explicitly required)
 ❌ Creating a custom "Post to Slack" node → ALWAYS use "post-to-slack-channel" from the library
 ❌ Creating a custom "Post to X/Twitter" node → ALWAYS use "post-to-x" from the library
 ❌ Using a communication node for data FORMATTING → Use "generate-ai-content" instead
@@ -361,14 +364,14 @@ Output:
 {
   "libraryNodes": [
     { "id": "new-row-in-google-sheet", "role": "trigger", "reason": "Matches trigger requirement for new row in Google Sheet" },
-    { "id": "send-email", "role": "action", "reason": "Matches action requirement to send email notification" }
+    { "id": "send-email-gmail", "role": "action", "reason": "Sends email via Gmail — preferred over send-email (SendGrid) as it requires no extra account setup" }
   ],
   "customNodes": [],
   "connections": [
-    { "from": "new-row-in-google-sheet", "to": "send-email", "reason": "New row data should trigger email notification" }
+    { "from": "new-row-in-google-sheet", "to": "send-email-gmail", "reason": "New row data should trigger email notification" }
   ],
   "dataFlow": [
-    { "source": "new-row-in-google-sheet", "target": "send-email", "field": "row" }
+    { "source": "new-row-in-google-sheet", "target": "send-email-gmail", "field": "row" }
   ]
 }
 
@@ -400,20 +403,20 @@ Output:
   "libraryNodes": [
     { "id": "webhook-trigger", "role": "trigger", "reason": "User signup events come via webhook from the app" },
     { "id": "generate-ai-content", "role": "transform", "reason": "Generates the AI-powered welcome email content — using library node, NOT a custom node" },
-    { "id": "send-email", "role": "action", "reason": "Sends the AI-generated welcome email" },
+    { "id": "send-email-gmail", "role": "action", "reason": "Sends the AI-generated welcome email via Gmail — preferred default for sending emails" },
     { "id": "create-notion-page", "role": "action", "reason": "Adds user to Notion CRM" },
     { "id": "post-to-slack-channel", "role": "action", "reason": "Posts Slack alert about new signup" }
   ],
   "customNodes": [],
   "connections": [
     { "from": "webhook-trigger", "to": "generate-ai-content", "reason": "Signup data feeds AI content generation" },
-    { "from": "generate-ai-content", "to": "send-email", "reason": "AI-generated content used as email body" },
+    { "from": "generate-ai-content", "to": "send-email-gmail", "reason": "AI-generated content used as email body" },
     { "from": "webhook-trigger", "to": "create-notion-page", "reason": "Signup data used to create Notion page" },
     { "from": "webhook-trigger", "to": "post-to-slack-channel", "reason": "Signup data used for Slack notification" }
   ],
   "dataFlow": [
     { "source": "webhook-trigger", "target": "generate-ai-content", "field": "data" },
-    { "source": "generate-ai-content", "target": "send-email", "field": "content" },
+    { "source": "generate-ai-content", "target": "send-email-gmail", "field": "content" },
     { "source": "webhook-trigger", "target": "create-notion-page", "field": "data" },
     { "source": "webhook-trigger", "target": "post-to-slack-channel", "field": "data" }
   ]
