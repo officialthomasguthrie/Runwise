@@ -25,6 +25,7 @@ export interface NodeConfigSchema {
     description: string;
     required?: boolean;
     default?: any;
+    placeholder?: string; // UI hint shown inside the input field
     options?: Array<{ label: string; value: string }>; // For select type
     integrationType?: string; // For integration type
     resourceType?: string; // For integration type
