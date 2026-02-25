@@ -365,9 +365,61 @@ const newFormSubmissionExecute = async (inputData: any, config: any, context: Ex
   };
 };
 
+/** Extract a named header value from a raw Gmail message */
+function gmailHeader(message: any, name: string): string {
+  const headers: any[] = message?.payload?.headers || [];
+  return headers.find((h: any) => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
+}
+
+/** Extract plain-text body from a Gmail message (best-effort) */
+function gmailBody(message: any): string {
+  const payload = message?.payload;
+  if (!payload) return message?.snippet || '';
+
+  // Inline body (simple messages)
+  if (payload.body?.data) {
+    return Buffer.from(payload.body.data, 'base64').toString('utf-8');
+  }
+
+  // Multipart: find text/plain part first, fall back to text/html
+  const findPart = (parts: any[], mime: string): any =>
+    parts?.find((p: any) => p.mimeType === mime) ||
+    parts?.flatMap((p: any) => findPart(p.parts || [], mime) || []).find(Boolean);
+
+  const textPart = findPart(payload.parts || [], 'text/plain') ||
+                   findPart(payload.parts || [], 'text/html');
+  if (textPart?.body?.data) {
+    return Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+  }
+
+  return message?.snippet || '';
+}
+
+/** Normalize a raw Gmail API message into a flat, template-friendly object */
+function normalizeGmailMessage(message: any): any {
+  return {
+    id: message.id,
+    threadId: message.threadId,
+    from: gmailHeader(message, 'From'),
+    to: gmailHeader(message, 'To'),
+    subject: gmailHeader(message, 'Subject'),
+    date: gmailHeader(message, 'Date'),
+    snippet: message.snippet || '',
+    body: gmailBody(message),
+    labelIds: message.labelIds || [],
+    raw: message,
+  };
+}
+
 const newEmailReceivedExecute = async (inputData: any, config: any, context: ExecutionContext) => {
   const { apiKey, labelId, lastCheck } = config;
-  
+
+  // If triggered by a polling event, use the pre-fetched items instead of re-fetching
+  if (Array.isArray(inputData?.items) && inputData.items.length > 0) {
+    const emails = inputData.items.map(normalizeGmailMessage);
+    return { emails, email: emails[0], count: emails.length };
+  }
+
   const accessToken = context.auth?.google?.token || apiKey || getAuthToken(context, 'google');
   if (!accessToken) {
     throw new Error('Google access token required. Please connect your Google account or provide an API key.');
@@ -378,28 +430,20 @@ const newEmailReceivedExecute = async (inputData: any, config: any, context: Exe
   
   const response = await context.http.get(
     `https://www.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(`${labelQuery} ${timeQuery}`)}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    }
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
   );
   
-  // Fetch full message details
-  const messages = await Promise.all(
+  const rawMessages = await Promise.all(
     (response.messages || []).map((msg: any) =>
       context.http.get(
         `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        }
+        { headers: { 'Authorization': `Bearer ${accessToken}` } }
       )
     )
   );
-  
-  return { emails: messages, count: messages.length };
+
+  const emails = rawMessages.map(normalizeGmailMessage);
+  return { emails, email: emails[0], count: emails.length };
 };
 
 const newRowInGoogleSheetExecute = async (inputData: any, config: any, context: ExecutionContext) => {

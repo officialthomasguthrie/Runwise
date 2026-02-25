@@ -121,7 +121,7 @@ async function pollGmail(
 
   if (messageIds.length === 0) return { hasNewData: false };
 
-  const messages = await Promise.all(
+  const rawMessages = await Promise.all(
     messageIds.slice(0, 10).map((msg: any) =>
       fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -130,8 +130,25 @@ async function pollGmail(
   );
 
   const latestTimestamp = Math.max(
-    ...messages.map((m: any) => (m.internalDate ? parseInt(m.internalDate) : 0))
+    ...rawMessages.map((m: any) => (m.internalDate ? parseInt(m.internalDate) : 0))
   );
+
+  // Normalize messages so downstream templates can use {{items[0].from}}, {{items[0].subject}} etc.
+  const messages = rawMessages.map((m: any) => {
+    const getHeader = (name: string) =>
+      (m?.payload?.headers || []).find((h: any) => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
+    return {
+      id: m.id,
+      threadId: m.threadId,
+      from: getHeader('From'),
+      to: getHeader('To'),
+      subject: getHeader('Subject'),
+      date: getHeader('Date'),
+      snippet: m.snippet || '',
+      labelIds: m.labelIds || [],
+      raw: m,
+    };
+  });
 
   return {
     hasNewData: true,
