@@ -1182,6 +1182,8 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                 const isExcludedField =
                   // Custom nodes - exclude integration fields (rendered at top)
                   (data.nodeId === 'CUSTOM_GENERATED' && schema.type === 'integration') ||
+                  // Gmail email received — categoryId is rendered inline inside the labelId block
+                  (data.nodeId === 'new-email-received' && key === 'categoryId') ||
                   // Google OAuth integration nodes - remove apiKey fields
                   ((data.nodeId === 'new-row-in-google-sheet' ||
                     data.nodeId === 'new-email-received' ||
@@ -1227,8 +1229,8 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   ((data.nodeId === 'upload-file-to-google-drive' || data.nodeId === 'file-uploaded') && (key === 'fileName' || key === 'fileContent' || key === 'mimeType' || key === 'driveId')) ||
                   // Google Forms node - hide pollInterval until form is selected
                   (data.nodeId === 'new-form-submission' && key === 'pollInterval') ||
-                  // Gmail node - hide lastCheck until label is selected; categoryId is rendered inline
-                  (data.nodeId === 'new-email-received' && (key === 'lastCheck' || key === 'categoryId')) ||
+                  // Gmail node - hide lastCheck until label is selected
+                  (data.nodeId === 'new-email-received' && key === 'lastCheck') ||
                   // Gmail send node - hide threadId unless reply mode is active
                   (data.nodeId === 'send-email-gmail' && key === 'threadId') ||
                   // Slack nodes - hide message until channel is selected

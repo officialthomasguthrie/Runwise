@@ -107,11 +107,12 @@ async function pollGmail(
     ? Math.floor(new Date(lastTimestamp).getTime() / 1000) + 1
     : Math.floor((Date.now() - 3600000) / 1000);
 
-  // When Inbox is selected and a category filter is set, use the category label instead
+  // When Inbox is selected and a real category is set, filter by that category label instead
+  // Treat '' and 'all' as "no specific category" (keep INBOX)
   const baseLabel = config?.labelId || 'INBOX';
-  const labelId = (baseLabel === 'INBOX' && config?.categoryId)
-    ? config.categoryId
-    : baseLabel;
+  const categoryId = config?.categoryId;
+  const hasCategory = categoryId && categoryId !== '' && categoryId !== 'all';
+  const labelId = (baseLabel === 'INBOX' && hasCategory) ? categoryId : baseLabel;
   const listResponse = await fetch(
     `https://www.googleapis.com/gmail/v1/users/me/messages?q=after:${lastCheck}&maxResults=10&labelIds=${labelId}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }

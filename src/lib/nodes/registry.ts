@@ -422,6 +422,7 @@ const newFormSubmissionExecute = async (inputData: any, config: any, context: Ex
   const newSubmissions = response.responses || [];
   return {
     submissions: newSubmissions,
+    submission: newSubmissions[0],
     count: newSubmissions.length,
     lastCheck: new Date().toISOString(),
   };
@@ -565,6 +566,7 @@ const newRowInGoogleSheetExecute = async (inputData: any, config: any, context: 
   
   return {
     rows: newRows,
+    row: newRows[0],
     count: newRows.length,
     lastRow: rows.length,
   };
@@ -596,7 +598,8 @@ const newMessageInSlackExecute = async (inputData: any, config: any, context: Ex
     throw new Error(response.error || 'Failed to fetch Slack messages');
   }
   
-  return { messages: response.messages || [], count: response.messages?.length || 0 };
+  const messages = response.messages || [];
+  return { messages, message: messages[0], count: messages.length };
 };
 
 const newDiscordMessageExecute = async (inputData: any, config: any, context: ExecutionContext) => {
@@ -653,7 +656,8 @@ const newGitHubIssueExecute = async (inputData: any, config: any, context: Execu
     }
   );
   
-  return { issues: response, count: response.length };
+  const issues = Array.isArray(response) ? response : [];
+  return { issues, issue: issues[0], count: issues.length };
 };
 
 
@@ -674,7 +678,8 @@ const fileUploadedExecute = async (inputData: any, config: any, context: Executi
     }
   );
   
-  return { files: response.files || [], count: response.files?.length || 0 };
+  const files = response.files || [];
+  return { files, file: files[0], count: files.length };
 };
 
 // ============================================================================
@@ -3642,7 +3647,11 @@ export const nodeRegistry: NodeRegistry = {
     category: 'trigger',
     inputs: [],
     outputs: [
-      { name: 'submissions', type: 'array', description: 'Array of new submissions' },
+      { name: 'submission', type: 'object', description: 'First (most recent) form submission' },
+      { name: 'submission.responseId', type: 'string', description: 'Unique submission ID' },
+      { name: 'submission.createTime', type: 'string', description: 'Submission timestamp' },
+      { name: 'submission.answers', type: 'object', description: 'All question answers' },
+      { name: 'submissions', type: 'array', description: 'All new submissions' },
       { name: 'count', type: 'number', description: 'Number of new submissions' },
     ],
     configSchema: {
@@ -3669,8 +3678,19 @@ export const nodeRegistry: NodeRegistry = {
     category: 'trigger',
     inputs: [],
     outputs: [
-      { name: 'emails', type: 'array', description: 'Array of new emails' },
-      { name: 'count', type: 'number', description: 'Number of new emails' },
+      { name: 'email', type: 'object', description: 'First (most recent) email — use this for single-email workflows' },
+      { name: 'email.id', type: 'string', description: 'Gmail message ID' },
+      { name: 'email.threadId', type: 'string', description: 'Thread ID — use in Send Email via Gmail to reply in this thread' },
+      { name: 'email.from', type: 'string', description: 'Sender full address (e.g. "John Smith <john@example.com>")' },
+      { name: 'email.fromEmail', type: 'string', description: 'Sender email address only' },
+      { name: 'email.fromName', type: 'string', description: 'Sender display name' },
+      { name: 'email.to', type: 'string', description: 'Recipient address' },
+      { name: 'email.subject', type: 'string', description: 'Email subject line' },
+      { name: 'email.date', type: 'string', description: 'Date and time the email was received' },
+      { name: 'email.snippet', type: 'string', description: 'Short preview of the email body' },
+      { name: 'email.body', type: 'string', description: 'Full email body text' },
+      { name: 'emails', type: 'array', description: 'All new emails (use when processing multiple at once)' },
+      { name: 'count', type: 'number', description: 'Number of new emails received' },
     ],
     configSchema: {
       labelId: { 
@@ -3687,7 +3707,7 @@ export const nodeRegistry: NodeRegistry = {
         description: 'Only trigger for emails in this inbox category (only applies when Inbox is selected)',
         required: false,
         options: [
-          { value: '', label: 'All categories' },
+          { value: 'all', label: 'All categories' },
           { value: 'CATEGORY_PERSONAL', label: 'Primary' },
           { value: 'CATEGORY_PROMOTIONS', label: 'Promotions' },
           { value: 'CATEGORY_SOCIAL', label: 'Social' },
@@ -3711,7 +3731,8 @@ export const nodeRegistry: NodeRegistry = {
     category: 'trigger',
     inputs: [],
     outputs: [
-      { name: 'rows', type: 'array', description: 'Array of new rows' },
+      { name: 'row', type: 'array', description: 'First new row (array of cell values)' },
+      { name: 'rows', type: 'array', description: 'All new rows' },
       { name: 'count', type: 'number', description: 'Number of new rows' },
     ],
     configSchema: {
@@ -3733,7 +3754,12 @@ export const nodeRegistry: NodeRegistry = {
     category: 'trigger',
     inputs: [],
     outputs: [
-      { name: 'messages', type: 'array', description: 'Array of new messages' },
+      { name: 'message', type: 'object', description: 'First (most recent) message' },
+      { name: 'message.text', type: 'string', description: 'Message text content' },
+      { name: 'message.user', type: 'string', description: 'Slack user ID who sent the message' },
+      { name: 'message.ts', type: 'string', description: 'Message timestamp' },
+      { name: 'message.thread_ts', type: 'string', description: 'Thread timestamp (if in a thread)' },
+      { name: 'messages', type: 'array', description: 'All new messages' },
       { name: 'count', type: 'number', description: 'Number of new messages' },
     ],
     configSchema: {
@@ -3755,6 +3781,11 @@ export const nodeRegistry: NodeRegistry = {
     inputs: [],
     outputs: [
       { name: 'message', type: 'object', description: 'Discord message data' },
+      { name: 'message.content', type: 'string', description: 'Message text content' },
+      { name: 'message.id', type: 'string', description: 'Discord message ID' },
+      { name: 'message.author.username', type: 'string', description: 'Username of the message author' },
+      { name: 'message.channel_id', type: 'string', description: 'Channel the message was posted in' },
+      { name: 'message.timestamp', type: 'string', description: 'Message timestamp' },
     ],
     configSchema: {
       guildId: { type: 'string', label: 'Server', description: 'Select a Discord server', required: true, serviceName: 'discord', resourceType: 'guild' },
@@ -3810,7 +3841,15 @@ export const nodeRegistry: NodeRegistry = {
     category: 'trigger',
     inputs: [],
     outputs: [
-      { name: 'issues', type: 'array', description: 'Array of new issues' },
+      { name: 'issue', type: 'object', description: 'First (most recent) issue' },
+      { name: 'issue.number', type: 'number', description: 'Issue number' },
+      { name: 'issue.title', type: 'string', description: 'Issue title' },
+      { name: 'issue.body', type: 'string', description: 'Issue description/body' },
+      { name: 'issue.html_url', type: 'string', description: 'Link to the issue on GitHub' },
+      { name: 'issue.state', type: 'string', description: 'Issue state (open/closed)' },
+      { name: 'issue.user.login', type: 'string', description: 'Username of who opened the issue' },
+      { name: 'issue.created_at', type: 'string', description: 'Date issue was created' },
+      { name: 'issues', type: 'array', description: 'All new issues' },
       { name: 'count', type: 'number', description: 'Number of new issues' },
     ],
     configSchema: {
@@ -3832,7 +3871,12 @@ export const nodeRegistry: NodeRegistry = {
     category: 'trigger',
     inputs: [],
     outputs: [
-      { name: 'files', type: 'array', description: 'Array of uploaded files' },
+      { name: 'file', type: 'object', description: 'First (most recent) uploaded file' },
+      { name: 'file.id', type: 'string', description: 'Google Drive file ID' },
+      { name: 'file.name', type: 'string', description: 'File name' },
+      { name: 'file.mimeType', type: 'string', description: 'File MIME type' },
+      { name: 'file.webViewLink', type: 'string', description: 'Link to view the file in Google Drive' },
+      { name: 'files', type: 'array', description: 'All new files' },
       { name: 'count', type: 'number', description: 'Number of new files' },
     ],
     configSchema: {
