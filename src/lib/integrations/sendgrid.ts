@@ -18,6 +18,19 @@ async function getSendGridApiKey(userId: string): Promise<string> {
 }
 
 /**
+ * Parse an RFC 5322 address string into { email, name? }.
+ * Handles both bare "email@example.com" and "Name <email@example.com>" formats.
+ */
+function parseAddress(input: string): { email: string; name?: string } {
+  if (!input) return { email: '' };
+  const match = input.trim().match(/^"?([^"<]+?)"?\s*<([^>]+)>\s*$/);
+  if (match) {
+    return { email: match[2].trim(), name: match[1].trim() || undefined };
+  }
+  return { email: input.trim() };
+}
+
+/**
  * Send email via SendGrid
  */
 export async function sendEmail(
@@ -42,12 +55,12 @@ export async function sendEmail(
     },
     body: JSON.stringify({
       personalizations: [{
-        to: [{ email: params.to }],
-        ...(params.cc && { cc: [{ email: params.cc }] }),
-        ...(params.bcc && { bcc: [{ email: params.bcc }] }),
+        to: [parseAddress(params.to)],
+        ...(params.cc && { cc: [parseAddress(params.cc)] }),
+        ...(params.bcc && { bcc: [parseAddress(params.bcc)] }),
         subject: params.subject
       }],
-      from: { email: params.from },
+      from: parseAddress(params.from),
       content: [
         ...(params.text ? [{ type: 'text/plain', value: params.text }] : []),
         ...(params.html ? [{ type: 'text/html', value: params.html }] : [])

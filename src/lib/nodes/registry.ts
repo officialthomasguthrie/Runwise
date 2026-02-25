@@ -395,15 +395,28 @@ function gmailBody(message: any): string {
   return message?.snippet || '';
 }
 
+/** Parse bare email address from RFC 5322 "Name <email>" or plain "email" string */
+function extractEmail(addr: string): string {
+  const m = addr.match(/<([^>]+)>/);
+  return m ? m[1].trim() : addr.trim();
+}
+function extractName(addr: string): string {
+  const m = addr.match(/^"?([^"<]+?)"?\s*</);
+  return m ? m[1].trim() : '';
+}
+
 /** Normalize a raw Gmail API message into a flat, template-friendly object.
  *  Safe to call on already-normalized messages — detects them via absence of payload.headers. */
 function normalizeGmailMessage(message: any): any {
   // Already normalized: payload.headers won't exist; direct fields already extracted
   if (!message?.payload?.headers) {
+    const from = message.from || '';
     return {
       id: message.id,
       threadId: message.threadId,
-      from: message.from || '',
+      from,
+      fromEmail: message.fromEmail || extractEmail(from),
+      fromName: message.fromName || extractName(from),
       to: message.to || '',
       subject: message.subject || '',
       date: message.date || '',
@@ -414,10 +427,13 @@ function normalizeGmailMessage(message: any): any {
     };
   }
   // Raw Gmail API format — extract from headers
+  const from = gmailHeader(message, 'From');
   return {
     id: message.id,
     threadId: message.threadId,
-    from: gmailHeader(message, 'From'),
+    from,
+    fromEmail: extractEmail(from),
+    fromName: extractName(from),
     to: gmailHeader(message, 'To'),
     subject: gmailHeader(message, 'Subject'),
     date: gmailHeader(message, 'Date'),

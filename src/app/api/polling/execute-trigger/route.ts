@@ -102,8 +102,9 @@ async function pollGmail(
   lastTimestamp: string | null
 ): Promise<{ hasNewData: boolean; newData?: any[]; newTimestamp?: string }> {
   const accessToken = await getGoogleAccessToken(userId, 'google-gmail');
+  // +1 second so the `after:` filter strictly excludes the last-seen email
   const lastCheck = lastTimestamp
-    ? Math.floor(new Date(lastTimestamp).getTime() / 1000)
+    ? Math.floor(new Date(lastTimestamp).getTime() / 1000) + 1
     : Math.floor((Date.now() - 3600000) / 1000);
 
   const labelId = config?.labelId || 'INBOX';
@@ -137,10 +138,15 @@ async function pollGmail(
   const messages = rawMessages.map((m: any) => {
     const getHeader = (name: string) =>
       (m?.payload?.headers || []).find((h: any) => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
+    const from = getHeader('From');
+    const emailMatch = from.match(/<([^>]+)>/);
+    const nameMatch = from.match(/^"?([^"<]+?)"?\s*</);
     return {
       id: m.id,
       threadId: m.threadId,
-      from: getHeader('From'),
+      from,
+      fromEmail: emailMatch ? emailMatch[1].trim() : from.trim(),
+      fromName: nameMatch ? nameMatch[1].trim() : '',
       to: getHeader('To'),
       subject: getHeader('Subject'),
       date: getHeader('Date'),
