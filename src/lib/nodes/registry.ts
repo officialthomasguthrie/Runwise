@@ -3545,6 +3545,20 @@ export const nodeRegistry: NodeRegistry = {
         integrationType: 'google',
         resourceType: 'label'
       },
+      categoryId: {
+        type: 'select',
+        label: 'Category Filter',
+        description: 'Only trigger for emails in this inbox category (only applies when Inbox is selected)',
+        required: false,
+        options: [
+          { value: '', label: 'All categories' },
+          { value: 'CATEGORY_PERSONAL', label: 'Primary' },
+          { value: 'CATEGORY_PROMOTIONS', label: 'Promotions' },
+          { value: 'CATEGORY_SOCIAL', label: 'Social' },
+          { value: 'CATEGORY_UPDATES', label: 'Updates' },
+          { value: 'CATEGORY_FORUMS', label: 'Forums' },
+        ],
+      },
       apiKey: { type: 'string', label: 'Google API Key', description: 'Optional: Google Cloud API key (or connect Google account above)', required: false },
       lastCheck: { type: 'string', label: 'Last Check', description: 'Last check timestamp (auto-managed)', required: false },
     },

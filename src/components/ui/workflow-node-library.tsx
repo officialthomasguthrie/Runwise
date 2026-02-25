@@ -1162,7 +1162,7 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                 const isIntegrationField = 
                   // Google OAuth integration fields
                   (data.nodeId === 'new-row-in-google-sheet' && (key === 'spreadsheetId' || key === 'sheetName')) ||
-                  (data.nodeId === 'new-email-received' && key === 'labelId') ||
+                  (data.nodeId === 'new-email-received' && (key === 'labelId' || key === 'categoryId')) ||
                   (data.nodeId === 'create-calendar-event' && key === 'calendarId') ||
                   ((data.nodeId === 'upload-file-to-google-drive' || data.nodeId === 'file-uploaded') && key === 'folderId') ||
                   (data.nodeId === 'new-form-submission' && key === 'formId') ||
@@ -1227,8 +1227,8 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   ((data.nodeId === 'upload-file-to-google-drive' || data.nodeId === 'file-uploaded') && (key === 'fileName' || key === 'fileContent' || key === 'mimeType' || key === 'driveId')) ||
                   // Google Forms node - hide pollInterval until form is selected
                   (data.nodeId === 'new-form-submission' && key === 'pollInterval') ||
-                  // Gmail node - hide lastCheck until label is selected
-                  (data.nodeId === 'new-email-received' && key === 'lastCheck') ||
+                  // Gmail node - hide lastCheck until label is selected; categoryId is rendered inline
+                  (data.nodeId === 'new-email-received' && (key === 'lastCheck' || key === 'categoryId')) ||
                   // Slack nodes - hide message until channel is selected
                   ((data.nodeId === 'post-to-slack-channel' || data.nodeId === 'new-message-in-slack') && key === 'message') ||
                   // Notion node - hide databaseId until connected, hide title/content until database is selected
@@ -1461,12 +1461,43 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             fieldKey={key}
                             fieldSchema={schema}
                             value={localConfig[key]}
-                            onChange={(value) => handleConfigChange(key, value)}
+                            onChange={(value) => {
+                              handleConfigChange(key, value);
+                              // Clear category filter when switching away from Inbox
+                              if (value !== 'INBOX' && value !== '' && value !== undefined) {
+                                handleConfigChange('categoryId', '');
+                              }
+                            }}
                             nodeId={id}
                             serviceName="google-gmail"
                             resourceType="label"
                             credentialType="oauth"
                           />
+                          {/* Category filter — only shown when Inbox is selected */}
+                          {(!localConfig.labelId || localConfig.labelId === 'INBOX') && integrationStatus.isConnected && (
+                            <div className="mt-2">
+                              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                                Category Filter
+                              </label>
+                              <select
+                                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                value={localConfig.categoryId || ''}
+                                onChange={(e) => handleConfigChange('categoryId', e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                <option value="">All categories</option>
+                                <option value="CATEGORY_PERSONAL">Primary</option>
+                                <option value="CATEGORY_PROMOTIONS">Promotions</option>
+                                <option value="CATEGORY_SOCIAL">Social</option>
+                                <option value="CATEGORY_UPDATES">Updates</option>
+                                <option value="CATEGORY_FORUMS">Forums</option>
+                              </select>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Only trigger when email arrives in this category
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                       
