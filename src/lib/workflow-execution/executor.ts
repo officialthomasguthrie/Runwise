@@ -553,7 +553,8 @@ async function createExecutionContext(userId: string, logs: LogEntry[]): Promise
             timestamp: new Date().toISOString(),
           });
 
-          throw new Error(`HTTP ${response.status}: ${errorData.message || errorData.error || response.statusText}`);
+          const errDetail = errorData.message ?? errorData.error ?? errorData.errors ?? response.statusText;
+          throw new Error(`HTTP ${response.status}: ${typeof errDetail === 'object' ? JSON.stringify(errDetail) : errDetail}`);
         }
 
         const contentType = response.headers.get('content-type');
@@ -612,7 +613,8 @@ async function createExecutionContext(userId: string, logs: LogEntry[]): Promise
             timestamp: new Date().toISOString(),
           });
 
-          throw new Error(`HTTP ${response.status}: ${errorData.message || errorData.error || response.statusText}`);
+          const errDetail = errorData.message ?? errorData.error ?? errorData.errors ?? response.statusText;
+          throw new Error(`HTTP ${response.status}: ${typeof errDetail === 'object' ? JSON.stringify(errDetail) : errDetail}`);
         }
 
         const contentType = response.headers.get('content-type');
@@ -654,7 +656,8 @@ async function createExecutionContext(userId: string, logs: LogEntry[]): Promise
             timestamp: new Date().toISOString(),
           });
 
-          throw new Error(`HTTP ${response.status}: ${errorData.message || errorData.error || response.statusText}`);
+          const errDetail = errorData.message ?? errorData.error ?? errorData.errors ?? response.statusText;
+          throw new Error(`HTTP ${response.status}: ${typeof errDetail === 'object' ? JSON.stringify(errDetail) : errDetail}`);
         }
 
         const contentType = response.headers.get('content-type');
@@ -696,7 +699,8 @@ async function createExecutionContext(userId: string, logs: LogEntry[]): Promise
             timestamp: new Date().toISOString(),
           });
 
-          throw new Error(`HTTP ${response.status}: ${errorData.message || errorData.error || response.statusText}`);
+          const errDetail = errorData.message ?? errorData.error ?? errorData.errors ?? response.statusText;
+          throw new Error(`HTTP ${response.status}: ${typeof errDetail === 'object' ? JSON.stringify(errDetail) : errDetail}`);
         }
 
         const contentType = response.headers.get('content-type');
@@ -733,7 +737,8 @@ async function createExecutionContext(userId: string, logs: LogEntry[]): Promise
             timestamp: new Date().toISOString(),
           });
 
-          throw new Error(`HTTP ${response.status}: ${errorData.message || errorData.error || response.statusText}`);
+          const errDetail = errorData.message ?? errorData.error ?? errorData.errors ?? response.statusText;
+          throw new Error(`HTTP ${response.status}: ${typeof errDetail === 'object' ? JSON.stringify(errDetail) : errDetail}`);
         }
 
         // DELETE might not return content

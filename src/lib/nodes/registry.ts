@@ -395,8 +395,25 @@ function gmailBody(message: any): string {
   return message?.snippet || '';
 }
 
-/** Normalize a raw Gmail API message into a flat, template-friendly object */
+/** Normalize a raw Gmail API message into a flat, template-friendly object.
+ *  Safe to call on already-normalized messages — detects them via absence of payload.headers. */
 function normalizeGmailMessage(message: any): any {
+  // Already normalized: payload.headers won't exist; direct fields already extracted
+  if (!message?.payload?.headers) {
+    return {
+      id: message.id,
+      threadId: message.threadId,
+      from: message.from || '',
+      to: message.to || '',
+      subject: message.subject || '',
+      date: message.date || '',
+      snippet: message.snippet || '',
+      body: message.body || message.snippet || '',
+      labelIds: message.labelIds || [],
+      raw: message.raw || message,
+    };
+  }
+  // Raw Gmail API format — extract from headers
   return {
     id: message.id,
     threadId: message.threadId,
