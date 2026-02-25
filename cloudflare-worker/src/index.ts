@@ -49,11 +49,7 @@ export default {
     const now = new Date().toISOString();
     console.log('[Worker] Cron triggered at', now);
 
-    // Run polling triggers and scheduled triggers concurrently
-    await Promise.allSettled([
-      runPollingTriggers(env),
-      runScheduledTriggers(env),
-    ]);
+    await runPollingTriggers(env);
 
     console.log('[Worker] Cron run complete');
   },
@@ -132,68 +128,6 @@ async function runPollingTriggers(env: Env): Promise<void> {
     console.log(`[Polling] Done: triggered=${triggered}, errors=${errors}`);
   } catch (error: any) {
     console.error('[Polling] Fatal error:', error.message);
-  }
-}
-
-// ─── Scheduled Triggers ──────────────────────────────────────────────────────
-
-interface DueWorkflow {
-  workflowId: string;
-  nodes: any[];
-  edges: any[];
-  userId: string;
-  cronExpression: string;
-  timezone: string;
-}
-
-async function runScheduledTriggers(env: Env): Promise<void> {
-  try {
-    const appUrl = env.APP_URL || 'https://runwiseai.app';
-
-    const response = await fetch(`${appUrl}/api/scheduled/get-due-workflows`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      console.error(`[Scheduled] API responded ${response.status}: ${await response.text()}`);
-      return;
-    }
-
-    const { due } = (await response.json()) as { due: DueWorkflow[] };
-
-    if (!due || due.length === 0) {
-      console.log('[Scheduled] No due scheduled workflows');
-      return;
-    }
-
-    console.log(`[Scheduled] Found ${due.length} due workflows`);
-
-    for (const workflow of due) {
-      try {
-        const eventId = `scheduled:${workflow.workflowId}:${Date.now()}`;
-        await sendWorkflowExecuteToInngest(env, eventId, {
-          workflowId: workflow.workflowId,
-          nodes: workflow.nodes,
-          edges: workflow.edges,
-          userId: workflow.userId,
-          triggerType: 'scheduled',
-          triggerData: {
-            triggerTime: new Date().toISOString(),
-            schedule: workflow.cronExpression,
-            timezone: workflow.timezone,
-          },
-        });
-        console.log(`[Scheduled] Fired workflow ${workflow.workflowId} (cron: ${workflow.cronExpression})`);
-      } catch (error: any) {
-        console.error(`[Scheduled] Error firing workflow ${workflow.workflowId}:`, error.message);
-      }
-    }
-  } catch (error: any) {
-    console.error('[Scheduled] Fatal error:', error.message);
   }
 }
 
@@ -287,48 +221,6 @@ async function getWorkflowData(
   };
 }
 
-/**
- * Generic workflow/execute event sender — accepts any triggerData shape
- */
-async function sendWorkflowExecuteToInngest(
-  env: Env,
-  eventId: string,
-  data: {
-    workflowId: string;
-    nodes: any[];
-    edges: any[];
-    userId: string;
-    triggerType: string;
-    triggerData: Record<string, any>;
-  }
-): Promise<void> {
-  const inngestUrl = env.INNGEST_BASE_URL || 'https://api.inngest.com';
-
-  const response = await fetch(`${inngestUrl}/v1/events`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.INNGEST_EVENT_KEY}`,
-    },
-    body: JSON.stringify({
-      name: 'workflow/execute',
-      id: eventId,
-      data: {
-        workflowId: data.workflowId,
-        nodes: data.nodes,
-        edges: data.edges,
-        userId: data.userId,
-        triggerType: data.triggerType,
-        triggerData: data.triggerData,
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to send Inngest event: ${response.statusText} - ${errorText}`);
-  }
-}
 
 /**
  * Send workflow/execute event to Inngest (polling format — wraps items in triggerData)
@@ -348,11 +240,10 @@ async function sendToInngest(
 ): Promise<void> {
   const inngestUrl = env.INNGEST_BASE_URL || 'https://api.inngest.com';
 
-  const response = await fetch(`${inngestUrl}/v1/events`, {
+  const response = await fetch(`${inngestUrl}/e/${env.INNGEST_EVENT_KEY}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.INNGEST_EVENT_KEY}`,
     },
     body: JSON.stringify({
       name: 'workflow/execute',
