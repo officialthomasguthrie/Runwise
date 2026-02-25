@@ -305,10 +305,17 @@ export async function getUserIntegration(
       return null;
     }
     
-    // Find the one that matches service_name in config
+    // Find the one that matches service_name in config.
+    // For Google, all service-specific records (google-gmail, google-sheets, etc.)
+    // share the same OAuth tokens, so accept any google-* record when looking for 'google'.
+    const isGoogleLookup = serviceName === 'google' || serviceName.startsWith('google-');
     const matching = newData.find((item: any) => {
       const config = item.config || {};
-      return config.service_name === serviceName || item.name === serviceName;
+      const storedName: string = config.service_name || item.name || '';
+      if (isGoogleLookup) {
+        return storedName === serviceName || storedName.startsWith('google-') || storedName === 'google';
+      }
+      return storedName === serviceName || item.name === serviceName;
     });
     
     if (!matching) {

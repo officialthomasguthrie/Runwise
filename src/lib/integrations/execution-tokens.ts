@@ -34,7 +34,7 @@ export async function getIntegrationTokenForExecution(
     // If token is expired or expiring soon, try to refresh
     if (expiresAt && expiresAt <= fiveMinutesFromNow && integration.refresh_token) {
       try {
-        if (serviceName === 'google') {
+        if (serviceName === 'google' || serviceName.startsWith('google-')) {
           const refreshed = await refreshGoogleToken(userId, integration.refresh_token);
           
           // refreshGoogleToken already updates the stored token
@@ -69,14 +69,19 @@ export async function getIntegrationTokenForExecution(
 export async function loadIntegrationTokensForExecution(
   userId: string
 ): Promise<Record<string, IntegrationTokenResult | null>> {
-  // Pre-load common integrations (OAuth-based)
-  const [google, slack, github, discord, twitter, paypal] = await Promise.all([
-    getIntegrationTokenForExecution(userId, 'google'),
+  // Pre-load common integrations (OAuth-based).
+  // For Google, try 'google' first then fall back to service-specific names,
+  // since users may have connected via google-gmail, google-sheets, etc.
+  const googleBase = await getIntegrationTokenForExecution(userId, 'google')
+    || await getIntegrationTokenForExecution(userId, 'google-gmail')
+    || await getIntegrationTokenForExecution(userId, 'google-sheets');
+
+  const [slack, github, discord, twitter, paypal] = await Promise.all([
     getIntegrationTokenForExecution(userId, 'slack'),
-    getIntegrationTokenForExecution(userId, 'github').catch(() => null), // GitHub optional
-    getIntegrationTokenForExecution(userId, 'discord').catch(() => null), // Discord optional
-    getIntegrationTokenForExecution(userId, 'twitter').catch(() => null), // Twitter optional
-    getIntegrationTokenForExecution(userId, 'paypal').catch(() => null) // PayPal optional
+    getIntegrationTokenForExecution(userId, 'github').catch(() => null),
+    getIntegrationTokenForExecution(userId, 'discord').catch(() => null),
+    getIntegrationTokenForExecution(userId, 'twitter').catch(() => null),
+    getIntegrationTokenForExecution(userId, 'paypal').catch(() => null)
   ]);
   
   // Load API key-based integrations from credentials
@@ -92,7 +97,7 @@ export async function loadIntegrationTokensForExecution(
   const discordBotToken = await getIntegrationCredential(userId, 'discord', 'bot_token').catch(() => null);
   
   return {
-    google: google || null,
+    google: googleBase || null,
     slack: slack || null,
     github: github || null,
     discord: discord || (discordBotToken ? { access_token: discordBotToken } : null),
