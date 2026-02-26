@@ -403,30 +403,33 @@ const postToXExecute = async (inputData: any, config: any, context: ExecutionCon
 // ============================================================================
 
 const newFormSubmissionExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  // This is a trigger, so it polls for new submissions
-  const { formId, pollInterval } = config;
-  const lastCheck = config.lastCheck || new Date().toISOString();
-  
+  // If triggered by a polling event, use the pre-fetched items instead of re-fetching
+  if (Array.isArray(inputData?.items) && inputData.items.length > 0) {
+    const submissions = inputData.items;
+    return {
+      submissions,
+      submission: submissions[0],
+      count: submissions.length,
+    };
+  }
+
+  // Fallback: manual execution — fetch responses directly
+  const { formId } = config;
   const accessToken = context.auth?.google?.token || getAuthToken(context, 'google');
   if (!accessToken) {
     throw new Error('Google access token required. Please connect your Google Forms integration.');
   }
   
   const response = await context.http.get(
-    `https://forms.googleapis.com/v1/forms/${formId}/responses?filter=timestamp>${lastCheck}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    }
+    `https://forms.googleapis.com/v1/forms/${formId}/responses?pageSize=10`,
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
   );
   
-  const newSubmissions = response.responses || [];
+  const submissions = response.responses || [];
   return {
-    submissions: newSubmissions,
-    submission: newSubmissions[0],
-    count: newSubmissions.length,
-    lastCheck: new Date().toISOString(),
+    submissions,
+    submission: submissions[0],
+    count: submissions.length,
   };
 };
 
