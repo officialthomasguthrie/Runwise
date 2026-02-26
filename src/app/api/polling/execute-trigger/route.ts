@@ -253,13 +253,16 @@ async function pollGoogleSheets(
   const { spreadsheetId, sheetName } = config;
   const lastRow = lastCursor ? parseInt(lastCursor) : 0;
 
+  // URL-encode the sheet name/range so names with spaces or special chars work correctly
+  const encodedRange = encodeURIComponent(sheetName);
   const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedRange}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
   if (!response.ok) {
-    throw new Error(`Google Sheets API error: ${response.statusText}`);
+    const errorBody = await response.text().catch(() => response.statusText);
+    throw new Error(`Google Sheets API error: ${response.status} ${errorBody}`);
   }
 
   const data = (await response.json()) as { values?: any[][] };

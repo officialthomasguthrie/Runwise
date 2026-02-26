@@ -548,33 +548,26 @@ const newEmailReceivedExecute = async (inputData: any, config: any, context: Exe
 };
 
 const newRowInGoogleSheetExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { apiKey, spreadsheetId, sheetName, lastRow } = config;
-  
-  // Use integration token from context, fallback to apiKey from config, then getAuthToken
+  // If triggered by a polling event, use the pre-fetched rows instead of re-fetching
+  if (Array.isArray(inputData?.items) && inputData.items.length > 0) {
+    const rows = inputData.items;
+    return { rows, row: rows[0], count: rows.length };
+  }
+
+  // Fallback: manual execution — fetch rows directly
+  const { apiKey, spreadsheetId, sheetName } = config;
   const accessToken = context.auth?.google?.token || apiKey || getAuthToken(context, 'google');
-  
   if (!accessToken) {
     throw new Error('Google access token required. Please connect your Google account or provide an API key.');
   }
   
   const response = await context.http.get(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    }
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
   );
   
   const rows = response.values || [];
-  const newRows = lastRow ? rows.slice(lastRow) : rows.slice(-1);
-  
-  return {
-    rows: newRows,
-    row: newRows[0],
-    count: newRows.length,
-    lastRow: rows.length,
-  };
+  return { rows, row: rows[0], count: rows.length };
 };
 
 const newMessageInSlackExecute = async (inputData: any, config: any, context: ExecutionContext) => {
