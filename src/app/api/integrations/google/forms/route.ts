@@ -25,11 +25,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ forms });
   } catch (error: any) {
     console.error('Error fetching Google Forms:', error);
-    // Scope errors mean the stored token is missing permissions — prompt reconnection
+    // Scope errors: return a clean message so the IntegrationField shows it inline.
+    // The user should click Disconnect above, then reconnect to grant Drive access.
     if (error.message?.startsWith('SCOPE_INSUFFICIENT:')) {
       return NextResponse.json(
-        { error: error.message.replace('SCOPE_INSUFFICIENT: ', ''), code: 'NOT_CONNECTED' },
-        { status: 401 }
+        { error: error.message.replace('SCOPE_INSUFFICIENT: ', '') },
+        { status: 403 }
       );
     }
     return NextResponse.json(
