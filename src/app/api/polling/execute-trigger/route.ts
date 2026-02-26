@@ -43,13 +43,20 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
 
     // Look up the workflow to get user_id and verify it's active
-    const { data: workflow } = await supabase
+    const { data: workflow, error: workflowError } = await supabase
       .from('workflows')
       .select('id, user_id, status')
       .eq('id', workflowId)
       .single();
 
+    if (workflowError) {
+      // DB error — don't disable the trigger, just fail this cycle
+      console.error(`[Execute Trigger] DB error fetching workflow ${workflowId}:`, workflowError);
+      return NextResponse.json({ error: workflowError.message, hasNewData: false }, { status: 500 });
+    }
+
     if (!workflow || (workflow as any).status !== 'active') {
+      console.log(`[Execute Trigger] Workflow ${workflowId} is not active (status: ${(workflow as any)?.status ?? 'not found'})`);
       return NextResponse.json({ hasNewData: false, reason: 'workflow_inactive' });
     }
 

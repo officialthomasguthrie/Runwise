@@ -82,13 +82,12 @@ async function runPollingTriggers(env: Env, cronScheduledTime?: number): Promise
         const pollResult = await executeTrigger(env, trigger);
 
         if (pollResult.reason === 'workflow_inactive') {
-          // Only disable the polling trigger if the workflow has been explicitly
-          // deactivated (status != active). Do NOT disable on the first occurrence —
-          // a single inactive response could be a transient DB read or deployment
-          // timing issue. The activation route explicitly disables triggers when
-          // the user deactivates, so this is just a safety net.
-          console.log(`[Polling] Trigger ${trigger.id}: workflow inactive, skipping cycle`);
-          await updateTriggerNextPoll(env, trigger.id, trigger.poll_interval || 60, cronStartMs);
+          // The execute-trigger API confirmed this workflow is not active in the DB.
+          // Disable the polling trigger so it stops being picked up on future polls.
+          // This is the reliable cleanup path for cases where the activation route
+          // failed to set enabled=false when the user deactivated the workflow.
+          console.log(`[Polling] Trigger ${trigger.id}: workflow inactive — disabling trigger`);
+          await disableTrigger(env, trigger.id);
           continue;
         }
 

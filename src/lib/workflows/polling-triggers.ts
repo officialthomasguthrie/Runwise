@@ -59,11 +59,13 @@ export async function createPollingTrigger(
 }
 
 /**
- * Disable polling trigger for a workflow
+ * Disable ALL polling triggers for a workflow.
+ * Does not require triggerType — disables every row for the workflow_id so
+ * deactivation is reliable even when the node type can't be resolved.
  */
 export async function disablePollingTrigger(
   workflowId: string,
-  triggerType: string
+  _triggerType?: string
 ): Promise<void> {
   try {
     const supabase = createAdminClient();
@@ -74,8 +76,7 @@ export async function disablePollingTrigger(
         enabled: false,
         updated_at: new Date().toISOString(),
       })
-      .eq('workflow_id', workflowId)
-      .eq('trigger_type', triggerType);
+      .eq('workflow_id', workflowId);
 
     if (error) {
       console.error(`[Polling Triggers] Error disabling trigger for ${workflowId}:`, error);
