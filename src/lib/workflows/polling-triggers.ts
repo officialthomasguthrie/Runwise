@@ -12,8 +12,9 @@ export interface PollingTriggerConfig {
   workflowId: string;
   triggerType: string;
   config: Record<string, any>;
-  pollInterval?: number; // seconds, default 60 (1 minute)
 }
+
+const POLL_INTERVAL_SECONDS = 60;
 
 /**
  * Create or update a polling trigger entry
@@ -21,8 +22,7 @@ export interface PollingTriggerConfig {
 export async function createPollingTrigger(
   workflowId: string,
   triggerType: string,
-  config: Record<string, any>,
-  pollInterval: number = 60 // Default 1 minute
+  config: Record<string, any>
 ): Promise<void> {
   try {
     const supabase = createAdminClient();
@@ -37,7 +37,7 @@ export async function createPollingTrigger(
         trigger_type: triggerType,
         config: config,
         next_poll_at: nextPollAt,
-        poll_interval: pollInterval,
+        poll_interval: POLL_INTERVAL_SECONDS,
         enabled: true,
         updated_at: new Date().toISOString(),
       }, {
@@ -50,7 +50,7 @@ export async function createPollingTrigger(
     }
     
     console.log(
-      `[Polling Triggers] Created/updated polling trigger for workflow ${workflowId}, type ${triggerType}, interval ${pollInterval}s`
+      `[Polling Triggers] Created/updated polling trigger for workflow ${workflowId}, type ${triggerType}, interval ${POLL_INTERVAL_SECONDS}s`
     );
   } catch (error) {
     console.error(`[Polling Triggers] Error creating polling trigger:`, error);
@@ -93,7 +93,6 @@ export async function disablePollingTrigger(
 export function getPollingTriggerFromNodes(nodes: Node[]): {
   triggerType: string;
   config: Record<string, any>;
-  pollInterval?: number;
 } | null {
   const pollingTriggerTypes = [
     'new-form-submission',
@@ -116,16 +115,9 @@ export function getPollingTriggerFromNodes(nodes: Node[]): {
   const triggerType = triggerNode.data?.nodeId as string;
   const config: Record<string, any> = triggerNode.data?.config || {};
   
-  // Extract poll_interval from config if present (in seconds)
-  // Default to 60 (1 minute) if not specified
-  const pollInterval = config['pollInterval'] 
-    ? parseInt(String(config['pollInterval'])) * 60 // Convert minutes to seconds
-    : 60; // Default 1 minute
-
   return {
     triggerType,
     config,
-    pollInterval,
   };
 }
 

@@ -234,11 +234,10 @@ export async function PUT(
             await createPollingTrigger(
               workflowId,
               triggerInfo.triggerType,
-              triggerInfo.config,
-              triggerInfo.pollInterval
+              triggerInfo.config
             );
             console.log(
-              `[Activation] Created polling trigger for workflow ${workflowId}, type ${triggerInfo.triggerType}, interval ${triggerInfo.pollInterval}s`
+              `[Activation] Created polling trigger for workflow ${workflowId}, type ${triggerInfo.triggerType}`
             );
           }
         } catch (error: any) {

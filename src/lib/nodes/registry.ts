@@ -3665,7 +3665,6 @@ export const nodeRegistry: NodeRegistry = {
         integrationType: 'google',
         resourceType: 'form'
       },
-      pollInterval: { type: 'number', label: 'Poll Interval', description: 'Polling interval in seconds (default: 60)', required: false, default: 60 },
     },
     execute: newFormSubmissionExecute,
     code: newFormSubmissionExecute.toString(),

@@ -1223,8 +1223,6 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   (data.nodeId === 'create-calendar-event' && (key === 'summary' || key === 'description' || key === 'start' || key === 'end' || key === 'attendees')) ||
                   // Google Drive nodes - hide file fields until folder is selected (for file-uploaded) or just connected (for upload-file-to-google-drive)
                   ((data.nodeId === 'upload-file-to-google-drive' || data.nodeId === 'file-uploaded') && (key === 'fileName' || key === 'fileContent' || key === 'mimeType' || key === 'driveId')) ||
-                  // Google Forms node - hide pollInterval until form is selected
-                  (data.nodeId === 'new-form-submission' && key === 'pollInterval') ||
                   // Gmail send node - hide threadId unless reply mode is active
                   (data.nodeId === 'send-email-gmail' && key === 'threadId') ||
                   // Slack nodes - hide message until channel is selected
