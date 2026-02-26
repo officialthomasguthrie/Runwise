@@ -3742,7 +3742,7 @@ export const nodeRegistry: NodeRegistry = {
       { name: 'count', type: 'number', description: 'Number of new rows' },
     ],
     configSchema: {
-      apiKey: { type: 'string', label: 'Google API Key', description: 'Google Cloud API key with Sheets API enabled (get it from https://console.cloud.google.com/apis/credentials)', required: true },
+      apiKey: { type: 'string', label: 'Google API Key', description: 'Optional: Google Cloud API key (or connect Google Sheets account above)', required: false },
       spreadsheetId: { type: 'string', label: 'Spreadsheet ID', description: 'Google Sheets spreadsheet ID (found in spreadsheet URL)', required: true },
       sheetName: { type: 'string', label: 'Sheet Name', description: 'Sheet name to monitor (e.g., "Sheet1")', required: true },
       lastRow: { type: 'number', label: 'Last Row', description: 'Last checked row number (auto-managed)', required: false },
