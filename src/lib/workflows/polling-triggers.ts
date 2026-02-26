@@ -101,6 +101,7 @@ export function getPollingTriggerFromNodes(nodes: Node[]): {
     'new-row-in-google-sheet',
     'new-github-issue',
     'file-uploaded',
+    'new-discord-message',
   ];
 
   const triggerNode = nodes.find(node => {

@@ -217,6 +217,7 @@ export async function PUT(
         'new-row-in-google-sheet',
         'new-github-issue',
         'file-uploaded',
+        'new-discord-message',
       ];
       const hasPollingTrigger = nodes.some(node => {
         const nodeId = node.data?.nodeId;

@@ -80,6 +80,9 @@ export async function POST(request: NextRequest) {
       case 'new-github-issue':
         pollResult = await pollGitHub(userId, config, lastTimestamp);
         break;
+      case 'new-discord-message':
+        pollResult = await pollDiscord(userId, config, lastCursor);
+        break;
       default:
         return NextResponse.json(
           { error: `Unsupported trigger type: ${triggerType}`, hasNewData: false },
@@ -421,5 +424,62 @@ async function pollGitHub(
     hasNewData: true,
     newData: issues,
     newTimestamp: latestUpdated,
+  };
+}
+
+async function pollDiscord(
+  userId: string,
+  config: Record<string, any>,
+  lastCursor: string | null
+): Promise<{ hasNewData: boolean; newData?: any[]; newCursor?: string }> {
+  const { getIntegrationCredential } = await import('@/lib/integrations/service');
+  const botToken = await getIntegrationCredential(userId, 'discord', 'bot_token');
+
+  if (!botToken) {
+    throw new Error('Discord bot token not found. Please connect your Discord integration.');
+  }
+
+  const { channelId } = config;
+  if (!channelId) {
+    throw new Error('Discord channel ID not configured.');
+  }
+
+  // Use Discord snowflake cursor — fetch messages after the last seen message ID.
+  // On first poll, fetch the most recent message to establish a baseline cursor.
+  const url = lastCursor
+    ? `https://discord.com/api/v10/channels/${channelId}/messages?after=${lastCursor}&limit=100`
+    : `https://discord.com/api/v10/channels/${channelId}/messages?limit=1`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bot ${botToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => response.statusText);
+    throw new Error(`Discord API error: ${response.status} ${errorBody}`);
+  }
+
+  const messages = (await response.json()) as any[];
+
+  if (messages.length === 0) return { hasNewData: false };
+
+  // Discord returns messages newest-first; the highest snowflake ID is the latest
+  const latestId = messages.map((m: any) => m.id).sort().reverse()[0];
+
+  // On the very first poll (no lastCursor) just record the cursor — don't trigger
+  if (!lastCursor) {
+    return { hasNewData: false, newCursor: latestId };
+  }
+
+  // Sort oldest-first for consistent downstream processing
+  const sorted = [...messages].sort((a, b) => a.id.localeCompare(b.id));
+
+  return {
+    hasNewData: true,
+    newData: sorted,
+    newCursor: latestId,
   };
 }

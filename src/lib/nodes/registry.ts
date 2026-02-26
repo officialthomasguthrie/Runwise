@@ -601,8 +601,13 @@ const newMessageInSlackExecute = async (inputData: any, config: any, context: Ex
 };
 
 const newDiscordMessageExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  // Discord is typically webhook-based, this is for webhook processing
-  return { message: inputData, ...inputData };
+  // If triggered by a polling event, use the pre-fetched messages
+  if (Array.isArray(inputData?.items) && inputData.items.length > 0) {
+    const messages = inputData.items;
+    return { messages, message: messages[0], count: messages.length };
+  }
+  // Passthrough for webhook/manual execution
+  return { message: inputData, messages: [inputData], count: 1 };
 };
 
 const scheduledTimeTriggerExecute = async (inputData: any, config: any, context: ExecutionContext) => {
