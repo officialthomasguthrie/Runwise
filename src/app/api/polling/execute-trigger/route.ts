@@ -464,12 +464,22 @@ async function pollDiscord(
     },
   });
 
+  const responseBody = await response.text();
+  console.log(`[Discord Poll] userId=${userId} channelId=${channelId} lastCursor=${lastCursor} status=${response.status} body=${responseBody.slice(0, 500)}`);
+
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => response.statusText);
-    throw new Error(`Discord API error: ${response.status} ${errorBody}`);
+    throw new Error(`Discord API error: ${response.status} ${responseBody}`);
   }
 
-  const messages = (await response.json()) as any[];
+  let messages: any[];
+  try {
+    messages = JSON.parse(responseBody);
+    if (!Array.isArray(messages)) {
+      throw new Error(`Discord API returned non-array: ${responseBody.slice(0, 200)}`);
+    }
+  } catch (e: any) {
+    throw new Error(`Discord API parse error: ${e.message}`);
+  }
 
   if (messages.length === 0) return { hasNewData: false };
 
