@@ -667,22 +667,32 @@ const newGitHubIssueExecute = async (inputData: any, config: any, context: Execu
 
 
 const fileUploadedExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { apiKey, driveId, folderId, lastCheck } = config;
-  
+  // If triggered by a polling event, use the pre-fetched items instead of re-fetching
+  if (Array.isArray(inputData?.items) && inputData.items.length > 0) {
+    const files = inputData.items;
+    return { files, file: files[0], count: files.length };
+  }
+
+  // Fallback: manual execution — fetch files directly
+  const { apiKey, folderId } = config;
   const accessToken = context.auth?.google?.token || apiKey || getAuthToken(context, 'google');
   if (!accessToken) {
     throw new Error('Google access token required. Please connect your Google account or provide an API key.');
   }
-  
-  const response = await context.http.get(
-    `https://www.googleapis.com/drive/v3/files?q=parents in '${folderId}' and modifiedTime > '${lastCheck || new Date(Date.now() - 3600000).toISOString()}'`,
-    {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    }
-  );
-  
+
+  const cutoffIso = new Date(Date.now() - 3600000).toISOString();
+  const driveQuery = `'${folderId}' in parents and createdTime > '${cutoffIso}' and trashed = false`;
+  const fields = 'files(id,name,mimeType,createdTime,modifiedTime,size,webViewLink,parents)';
+  const url =
+    `https://www.googleapis.com/drive/v3/files` +
+    `?q=${encodeURIComponent(driveQuery)}` +
+    `&orderBy=createdTime+desc&pageSize=20` +
+    `&fields=${encodeURIComponent(fields)}`;
+
+  const response = await context.http.get(url, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+
   const files = response.files || [];
   return { files, file: files[0], count: files.length };
 };

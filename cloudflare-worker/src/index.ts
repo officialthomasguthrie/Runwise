@@ -49,7 +49,9 @@ export default {
     const now = new Date().toISOString();
     console.log('[Worker] Cron triggered at', now);
 
-    await runPollingTriggers(env);
+    // Pass the scheduled time so next_poll_at is computed relative to the
+    // cron boundary rather than mid-loop, preventing the 2-minute polling bug.
+    await runPollingTriggers(env, event.scheduledTime);
 
     console.log('[Worker] Cron run complete');
   },
@@ -57,7 +59,11 @@ export default {
 
 // ─── Polling Triggers ────────────────────────────────────────────────────────
 
-async function runPollingTriggers(env: Env): Promise<void> {
+async function runPollingTriggers(env: Env, cronScheduledTime?: number): Promise<void> {
+  // Use the cron's own scheduled time as the base for next_poll_at calculations.
+  // If unavailable, fall back to Date.now().
+  const cronStartMs = cronScheduledTime ?? Date.now();
+
   try {
     const dueTriggers = await getDuePollingTriggers(env, 50);
 
@@ -72,10 +78,6 @@ async function runPollingTriggers(env: Env): Promise<void> {
     let errors = 0;
 
     for (const trigger of dueTriggers) {
-      // Capture start time before any HTTP calls so next_poll_at is computed
-      // relative to when this poll cycle began, not when it finished.
-      const pollStartTime = Date.now();
-
       try {
         const pollResult = await executeTrigger(env, trigger);
 
@@ -87,7 +89,7 @@ async function runPollingTriggers(env: Env): Promise<void> {
         if (pollResult.error) {
           console.error(`[Polling] Error for trigger ${trigger.id}:`, pollResult.error);
           errors++;
-          await updateTriggerNextPoll(env, trigger.id, trigger.poll_interval || 60, pollStartTime);
+          await updateTriggerNextPoll(env, trigger.id, trigger.poll_interval || 60, cronStartMs);
           continue;
         }
 
@@ -129,12 +131,12 @@ async function runPollingTriggers(env: Env): Promise<void> {
           pollResult.newCursor || null,
           pollResult.newTimestamp || null,
           trigger.poll_interval,
-          pollStartTime
+          cronStartMs
         );
       } catch (error: any) {
         console.error(`[Polling] Exception for trigger ${trigger.id}:`, error.message);
         errors++;
-        await updateTriggerNextPoll(env, trigger.id, trigger.poll_interval || 60, pollStartTime);
+        await updateTriggerNextPoll(env, trigger.id, trigger.poll_interval || 60, cronStartMs);
       }
     }
 

@@ -282,15 +282,31 @@ async function pollGoogleDrive(
 ): Promise<{ hasNewData: boolean; newData?: any[]; newTimestamp?: string }> {
   const accessToken = await getGoogleAccessToken(userId, 'google-drive');
   const { folderId } = config;
-  const lastCheck = lastTimestamp || new Date(Date.now() - 3600000).toISOString();
 
-  const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=parents in '${folderId}' and modifiedTime > '${lastCheck}'&orderBy=modifiedTime desc&pageSize=10`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
+  // Normalize timestamp (strip stray quotes, ensure Z suffix)
+  const rawTimestamp = lastTimestamp
+    ? lastTimestamp.replace(/"/g, '').trim()
+    : new Date(Date.now() - 3600000).toISOString();
+  const cutoffMs = new Date(rawTimestamp).getTime() || Date.now() - 3600000;
+  const cutoffIso = new Date(cutoffMs).toISOString();
+
+  // Drive API query: 'folderId' in parents (not "parents in 'folderId'"),
+  // use createdTime (not modifiedTime) to detect NEW uploads only,
+  // and URL-encode the entire query string.
+  const driveQuery = `'${folderId}' in parents and createdTime > '${cutoffIso}' and trashed = false`;
+  const fields = 'files(id,name,mimeType,createdTime,modifiedTime,size,webViewLink,parents)';
+  const url =
+    `https://www.googleapis.com/drive/v3/files` +
+    `?q=${encodeURIComponent(driveQuery)}` +
+    `&orderBy=createdTime+desc` +
+    `&pageSize=20` +
+    `&fields=${encodeURIComponent(fields)}`;
+
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
 
   if (!response.ok) {
-    throw new Error(`Google Drive API error: ${response.statusText}`);
+    const errorBody = await response.text().catch(() => response.statusText);
+    throw new Error(`Google Drive API error: ${errorBody}`);
   }
 
   const data = (await response.json()) as { files?: any[] };
@@ -298,12 +314,13 @@ async function pollGoogleDrive(
 
   if (files.length === 0) return { hasNewData: false };
 
-  const latestModified = files.map((f: any) => f.modifiedTime).sort().reverse()[0];
+  const latestCreated = files.map((f: any) => f.createdTime).sort().reverse()[0];
+  const newTimestamp = new Date(latestCreated).toISOString();
 
   return {
     hasNewData: true,
     newData: files,
-    newTimestamp: latestModified,
+    newTimestamp,
   };
 }
 
