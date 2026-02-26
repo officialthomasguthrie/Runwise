@@ -1229,8 +1229,6 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                   ((data.nodeId === 'upload-file-to-google-drive' || data.nodeId === 'file-uploaded') && (key === 'fileName' || key === 'fileContent' || key === 'mimeType' || key === 'driveId')) ||
                   // Google Forms node - hide pollInterval until form is selected
                   (data.nodeId === 'new-form-submission' && key === 'pollInterval') ||
-                  // Gmail node - hide lastCheck until label is selected
-                  (data.nodeId === 'new-email-received' && key === 'lastCheck') ||
                   // Gmail send node - hide threadId unless reply mode is active
                   (data.nodeId === 'send-email-gmail' && key === 'threadId') ||
                   // Slack nodes - hide message until channel is selected
@@ -1468,11 +1466,14 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             fieldSchema={schema}
                             value={localConfig[key]}
                             onChange={(value) => {
-                              handleConfigChange(key, value);
-                              // Clear category filter when switching away from Inbox
+                              // Apply labelId + category reset atomically to avoid stale-closure bugs
+                              const updates: Record<string, any> = { [key]: value };
                               if (value !== 'INBOX' && value !== '' && value !== undefined) {
-                                handleConfigChange('categoryId', '');
+                                updates.categoryId = 'all';
                               }
+                              const newConfig = { ...localConfig, ...updates };
+                              setLocalConfig(newConfig);
+                              if (data.onConfigUpdate) data.onConfigUpdate(id, newConfig);
                             }}
                             nodeId={id}
                             serviceName="google-gmail"
@@ -1480,26 +1481,28 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             credentialType="oauth"
                           />
                           {/* Category filter — only shown when Inbox is selected */}
-                          {(!localConfig.labelId || localConfig.labelId === 'INBOX') && integrationStatus.isConnected && (
-                            <div className="mt-2">
-                              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                          {(localConfig.labelId === 'INBOX' || !localConfig.labelId) && integrationStatus.isConnected && (
+                            <div className="mt-2 space-y-1.5">
+                              <label className="text-xs font-medium text-muted-foreground">
                                 Category Filter
                               </label>
-                              <select
-                                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                                value={localConfig.categoryId || ''}
-                                onChange={(e) => handleConfigChange('categoryId', e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                onMouseDown={(e) => e.stopPropagation()}
+                              <Select
+                                value={localConfig.categoryId || 'all'}
+                                onValueChange={(value) => handleConfigChange('categoryId', value)}
                               >
-                                <option value="">All categories</option>
-                                <option value="CATEGORY_PERSONAL">Primary</option>
-                                <option value="CATEGORY_PROMOTIONS">Promotions</option>
-                                <option value="CATEGORY_SOCIAL">Social</option>
-                                <option value="CATEGORY_UPDATES">Updates</option>
-                                <option value="CATEGORY_FORUMS">Forums</option>
-                              </select>
-                              <p className="text-xs text-muted-foreground mt-1">
+                                <SelectTrigger className="nodrag w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 h-auto text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300">
+                                  <SelectValue placeholder="Select category..." />
+                                </SelectTrigger>
+                                <SelectContent className="backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-lg max-h-[300px]">
+                                  <SelectItem value="all">All categories</SelectItem>
+                                  <SelectItem value="CATEGORY_PERSONAL">Primary</SelectItem>
+                                  <SelectItem value="CATEGORY_PROMOTIONS">Promotions</SelectItem>
+                                  <SelectItem value="CATEGORY_SOCIAL">Social</SelectItem>
+                                  <SelectItem value="CATEGORY_UPDATES">Updates</SelectItem>
+                                  <SelectItem value="CATEGORY_FORUMS">Forums</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
                                 Only trigger when email arrives in this category
                               </p>
                             </div>

@@ -282,11 +282,16 @@ export async function getGmailLabels(userId: string): Promise<GmailLabel[]> {
   }
   
   const data = await response.json();
+
+  const SYSTEM_LABEL_NAMES: Record<string, string> = {
+    INBOX: 'Inbox',
+  };
+
   return (data.labels || [])
-    .filter((label: any) => label.type === 'user' || ['INBOX', 'SENT', 'DRAFT', 'SPAM', 'TRASH'].includes(label.id))
+    .filter((label: any) => label.type === 'user' || label.id === 'INBOX')
     .map((label: any) => ({
       id: label.id,
-      name: label.name,
+      name: SYSTEM_LABEL_NAMES[label.id] ?? label.name,
       type: label.type === 'user' ? 'user' : 'system'
     }));
 }

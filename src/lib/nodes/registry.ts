@@ -3718,7 +3718,6 @@ export const nodeRegistry: NodeRegistry = {
         ],
       },
       apiKey: { type: 'string', label: 'Google API Key', description: 'Optional: Google Cloud API key (or connect Google account above)', required: false },
-      lastCheck: { type: 'string', label: 'Last Check', description: 'Last check timestamp (auto-managed)', required: false },
     },
     execute: newEmailReceivedExecute,
     code: newEmailReceivedExecute.toString(),
