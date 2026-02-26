@@ -623,37 +623,33 @@ const webhookTriggerExecute = async (inputData: any, config: any, context: Execu
 };
 
 const newGitHubIssueExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  const { accessToken, owner, repo, lastCheck } = config;
-  
-  // Get token from integration (OAuth or PAT)
+  // If triggered by a polling event, use the pre-fetched items instead of re-fetching
+  if (Array.isArray(inputData?.items) && inputData.items.length > 0) {
+    const issues = inputData.items;
+    return { issues, issue: issues[0], count: issues.length };
+  }
+
+  // Fallback: manual execution — fetch issues directly
+  const { accessToken } = config;
+  // repo is stored as "owner/repo" (full_name)
+  const rawRepo: string = config.repo || '';
+  const [owner, repo] = rawRepo.includes('/') ? rawRepo.split('/') : [config.owner || '', rawRepo];
+
   const { getUserIntegration, getIntegrationCredential } = await import('@/lib/integrations/service');
   let githubToken = accessToken || context.auth?.github?.token;
-  
   if (!githubToken) {
-    // Try OAuth token first
     const integration = await getUserIntegration(context.userId, 'github');
-    if (integration?.access_token) {
-      githubToken = integration.access_token;
-    } else {
-      // Fallback to PAT
-      githubToken = await getIntegrationCredential(context.userId, 'github', 'personal_access_token');
-    }
+    githubToken = integration?.access_token || await getIntegrationCredential(context.userId, 'github', 'personal_access_token');
   }
-  
   if (!githubToken) {
     throw new Error('GitHub access token required. Please connect your GitHub account or provide a Personal Access Token.');
   }
-  
+
   const response = await context.http.get(
-    `https://api.github.com/repos/${owner}/${repo}/issues?since=${lastCheck || new Date(Date.now() - 3600000).toISOString()}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    }
+    `https://api.github.com/repos/${owner}/${repo}/issues?since=${new Date(Date.now() - 3600000).toISOString()}`,
+    { headers: { 'Authorization': `Bearer ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' } }
   );
-  
+
   const issues = Array.isArray(response) ? response : [];
   return { issues, issue: issues[0], count: issues.length };
 };
@@ -3853,9 +3849,7 @@ export const nodeRegistry: NodeRegistry = {
     ],
     configSchema: {
       accessToken: { type: 'string', label: 'Personal Access Token', description: 'Optional: GitHub Personal Access Token (or connect GitHub account above)', required: false },
-      owner: { type: 'string', label: 'Owner', description: 'Repository owner (auto-filled from repository selection)', required: true },
       repo: { type: 'string', label: 'Repository', description: 'Select a GitHub repository', required: true },
-      lastCheck: { type: 'string', label: 'Last Check', description: 'Last check timestamp (auto-managed)', required: false },
     },
     execute: newGitHubIssueExecute,
     code: newGitHubIssueExecute.toString(),

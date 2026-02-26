@@ -1189,8 +1189,8 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                     data.nodeId === 'file-uploaded') && key === 'apiKey') ||
                   // Slack OAuth nodes
                   ((data.nodeId === 'post-to-slack-channel' || data.nodeId === 'new-message-in-slack') && key === 'botToken') ||
-                  // GitHub OAuth node
-                  (data.nodeId === 'new-github-issue' && key === 'accessToken') ||
+                  // GitHub OAuth node — hide token field and auto-managed owner field
+                  (data.nodeId === 'new-github-issue' && (key === 'accessToken' || key === 'owner' || key === 'lastCheck')) ||
                   // Notion, Airtable, Trello, OpenAI API key/token nodes (keep these excluded)
                   (data.nodeId === 'create-notion-page' && key === 'apiKey') ||
                   (data.nodeId === 'update-airtable-record' && key === 'apiKey') ||
@@ -1515,16 +1515,9 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             fieldSchema={schema}
                             value={localConfig[key]}
                             onChange={(value) => {
-                              // Extract repo name from full_name format if needed
-                              const repoName = value.includes('/') ? value.split('/').pop() : value;
-                              handleConfigChange(key, repoName);
-                              // Also update owner if possible
-                              if (value.includes('/')) {
-                                const owner = value.split('/')[0];
-                                if (localConfig.owner !== owner) {
-                                  handleConfigChange('owner', owner);
-                                }
-                              }
+                              // value is full_name ("owner/repo") — store it as-is
+                              // so pollGitHub can split owner/repo itself
+                              handleConfigChange(key, value);
                             }}
                             nodeId={id}
                             serviceName="github"

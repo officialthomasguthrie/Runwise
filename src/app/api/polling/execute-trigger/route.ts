@@ -393,7 +393,9 @@ async function pollGitHub(
     throw new Error('GitHub access token not found — please connect your GitHub integration');
   }
 
-  const { owner, repo } = config;
+  // repo is stored as "owner/repo" (full_name) — split it here
+  const rawRepo: string = config.repo || '';
+  const [owner, repo] = rawRepo.includes('/') ? rawRepo.split('/') : [config.owner || '', rawRepo];
   const lastCheck = lastTimestamp || new Date(Date.now() - 3600000).toISOString();
 
   const response = await fetch(

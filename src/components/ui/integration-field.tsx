@@ -893,11 +893,20 @@ export function IntegrationField({
             <SelectValue placeholder={`Select ${getResourceLabel().toLowerCase()}...`} />
           </SelectTrigger>
         <SelectContent className="backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-lg max-h-[300px]">
-          {resources.map((resource) => (
-            <SelectItem key={resource.id || resource.name} value={resource.id || resource.name}>
-              {resource.name || resource.title || resource.full_name}
-            </SelectItem>
-          ))}
+          {resources.map((resource) => {
+            // For repos, use full_name (owner/repo) so the onChange handler
+            // can extract owner. Always coerce to string — numeric IDs (e.g.
+            // GitHub repo IDs) break Radix's value comparison and silence clicks.
+            const itemValue = String(
+              resource.full_name || resource.id || resource.name || ''
+            );
+            const itemLabel = resource.full_name || resource.name || resource.title || itemValue;
+            return (
+              <SelectItem key={itemValue} value={itemValue}>
+                {itemLabel}
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
       </div>
