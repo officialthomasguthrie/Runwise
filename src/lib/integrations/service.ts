@@ -306,17 +306,25 @@ export async function getUserIntegration(
     }
     
     // Find the one that matches service_name in config.
-    // For Google, all service-specific records (google-gmail, google-sheets, etc.)
-    // share the same OAuth tokens, so accept any google-* record when looking for 'google'.
+    // Always prefer an exact match. Only fall back to any google-* record when no exact
+    // match exists (e.g. looking up 'google' without a specific service row).
     const isGoogleLookup = serviceName === 'google' || serviceName.startsWith('google-');
-    const matching = newData.find((item: any) => {
+
+    // First pass: exact match on service name
+    let matching = newData.find((item: any) => {
       const config = item.config || {};
       const storedName: string = config.service_name || item.name || '';
-      if (isGoogleLookup) {
-        return storedName === serviceName || storedName.startsWith('google-') || storedName === 'google';
-      }
       return storedName === serviceName || item.name === serviceName;
     });
+
+    // Second pass: for generic Google lookups, accept any google-* record if no exact match
+    if (!matching && isGoogleLookup) {
+      matching = newData.find((item: any) => {
+        const config = item.config || {};
+        const storedName: string = config.service_name || item.name || '';
+        return storedName.startsWith('google-') || storedName === 'google';
+      });
+    }
     
     if (!matching) {
       return null;
