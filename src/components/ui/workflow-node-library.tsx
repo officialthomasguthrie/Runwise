@@ -952,7 +952,6 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                !(
                  // Google OAuth nodes with resource fields
                  (data.nodeId === 'new-row-in-google-sheet') ||
-                 (data.nodeId === 'new-email-received') ||
                  (data.nodeId === 'create-calendar-event') ||
                  (data.nodeId === 'upload-file-to-google-drive') ||
                  (data.nodeId === 'file-uploaded') ||
@@ -1162,7 +1161,6 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                 const isIntegrationField = 
                   // Google OAuth integration fields
                   (data.nodeId === 'new-row-in-google-sheet' && (key === 'spreadsheetId' || key === 'sheetName')) ||
-                  (data.nodeId === 'new-email-received' && (key === 'labelId' || key === 'categoryId')) ||
                   (data.nodeId === 'create-calendar-event' && key === 'calendarId') ||
                   ((data.nodeId === 'upload-file-to-google-drive' || data.nodeId === 'file-uploaded') && key === 'folderId') ||
                   (data.nodeId === 'new-form-submission' && key === 'formId') ||
@@ -1182,8 +1180,6 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                 const isExcludedField =
                   // Custom nodes - exclude integration fields (rendered at top)
                   (data.nodeId === 'CUSTOM_GENERATED' && schema.type === 'integration') ||
-                  // Gmail email received — categoryId is rendered inline inside the labelId block
-                  (data.nodeId === 'new-email-received' && key === 'categoryId') ||
                   // Google OAuth integration nodes - remove apiKey fields
                   ((data.nodeId === 'new-row-in-google-sheet' ||
                     data.nodeId === 'new-email-received' ||
@@ -1256,8 +1252,6 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                     ((data.nodeId === 'upload-file-to-google-drive' || data.nodeId === 'file-uploaded') && true) ||
                     // Google Forms node - require formId
                     (data.nodeId === 'new-form-submission' && localConfig.formId) ||
-                    // Gmail node - require labelId
-                    (data.nodeId === 'new-email-received' && localConfig.labelId) ||
                     // Gmail send node - threadId only shows when reply mode is active
                     (data.nodeId === 'send-email-gmail' && localConfig.replyToThread === 'yes') ||
                     // Slack nodes - require channel
@@ -1455,58 +1449,6 @@ export const WorkflowNode = memo(({ data, id }: WorkflowNodeProps) => {
                             resourceType="form"
                             credentialType="oauth"
                           />
-                        </div>
-                      )}
-                      
-                      {/* Gmail Integration Fields */}
-                      {data.nodeId === 'new-email-received' && key === 'labelId' && (
-                        <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-                          <IntegrationField
-                            fieldKey={key}
-                            fieldSchema={schema}
-                            value={localConfig[key]}
-                            onChange={(value) => {
-                              // Apply labelId + category reset atomically to avoid stale-closure bugs
-                              const updates: Record<string, any> = { [key]: value };
-                              if (value !== 'INBOX' && value !== '' && value !== undefined) {
-                                updates.categoryId = 'all';
-                              }
-                              const newConfig = { ...localConfig, ...updates };
-                              setLocalConfig(newConfig);
-                              if (data.onConfigUpdate) data.onConfigUpdate(id, newConfig);
-                            }}
-                            nodeId={id}
-                            serviceName="google-gmail"
-                            resourceType="label"
-                            credentialType="oauth"
-                          />
-                          {/* Category filter — only shown when Inbox is selected */}
-                          {(localConfig.labelId === 'INBOX' || !localConfig.labelId) && integrationStatus.isConnected && (
-                            <div className="mt-2 space-y-1.5">
-                              <label className="text-xs font-medium text-muted-foreground">
-                                Category Filter
-                              </label>
-                              <Select
-                                value={localConfig.categoryId || 'all'}
-                                onValueChange={(value) => handleConfigChange('categoryId', value)}
-                              >
-                                <SelectTrigger className="nodrag w-full text-sm rounded-md border border-gray-300 dark:border-white/10 !bg-white/70 dark:!bg-white/5 backdrop-blur-xl px-3 py-2 h-auto text-foreground shadow-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-gray-300 focus-visible:border-gray-300">
-                                  <SelectValue placeholder="Select category..." />
-                                </SelectTrigger>
-                                <SelectContent className="backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-lg max-h-[300px]">
-                                  <SelectItem value="all">All categories</SelectItem>
-                                  <SelectItem value="CATEGORY_PERSONAL">Primary</SelectItem>
-                                  <SelectItem value="CATEGORY_PROMOTIONS">Promotions</SelectItem>
-                                  <SelectItem value="CATEGORY_SOCIAL">Social</SelectItem>
-                                  <SelectItem value="CATEGORY_UPDATES">Updates</SelectItem>
-                                  <SelectItem value="CATEGORY_FORUMS">Forums</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <p className="text-xs text-muted-foreground">
-                                Only trigger when email arrives in this category
-                              </p>
-                            </div>
-                          )}
                         </div>
                       )}
                       

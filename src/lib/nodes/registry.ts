@@ -3695,19 +3695,12 @@ export const nodeRegistry: NodeRegistry = {
       { name: 'count', type: 'number', description: 'Number of new emails received' },
     ],
     configSchema: {
-      labelId: { 
-        type: 'integration', 
-        label: 'Label/Inbox', 
-        description: 'Select a Gmail label or inbox', 
-        required: false,
-        integrationType: 'google',
-        resourceType: 'label'
-      },
       categoryId: {
         type: 'select',
-        label: 'Category Filter',
-        description: 'Only trigger for emails in this inbox category (only applies when Inbox is selected)',
+        label: 'Category',
+        description: 'Only trigger for emails in this inbox category',
         required: false,
+        default: 'CATEGORY_PERSONAL',
         options: [
           { value: 'all', label: 'All categories' },
           { value: 'CATEGORY_PERSONAL', label: 'Primary' },
