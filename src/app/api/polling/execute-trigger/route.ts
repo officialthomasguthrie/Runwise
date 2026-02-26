@@ -200,17 +200,20 @@ async function pollGoogleForms(
   const accessToken = await getGoogleAccessToken(userId, 'google-forms');
   const { formId } = config;
 
-  // Normalize timestamp to strict RFC3339 with Z suffix.
-  // Supabase can return timestamps without timezone (e.g. "2026-02-26T01:25:00")
-  // or with stray quote characters — both cause Google Forms to reject the filter.
-  const rawTimestamp = lastTimestamp || new Date(Date.now() - 3600000).toISOString();
-  const lastCheck = new Date(rawTimestamp.replace(/"/g, '').trim()).toISOString();
+  // Determine the cutoff time for new submissions.
+  // Strip any stray quote characters and normalize to a Date object — Supabase
+  // can return timestamptz values in formats like "2026-02-26T01:25:00+00" that
+  // can accumulate embedded quotes after round-trips.
+  const rawTimestamp = lastTimestamp
+    ? lastTimestamp.replace(/"/g, '').trim()
+    : new Date(Date.now() - 3600000).toISOString();
+  const cutoffMs = new Date(rawTimestamp).getTime() || Date.now() - 3600000;
 
-  // Google Forms filter syntax: timestamp > "2024-01-01T00:00:00.000Z"
-  const filter = encodeURIComponent(`timestamp > "${lastCheck}"`);
-
+  // Fetch up to 500 responses with NO server-side filter — the Google Forms
+  // timestamp filter API is unreliable across Supabase timestamp round-trips.
+  // We filter client-side by createTime (same pattern as Gmail polling).
   const response = await fetch(
-    `https://forms.googleapis.com/v1/forms/${formId}/responses?filter=${filter}`,
+    `https://forms.googleapis.com/v1/forms/${formId}/responses?pageSize=500`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
@@ -220,18 +223,24 @@ async function pollGoogleForms(
   }
 
   const data = (await response.json()) as { responses?: any[] };
-  const submissions = data.responses || [];
+  const allSubmissions = data.responses || [];
 
-  if (submissions.length === 0) return { hasNewData: false };
+  // Keep only submissions created after the cutoff
+  const newSubmissions = allSubmissions.filter((s: any) => {
+    if (!s.createTime) return false;
+    return new Date(s.createTime).getTime() > cutoffMs;
+  });
 
-  const latestRaw = submissions.map((s: any) => s.createTime).sort().reverse()[0];
-  // Normalize to RFC3339 so Supabase stores a clean value that round-trips correctly
-  const latestTimestamp = latestRaw ? new Date(latestRaw).toISOString() : new Date().toISOString();
+  if (newSubmissions.length === 0) return { hasNewData: false };
+
+  // Store the latest createTime as a clean ISO string so future polls don't re-trigger
+  const latestRaw = newSubmissions.map((s: any) => s.createTime).sort().reverse()[0];
+  const newTimestamp = new Date(latestRaw).toISOString();
 
   return {
     hasNewData: true,
-    newData: submissions,
-    newTimestamp: latestTimestamp,
+    newData: newSubmissions,
+    newTimestamp,
   };
 }
 
