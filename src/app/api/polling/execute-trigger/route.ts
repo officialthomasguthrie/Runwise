@@ -201,13 +201,18 @@ async function pollGoogleForms(
   const { formId } = config;
   const lastCheck = lastTimestamp || new Date(Date.now() - 3600000).toISOString();
 
+  // Google Forms API filter requires quotes around the timestamp value
+  // e.g. timestamp >= "2024-01-01T00:00:00Z"
+  const filter = encodeURIComponent(`timestamp >= "${lastCheck}"`);
+
   const response = await fetch(
-    `https://forms.googleapis.com/v1/forms/${formId}/responses?filter=timestamp>${lastCheck}`,
+    `https://forms.googleapis.com/v1/forms/${formId}/responses?filter=${filter}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
   if (!response.ok) {
-    throw new Error(`Google Forms API error: ${response.statusText}`);
+    const errorBody = await response.text().catch(() => response.statusText);
+    throw new Error(`Google Forms API error: ${errorBody}`);
   }
 
   const data = (await response.json()) as { responses?: any[] };
