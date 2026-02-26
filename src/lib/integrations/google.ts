@@ -320,8 +320,12 @@ export async function getGoogleForms(userId: string): Promise<GoogleForm[]> {
   );
   
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to fetch forms: ${error}`);
+    const errorText = await response.text();
+    // Detect OAuth scope errors — token is missing drive.readonly; user must reconnect
+    if (response.status === 403 && (errorText.includes('insufficientPermissions') || errorText.includes('ACCESS_TOKEN_SCOPE_INSUFFICIENT'))) {
+      throw new Error('SCOPE_INSUFFICIENT: Your Google Forms connection is missing required permissions. Please disconnect and reconnect to grant Drive access.');
+    }
+    throw new Error(`Failed to fetch forms: ${errorText}`);
   }
   
   const data = await response.json();

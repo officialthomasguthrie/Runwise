@@ -25,6 +25,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ forms });
   } catch (error: any) {
     console.error('Error fetching Google Forms:', error);
+    // Scope errors mean the stored token is missing permissions — prompt reconnection
+    if (error.message?.startsWith('SCOPE_INSUFFICIENT:')) {
+      return NextResponse.json(
+        { error: error.message.replace('SCOPE_INSUFFICIENT: ', ''), code: 'NOT_CONNECTED' },
+        { status: 401 }
+      );
+    }
     return NextResponse.json(
       { error: error.message || 'Failed to fetch forms' },
       { status: 500 }
