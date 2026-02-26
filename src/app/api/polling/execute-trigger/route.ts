@@ -199,11 +199,15 @@ async function pollGoogleForms(
 ): Promise<{ hasNewData: boolean; newData?: any[]; newTimestamp?: string }> {
   const accessToken = await getGoogleAccessToken(userId, 'google-forms');
   const { formId } = config;
-  const lastCheck = lastTimestamp || new Date(Date.now() - 3600000).toISOString();
 
-  // Google Forms API filter requires quotes around the timestamp value
-  // e.g. timestamp >= "2024-01-01T00:00:00Z"
-  const filter = encodeURIComponent(`timestamp >= "${lastCheck}"`);
+  // Normalize timestamp to strict RFC3339 with Z suffix.
+  // Supabase can return timestamps without timezone (e.g. "2026-02-26T01:25:00")
+  // or with stray quote characters — both cause Google Forms to reject the filter.
+  const rawTimestamp = lastTimestamp || new Date(Date.now() - 3600000).toISOString();
+  const lastCheck = new Date(rawTimestamp.replace(/"/g, '').trim()).toISOString();
+
+  // Google Forms filter syntax: timestamp > "2024-01-01T00:00:00.000Z"
+  const filter = encodeURIComponent(`timestamp > "${lastCheck}"`);
 
   const response = await fetch(
     `https://forms.googleapis.com/v1/forms/${formId}/responses?filter=${filter}`,
@@ -220,12 +224,14 @@ async function pollGoogleForms(
 
   if (submissions.length === 0) return { hasNewData: false };
 
-  const latestTimestamp = submissions.map((s: any) => s.createTime).sort().reverse()[0];
+  const latestRaw = submissions.map((s: any) => s.createTime).sort().reverse()[0];
+  // Normalize to RFC3339 so Supabase stores a clean value that round-trips correctly
+  const latestTimestamp = latestRaw ? new Date(latestRaw).toISOString() : new Date().toISOString();
 
   return {
     hasNewData: true,
     newData: submissions,
-    newTimestamp: latestTimestamp || new Date().toISOString(),
+    newTimestamp: latestTimestamp,
   };
 }
 
