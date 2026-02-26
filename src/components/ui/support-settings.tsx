@@ -1,7 +1,5 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Add01Icon, AlertCircleIcon, BookOpen01Icon, Calendar01Icon, Call02Icon, CheckmarkCircle01Icon, Clock01Icon, Download01Icon, FileAttachmentIcon, HelpCircleIcon, LinkSquare01Icon, Loading02Icon, Mail01Icon, Message01Icon, Search01Icon, SentIcon, Settings01Icon, StarIcon, ThumbsDownIcon, ThumbsUpIcon, UserIcon, Video01Icon } from "@hugeicons/core-free-icons";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
@@ -10,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
+import { Plus, AlertCircle, BookOpen, Calendar, Phone, CheckCircle2, Clock, Download, FileText, HelpCircle, ExternalLink, Loader2, Mail, MessageSquare, Search, Send, Settings, Star, ThumbsDown, ThumbsUp, User, Video } from "lucide-react";
 interface SupportTicket {
   id: string;
   subject: string;
@@ -220,7 +219,7 @@ export function SupportSettings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <HugeiconsIcon icon={Loading02Icon} className="h-6 w-6 animate-spin" />
+        <Loader2 className="h-6 w-6 animate-spin" />
         <span className="ml-2 text-muted-foreground">Loading support information...</span>
       </div>
     );
@@ -233,7 +232,7 @@ export function SupportSettings() {
         <div className="mb-6">
           <div>
             <h2 className="text-xl font-semibold flex items-center gap-2">
-              <HugeiconsIcon icon={HelpCircleIcon} className="h-5 w-5" />
+              <HelpCircle className="h-5 w-5" />
               Support & Help
             </h2>
             <p className="text-muted-foreground mt-1">
@@ -246,7 +245,7 @@ export function SupportSettings() {
       {/* Contact Support */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={Message01Icon} className="h-4 w-4" />
+          <MessageSquare className="h-4 w-4" />
           Contact Support
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -258,9 +257,9 @@ export function SupportSettings() {
             <div key={contact.type} className="p-4 bg-muted/50 border border-border rounded-md">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                  {contact.type === 'email' && <HugeiconsIcon icon={Mail01Icon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
-                  {contact.type === 'phone' && <HugeiconsIcon icon={Call02Icon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
-                  {contact.type === 'chat' && <HugeiconsIcon icon={Message01Icon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+                  {contact.type === 'email' && <Mail className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+                  {contact.type === 'phone' && <Phone className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+                  {contact.type === 'chat' && <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
                 </div>
                 <div>
                   <h4 className="font-medium capitalize">{contact.type}</h4>
@@ -286,7 +285,7 @@ export function SupportSettings() {
       {/* Create Support Ticket */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={Add01Icon} className="h-4 w-4" />
+          <Plus className="h-4 w-4" />
           Create Support Ticket
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -357,12 +356,12 @@ export function SupportSettings() {
             >
               {isSaving ? (
                 <>
-                  <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Creating...
                 </>
               ) : (
                 <>
-                  <HugeiconsIcon icon={SentIcon} className="h-4 w-4 mr-2" />
+                  <Send className="h-4 w-4 mr-2" />
                   Create Ticket
                 </>
               )}
@@ -376,7 +375,7 @@ export function SupportSettings() {
       {/* Support Tickets */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={FileAttachmentIcon} className="h-4 w-4" />
+          <FileText className="h-4 w-4" />
           Your Support Tickets
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -412,7 +411,7 @@ export function SupportSettings() {
       {/* Knowledge Base */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={BookOpen01Icon} className="h-4 w-4" />
+          <BookOpen className="h-4 w-4" />
           Knowledge Base
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -432,11 +431,11 @@ export function SupportSettings() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <HugeiconsIcon icon={UserIcon} className="h-3 w-3" />
+                    <User className="h-3 w-3" />
                     {article.views} views
                   </span>
                   <span className="flex items-center gap-1">
-                    <HugeiconsIcon icon={ThumbsUpIcon} className="h-3 w-3" />
+                    <ThumbsUp className="h-3 w-3" />
                     {article.helpful} helpful
                   </span>
                 </div>
@@ -446,20 +445,20 @@ export function SupportSettings() {
                     size="sm"
                     onClick={() => handleArticleFeedback(article.id, true)}
                   >
-                    <HugeiconsIcon icon={ThumbsUpIcon} className="h-4 w-4" />
+                    <ThumbsUp className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleArticleFeedback(article.id, false)}
                   >
-                    <HugeiconsIcon icon={ThumbsDownIcon} className="h-4 w-4" />
+                    <ThumbsDown className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                   >
-                    <HugeiconsIcon icon={LinkSquare01Icon} className="h-4 w-4" />
+                    <ExternalLink className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -473,7 +472,7 @@ export function SupportSettings() {
       {/* Additional Resources */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={LinkSquare01Icon} className="h-4 w-4" />
+          <ExternalLink className="h-4 w-4" />
           Additional Resources
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -484,7 +483,7 @@ export function SupportSettings() {
           <div className="p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-md">
-                <HugeiconsIcon icon={Video01Icon} className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <Video className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <h4 className="font-medium">Video Tutorials</h4>
@@ -494,7 +493,7 @@ export function SupportSettings() {
               </div>
             </div>
             <Button variant="outline" size="sm">
-              <HugeiconsIcon icon={LinkSquare01Icon} className="h-4 w-4 mr-2" />
+              <ExternalLink className="h-4 w-4 mr-2" />
               View Tutorials
             </Button>
           </div>
@@ -502,7 +501,7 @@ export function SupportSettings() {
           <div className="p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                <HugeiconsIcon icon={FileAttachmentIcon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-medium">API Documentation</h4>
@@ -512,7 +511,7 @@ export function SupportSettings() {
               </div>
             </div>
             <Button variant="outline" size="sm">
-              <HugeiconsIcon icon={LinkSquare01Icon} className="h-4 w-4 mr-2" />
+              <ExternalLink className="h-4 w-4 mr-2" />
               View Docs
             </Button>
           </div>
@@ -520,7 +519,7 @@ export function SupportSettings() {
           <div className="p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
-                <HugeiconsIcon icon={Message01Icon} className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <MessageSquare className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <h4 className="font-medium">Community Forum</h4>
@@ -530,7 +529,7 @@ export function SupportSettings() {
               </div>
             </div>
             <Button variant="outline" size="sm">
-              <HugeiconsIcon icon={LinkSquare01Icon} className="h-4 w-4 mr-2" />
+              <ExternalLink className="h-4 w-4 mr-2" />
               Join Forum
             </Button>
           </div>
@@ -538,7 +537,7 @@ export function SupportSettings() {
           <div className="p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-md">
-                <HugeiconsIcon icon={Download01Icon} className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                <Download className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
                 <h4 className="font-medium">Status Page</h4>
@@ -548,7 +547,7 @@ export function SupportSettings() {
               </div>
             </div>
             <Button variant="outline" size="sm">
-              <HugeiconsIcon icon={LinkSquare01Icon} className="h-4 w-4 mr-2" />
+              <ExternalLink className="h-4 w-4 mr-2" />
               Check Status
             </Button>
           </div>
@@ -560,20 +559,20 @@ export function SupportSettings() {
         <div className="flex items-center gap-2">
           {saveStatus === 'success' && (
             <div className="flex items-center gap-2 text-green-600">
-              <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" />
               <span className="text-sm">Support request submitted successfully!</span>
             </div>
           )}
           {saveStatus === 'error' && (
             <div className="flex items-center gap-2 text-red-600">
-              <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4" />
               <span className="text-sm">Failed to submit support request. Please try again.</span>
             </div>
           )}
         </div>
         
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <HugeiconsIcon icon={HelpCircleIcon} className="h-4 w-4" />
+          <HelpCircle className="h-4 w-4" />
           <span>Need more help? Contact us anytime</span>
         </div>
       </div>

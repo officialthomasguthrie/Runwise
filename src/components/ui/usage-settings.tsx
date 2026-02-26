@@ -1,10 +1,9 @@
 'use client';
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AlertCircleIcon, AnalyticsUpIcon, Calendar01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 
+import { AlertCircle, TrendingUp, Calendar } from "lucide-react";
 interface CreditBalance {
   balance: number;
   usedThisMonth: number;
@@ -112,7 +111,7 @@ export function UsageSettings() {
     return (
       <div className="space-y-6">
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive flex items-center gap-2">
-          <HugeiconsIcon icon={AlertCircleIcon} className="w-4 h-4" />
+          <AlertCircle className="w-4 h-4" />
           {error || 'Unable to load credit information'}
         </div>
       </div>
@@ -184,7 +183,7 @@ export function UsageSettings() {
               ? 'bg-destructive/10 text-destructive'
               : 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-500'
           } flex items-start gap-2`}>
-            <HugeiconsIcon icon={AlertCircleIcon} className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <div>
               {isVeryLow 
                 ? 'You are running very low on credits. Consider upgrading your plan or wait for the monthly reset.'
@@ -198,7 +197,7 @@ export function UsageSettings() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <HugeiconsIcon icon={AnalyticsUpIcon} className="w-4 h-4" />
+            <TrendingUp className="w-4 h-4" />
             <span>Used This Month</span>
           </div>
           <p className="text-2xl font-semibold text-foreground">
@@ -211,7 +210,7 @@ export function UsageSettings() {
 
         <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <HugeiconsIcon icon={Calendar01Icon} className="w-4 h-4" />
+            <Calendar className="w-4 h-4" />
             <span>Next Reset</span>
           </div>
           <p className="text-2xl font-semibold text-foreground">

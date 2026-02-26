@@ -1,7 +1,6 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AlertCircleIcon, Calendar01Icon, Call02Icon, Camera01Icon, CheckmarkCircle01Icon, FloppyDiskIcon, Loading02Icon, Location01Icon, Mail01Icon, UserIcon } from "@hugeicons/core-free-icons";
+import { AlertCircle, Calendar, Phone, Camera, CheckCircle2, Save, Loader2, MapPin, Mail, User } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
@@ -443,17 +442,17 @@ export function ProfileSettings() {
                   : 'opacity-100'
               }`}
             >
-              <HugeiconsIcon icon={UserIcon} className="h-8 w-8" />
+              <User className="h-8 w-8" />
             </AvatarFallback>
             </Avatar>
           {/* Loading overlay for avatar upload */}
           {isUploadingAvatar && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 dark:bg-black/60 rounded-full backdrop-blur-sm">
-              <HugeiconsIcon icon={Loading02Icon} className="h-6 w-6 animate-spin text-white" />
+              <Loader2 className="h-6 w-6 animate-spin text-white" />
             </div>
           )}
           <label className="absolute bottom-0 right-0 bg-background border border-neutral-300 dark:border-neutral-700 rounded-full p-1.5 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors z-10">
-              <HugeiconsIcon icon={Camera01Icon} className="h-3 w-3" />
+              <Camera className="h-3 w-3" />
               <input
                 type="file"
                 accept="image/*"
@@ -563,13 +562,13 @@ export function ProfileSettings() {
       <div className="flex gap-2 pt-2">
           {saveStatus === 'success' && (
           <div className="flex gap-2 text-green-600">
-              <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" />
               <span className="text-sm">Profile saved successfully!</span>
             </div>
           )}
           {saveStatus === 'error' && (
           <div className="flex gap-2 text-red-600">
-              <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4" />
               <span className="text-sm">Failed to save profile. Please try again.</span>
             </div>
           )}

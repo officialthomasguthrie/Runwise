@@ -1,12 +1,11 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { GithubIcon, Linkedin01Icon, Mail01Icon, TwitterIcon } from "@hugeicons/core-free-icons";
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import FadeContent from "@/components/ui/FadeContent"
+import { Github, Linkedin, Mail, Twitter } from "lucide-react";
 
 interface OurTeamProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string
@@ -121,22 +120,22 @@ const OurTeam = React.forwardRef<HTMLDivElement, OurTeamProps>(
                       <div className="flex justify-center gap-3">
                         {member.social.linkedin && (
                           <Button variant="outline" size="icon" className="w-8 h-8 rounded-full border-border hover:border-purple-400 hover:text-purple-400 transition-colors duration-300">
-                            <HugeiconsIcon icon={Linkedin01Icon} className="w-4 h-4" />
+                            <Linkedin className="w-4 h-4" />
                           </Button>
                         )}
                         {member.social.github && (
                           <Button variant="outline" size="icon" className="w-8 h-8 rounded-full border-border hover:border-purple-400 hover:text-purple-400 transition-colors duration-300">
-                            <HugeiconsIcon icon={GithubIcon} className="w-4 h-4" />
+                            <Github className="w-4 h-4" />
                           </Button>
                         )}
                         {member.social.twitter && (
                           <Button variant="outline" size="icon" className="w-8 h-8 rounded-full border-border hover:border-purple-400 hover:text-purple-400 transition-colors duration-300">
-                            <HugeiconsIcon icon={TwitterIcon} className="w-4 h-4" />
+                            <Twitter className="w-4 h-4" />
                           </Button>
                         )}
                         {member.social.email && (
                           <Button variant="outline" size="icon" className="w-8 h-8 rounded-full border-border hover:border-purple-400 hover:text-purple-400 transition-colors duration-300">
-                            <HugeiconsIcon icon={Mail01Icon} className="w-4 h-4" />
+                            <Mail className="w-4 h-4" />
                           </Button>
                         )}
                       </div>

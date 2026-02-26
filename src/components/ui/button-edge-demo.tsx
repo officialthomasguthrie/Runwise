@@ -1,5 +1,4 @@
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Add01Icon } from "@hugeicons/core-free-icons";
+import { Plus } from "lucide-react";
 import { EdgeProps, Position } from "@xyflow/react";
 import { memo } from "react";
 import { useCallback } from "react";
@@ -85,7 +84,7 @@ const ButtonEdgeDemo = memo((props: EdgeProps) => {
         size="icon" 
         className="h-8 w-8 rounded-full backdrop-blur-lg bg-white/50 dark:bg-zinc-900/50 border border-white/40 dark:border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.2)] hover:shadow-[0_0_25px_rgba(0,0,0,0.3)] hover:bg-white/80 dark:hover:bg-zinc-900/80 transition-all duration-300 hover:scale-110 text-foreground"
       >
-        <HugeiconsIcon icon={Add01Icon} size={16} />
+        <Plus size={16} />
       </Button>
     </ButtonEdge>
   );

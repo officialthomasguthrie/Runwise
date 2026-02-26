@@ -1,10 +1,9 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import FadeContent from "@/components/ui/FadeContent"
+import { ArrowRight } from "lucide-react";
 
 interface ContactHeroProps extends React.HTMLAttributes<HTMLDivElement> {
   title?: string
@@ -37,7 +36,7 @@ const ContactHero = React.forwardRef<HTMLDivElement, ContactHeroProps>(
               <FadeContent delay={100} duration={800}>
                 <h1 className="text-sm text-muted-foreground group font-geist mx-auto px-5 py-2 bg-gradient-to-tr from-muted/20 via-muted-foreground/20 to-transparent border-[2px] border-border rounded-3xl w-fit">
                   {title}
-                  <HugeiconsIcon icon={ArrowRight01Icon} className="inline w-4 h-4 ml-2 group-hover:translate-x-1 duration-300" />
+                  <ArrowRight className="inline w-4 h-4 ml-2 group-hover:translate-x-1 duration-300" />
                 </h1>
               </FadeContent>
               <FadeContent delay={200} duration={1000}>

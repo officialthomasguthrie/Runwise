@@ -1,8 +1,6 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowDown01Icon, Cancel01Icon, SentIcon, Tick01Icon } from "@hugeicons/core-free-icons";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Check, ChevronDown, Send, X } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useTheme } from "next-themes";
@@ -298,7 +296,7 @@ export function GradientAIChatInput({
                 <span className="text-muted-foreground font-medium">
                   {selectedOption ? selectedOption.label : "Select"}
                 </span>
-                <HugeiconsIcon icon={ArrowDown01Icon} className={cn(
+                <ChevronDown className={cn(
                                                         "w-3 h-3 transition-transform",
                                                         isDropdownOpen && "rotate-180"
                                                       )} />
@@ -328,7 +326,7 @@ export function GradientAIChatInput({
                       >
                         <span className="flex-1">{option.label}</span>
                         {selectedOption?.id === option.id && (
-                          <HugeiconsIcon icon={Tick01Icon} className="w-3 h-3 text-foreground" />
+                          <Check className="w-3 h-3 text-foreground" />
                         )}
                       </button>
                     ))}

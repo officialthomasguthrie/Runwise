@@ -1,7 +1,5 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AlertCircleIcon, BarChartIcon, CheckmarkCircle01Icon, ComputerIcon, DatabaseIcon, Delete02Icon, Download01Icon, FileAttachmentIcon, GlobeIcon, Loading02Icon, LockIcon, Mail01Icon, Settings01Icon, Shield01Icon, SmartPhone01Icon, SquareUnlock01Icon, UserGroupIcon, ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
@@ -9,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 
+import { AlertCircle, BarChart2, CheckCircle2, Monitor, Database, Trash2, Download, FileText, Globe, Loader2, Lock, Mail, Settings, Shield, Smartphone, Unlock, Users, Eye, EyeOff } from "lucide-react";
 interface PrivacySettings {
   profileVisibility: {
     public: boolean;
@@ -188,7 +187,7 @@ export function PrivacySettings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <HugeiconsIcon icon={Loading02Icon} className="h-6 w-6 animate-spin" />
+        <Loader2 className="h-6 w-6 animate-spin" />
         <span className="ml-2 text-muted-foreground">Loading privacy settings...</span>
       </div>
     );
@@ -201,7 +200,7 @@ export function PrivacySettings() {
         <div className="mb-6">
           <div>
             <h2 className="text-xl font-semibold flex items-center gap-2">
-              <HugeiconsIcon icon={GlobeIcon} className="h-5 w-5" />
+              <Globe className="h-5 w-5" />
               Privacy Settings
             </h2>
             <p className="text-muted-foreground mt-1">
@@ -214,7 +213,7 @@ export function PrivacySettings() {
       {/* Profile Visibility */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={ViewIcon} className="h-4 w-4" />
+          <Eye className="h-4 w-4" />
           Profile Visibility
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -225,7 +224,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                <HugeiconsIcon icon={GlobeIcon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <Globe className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-medium">Public Profile</h4>
@@ -244,7 +243,7 @@ export function PrivacySettings() {
             <div className="ml-8 space-y-3">
               <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={Mail01Icon} className="h-4 w-4 text-gray-600" />
+                  <Mail className="h-4 w-4 text-gray-600" />
                   <span className="text-sm">Show Email Address</span>
                 </div>
                 <Switch
@@ -255,7 +254,7 @@ export function PrivacySettings() {
               
               <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={ComputerIcon} className="h-4 w-4 text-gray-600" />
+                  <Monitor className="h-4 w-4 text-gray-600" />
                   <span className="text-sm">Show Location</span>
                 </div>
                 <Switch
@@ -266,7 +265,7 @@ export function PrivacySettings() {
               
               <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={BarChartIcon} className="h-4 w-4 text-gray-600" />
+                  <BarChart2 className="h-4 w-4 text-gray-600" />
                   <span className="text-sm">Show Activity Status</span>
                 </div>
                 <Switch
@@ -284,7 +283,7 @@ export function PrivacySettings() {
       {/* Data Sharing */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={DatabaseIcon} className="h-4 w-4" />
+          <Database className="h-4 w-4" />
           Data Sharing
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -295,7 +294,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
-                <HugeiconsIcon icon={BarChartIcon} className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <BarChart2 className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <h4 className="font-medium">Analytics & Usage Data</h4>
@@ -313,7 +312,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-md">
-                <HugeiconsIcon icon={Mail01Icon} className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <Mail className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <h4 className="font-medium">Marketing Communications</h4>
@@ -331,7 +330,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-md">
-                <HugeiconsIcon icon={UserGroupIcon} className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                <Users className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
                 <h4 className="font-medium">Third-Party Integrations</h4>
@@ -349,7 +348,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                <HugeiconsIcon icon={FileAttachmentIcon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-medium">Research & Development</h4>
@@ -371,7 +370,7 @@ export function PrivacySettings() {
       {/* Data Retention */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={Delete02Icon} className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" />
           Data Retention
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -382,7 +381,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-md">
-                <HugeiconsIcon icon={Delete02Icon} className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <Trash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
                 <h4 className="font-medium">Automatic Data Deletion</h4>
@@ -427,7 +426,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-md">
-                <HugeiconsIcon icon={Settings01Icon} className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                <Settings className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
               </div>
               <div>
                 <h4 className="font-medium">Delete Inactive Accounts</h4>
@@ -449,7 +448,7 @@ export function PrivacySettings() {
       {/* Privacy Controls */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={Shield01Icon} className="h-4 w-4" />
+          <Shield className="h-4 w-4" />
           Privacy Controls
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -460,7 +459,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
-                <HugeiconsIcon icon={ViewIcon} className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <Eye className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <h4 className="font-medium">Searchable Profile</h4>
@@ -478,7 +477,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                <HugeiconsIcon icon={DatabaseIcon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <Database className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-medium">Search Engine Indexing</h4>
@@ -496,7 +495,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-md">
-                <HugeiconsIcon icon={SmartPhone01Icon} className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <Smartphone className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <h4 className="font-medium">Location Tracking</h4>
@@ -514,7 +513,7 @@ export function PrivacySettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-md">
-                <HugeiconsIcon icon={LockIcon} className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                <Lock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
                 <h4 className="font-medium">Essential Cookies</h4>
@@ -536,7 +535,7 @@ export function PrivacySettings() {
       {/* Data Management */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={Download01Icon} className="h-4 w-4" />
+          <Download className="h-4 w-4" />
           Data Management
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -547,7 +546,7 @@ export function PrivacySettings() {
           <div className="p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
-                <HugeiconsIcon icon={Download01Icon} className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <Download className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <h4 className="font-medium">Export Data</h4>
@@ -564,12 +563,12 @@ export function PrivacySettings() {
             >
               {isExporting ? (
                 <>
-                  <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Exporting...
                 </>
               ) : (
                 <>
-                  <HugeiconsIcon icon={Download01Icon} className="h-4 w-4 mr-2" />
+                  <Download className="h-4 w-4 mr-2" />
                   Export My Data
                 </>
               )}
@@ -579,7 +578,7 @@ export function PrivacySettings() {
           <div className="p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-md">
-                <HugeiconsIcon icon={Delete02Icon} className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <Trash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
                 <h4 className="font-medium">Delete Account</h4>
@@ -596,12 +595,12 @@ export function PrivacySettings() {
             >
               {isDeleting ? (
                 <>
-                  <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Deleting...
                 </>
               ) : (
                 <>
-                  <HugeiconsIcon icon={Delete02Icon} className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-4 w-4 mr-2" />
                   Delete Account
                 </>
               )}
@@ -615,13 +614,13 @@ export function PrivacySettings() {
         <div className="flex items-center gap-2">
           {saveStatus === 'success' && (
             <div className="flex items-center gap-2 text-green-600">
-              <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" />
               <span className="text-sm">Privacy settings saved successfully!</span>
             </div>
           )}
           {saveStatus === 'error' && (
             <div className="flex items-center gap-2 text-red-600">
-              <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4" />
               <span className="text-sm">Failed to save privacy settings. Please try again.</span>
             </div>
           )}
@@ -642,12 +641,12 @@ export function PrivacySettings() {
           >
             {isSaving ? (
               <>
-                <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 Saving...
               </>
             ) : (
               <>
-                <HugeiconsIcon icon={GlobeIcon} className="h-4 w-4 mr-2" />
+                <Globe className="h-4 w-4 mr-2" />
                 Save Settings
               </>
             )}

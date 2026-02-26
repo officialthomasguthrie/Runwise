@@ -1,11 +1,10 @@
 'use client'
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import * as React from "react"
 import Link from 'next/link'
 import FadeContent from "@/components/ui/FadeContent"
 
+import { ChevronDown } from "lucide-react";
 export default function PricingFAQ() {
     const [openItems, setOpenItems] = React.useState<string[]>([])
 
@@ -83,7 +82,7 @@ export default function PricingFAQ() {
                                 <h3 className="text-base font-medium text-foreground font-geist pr-4">
                                     {item.question}
                                 </h3>
-                                <HugeiconsIcon icon={ArrowDown01Icon} className={`w-4 h-4 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${
+                                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${
                                                                         openItems.includes(item.id) ? 'rotate-180' : ''
                                                                     }`} />
                             </button>

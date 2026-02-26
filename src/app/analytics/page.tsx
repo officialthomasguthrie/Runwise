@@ -1,13 +1,12 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
 
+import { ChevronDown, ArrowRight } from "lucide-react";
 export default function AnalyticsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -58,9 +57,9 @@ export default function AnalyticsPage() {
                     className="flex items-center gap-2 w-full text-left hover:text-foreground transition-colors group"
                   >
                     {expandedSections.overview ? (
-                      <HugeiconsIcon icon={ArrowDown01Icon} className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                      <ChevronDown className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
                     ) : (
-                      <HugeiconsIcon icon={ArrowRight01Icon} className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                      <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
                     )}
                     <h2 className="text-2xl sm:text-3xl tracking-tighter font-geist text-foreground group-hover:text-foreground">Overview</h2>
                   </button>
@@ -80,9 +79,9 @@ export default function AnalyticsPage() {
                     className="flex items-center gap-2 w-full text-left hover:text-foreground transition-colors group"
                   >
                     {expandedSections.usage ? (
-                      <HugeiconsIcon icon={ArrowDown01Icon} className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                      <ChevronDown className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
                     ) : (
-                      <HugeiconsIcon icon={ArrowRight01Icon} className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                      <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
                     )}
                     <h2 className="text-2xl sm:text-3xl tracking-tighter font-geist text-foreground group-hover:text-foreground">Usage</h2>
                   </button>
@@ -102,9 +101,9 @@ export default function AnalyticsPage() {
                     className="flex items-center gap-2 w-full text-left hover:text-foreground transition-colors group"
                   >
                     {expandedSections.performance ? (
-                      <HugeiconsIcon icon={ArrowDown01Icon} className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                      <ChevronDown className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
                     ) : (
-                      <HugeiconsIcon icon={ArrowRight01Icon} className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                      <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
                     )}
                     <h2 className="text-2xl sm:text-3xl tracking-tighter font-geist text-foreground group-hover:text-foreground">Performance</h2>
                   </button>
@@ -124,9 +123,9 @@ export default function AnalyticsPage() {
                     className="flex items-center gap-2 w-full text-left hover:text-foreground transition-colors group"
                   >
                     {expandedSections.insights ? (
-                      <HugeiconsIcon icon={ArrowDown01Icon} className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                      <ChevronDown className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
                     ) : (
-                      <HugeiconsIcon icon={ArrowRight01Icon} className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                      <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
                     )}
                     <h2 className="text-2xl sm:text-3xl tracking-tighter font-geist text-foreground group-hover:text-foreground">Insights & Recommendations</h2>
                   </button>

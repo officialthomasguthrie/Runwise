@@ -1,5 +1,3 @@
-import { HugeiconsIcon } from "@hugeicons/react";
-import { CheckmarkCircle01Icon, Delete02Icon, InformationCircleIcon, Mail01Icon } from "@hugeicons/core-free-icons";
 import { memo } from "react";
 import { Handle, Position, useReactFlow } from "@xyflow/react";
 
@@ -11,7 +9,7 @@ import {
   BaseNodeHeader,
   BaseNodeHeaderTitle,
 } from "@/components/base-node";
-import { Zap } from "lucide-react";
+import { CheckCircle2, Info, Mail, Trash2, Zap } from "lucide-react";
 
 // Trigger Node Component
 export const TriggerNodeBase = memo(({ data, id }: { data: any; id: string }) => {
@@ -38,7 +36,7 @@ export const TriggerNodeBase = memo(({ data, id }: { data: any; id: string }) =>
       />
       <BaseNodeHeader className="border-b">
         <div className="flex items-center gap-2 flex-1">
-          <HugeiconsIcon icon={Mail01Icon} className="size-4 text-primary" />
+          <Mail className="size-4 text-primary" />
           <BaseNodeHeaderTitle>Email Received</BaseNodeHeaderTitle>
         </div>
         <div className="flex items-center gap-1">
@@ -47,7 +45,7 @@ export const TriggerNodeBase = memo(({ data, id }: { data: any; id: string }) =>
             variant="ghost"
             className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-transparent"
           >
-            <HugeiconsIcon icon={InformationCircleIcon} className="h-3 w-3" />
+            <Info className="h-3 w-3" />
           </Button>
           <Button
             onClick={handleDelete}
@@ -55,7 +53,7 @@ export const TriggerNodeBase = memo(({ data, id }: { data: any; id: string }) =>
             variant="ghost"
             className="h-6 w-6 opacity-70 hover:opacity-100 hover:text-destructive hover:bg-transparent"
           >
-            <HugeiconsIcon icon={Delete02Icon} className="h-3 w-3" />
+            <Trash2 className="h-3 w-3" />
           </Button>
         </div>
       </BaseNodeHeader>
@@ -125,7 +123,7 @@ export const ActionNodeBase = memo(({ data, id }: { data: any; id: string }) => 
             variant="ghost"
             className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-transparent"
           >
-            <HugeiconsIcon icon={InformationCircleIcon} className="h-3 w-3" />
+            <Info className="h-3 w-3" />
           </Button>
           <Button
             onClick={handleDelete}
@@ -133,7 +131,7 @@ export const ActionNodeBase = memo(({ data, id }: { data: any; id: string }) => 
             variant="ghost"
             className="h-6 w-6 opacity-70 hover:opacity-100 hover:text-destructive hover:bg-transparent"
           >
-            <HugeiconsIcon icon={Delete02Icon} className="h-3 w-3" />
+            <Trash2 className="h-3 w-3" />
           </Button>
         </div>
       </BaseNodeHeader>
@@ -180,7 +178,7 @@ export const EndNodeBase = memo(({ data, id }: { data: any; id: string }) => {
       />
       <BaseNodeHeader className="border-b">
         <div className="flex items-center gap-2 flex-1">
-          <HugeiconsIcon icon={CheckmarkCircle01Icon} className="size-4 text-primary" />
+          <CheckCircle2 className="size-4 text-primary" />
           <BaseNodeHeaderTitle>Reply Sent</BaseNodeHeaderTitle>
         </div>
         <div className="flex items-center gap-1">
@@ -189,7 +187,7 @@ export const EndNodeBase = memo(({ data, id }: { data: any; id: string }) => {
             variant="ghost"
             className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-transparent"
           >
-            <HugeiconsIcon icon={InformationCircleIcon} className="h-3 w-3" />
+            <Info className="h-3 w-3" />
           </Button>
           <Button
             onClick={handleDelete}
@@ -197,7 +195,7 @@ export const EndNodeBase = memo(({ data, id }: { data: any; id: string }) => {
             variant="ghost"
             className="h-6 w-6 opacity-70 hover:opacity-100 hover:text-destructive hover:bg-transparent"
           >
-            <HugeiconsIcon icon={Delete02Icon} className="h-3 w-3" />
+            <Trash2 className="h-3 w-3" />
           </Button>
         </div>
       </BaseNodeHeader>

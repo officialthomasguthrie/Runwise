@@ -1,7 +1,6 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AlertCircleIcon, Calendar01Icon, Call02Icon, CheckmarkCircle01Icon, Clock01Icon, ColorPickerIcon, ComputerIcon, DatabaseIcon, FileAttachmentIcon, GlobeIcon, KeyboardIcon, LanguageCircleIcon, Loading02Icon, Location01Icon, Mail01Icon, Mouse01Icon, Notification01Icon, Settings01Icon, Shield01Icon, UserIcon, VolumeMute01Icon } from "@hugeicons/core-free-icons";
+import { AlertCircle, Bell, Calendar, CheckCircle2, Clock, Database, FileText, Globe, Keyboard, Loader2, Mail, MapPin, Monitor, Mouse, Palette, Phone, Settings, Shield, User, Volume2, VolumeX, Zap } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
@@ -9,10 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { 
-  Zap, 
-  Volume2
-} from "lucide-react";
+
 
 interface UserPreferences {
   general: {
@@ -171,7 +167,7 @@ export function PreferencesSettings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <HugeiconsIcon icon={Loading02Icon} className="h-6 w-6 animate-spin" />
+        <Loader2 className="h-6 w-6 animate-spin" />
         <span className="ml-2 text-muted-foreground">Loading preferences...</span>
       </div>
     );
@@ -197,7 +193,7 @@ export function PreferencesSettings() {
       {/* General Settings */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={GlobeIcon} className="h-4 w-4" />
+          <Globe className="h-4 w-4" />
           General
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -279,7 +275,7 @@ export function PreferencesSettings() {
       {/* Workspace Settings */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={ComputerIcon} className="h-4 w-4" />
+          <Monitor className="h-4 w-4" />
           Workspace
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -313,7 +309,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
-                <HugeiconsIcon icon={DatabaseIcon} className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <Database className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <h4 className="font-medium">Auto Save</h4>
@@ -331,7 +327,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                <HugeiconsIcon icon={FileAttachmentIcon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-medium">Show Tutorials</h4>
@@ -349,7 +345,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-md">
-                <HugeiconsIcon icon={Settings01Icon} className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <Settings className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <h4 className="font-medium">Compact Mode</h4>
@@ -371,7 +367,7 @@ export function PreferencesSettings() {
       {/* Keyboard Settings */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={KeyboardIcon} className="h-4 w-4" />
+          <Keyboard className="h-4 w-4" />
           Keyboard & Shortcuts
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -400,7 +396,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gray-100 dark:bg-gray-900/20 rounded-md">
-                <HugeiconsIcon icon={KeyboardIcon} className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                <Keyboard className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               </div>
               <div>
                 <h4 className="font-medium">Vim Mode</h4>
@@ -418,7 +414,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                <HugeiconsIcon icon={Mouse01Icon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <Mouse className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-medium">Quick Actions</h4>
@@ -440,7 +436,7 @@ export function PreferencesSettings() {
       {/* Accessibility Settings */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={Shield01Icon} className="h-4 w-4" />
+          <Shield className="h-4 w-4" />
           Accessibility
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -451,7 +447,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-md">
-                <HugeiconsIcon icon={ColorPickerIcon} className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                <Palette className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
                 <h4 className="font-medium">High Contrast</h4>
@@ -469,7 +465,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                <HugeiconsIcon icon={FileAttachmentIcon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-medium">Large Text</h4>
@@ -487,7 +483,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
-                <HugeiconsIcon icon={Clock01Icon} className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <Clock className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <h4 className="font-medium">Reduced Motion</h4>
@@ -527,7 +523,7 @@ export function PreferencesSettings() {
       {/* Advanced Settings */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={Settings01Icon} className="h-4 w-4" />
+          <Settings className="h-4 w-4" />
           Advanced
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -538,7 +534,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-md">
-                <HugeiconsIcon icon={Settings01Icon} className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <Settings className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
                 <h4 className="font-medium">Debug Mode</h4>
@@ -556,7 +552,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
-                <HugeiconsIcon icon={DatabaseIcon} className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <Database className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <h4 className="font-medium">Analytics</h4>
@@ -574,7 +570,7 @@ export function PreferencesSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                <HugeiconsIcon icon={AlertCircleIcon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-medium">Crash Reporting</h4>
@@ -614,13 +610,13 @@ export function PreferencesSettings() {
         <div className="flex items-center gap-2">
           {saveStatus === 'success' && (
             <div className="flex items-center gap-2 text-green-600">
-              <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" />
               <span className="text-sm">Preferences saved successfully!</span>
             </div>
           )}
           {saveStatus === 'error' && (
             <div className="flex items-center gap-2 text-red-600">
-              <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4" />
               <span className="text-sm">Failed to save preferences. Please try again.</span>
             </div>
           )}
@@ -641,7 +637,7 @@ export function PreferencesSettings() {
           >
             {isSaving ? (
               <>
-                <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 Saving...
               </>
             ) : (

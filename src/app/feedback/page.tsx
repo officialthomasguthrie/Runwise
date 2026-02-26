@@ -1,7 +1,5 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { CheckmarkCircle01Icon, SentIcon, StarIcon } from "@hugeicons/core-free-icons";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -15,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
 
+import { CheckCircle2, Send, Star } from "lucide-react";
 export default function FeedbackPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -109,7 +108,7 @@ export default function FeedbackPage() {
                           : 'text-stone-200 dark:text-zinc-700 hover:text-yellow-400'
                       }`}
                     >
-                      <HugeiconsIcon icon={StarIcon} className="w-6 h-6 fill-current" />
+                      <Star className="w-6 h-6 fill-current" />
                     </button>
                   ))}
                   {rating > 0 && (
@@ -134,7 +133,7 @@ export default function FeedbackPage() {
                 <CardContent className="p-0">
                   {isSubmitted ? (
                     <div className="text-center py-8">
-                      <HugeiconsIcon icon={CheckmarkCircle01Icon} className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                      <CheckCircle2 className="w-16 h-16 text-green-400 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold text-foreground mb-2">Thank you!</h3>
                       <p className="text-sm text-muted-foreground">
                         Your feedback has been submitted successfully. We appreciate your input!
@@ -243,7 +242,7 @@ export default function FeedbackPage() {
                             </>
                           ) : (
                             <>
-                              <HugeiconsIcon icon={SentIcon} className="w-4 h-4 mr-2" />
+                              <Send className="w-4 h-4 mr-2" />
                               Submit Feedback
                             </>
                           )}

@@ -1,7 +1,6 @@
 'use client';
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Cancel01Icon, CheckmarkCircle01Icon, CreditCardIcon, Loading02Icon } from "@hugeicons/core-free-icons";
+import { X, CheckCircle2, CreditCard, Loader2 } from "lucide-react";
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
@@ -103,7 +102,7 @@ function AddCardForm({ setupIntentSecret }: { setupIntentSecret: string }) {
         >
           {isProcessing ? (
             <>
-              <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Processing...
             </>
           ) : (
@@ -156,7 +155,7 @@ function AddCardContent() {
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <div className="w-full max-w-md bg-card border border-border rounded-lg p-6 space-y-4">
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
-            <HugeiconsIcon icon={Loading02Icon} className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">Setting up payment method...</p>
           </div>
         </div>
@@ -170,7 +169,7 @@ function AddCardContent() {
         <div className="w-full max-w-md bg-card border border-border rounded-lg p-6 space-y-4">
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-              <HugeiconsIcon icon={Cancel01Icon} className="h-6 w-6 text-destructive" />
+              <X className="h-6 w-6 text-destructive" />
             </div>
             <div className="text-center space-y-2">
               <h2 className="text-lg font-semibold text-foreground">Unable to Add Card</h2>
@@ -191,7 +190,7 @@ function AddCardContent() {
         <div className="w-full max-w-md bg-card border border-border rounded-lg p-6 space-y-4">
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center">
-              <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-6 w-6 text-green-500" />
+              <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
             <div className="text-center space-y-2">
               <h2 className="text-lg font-semibold text-foreground">Payment Method Added</h2>
@@ -233,7 +232,7 @@ export default function AddCardPage() {
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <div className="w-full max-w-md bg-card border border-border rounded-lg p-6">
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
-            <HugeiconsIcon icon={Loading02Icon} className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">Loading...</p>
           </div>
         </div>

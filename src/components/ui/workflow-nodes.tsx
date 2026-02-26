@@ -1,8 +1,7 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { CheckmarkCircle01Icon, Mail01Icon } from "@hugeicons/core-free-icons";
-import { Zap } from "lucide-react";
+import { CheckCircle2, Mail, Zap } from "lucide-react";
+
 import { Handle, Position } from "@xyflow/react";
 
 // Custom Trigger Node Component
@@ -17,7 +16,7 @@ export const TriggerNode = ({ data }: { data: any }) => {
       />
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 mt-1">
-          <HugeiconsIcon icon={Mail01Icon} className="h-5 w-5 text-primary" />
+          <Mail className="h-5 w-5 text-primary" />
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-sm text-card-foreground leading-tight">
@@ -71,7 +70,7 @@ export const EndNode = ({ data }: { data: any }) => {
       />
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 mt-1">
-          <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-5 w-5 text-primary" />
+          <CheckCircle2 className="h-5 w-5 text-primary" />
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-sm text-card-foreground leading-tight">

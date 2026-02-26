@@ -1,17 +1,13 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AlertCircleIcon, Calendar01Icon, CheckmarkCircle01Icon, ComputerIcon, Loading02Icon, Mail01Icon, Message01Icon, Notification01Icon, Shield01Icon, SmartPhone01Icon, VolumeMute01Icon } from "@hugeicons/core-free-icons";
+import { AlertCircle, Bell, Calendar, CheckCircle2, Loader2, Mail, MessageSquare, Monitor, Shield, Smartphone, Volume2, VolumeX, Zap } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { 
-  Zap,
-  Volume2
-} from "lucide-react";
+
 
 interface NotificationSettings {
   email: {
@@ -155,7 +151,7 @@ export function NotificationSettings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <HugeiconsIcon icon={Loading02Icon} className="h-6 w-6 animate-spin" />
+        <Loader2 className="h-6 w-6 animate-spin" />
         <span className="ml-2 text-muted-foreground">Loading notification settings...</span>
       </div>
     );
@@ -168,7 +164,7 @@ export function NotificationSettings() {
         <div className="mb-6">
           <div>
             <h2 className="text-xl font-semibold flex items-center gap-2">
-              <HugeiconsIcon icon={Notification01Icon} className="h-5 w-5" />
+              <Bell className="h-5 w-5" />
               Notification Settings
             </h2>
             <p className="text-muted-foreground mt-1">
@@ -181,7 +177,7 @@ export function NotificationSettings() {
       {/* Email Notifications */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={Mail01Icon} className="h-4 w-4" />
+          <Mail className="h-4 w-4" />
           Email Notifications
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -192,7 +188,7 @@ export function NotificationSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-md">
-                <HugeiconsIcon icon={Mail01Icon} className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <Mail className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h4 className="font-medium">Email Notifications</h4>
@@ -222,7 +218,7 @@ export function NotificationSettings() {
               
               <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={Shield01Icon} className="h-4 w-4 text-red-600" />
+                  <Shield className="h-4 w-4 text-red-600" />
                   <span className="text-sm">Security Alerts</span>
                 </div>
                 <Switch
@@ -233,7 +229,7 @@ export function NotificationSettings() {
               
               <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={Calendar01Icon} className="h-4 w-4 text-green-600" />
+                  <Calendar className="h-4 w-4 text-green-600" />
                   <span className="text-sm">Product Updates</span>
                 </div>
                 <Switch
@@ -244,7 +240,7 @@ export function NotificationSettings() {
               
               <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={Message01Icon} className="h-4 w-4 text-orange-600" />
+                  <MessageSquare className="h-4 w-4 text-orange-600" />
                   <span className="text-sm">Marketing & Tips</span>
                 </div>
                 <Switch
@@ -262,7 +258,7 @@ export function NotificationSettings() {
       {/* Push Notifications */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={SmartPhone01Icon} className="h-4 w-4" />
+          <Smartphone className="h-4 w-4" />
           Push Notifications
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -273,7 +269,7 @@ export function NotificationSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
-                <HugeiconsIcon icon={SmartPhone01Icon} className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <Smartphone className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <h4 className="font-medium">Push Notifications</h4>
@@ -303,7 +299,7 @@ export function NotificationSettings() {
               
               <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={Shield01Icon} className="h-4 w-4 text-red-600" />
+                  <Shield className="h-4 w-4 text-red-600" />
                   <span className="text-sm">Security Alerts</span>
                 </div>
                 <Switch
@@ -314,7 +310,7 @@ export function NotificationSettings() {
               
               <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={Calendar01Icon} className="h-4 w-4 text-green-600" />
+                  <Calendar className="h-4 w-4 text-green-600" />
                   <span className="text-sm">Product Updates</span>
                 </div>
                 <Switch
@@ -332,7 +328,7 @@ export function NotificationSettings() {
       {/* In-App Notifications */}
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <HugeiconsIcon icon={ComputerIcon} className="h-4 w-4" />
+          <Monitor className="h-4 w-4" />
           In-App Notifications
         </h3>
         <p className="text-muted-foreground mb-6">
@@ -343,7 +339,7 @@ export function NotificationSettings() {
           <div className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-md">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-md">
-                <HugeiconsIcon icon={ComputerIcon} className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <Monitor className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <h4 className="font-medium">In-App Notifications</h4>
@@ -373,7 +369,7 @@ export function NotificationSettings() {
               
               <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={Shield01Icon} className="h-4 w-4 text-red-600" />
+                  <Shield className="h-4 w-4 text-red-600" />
                   <span className="text-sm">Security Alerts</span>
                 </div>
                 <Switch
@@ -384,7 +380,7 @@ export function NotificationSettings() {
               
               <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={Calendar01Icon} className="h-4 w-4 text-green-600" />
+                  <Calendar className="h-4 w-4 text-green-600" />
                   <span className="text-sm">Product Updates</span>
                 </div>
                 <Switch
@@ -424,7 +420,7 @@ export function NotificationSettings() {
           
           <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
             <div className="flex items-center gap-2">
-              <HugeiconsIcon icon={Calendar01Icon} className="h-4 w-4 text-blue-600" />
+              <Calendar className="h-4 w-4 text-blue-600" />
               <span className="text-sm">Daily Digest</span>
               <span className="text-xs text-muted-foreground">(Once per day)</span>
             </div>
@@ -436,7 +432,7 @@ export function NotificationSettings() {
           
           <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
             <div className="flex items-center gap-2">
-              <HugeiconsIcon icon={Calendar01Icon} className="h-4 w-4 text-green-600" />
+              <Calendar className="h-4 w-4 text-green-600" />
               <span className="text-sm">Weekly Summary</span>
               <span className="text-xs text-muted-foreground">(Once per week)</span>
             </div>
@@ -453,13 +449,13 @@ export function NotificationSettings() {
         <div className="flex items-center gap-2">
           {saveStatus === 'success' && (
             <div className="flex items-center gap-2 text-green-600">
-              <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" />
               <span className="text-sm">Notification settings saved successfully!</span>
             </div>
           )}
           {saveStatus === 'error' && (
             <div className="flex items-center gap-2 text-red-600">
-              <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4" />
               <span className="text-sm">Failed to save notification settings. Please try again.</span>
             </div>
           )}
@@ -480,12 +476,12 @@ export function NotificationSettings() {
           >
             {isSaving ? (
               <>
-                <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 Saving...
               </>
             ) : (
               <>
-                <HugeiconsIcon icon={Notification01Icon} className="h-4 w-4 mr-2" />
+                <Bell className="h-4 w-4 mr-2" />
                 Save Settings
               </>
             )}

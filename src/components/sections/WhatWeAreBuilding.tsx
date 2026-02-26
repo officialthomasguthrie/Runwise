@@ -1,10 +1,8 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AiNetworkIcon, ArrowRight01Icon, BrainIcon, CpuIcon, SparklesIcon } from "@hugeicons/core-free-icons";
+import { ArrowRight, Brain, Network, Zap } from "lucide-react";
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Zap } from "lucide-react"
 import FadeContent from "@/components/ui/FadeContent"
 
 interface WhatWeAreBuildingProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -44,7 +42,7 @@ const WhatWeAreBuilding = React.forwardRef<HTMLDivElement, WhatWeAreBuildingProp
                 <div className="group">
                   <div className="flex items-start gap-6">
                     <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <HugeiconsIcon icon={BrainIcon} className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                      <Brain className="w-8 h-8 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-2xl font-semibold text-foreground font-geist mb-3">
@@ -61,7 +59,7 @@ const WhatWeAreBuilding = React.forwardRef<HTMLDivElement, WhatWeAreBuildingProp
                 <div className="group">
                   <div className="flex items-start gap-6">
                     <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-pink-100 to-pink-200 dark:from-pink-900/30 dark:to-pink-800/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <HugeiconsIcon icon={AiNetworkIcon} className="w-8 h-8 text-pink-600 dark:text-pink-400" />
+                      <Network className="w-8 h-8 text-pink-600 dark:text-pink-400" />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-2xl font-semibold text-foreground font-geist mb-3">

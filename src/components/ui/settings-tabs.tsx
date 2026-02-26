@@ -1,7 +1,6 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ColorPickerIcon, CreditCardIcon, DatabaseIcon, GlobeIcon, HelpCircleIcon, Notification01Icon, Shield01Icon, UserIcon } from "@hugeicons/core-free-icons";
+import { Bell, CreditCard, Database, Globe, HelpCircle, Palette, Shield, User, Zap } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfileSettings } from "@/components/ui/profile-settings";
@@ -13,9 +12,6 @@ import { BillingSettings } from "@/components/ui/billing-settings";
 import { IntegrationsSettings } from "@/components/ui/integrations-settings";
 import { PreferencesSettings } from "@/components/ui/preferences-settings";
 import { SupportSettings } from "@/components/ui/support-settings";
-import { 
-  Zap 
-} from "lucide-react";
 
 function SettingsTabsDemo() {
   return (
@@ -27,49 +23,49 @@ function SettingsTabsDemo() {
             value="profile"
             className="relative overflow-hidden rounded-none border border-border py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 first:rounded-s last:rounded-e data-[state=active]:bg-muted data-[state=active]:after:bg-primary"
           >
-            <HugeiconsIcon icon={UserIcon} className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
+            <User className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
             Profile
           </TabsTrigger>
           <TabsTrigger
             value="security"
             className="relative overflow-hidden rounded-none border border-border py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 first:rounded-s last:rounded-e data-[state=active]:bg-muted data-[state=active]:after:bg-primary"
           >
-            <HugeiconsIcon icon={Shield01Icon} className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
+            <Shield className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
             Security
           </TabsTrigger>
           <TabsTrigger
             value="notifications"
             className="relative overflow-hidden rounded-none border border-border py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 first:rounded-s last:rounded-e data-[state=active]:bg-muted data-[state=active]:after:bg-primary"
           >
-            <HugeiconsIcon icon={Notification01Icon} className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
+            <Bell className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
             Notifications
           </TabsTrigger>
           <TabsTrigger
             value="appearance"
             className="relative overflow-hidden rounded-none border border-border py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 first:rounded-s last:rounded-e data-[state=active]:bg-muted data-[state=active]:after:bg-primary"
           >
-            <HugeiconsIcon icon={ColorPickerIcon} className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
+            <Palette className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
             Appearance
           </TabsTrigger>
           <TabsTrigger
             value="privacy"
             className="relative overflow-hidden rounded-none border border-border py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 first:rounded-s last:rounded-e data-[state=active]:bg-muted data-[state=active]:after:bg-primary"
           >
-            <HugeiconsIcon icon={GlobeIcon} className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
+            <Globe className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
             Privacy
           </TabsTrigger>
           <TabsTrigger
             value="billing"
             className="relative overflow-hidden rounded-none border border-border py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 first:rounded-s last:rounded-e data-[state=active]:bg-muted data-[state=active]:after:bg-primary"
           >
-            <HugeiconsIcon icon={CreditCardIcon} className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
+            <CreditCard className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
             Billing
           </TabsTrigger>
           <TabsTrigger
             value="integrations"
             className="relative overflow-hidden rounded-none border border-border py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 first:rounded-s last:rounded-e data-[state=active]:bg-muted data-[state=active]:after:bg-primary"
           >
-            <HugeiconsIcon icon={DatabaseIcon} className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
+            <Database className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
             Integrations
           </TabsTrigger>
           <TabsTrigger
@@ -88,7 +84,7 @@ function SettingsTabsDemo() {
             value="support"
             className="relative overflow-hidden rounded-none border border-border py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 first:rounded-s last:rounded-e data-[state=active]:bg-muted data-[state=active]:after:bg-primary"
           >
-            <HugeiconsIcon icon={HelpCircleIcon} className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
+            <HelpCircle className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
             Support
           </TabsTrigger>
           </TabsList>

@@ -1,7 +1,6 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowDown01Icon, ArrowUp01Icon, CancelCircleIcon, CheckmarkCircle01Icon, Clock01Icon, Loading02Icon } from "@hugeicons/core-free-icons";
+import { ChevronDown, ChevronUp, XCircle, CheckCircle2, Clock, Loader2 } from "lucide-react";
 import { useState, useEffect } from 'react';
 import { loadUserExecutions, loadNodeExecutions, type WorkflowExecution, type NodeExecution } from '@/lib/workflow-executions/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -88,15 +87,15 @@ export function ExecutionsView({ workflowId, className }: ExecutionsViewProps) {
   const getStatusIcon = (status: WorkflowExecution['status']) => {
     switch (status) {
       case 'completed':
-        return <HugeiconsIcon icon={CheckmarkCircle01Icon} className="h-4 w-4 text-green-500" />;
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
       case 'failed':
-        return <HugeiconsIcon icon={CancelCircleIcon} className="h-4 w-4 text-red-500" />;
+        return <XCircle className="h-4 w-4 text-red-500" />;
       case 'running':
-        return <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 text-blue-500 animate-spin" />;
+        return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
       case 'cancelled':
-        return <HugeiconsIcon icon={Clock01Icon} className="h-4 w-4 text-gray-500" />;
+        return <Clock className="h-4 w-4 text-gray-500" />;
       default:
-        return <HugeiconsIcon icon={Clock01Icon} className="h-4 w-4 text-muted-foreground" />;
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -233,9 +232,9 @@ export function ExecutionsView({ workflowId, className }: ExecutionsViewProps) {
                     </div>
                   </div>
                   {isExpanded ? (
-                    <HugeiconsIcon icon={ArrowUp01Icon} className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   ) : (
-                    <HugeiconsIcon icon={ArrowDown01Icon} className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   )}
                 </button>
 
@@ -369,9 +368,9 @@ export function ExecutionsView({ workflowId, className }: ExecutionsViewProps) {
                       </div>
                     </div>
                     {isExpanded ? (
-                      <HugeiconsIcon icon={ArrowUp01Icon} className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     ) : (
-                      <HugeiconsIcon icon={ArrowDown01Icon} className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     )}
                   </button>
 

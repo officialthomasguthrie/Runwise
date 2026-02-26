@@ -1,13 +1,12 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AlertCircleIcon, ComputerIcon, FloppyDiskIcon, Loading02Icon, Mail01Icon, SmartPhone01Icon, Tick01Icon } from "@hugeicons/core-free-icons";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase-client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
+import { AlertCircle, Monitor, Save, Loader2, Mail, Smartphone, Check } from "lucide-react";
 interface NotificationSettings {
   email: {
     workflowFailures: boolean;
@@ -146,7 +145,7 @@ export function NotificationsSettings() {
         <div className="space-y-4">
           <div>
             <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-              <HugeiconsIcon icon={Mail01Icon} className="h-5 w-5" />
+              <Mail className="h-5 w-5" />
               Email Notifications
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -171,7 +170,7 @@ export function NotificationsSettings() {
         <div className="space-y-4 pt-6">
           <div>
             <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-              <HugeiconsIcon icon={ComputerIcon} className="h-5 w-5" />
+              <Monitor className="h-5 w-5" />
               Desktop Notifications
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -194,7 +193,7 @@ export function NotificationsSettings() {
         <div className="space-y-4 pt-6">
           <div>
             <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-              <HugeiconsIcon icon={SmartPhone01Icon} className="h-5 w-5" />
+              <Smartphone className="h-5 w-5" />
               Mobile Push Notifications
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -223,7 +222,7 @@ export function NotificationsSettings() {
       <div className="space-y-4">
         <div>
           <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-            <HugeiconsIcon icon={Mail01Icon} className="h-5 w-5" />
+            <Mail className="h-5 w-5" />
             Email Notifications
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -350,7 +349,7 @@ export function NotificationsSettings() {
       <div className="space-y-4 pt-6">
         <div>
           <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-            <HugeiconsIcon icon={ComputerIcon} className="h-5 w-5" />
+            <Monitor className="h-5 w-5" />
             Desktop Notifications
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -392,7 +391,7 @@ export function NotificationsSettings() {
       <div className="space-y-4 pt-6">
         <div>
           <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-            <HugeiconsIcon icon={SmartPhone01Icon} className="h-5 w-5" />
+            <Smartphone className="h-5 w-5" />
             Mobile Push Notifications
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -434,13 +433,13 @@ export function NotificationsSettings() {
       <div className="flex items-center gap-2 pt-4">
         {saveStatus === 'success' && !isSaving && (
           <div className="flex items-center gap-2 text-sm text-green-600">
-            <HugeiconsIcon icon={Tick01Icon} className="h-4 w-4" />
+            <Check className="h-4 w-4" />
             <span>Settings saved</span>
           </div>
         )}
         {saveStatus === 'error' && !isSaving && (
           <div className="flex items-center gap-2 text-sm text-red-600">
-            <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4" />
             <span>Failed to save settings</span>
           </div>
         )}

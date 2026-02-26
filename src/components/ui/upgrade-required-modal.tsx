@@ -1,8 +1,8 @@
 "use client";
 
+import { X, Loader2, Crown, Rocket, Clock, Zap, Activity, BarChart, Headphones } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { X, Loader2, Crown, Rocket, Clock, Zap, Activity, BarChart, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 

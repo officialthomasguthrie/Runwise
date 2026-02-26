@@ -1,14 +1,10 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowDown01Icon, BarChartIcon, DashboardCircleIcon, Layout01Icon, Logout01Icon, Message01Icon, MoonIcon, Mortarboard01Icon, Settings01Icon, Sun01Icon, UserCircleIcon, UserIcon, WorkflowCircle01Icon, WorkHistoryIcon } from "@hugeicons/core-free-icons";
+import { BarChart2, ChevronDown, GraduationCap, History, Layout, LayoutDashboard, LogOut, MessageSquare, Moon, Settings, Sun, User, UserCircle, Workflow, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import {
-  Zap
-} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -151,7 +147,7 @@ export function DashboardSidebar() {
                           />
                         ) : null}
                         <AvatarFallback className="bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center">
-                          <HugeiconsIcon icon={UserIcon} className="h-4 w-4" />
+                          <User className="h-4 w-4" />
                         </AvatarFallback>
                       </Avatar>
                       <motion.li
@@ -163,7 +159,7 @@ export function DashboardSidebar() {
                             <p className="text-sm font-medium">
                               {getUserName()}
                             </p>
-                            <HugeiconsIcon icon={ArrowDown01Icon} className="h-4 w-4 text-muted-foreground/50" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground/50" />
                           </>
                         )}
                       </motion.li>
@@ -180,7 +176,7 @@ export function DashboardSidebar() {
                           />
                         ) : null}
                         <AvatarFallback className="bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center">
-                          <HugeiconsIcon icon={UserIcon} className="h-5 w-5" />
+                          <User className="h-5 w-5" />
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col text-left">
@@ -200,7 +196,7 @@ export function DashboardSidebar() {
                         router.push('/settings/profile');
                       }}
                     >
-                      <HugeiconsIcon icon={UserCircleIcon} className="h-4 w-4" /> 
+                      <UserCircle className="h-4 w-4" /> 
                       <span>Profile Settings</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -210,7 +206,7 @@ export function DashboardSidebar() {
                         router.push('/settings/account');
                       }}
                     >
-                      <HugeiconsIcon icon={Settings01Icon} className="h-4 w-4" /> 
+                      <Settings className="h-4 w-4" /> 
                       <span>Account Settings</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -233,7 +229,7 @@ export function DashboardSidebar() {
                         handleSignOut();
                       }}
                     >
-                      <HugeiconsIcon icon={Logout01Icon} className="h-4 w-4" /> 
+                      <LogOut className="h-4 w-4" /> 
                       <span>Sign Out</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -254,7 +250,7 @@ export function DashboardSidebar() {
                           "bg-gradient-to-r from-purple-500 to-pink-500 text-white",
                       )}
                     >
-                      <HugeiconsIcon icon={DashboardCircleIcon} className="h-4 w-4" />
+                      <LayoutDashboard className="h-4 w-4" />
                       <motion.li variants={variants}>
                         {!isCollapsed && (
                           <p className="ml-2 text-sm font-medium">Dashboard</p>
@@ -270,7 +266,7 @@ export function DashboardSidebar() {
                           "bg-gradient-to-r from-purple-500 to-pink-500 text-white",
                       )}
                     >
-                      <HugeiconsIcon icon={WorkflowCircle01Icon} className="h-4 w-4" />
+                      <Workflow className="h-4 w-4" />
                       <motion.li variants={variants}>
                         {!isCollapsed && (
                           <div className="flex items-center gap-2">
@@ -296,7 +292,7 @@ export function DashboardSidebar() {
                           "bg-gradient-to-r from-purple-500 to-pink-500 text-white",
                       )}
                     >
-                      <HugeiconsIcon icon={WorkHistoryIcon} className="h-4 w-4" />
+                      <History className="h-4 w-4" />
                       <motion.li variants={variants}>
                         {!isCollapsed && (
                           <p className="ml-2 text-sm font-medium">Recent Runs</p>
@@ -327,7 +323,7 @@ export function DashboardSidebar() {
                           "bg-gradient-to-r from-purple-500 to-pink-500 text-white",
                       )}
                     >
-                      <HugeiconsIcon icon={BarChartIcon} className="h-4 w-4" />
+                      <BarChart2 className="h-4 w-4" />
                       <motion.li variants={variants}>
                         {!isCollapsed && (
                           <p className="ml-2 text-sm font-medium">Analytics</p>
@@ -343,7 +339,7 @@ export function DashboardSidebar() {
                           "bg-gradient-to-r from-purple-500 to-pink-500 text-white",
                       )}
                     >
-                      <HugeiconsIcon icon={Layout01Icon} className="h-4 w-4" />
+                      <Layout className="h-4 w-4" />
                       <motion.li variants={variants}>
                         {!isCollapsed && (
                           <p className="ml-2 text-sm font-medium">Templates</p>
@@ -360,7 +356,7 @@ export function DashboardSidebar() {
                           "bg-gradient-to-r from-purple-500 to-pink-500 text-white",
                       )}
                     >
-                      <HugeiconsIcon icon={Mortarboard01Icon} className="h-4 w-4" />
+                      <GraduationCap className="h-4 w-4" />
                       <motion.li variants={variants}>
                         {!isCollapsed && (
                           <p className="ml-2 text-sm font-medium">Help Center</p>
@@ -376,7 +372,7 @@ export function DashboardSidebar() {
                           "bg-gradient-to-r from-purple-500 to-pink-500 text-white",
                       )}
                     >
-                      <HugeiconsIcon icon={Message01Icon} className="h-4 w-4" />
+                      <MessageSquare className="h-4 w-4" />
                       <motion.li variants={variants}>
                         {!isCollapsed && (
                           <p className="ml-2 text-sm font-medium">Feedback</p>
@@ -398,9 +394,9 @@ export function DashboardSidebar() {
                    )}
                  >
                    {theme === 'dark' ? (
-                     <HugeiconsIcon icon={Sun01Icon} className="h-4 w-4 shrink-0" />
+                     <Sun className="h-4 w-4 shrink-0" />
                    ) : (
-                     <HugeiconsIcon icon={MoonIcon} className="h-4 w-4 shrink-0" />
+                     <Moon className="h-4 w-4 shrink-0" />
                    )}
                    <motion.li variants={variants}>
                      {!isCollapsed && (
@@ -420,7 +416,7 @@ export function DashboardSidebar() {
                       "bg-gradient-to-r from-purple-500 to-pink-500 text-white",
                   )}
                 >
-                  <HugeiconsIcon icon={Settings01Icon} className="h-4 w-4 shrink-0" />
+                  <Settings className="h-4 w-4 shrink-0" />
                   <motion.li variants={variants}>
                     {!isCollapsed && (
                       <p className="ml-2 text-sm font-medium">Settings</p>

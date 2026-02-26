@@ -1,5 +1,6 @@
 "use client";
 
+import { User, BarChart3, Lock, CreditCard, Plug, Bell, Download } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,7 +16,6 @@ import { IntegrationsSettings } from "@/components/ui/integrations-settings";
 import { AuthenticationSettings } from "@/components/ui/authentication-settings";
 import { NotificationsSettings } from "@/components/ui/notifications-settings";
 import { ExportSettings } from "@/components/ui/export-settings";
-import { User, BarChart3, Lock, CreditCard, Plug, Bell, Download } from "lucide-react";
 
 const tabs = [
   { id: "profile", label: "Profile", icon: User },

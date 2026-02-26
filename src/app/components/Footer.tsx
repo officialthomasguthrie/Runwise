@@ -1,11 +1,11 @@
 "use client";
 
+import { Sun, Moon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "next-themes";
-import { Sun, Moon } from "lucide-react";
 
 export const Footer: React.FC = () => {
   const pathname = usePathname();

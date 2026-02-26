@@ -1,13 +1,12 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { UserIcon } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 
+import { User } from "lucide-react";
 export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -249,7 +248,7 @@ export const Header: React.FC = () => {
                       </span>
                     )}
                     {isScrolled && (
-                      <HugeiconsIcon icon={UserIcon} className="w-4 h-4" />
+                      <User className="w-4 h-4" />
                     )}
                   </button>
                 )}

@@ -1,7 +1,6 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AlertCircleIcon, LockIcon, Mail01Icon, UserIcon, ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
+import { AlertCircle, Lock, Mail, User, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -84,7 +83,7 @@ export function SignupForm() {
         {error && (
           <div className="mb-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
             <div className="flex items-center">
-              <HugeiconsIcon icon={AlertCircleIcon} className="h-4 w-4 text-red-600 dark:text-red-400 mr-2" />
+              <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mr-2" />
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           </div>
@@ -95,7 +94,7 @@ export function SignupForm() {
             <div className="space-y-2">
               <Label htmlFor="firstName">First name</Label>
               <div className="relative">
-                <HugeiconsIcon icon={UserIcon} className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="firstName"
                   name="firstName"
@@ -111,7 +110,7 @@ export function SignupForm() {
             <div className="space-y-2">
               <Label htmlFor="lastName">Last name</Label>
               <div className="relative">
-                <HugeiconsIcon icon={UserIcon} className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="lastName"
                   name="lastName"
@@ -129,7 +128,7 @@ export function SignupForm() {
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <div className="relative">
-              <HugeiconsIcon icon={Mail01Icon} className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="email"
                 name="email"
@@ -146,7 +145,7 @@ export function SignupForm() {
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <div className="relative">
-              <HugeiconsIcon icon={LockIcon} className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="password"
                 name="password"
@@ -162,7 +161,7 @@ export function SignupForm() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
               >
-                {showPassword ? <HugeiconsIcon icon={ViewOffIcon} /> : <HugeiconsIcon icon={ViewIcon} />}
+                {showPassword ? <EyeOff /> : <Eye />}
               </button>
             </div>
           </div>
@@ -170,7 +169,7 @@ export function SignupForm() {
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm password</Label>
             <div className="relative">
-              <HugeiconsIcon icon={LockIcon} className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -186,7 +185,7 @@ export function SignupForm() {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
               >
-                {showConfirmPassword ? <HugeiconsIcon icon={ViewOffIcon} /> : <HugeiconsIcon icon={ViewIcon} />}
+                {showConfirmPassword ? <EyeOff /> : <Eye />}
               </button>
             </div>
           </div>

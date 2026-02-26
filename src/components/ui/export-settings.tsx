@@ -1,12 +1,11 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Download01Icon, Loading02Icon, WorkflowCircle01Icon } from "@hugeicons/core-free-icons";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase-client";
 import { Button } from "@/components/ui/button";
 
+import { Download, Loader2, Workflow } from "lucide-react";
 interface WorkflowCircle01Icon {
   id: string;
   name: string;
@@ -227,7 +226,7 @@ export function ExportSettings() {
         <div className="rounded-lg bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl p-8">
           <div className="flex flex-col items-center justify-center text-center space-y-3">
             <div className="p-3 rounded-full bg-muted/50">
-              <HugeiconsIcon icon={WorkflowCircle01Icon} className="h-6 w-6 text-muted-foreground" />
+              <Workflow className="h-6 w-6 text-muted-foreground" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-1">No workflows found</h3>
@@ -270,12 +269,12 @@ export function ExportSettings() {
                 >
                   {exportingId === workflow.id ? (
                     <>
-                      <HugeiconsIcon icon={Loading02Icon} className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Exporting...
                     </>
                   ) : (
                     <>
-                      <HugeiconsIcon icon={Download01Icon} className="h-4 w-4 mr-2" />
+                      <Download className="h-4 w-4 mr-2" />
                       Export JSON
                     </>
                   )}

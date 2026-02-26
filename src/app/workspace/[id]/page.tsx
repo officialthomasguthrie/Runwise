@@ -1,5 +1,6 @@
 "use client";
 
+import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check, Zap, Sparkles, Loader2 } from "lucide-react";
 import { useParams, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
@@ -12,7 +13,6 @@ import { ExecutionsView } from "@/components/ui/executions-view";
 import { SettingsView } from "@/components/ui/settings-view";
 import { saveWorkflowFromEditor } from "@/lib/workflows/client";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Play, Undo2, Redo2, Settings2, Plus, FlaskConical, PanelRight, MoreHorizontal, History, Save, Share2, Eraser, X, ChevronLeft, Search, ChevronDown, ChevronRight, Check, Zap, Sparkles, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase-client";
 import { nodeRegistry } from "@/lib/nodes/registry";
 import type { NodeDefinition } from "@/lib/nodes/types";

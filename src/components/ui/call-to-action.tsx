@@ -1,6 +1,5 @@
 'use client';
-import { HugeiconsIcon } from "@hugeicons/react";
-import { CallRinging01Icon, MoveRightIcon } from "@hugeicons/core-free-icons";
+import { PhoneCall, MoveRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProCheckoutButton } from "@/components/billing/pro-checkout-button";
@@ -24,13 +23,13 @@ function CTA() {
           </div>
           <div className="flex flex-row gap-4">
             <Button className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground" variant="outline">
-              Contact Sales <HugeiconsIcon icon={CallRinging01Icon} className="w-4 h-4" />
+              Contact Sales <PhoneCall className="w-4 h-4" />
             </Button>
             <ProCheckoutButton
               variant="outline"
               className="gap-4 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground"
             >
-              Start Free Trial <HugeiconsIcon icon={MoveRightIcon} className="w-4 h-4" />
+              Start Free Trial <MoveRight className="w-4 h-4" />
             </ProCheckoutButton>
           </div>
         </div>

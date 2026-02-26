@@ -1,7 +1,6 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowRight01Icon, CircleIcon, Tick01Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight, Circle, Check } from "lucide-react";
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { cn } from "@/lib/utils"
@@ -34,7 +33,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
     {...props}
   >
     {children}
-    <HugeiconsIcon icon={ArrowRight01Icon} className="ml-auto h-4 w-4" />
+    <ArrowRight className="ml-auto h-4 w-4" />
   </DropdownMenuPrimitive.SubTrigger>
 ))
 DropdownMenuSubTrigger.displayName =
@@ -107,7 +106,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <HugeiconsIcon icon={Tick01Icon} className="h-4 w-4" />
+        <Check className="h-4 w-4" />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -130,7 +129,7 @@ const DropdownMenuRadioItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <HugeiconsIcon icon={CircleIcon} className="h-2 w-2 fill-current" />
+        <Circle className="h-2 w-2 fill-current" />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}

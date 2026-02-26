@@ -1,7 +1,6 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Add01Icon, ArrowTurnDownIcon, AttachmentIcon, Cancel01Icon, Image01Icon, Loading02Icon, Mic01Icon, SquareIcon } from "@hugeicons/core-free-icons";
+import { Plus, CornerDownLeft, Paperclip, X, ImageIcon, Loader2, Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -311,7 +310,7 @@ export function PromptInputAttachment({
                 />
               ) : (
                 <div className="flex size-5 items-center justify-center text-muted-foreground">
-                  <HugeiconsIcon icon={AttachmentIcon} className="size-3" />
+                  <Paperclip className="size-3" />
                 </div>
               )}
             </div>
@@ -325,7 +324,7 @@ export function PromptInputAttachment({
               type="button"
               variant="ghost"
             >
-              <HugeiconsIcon icon={Cancel01Icon} />
+              <X />
               <span className="sr-only">Remove</span>
             </Button>
           </div>
@@ -414,7 +413,7 @@ export const PromptInputActionAddAttachments = ({
         attachments.openFileDialog();
       }}
     >
-      <HugeiconsIcon icon={Image01Icon} className="mr-2 size-4" /> {label}
+      <ImageIcon className="mr-2 size-4" /> {label}
     </DropdownMenuItem>
   );
 };
@@ -973,7 +972,7 @@ export const PromptInputActionMenuTrigger = ({
 }: PromptInputActionMenuTriggerProps) => (
   <DropdownMenuTrigger asChild>
     <PromptInputButton className={className} {...props}>
-      {children ?? <HugeiconsIcon icon={Add01Icon} className="size-4" />}
+      {children ?? <Plus className="size-4" />}
     </PromptInputButton>
   </DropdownMenuTrigger>
 );
@@ -1013,14 +1012,14 @@ export const PromptInputSubmit = ({
   children,
   ...props
 }: PromptInputSubmitProps) => {
-  let Icon = <HugeiconsIcon icon={ArrowTurnDownIcon} className="size-4" />;
+  let Icon = <CornerDownLeft className="size-4" />;
 
   if (status === "submitted") {
-    Icon = <HugeiconsIcon icon={Loading02Icon} className="size-4 animate-spin" />;
+    Icon = <Loader2 className="size-4 animate-spin" />;
   } else if (status === "streaming") {
-    Icon = <HugeiconsIcon icon={SquareIcon} className="size-4" />;
+    Icon = <Square className="size-4" />;
   } else if (status === "error") {
-    Icon = <HugeiconsIcon icon={Cancel01Icon} className="size-4" />;
+    Icon = <X className="size-4" />;
   }
 
   return (
@@ -1192,7 +1191,7 @@ export const PromptInputSpeechButton = ({
       onClick={toggleListening}
       {...props}
     >
-      <HugeiconsIcon icon={Mic01Icon} className="size-4" />
+      <Mic className="size-4" />
     </PromptInputButton>
   );
 };

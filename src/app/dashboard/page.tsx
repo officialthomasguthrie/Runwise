@@ -1,7 +1,5 @@
 "use client";
 
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowRight01Icon, Cancel01Icon, Clock01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,6 +17,7 @@ import TextType from "@/components/ui/text-type";
 import { UpgradeRequiredModal } from "@/components/ui/upgrade-required-modal";
 import { Button } from "@/components/ui/button";
 
+import { ArrowRight, X, Clock, Trash2 } from "lucide-react";
 // Animation variants matching the AI textbox
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -377,7 +376,7 @@ export default function DashboardPage() {
                     className="text-muted-foreground hover:text-foreground p-1"
                     aria-label="Dismiss banner"
                   >
-                    <HugeiconsIcon icon={Cancel01Icon} className="h-4 w-4" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -489,7 +488,7 @@ export default function DashboardPage() {
                               }}
                               className="absolute right-2 top-2 z-20 inline-flex items-center justify-center rounded-md border border-stone-200 dark:border-white/10 bg-background/80 p-1 text-red-500 opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
                             >
-                              <HugeiconsIcon icon={Delete02Icon} className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                             <GridCard
                               className="h-32 cursor-pointer transition-colors hover:border-pink-400/50"
@@ -524,14 +523,14 @@ export default function DashboardPage() {
                                       </button>
                                     )}
                                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                      <HugeiconsIcon icon={Clock01Icon} className="h-3 w-3" />
+                                      <Clock className="h-3 w-3" />
                                       <span>{new Date(p.updated_at).toLocaleString()}</span>
                                     </div>
                                   </div>
                                 </div>
                                 <div className="relative z-10 flex items-center justify-between">
                                   <span className="text-sm text-muted-foreground capitalize">{p.status}</span>
-                                  <HugeiconsIcon icon={ArrowRight01Icon} className="h-4 w-4 text-muted-foreground" />
+                                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
                                 </div>
                               </div>
                             </GridCard>
@@ -548,7 +547,7 @@ export default function DashboardPage() {
                             </p>
                             <div className="flex items-center gap-2 text-xs text-pink-400 md:text-sm">
                               <span>Get started</span>
-                              <HugeiconsIcon icon={ArrowRight01Icon} className="h-3 w-3 md:h-4 md:w-4" />
+                              <ArrowRight className="h-3 w-3 md:h-4 md:w-4" />
                             </div>
                           </div>
                         </GridCard>
@@ -579,7 +578,7 @@ export default function DashboardPage() {
                 onClick={() => setConfirmDeleteId(null)}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <HugeiconsIcon icon={Cancel01Icon} className="h-4 w-4" />
+                <X className="h-4 w-4" />
               </button>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
