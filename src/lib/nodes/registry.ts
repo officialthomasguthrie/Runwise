@@ -571,33 +571,13 @@ const newRowInGoogleSheetExecute = async (inputData: any, config: any, context: 
 };
 
 const newMessageInSlackExecute = async (inputData: any, config: any, context: ExecutionContext) => {
-  // Slack real-time events are typically handled via webhooks
-  // This is a polling fallback
-  const { botToken, channel, lastTs } = config;
-  
-  // Use integration token from context, fallback to botToken from config, then getAuthToken
-  const accessToken = context.auth?.slack?.token || botToken || getAuthToken(context, 'slack');
-  
-  if (!accessToken) {
-    throw new Error('Slack access token required. Please connect your Slack account or provide a bot token.');
+  // If triggered by a polling event, use the pre-fetched messages instead of re-fetching
+  if (Array.isArray(inputData?.items) && inputData.items.length > 0) {
+    const messages = inputData.items;
+    return { messages, message: messages[0], count: messages.length };
   }
-  
-  const response = await context.http.get(
-    `https://slack.com/api/conversations.history?channel=${channel}&oldest=${lastTs || 0}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    }
-  );
-  
-  // Slack API returns { ok: false, error: "..." } even on 200 status
-  if (response.ok === false) {
-    throw new Error(response.error || 'Failed to fetch Slack messages');
-  }
-  
-  const messages = response.messages || [];
-  return { messages, message: messages[0], count: messages.length };
+  // Passthrough for webhook/manual execution
+  return { message: inputData, messages: [inputData], count: 1 };
 };
 
 const newDiscordMessageExecute = async (inputData: any, config: any, context: ExecutionContext) => {
