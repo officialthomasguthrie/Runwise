@@ -3765,7 +3765,6 @@ export const nodeRegistry: NodeRegistry = {
     configSchema: {
       botToken: { type: 'string', label: 'Bot Token', description: 'Optional: Slack Bot Token (or connect Slack account above)', required: false },
       channel: { type: 'string', label: 'Channel', description: 'Select a Slack channel', required: true },
-      lastTs: { type: 'string', label: 'Last TS', description: 'Last message timestamp (auto-managed)', required: false },
     },
     execute: newMessageInSlackExecute,
     code: newMessageInSlackExecute.toString(),
