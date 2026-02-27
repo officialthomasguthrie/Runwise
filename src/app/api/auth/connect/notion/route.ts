@@ -31,8 +31,10 @@ export async function GET(request: NextRequest) {
     let returnUrl = returnUrlParam;
     if (!returnUrl) {
       const referer = request.headers.get('referer') || '';
-      returnUrl = referer.includes('/integrations') 
-        ? '/integrations' 
+      returnUrl = referer.includes('/agents/new')
+        ? '/agents/new?resume=1'
+        : referer.includes('/integrations')
+        ? '/integrations'
         : referer.includes('/workspace/')
         ? referer.split('?')[0]
         : '/settings?tab=integrations';

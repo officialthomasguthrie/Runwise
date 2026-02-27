@@ -118,6 +118,87 @@ export async function planAgent(
   return validateAndNormalisePlan(parsed, availableTriggers);
 }
 
+/**
+ * Regenerates an agent plan based on user feedback.
+ * Used when the user clicks "Let me adjust something" — we have the current plan
+ * and their requested changes, and produce an updated plan.
+ */
+export async function regenerateAgentPlan(
+  previousPlan: DeployAgentPlan,
+  userFeedback: string,
+  userIntegrations: string[]
+): Promise<DeployAgentPlan> {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  const availableTriggers = TRIGGER_CATALOGUE.filter((t) =>
+    userIntegrations.some(
+      (ui) =>
+        ui === t.requiredIntegration ||
+        (t.requiredIntegration.startsWith('google-') && ui === 'google') ||
+        (ui.startsWith('google-') && t.requiredIntegration === 'google')
+    )
+  );
+
+  const availableTriggersText =
+    availableTriggers.length > 0
+      ? availableTriggers
+          .map((t) => `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}`)
+          .join('\n')
+      : '- None (no integrations connected — use heartbeat only)';
+
+  const systemPrompt = `You are an expert AI agent designer. The user had this plan and wants to change it.
+
+THE USER'S CURRENT PLAN:
+${JSON.stringify(previousPlan, null, 2)}
+
+THEY WANT TO CHANGE:
+"${userFeedback}"
+
+Return an updated plan that incorporates their requested changes.
+
+---
+AVAILABLE TRIGGER TYPES (only use these):
+${availableTriggersText}
+
+---
+Your job: Return an UPDATED plan that incorporates the user's feedback. Use the exact same JSON structure as the current plan.
+Output format (strict JSON, no markdown):
+{
+  "name": "...",
+  "persona": "...",
+  "instructions": "...",
+  "avatarEmoji": "...",
+  "behaviours": [...],
+  "initialMemories": [...]
+}
+
+RULES:
+1. Only use trigger types from the available list.
+2. Preserve parts of the plan the user did not ask to change.
+3. Apply the requested changes precisely.
+4. Return ONLY valid JSON, no markdown, no code fences.`;
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    response_format: { type: 'json_object' },
+    temperature: 0.5,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Update the plan based on: "${userFeedback}"` },
+    ],
+  });
+
+  const rawJson = response.choices[0]?.message?.content ?? '{}';
+  let parsed: any;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    throw new Error('Planner returned invalid JSON');
+  }
+
+  return validateAndNormalisePlan(parsed, availableTriggers);
+}
+
 // ============================================================================
 // SYSTEM PROMPT
 // ============================================================================
