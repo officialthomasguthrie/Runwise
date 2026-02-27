@@ -42,25 +42,52 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createAdminClient();
 
-    // Look up the workflow to get user_id and verify it's active
-    const { data: workflow, error: workflowError } = await supabase
-      .from('workflows')
-      .select('id, user_id, status')
-      .eq('id', workflowId)
-      .single();
+    let userId: string;
 
-    if (workflowError) {
-      // DB error — don't disable the trigger, just fail this cycle
-      console.error(`[Execute Trigger] DB error fetching workflow ${workflowId}:`, workflowError);
-      return NextResponse.json({ error: workflowError.message, hasNewData: false }, { status: 500 });
+    // ── Agent trigger path ─────────────────────────────────────────────────
+    // When config.isAgent === true, workflowId is actually the agentId.
+    // Check the agents table instead of workflows.
+    if (config?.isAgent === true) {
+      const agentId = config.agentId as string ?? workflowId;
+
+      const { data: agent, error: agentError } = await (supabase as any)
+        .from('agents')
+        .select('id, user_id, status')
+        .eq('id', agentId)
+        .single();
+
+      if (agentError) {
+        console.error(`[Execute Trigger] DB error fetching agent ${agentId}:`, agentError);
+        return NextResponse.json({ error: agentError.message, hasNewData: false }, { status: 500 });
+      }
+
+      if (!agent || agent.status !== 'active') {
+        console.log(`[Execute Trigger] Agent ${agentId} is not active (status: ${agent?.status ?? 'not found'})`);
+        return NextResponse.json({ hasNewData: false, reason: 'workflow_inactive' });
+      }
+
+      userId = agent.user_id as string;
+    } else {
+      // ── Workflow trigger path (existing behaviour) ───────────────────────
+      const { data: workflow, error: workflowError } = await supabase
+        .from('workflows')
+        .select('id, user_id, status')
+        .eq('id', workflowId)
+        .single();
+
+      if (workflowError) {
+        // DB error — don't disable the trigger, just fail this cycle
+        console.error(`[Execute Trigger] DB error fetching workflow ${workflowId}:`, workflowError);
+        return NextResponse.json({ error: workflowError.message, hasNewData: false }, { status: 500 });
+      }
+
+      if (!workflow || (workflow as any).status !== 'active') {
+        console.log(`[Execute Trigger] Workflow ${workflowId} is not active (status: ${(workflow as any)?.status ?? 'not found'})`);
+        return NextResponse.json({ hasNewData: false, reason: 'workflow_inactive' });
+      }
+
+      userId = (workflow as any).user_id as string;
     }
-
-    if (!workflow || (workflow as any).status !== 'active') {
-      console.log(`[Execute Trigger] Workflow ${workflowId} is not active (status: ${(workflow as any)?.status ?? 'not found'})`);
-      return NextResponse.json({ hasNewData: false, reason: 'workflow_inactive' });
-    }
-
-    const userId = (workflow as any).user_id as string;
     let pollResult: {
       hasNewData: boolean;
       newData?: any[];

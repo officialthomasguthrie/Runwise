@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Workflow,
+  Bot,
   Rocket,
   Plug,
   Layout,
@@ -88,6 +89,7 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
   const mainItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/workflows", icon: Workflow, label: "Workflows" },
+    { href: "/agents", icon: Bot, label: "Agents", badge: "NEW" },
     { href: "/runs", icon: Rocket, label: "Runs" },
     { href: "/integrations", icon: Plug, label: "Integrations" },
     { href: "/templates", icon: Layout, label: "Templates" },
@@ -119,19 +121,24 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
       </div>
       <nav className="flex-1 px-2 pb-4 mt-2">
         <ul className="flex flex-col items-center gap-3">
-          {mainItems.map(({ href, icon: Icon, label }) => (
+          {mainItems.map(({ href, icon: Icon, label, badge }) => (
             <li key={href}>
                 <Tooltip>
                   <TooltipTrigger asChild>
               <Link
                 href={href}
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
-                  pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
+                  "relative flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
+                  pathname === href || pathname.startsWith(href + "/")
+                    ? "border-stone-200 dark:border-white/10 text-foreground"
+                    : ""
                 )}
                 aria-label={label}
               >
                 <Icon className="h-4 w-4" />
+                {badge && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-pink-500 ring-2 ring-background" />
+                )}
               </Link>
                   </TooltipTrigger>
                   <TooltipContent 
@@ -140,7 +147,14 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
                     className="bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl border border-stone-200/50 dark:border-white/20 text-foreground shadow-[0_15px_30px_-12px_rgba(0,0,0,0.1),0_5px_15px_-8px_rgba(0,0,0,0.05),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.3),0_4px_6px_-4px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.05)]"
                   >
                     <TooltipArrow className="fill-stone-100 dark:fill-zinc-900/90" width={8} height={4} />
-                    <p>{label}</p>
+                    <p className="flex items-center gap-2">
+                      {label}
+                      {badge && (
+                        <span className="text-[10px] font-semibold tracking-wide text-pink-400 bg-pink-400/10 border border-pink-400/20 rounded px-1 py-0.5 leading-none">
+                          {badge}
+                        </span>
+                      )}
+                    </p>
                   </TooltipContent>
                 </Tooltip>
             </li>

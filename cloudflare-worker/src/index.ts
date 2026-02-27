@@ -99,14 +99,7 @@ async function runPollingTriggers(env: Env, cronScheduledTime?: number): Promise
         }
 
         if (pollResult.hasNewData && pollResult.newData && pollResult.newData.length > 0) {
-          const workflowData = await getWorkflowData(env, trigger.workflow_id);
-
-          if (!workflowData) {
-            await disableTrigger(env, trigger.id);
-            continue;
-          }
-
-          // Use sorted message IDs so Inngest correctly deduplicates re-polls of the same emails
+          // Use sorted message IDs so Inngest correctly deduplicates re-polls of the same items
           const msgIds = pollResult.newData
             .map((m: any) => m.id)
             .filter(Boolean)
@@ -116,16 +109,48 @@ async function runPollingTriggers(env: Env, cronScheduledTime?: number): Promise
 
           console.log(`[Polling] Trigger ${trigger.id}: found ${pollResult.newData.length} item(s), eventId=${eventId}`);
 
-          await sendToInngest(env, {
-            eventId,
-            workflowId: trigger.workflow_id,
-            nodes: workflowData.nodes,
-            edges: workflowData.edges,
-            userId: workflowData.user_id,
-            triggerType: trigger.trigger_type,
-            items: pollResult.newData,
-            triggerId: trigger.id,
-          });
+          // ── Agent trigger: fire agent/run ────────────────────────────────
+          if (trigger.config?.isAgent === true) {
+            const { agentId, behaviourId, userId } = trigger.config as {
+              agentId: string;
+              behaviourId: string;
+              userId: string;
+            };
+
+            if (!agentId || !userId) {
+              console.error(`[Polling] Agent trigger ${trigger.id} missing agentId or userId in config`);
+              await disableTrigger(env, trigger.id);
+              continue;
+            }
+
+            await sendAgentRunToInngest(env, {
+              eventId,
+              agentId,
+              userId,
+              behaviourId: behaviourId ?? null,
+              triggerType: trigger.trigger_type,
+              items: pollResult.newData,
+            });
+          } else {
+            // ── Workflow trigger: existing path ────────────────────────────
+            const workflowData = await getWorkflowData(env, trigger.workflow_id);
+
+            if (!workflowData) {
+              await disableTrigger(env, trigger.id);
+              continue;
+            }
+
+            await sendToInngest(env, {
+              eventId,
+              workflowId: trigger.workflow_id,
+              nodes: workflowData.nodes,
+              edges: workflowData.edges,
+              userId: workflowData.user_id,
+              triggerType: trigger.trigger_type,
+              items: pollResult.newData,
+              triggerId: trigger.id,
+            });
+          }
 
           triggered++;
         }
@@ -287,6 +312,47 @@ async function sendToInngest(
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Failed to send Inngest event: ${response.statusText} - ${errorText}`);
+  }
+}
+
+/**
+ * Send agent/run event to Inngest when an agent polling trigger fires.
+ */
+async function sendAgentRunToInngest(
+  env: Env,
+  data: {
+    eventId: string;
+    agentId: string;
+    userId: string;
+    behaviourId: string | null;
+    triggerType: string;
+    items: any[];
+  }
+): Promise<void> {
+  const inngestUrl = env.INNGEST_BASE_URL || 'https://inn.gs';
+
+  const response = await fetch(`${inngestUrl}/e/${env.INNGEST_EVENT_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'agent/run',
+      id: data.eventId,
+      data: {
+        agentId: data.agentId,
+        userId: data.userId,
+        behaviourId: data.behaviourId,
+        triggerType: data.triggerType,
+        triggerData: {
+          items: data.items,
+          polledAt: new Date().toISOString(),
+        },
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to send agent/run Inngest event: ${response.statusText} - ${errorText}`);
   }
 }
 

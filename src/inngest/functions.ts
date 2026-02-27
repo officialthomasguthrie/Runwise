@@ -8,6 +8,7 @@ import { getPlanLimits, subscriptionTierToPlanId } from "@/lib/plans/config";
 import { hasScheduledTrigger, getScheduleConfig } from "@/lib/workflows/schedule-utils";
 import { scheduleNextWorkflowRun } from "@/lib/workflows/schedule-scheduler";
 import { logInngestExecutionStart, logInngestExecutionComplete } from "@/lib/inngest/monitoring";
+import { CronExpressionParser } from "cron-parser";
 
 // ============================================================================
 // TEST FUNCTIONS
@@ -385,6 +386,186 @@ export const workflowExecutor = inngest.createFunction(
     };
   },
 );
+
+// ============================================================================
+// AGENTS
+// ============================================================================
+
+/**
+ * Agent Run — executes a single agent wake-up cycle.
+ *
+ * Fired by:
+ *  - The Cloudflare Worker (polling trigger fires agent/run instead of workflow/execute)
+ *  - The agentHeartbeat function below (scheduled/heartbeat behaviours)
+ *
+ * Event data: { agentId, userId, behaviourId, triggerType, triggerData }
+ */
+export const agentRun = inngest.createFunction(
+  {
+    id: "agent-run",
+    name: "Agent Run",
+    retries: 1, // Agents are non-deterministic — one retry is enough
+    concurrency: {
+      limit: 3,
+      key: "event.data.userId", // Max 3 concurrent agent runs per user
+    },
+  },
+  { event: "agent/run" },
+  async ({ event, step, runId }) => {
+    const { agentId, userId, behaviourId, triggerType, triggerData } = event.data;
+
+    const result = await step.run("run-agent-loop", async () => {
+      const { runAgentLoop } = await import("@/lib/agents/runtime");
+      return runAgentLoop({
+        agentId,
+        userId,
+        behaviourId: behaviourId ?? null,
+        triggerType,
+        triggerData: triggerData ?? {},
+        runId,
+      });
+    });
+
+    if (!result.success) {
+      console.error(
+        `[AgentRun] Agent ${agentId} failed: ${result.error}. ` +
+          `Actions taken: ${result.actionsCount}, tokens: ${result.tokensUsed}`
+      );
+      // Surface error to Inngest so it shows as failed in the dashboard
+      throw new Error(result.error ?? "Agent run failed");
+    }
+
+    console.log(
+      `[AgentRun] Agent ${agentId} succeeded: ` +
+        `${result.actionsCount} actions, ${result.memoriesCreated} memories, ` +
+        `${result.tokensUsed} tokens`
+    );
+
+    return result;
+  }
+);
+
+/**
+ * Agent Heartbeat — runs every 5 minutes and fires agent/run for any
+ * scheduled or heartbeat behaviours that are now due.
+ */
+export const agentHeartbeat = inngest.createFunction(
+  {
+    id: "agent-heartbeat",
+    name: "Agent Heartbeat Scheduler",
+  },
+  { cron: "*/5 * * * *" }, // Every 5 minutes
+  async ({ step }) => {
+    // Find all due heartbeat/schedule behaviours
+    const dueBehaviours = await step.run("find-due-behaviours", async () => {
+      const supabase = createAdminClient();
+
+      const { data, error } = await (supabase as any)
+        .from("agent_behaviours")
+        .select("id, agent_id, user_id, behaviour_type, schedule_cron, last_run_at")
+        .in("behaviour_type", ["heartbeat", "schedule"])
+        .eq("enabled", true);
+
+      if (error) {
+        console.error("[AgentHeartbeat] Failed to query behaviours:", error);
+        return [];
+      }
+
+      const now = Date.now();
+      const due: Array<{
+        id: string;
+        agent_id: string;
+        user_id: string;
+        behaviour_type: string;
+        schedule_cron: string | null;
+        last_run_at: string | null;
+      }> = [];
+
+      for (const behaviour of data ?? []) {
+        if (isBehaviourDue(behaviour, now)) {
+          due.push(behaviour);
+        }
+      }
+
+      console.log(
+        `[AgentHeartbeat] Found ${due.length} due behaviour(s) out of ${data?.length ?? 0} total`
+      );
+
+      return due;
+    });
+
+    if (dueBehaviours.length === 0) {
+      return { fired: 0 };
+    }
+
+    // Fire agent/run events for each due behaviour
+    await step.run("fire-agent-runs", async () => {
+      const events = dueBehaviours.map((b: any) => ({
+        name: "agent/run" as const,
+        data: {
+          agentId: b.agent_id,
+          userId: b.user_id,
+          behaviourId: b.id,
+          triggerType: "heartbeat",
+          triggerData: {
+            polledAt: new Date().toISOString(),
+            items: [],
+          },
+        },
+      }));
+
+      await inngest.send(events);
+    });
+
+    // Update last_run_at for all fired behaviours
+    await step.run("update-last-run-at", async () => {
+      const supabase = createAdminClient();
+      const ids = dueBehaviours.map((b: any) => b.id);
+
+      await (supabase as any)
+        .from("agent_behaviours")
+        .update({ last_run_at: new Date().toISOString() })
+        .in("id", ids);
+    });
+
+    console.log(`[AgentHeartbeat] Fired ${dueBehaviours.length} agent run(s)`);
+    return { fired: dueBehaviours.length };
+  }
+);
+
+/**
+ * Determines if a heartbeat/schedule behaviour is due to run now.
+ *
+ * - No last_run_at → always due (first run)
+ * - schedule_cron set → due if the previous cron occurrence is after last_run_at
+ * - No cron → treated as hourly; due if last_run_at > 55 minutes ago
+ */
+function isBehaviourDue(
+  behaviour: { schedule_cron: string | null; last_run_at: string | null },
+  nowMs: number
+): boolean {
+  if (!behaviour.last_run_at) return true;
+
+  const lastRunMs = new Date(behaviour.last_run_at).getTime();
+
+  if (behaviour.schedule_cron) {
+    try {
+      // Find the most recent occurrence (previous) of the cron
+      const interval = CronExpressionParser.parse(behaviour.schedule_cron, {
+        currentDate: new Date(nowMs),
+      });
+      const prevOccurrence = interval.prev().toDate().getTime();
+      // Due if the previous scheduled slot hasn't been serviced yet
+      return lastRunMs < prevOccurrence;
+    } catch {
+      // Unparseable cron — fall back to hourly
+    }
+  }
+
+  // Default: treat as hourly (55-minute threshold avoids drift)
+  const HOURLY_MS = 55 * 60 * 1000;
+  return nowMs - lastRunMs >= HOURLY_MS;
+}
 
 // ============================================================================
 // SCHEDULED WORKFLOW TRIGGER (Event-Based)

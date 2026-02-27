@@ -6,6 +6,8 @@ import {
   sendTestNotification,
   workflowExecutor,
   scheduledWorkflowTrigger,
+  agentRun,
+  agentHeartbeat,
   // pollingWorkflowTrigger, // Removed - polling now handled by Cloudflare Worker
   // scheduledWorkflowsRunner, // Removed - scheduling now handled by Cloudflare Worker
 } from "../../../inngest/functions";
@@ -21,6 +23,8 @@ const allFunctions = [
   sendTestNotification,
   workflowExecutor,
   scheduledWorkflowTrigger,
+  agentRun,
+  agentHeartbeat,
   // pollingWorkflowTrigger, // Removed - polling now handled by Cloudflare Worker
   // scheduledWorkflowsRunner, // Removed - scheduling now handled by Cloudflare Worker
   monthlyCreditReset,
