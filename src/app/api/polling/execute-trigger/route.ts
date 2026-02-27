@@ -378,24 +378,11 @@ async function pollSlack(
 
   let data = await fetchSlackHistory();
 
-  // Bot is not in the channel — attempt to auto-join (works for public channels)
+  // Bot is not in the channel — tell the user to invite it manually
   if (data.ok === false && data.error === 'not_in_channel') {
-    console.log(`[Slack Poll] Bot not in channel ${channel} — attempting to join`);
-    const joinResponse = await fetch('https://slack.com/api/conversations.join', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${botToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel }),
-    });
-    const joinData = (await joinResponse.json()) as { ok?: boolean; error?: string };
-    if (!joinData.ok) {
-      throw new Error(
-        joinData.error === 'method_not_supported_for_channel_type'
-          ? 'This is a private Slack channel. Please invite the bot manually by typing "/invite @YourBotName" in the channel.'
-          : `Failed to join Slack channel: ${joinData.error}`
-      );
-    }
-    // Retry history after joining
-    data = await fetchSlackHistory();
+    throw new Error(
+      'Slack bot is not in this channel. Open Slack, go to the channel, and type: /invite @YourBotName'
+    );
   }
 
   if (data.ok === false) {
