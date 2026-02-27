@@ -356,31 +356,62 @@ async function pollSlack(
   }
 
   const channel = config?.channel;
-  const lastTs = lastCursor || '0';
 
-  const response = await fetch(
-    `https://slack.com/api/conversations.history?channel=${channel}&oldest=${lastTs}`,
-    { headers: { Authorization: `Bearer ${botToken}` } }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Slack API error: ${response.statusText}`);
+  // On the first poll (no cursor), set the baseline to "now" so we don't
+  // trigger on existing messages. Slack timestamps are Unix seconds as strings.
+  if (!lastCursor) {
+    const nowTs = (Date.now() / 1000).toFixed(6);
+    console.log(`[Slack Poll] First poll for channel ${channel} — setting initial cursor ${nowTs}`);
+    return { hasNewData: false, newCursor: nowTs };
   }
 
-  const data = (await response.json()) as { ok?: boolean; error?: string; messages?: any[] };
+  const fetchSlackHistory = async (): Promise<{ ok?: boolean; error?: string; messages?: any[] }> => {
+    const response = await fetch(
+      `https://slack.com/api/conversations.history?channel=${channel}&oldest=${lastCursor}`,
+      { headers: { Authorization: `Bearer ${botToken}` } }
+    );
+    if (!response.ok) {
+      throw new Error(`Slack API HTTP error: ${response.statusText}`);
+    }
+    return response.json();
+  };
+
+  let data = await fetchSlackHistory();
+
+  // Bot is not in the channel — attempt to auto-join (works for public channels)
+  if (data.ok === false && data.error === 'not_in_channel') {
+    console.log(`[Slack Poll] Bot not in channel ${channel} — attempting to join`);
+    const joinResponse = await fetch('https://slack.com/api/conversations.join', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${botToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel }),
+    });
+    const joinData = (await joinResponse.json()) as { ok?: boolean; error?: string };
+    if (!joinData.ok) {
+      throw new Error(
+        joinData.error === 'method_not_supported_for_channel_type'
+          ? 'This is a private Slack channel. Please invite the bot manually by typing "/invite @YourBotName" in the channel.'
+          : `Failed to join Slack channel: ${joinData.error}`
+      );
+    }
+    // Retry history after joining
+    data = await fetchSlackHistory();
+  }
 
   if (data.ok === false) {
     throw new Error(data.error || 'Slack API error');
   }
 
-  const messages = data.messages || [];
+  const messages = (data.messages || []).filter((m: any) => m.type === 'message' && !m.subtype);
   if (messages.length === 0) return { hasNewData: false };
 
-  const latestTs = messages.map((m: any) => m.ts).sort().reverse()[0];
+  // Slack returns newest-first; sort oldest-first and advance the cursor
+  const sorted = [...messages].sort((a: any, b: any) => parseFloat(a.ts) - parseFloat(b.ts));
+  const latestTs = sorted[sorted.length - 1].ts;
 
   return {
     hasNewData: true,
-    newData: messages,
+    newData: sorted,
     newCursor: latestTs,
   };
 }
