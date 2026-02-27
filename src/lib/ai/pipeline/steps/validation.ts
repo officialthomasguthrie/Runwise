@@ -242,6 +242,27 @@ function validateWorkflowProgrammatically(workflow: AIGeneratedWorkflow): { succ
     }
   }
 
+  // Safety net: reject any CUSTOM_GENERATED node used as a trigger.
+  // Trigger nodes are those with no incoming edges (i.e. nothing points to them).
+  // A CUSTOM_GENERATED trigger would silently never fire because the polling
+  // system has no way to poll an arbitrary custom implementation.
+  const targetNodeIds = new Set(workflow.edges.map((e: any) => e.target));
+  for (const node of workflow.nodes) {
+    const nodeData = node.data as any;
+    if (
+      nodeData.nodeId === 'CUSTOM_GENERATED' &&
+      !targetNodeIds.has(node.id)
+    ) {
+      return {
+        success: false,
+        error:
+          `A custom-generated trigger node was created, but custom trigger nodes cannot be automatically polled or fired. ` +
+          `Please use "webhook-trigger" for "${nodeData.label || nodeData.description || node.id}" ` +
+          `and configure the external service to send a POST request to your Runwise webhook URL.`,
+      };
+    }
+  }
+
   return { success: true };
 }
 

@@ -193,12 +193,19 @@ YOUR JOB:
 
 DECISION RULES:
 1. **Check library first**: Does a library ACTION/TRANSFORM node match the requirement? → Use library node
-2. **If no library match exists**: Create a custom node — custom nodes are the RIGHT choice when the library doesn't cover something
+2. **If no library match exists for an ACTION/TRANSFORM**: Create a CUSTOM_GENERATED node — this is correct and expected for actions
 3. **NEVER misuse a trigger as an action**: Trigger nodes DETECT events, they do NOT perform actions (see TRIGGER vs ACTION rule below)
+4. **CUSTOM_GENERATED nodes are NEVER allowed as triggers**: If the user's trigger is not in the built-in list, ALWAYS use "webhook-trigger". There are NO exceptions to this rule.
 
 ════════════════════════════════════════════════════
-⚠️ ABSOLUTE RULE: TRIGGER NODES vs ACTION NODES (NEVER VIOLATE)
+⚠️ ABSOLUTE RULES: TRIGGER NODES (NEVER VIOLATE EITHER OF THESE)
 ════════════════════════════════════════════════════
+RULE 1 — CUSTOM_GENERATED IS NEVER A TRIGGER:
+CUSTOM_GENERATED nodes can ONLY be used for actions and transforms — NEVER as the starting/trigger node of a workflow.
+If the user wants a trigger that has no built-in node (Stripe, Shopify, Airtable, Twitter, HubSpot, etc.), you MUST use "webhook-trigger".
+Using CUSTOM_GENERATED as a trigger would silently break the workflow — it will never fire. This is not allowed under any circumstance.
+
+RULE 2 — TRIGGERS ARE NOT ACTIONS:
 Trigger nodes can ONLY appear as the FIRST node in a workflow. They DETECT/LISTEN for events. They NEVER perform actions.
 
 WRONG: Using "new-row-in-google-sheet" to ADD a row to Google Sheets — this node only DETECTS new rows, it cannot write data

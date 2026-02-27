@@ -64,6 +64,8 @@ TRIGGER GAPS (no library trigger exists — use "webhook-trigger" instead):
 - Any CRM events (new lead, deal closed, contact updated) → use "webhook-trigger"
 - Any third-party service event not listed above → use "webhook-trigger"
 
+⚠️ CRITICAL: Custom-generated ("CUSTOM_GENERATED") nodes must NEVER be used as triggers. A custom trigger node would silently never fire — the system has no way to poll or listen to it. When in doubt about a trigger, always use "webhook-trigger".
+
 ════════════════════════════════════════════════════
 KEY ACTION/TRANSFORM NODES (use these exact IDs in actions/transforms arrays):
 ════════════════════════════════════════════════════
