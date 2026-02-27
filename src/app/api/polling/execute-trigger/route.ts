@@ -434,6 +434,19 @@ async function pollGitHub(
   };
 }
 
+/** Generate a Discord snowflake ID representing the current moment.
+ *  Any message sent after this snowflake will have a higher ID and be
+ *  detected by the `after=<cursor>` query without reading existing messages.
+ *  Uses string-based math to avoid BigInt ES2020 requirement.
+ */
+function discordSnowflakeNow(): string {
+  const DISCORD_EPOCH = 1420070400000;
+  const ms = Date.now() - DISCORD_EPOCH;
+  // Snowflake = (ms << 22) — simulate with multiplication since ms fits in safe integer range
+  // 2^22 = 4194304
+  return (ms * 4194304).toString();
+}
+
 async function pollDiscord(
   userId: string,
   config: Record<string, any>,
@@ -451,11 +464,17 @@ async function pollDiscord(
     throw new Error('Discord channel ID not configured.');
   }
 
-  // Use Discord snowflake cursor — fetch messages after the last seen message ID.
-  // On first poll, fetch the most recent message to establish a baseline cursor.
-  const url = lastCursor
-    ? `https://discord.com/api/v10/channels/${channelId}/messages?after=${lastCursor}&limit=100`
-    : `https://discord.com/api/v10/channels/${channelId}/messages?limit=1`;
+  // On the very first poll (no cursor), set the cursor to "now" using a
+  // synthetic Discord snowflake so any message sent after activation triggers.
+  // This avoids relying on existing channel history (which may be empty or
+  // inaccessible), and means we never need to read historical messages.
+  if (!lastCursor) {
+    const initialCursor = discordSnowflakeNow();
+    console.log(`[Discord Poll] First poll for channel ${channelId} — setting initial cursor ${initialCursor}`);
+    return { hasNewData: false, newCursor: initialCursor };
+  }
+
+  const url = `https://discord.com/api/v10/channels/${channelId}/messages?after=${lastCursor}&limit=100`;
 
   const response = await fetch(url, {
     headers: {
@@ -465,7 +484,7 @@ async function pollDiscord(
   });
 
   const responseBody = await response.text();
-  console.log(`[Discord Poll] userId=${userId} channelId=${channelId} lastCursor=${lastCursor} status=${response.status} body=${responseBody.slice(0, 500)}`);
+  console.log(`[Discord Poll] channelId=${channelId} lastCursor=${lastCursor} status=${response.status} messages=${responseBody.slice(0, 200)}`);
 
   if (!response.ok) {
     throw new Error(`Discord API error: ${response.status} ${responseBody}`);
@@ -483,16 +502,9 @@ async function pollDiscord(
 
   if (messages.length === 0) return { hasNewData: false };
 
-  // Discord returns messages newest-first; the highest snowflake ID is the latest
-  const latestId = messages.map((m: any) => m.id).sort().reverse()[0];
-
-  // On the very first poll (no lastCursor) just record the cursor — don't trigger
-  if (!lastCursor) {
-    return { hasNewData: false, newCursor: latestId };
-  }
-
-  // Sort oldest-first for consistent downstream processing
+  // Discord returns messages newest-first; sort oldest-first for processing
   const sorted = [...messages].sort((a, b) => a.id.localeCompare(b.id));
+  const latestId = sorted[sorted.length - 1].id;
 
   return {
     hasNewData: true,
