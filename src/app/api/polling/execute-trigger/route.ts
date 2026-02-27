@@ -342,17 +342,18 @@ async function pollSlack(
   config: Record<string, any>,
   lastCursor: string | null
 ): Promise<{ hasNewData: boolean; newData?: any[]; newCursor?: string }> {
-  // Use OAuth token if available, fall back to config.botToken
+  // Prefer user token (xoxp-) from metadata — lets us read any channel the
+  // user is in without needing to invite the bot. Falls back to bot token or
+  // the manually-configured token in the node config.
   let botToken: string | null = config?.botToken || null;
   if (!botToken) {
     const integration = await getUserIntegration(userId, 'slack');
-    if (integration?.access_token) {
-      botToken = integration.access_token;
-    }
+    const userToken = (integration as any)?.metadata?.user_access_token as string | undefined;
+    botToken = userToken || integration?.access_token || null;
   }
 
   if (!botToken) {
-    throw new Error('Slack bot token not found — please connect your Slack integration');
+    throw new Error('Slack integration not connected — please connect your Slack account');
   }
 
   const channel = config?.channel;

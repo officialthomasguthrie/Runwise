@@ -142,6 +142,7 @@ export function getSlackOAuthConfig() {
     clientId,
     clientSecret,
     redirectUri,
+    // Bot scopes — used for sending messages
     scopes: [
       'channels:read',
       'channels:history',
@@ -151,8 +152,19 @@ export function getSlackOAuthConfig() {
       'im:read',
       'im:history',
       'mpim:read',
-      'mpim:history'
-    ]
+      'mpim:history',
+    ],
+    // User scopes — gives us a user token that can read any channel the user is in
+    userScopes: [
+      'channels:history',
+      'channels:read',
+      'groups:history',
+      'groups:read',
+      'im:history',
+      'im:read',
+      'mpim:history',
+      'mpim:read',
+    ],
   };
 }
 
@@ -164,8 +176,9 @@ export function getSlackAuthUrl(state: string): string {
   const params = new URLSearchParams({
     client_id: config.clientId,
     scope: config.scopes.join(','),
+    user_scope: config.userScopes.join(','),
     redirect_uri: config.redirectUri,
-    state: state
+    state: state,
   });
 
   return `https://slack.com/oauth/v2/authorize?${params.toString()}`;

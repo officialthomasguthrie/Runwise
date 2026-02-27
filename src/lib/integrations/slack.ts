@@ -12,19 +12,23 @@ export interface SlackChannel {
 }
 
 /**
- * Get authenticated Slack access token
+ * Get the best available Slack token for reading channel history.
+ * Prefers the user token (xoxp-) so the bot doesn't need to be invited
+ * to every channel. Falls back to the bot token (xoxb-) for older connections.
  */
 async function getSlackToken(userId: string): Promise<string> {
   const integration = await getUserIntegration(userId, 'slack');
-  
+
   if (!integration || !integration.access_token) {
     throw new Error('Slack integration not connected');
   }
-  
-  if (integration.expires_at && new Date() >= integration.expires_at) {
-    throw new Error('Slack token expired. Please reconnect.');
+
+  // Prefer user token stored in metadata (available after reconnecting with user_scope)
+  const userToken = (integration as any).metadata?.user_access_token as string | undefined;
+  if (userToken) {
+    return userToken;
   }
-  
+
   return integration.access_token;
 }
 

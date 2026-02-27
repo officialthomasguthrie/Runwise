@@ -99,28 +99,32 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Slack returns access_token in authed_user or bot
-    const accessToken = data.authed_user?.access_token || data.access_token;
-    const refreshToken = data.authed_user?.refresh_token;
-    const expiresIn = data.authed_user?.expires_in;
-    
-    const expiresAt = expiresIn
-      ? new Date(Date.now() + expiresIn * 1000)
-      : undefined;
-    
+    // data.access_token is the bot token (xoxb-...)
+    // data.authed_user.access_token is the user token (xoxp-...) — only present
+    // when user_scope was requested in the OAuth URL.
+    const botToken = data.access_token;
+    const userToken = data.authed_user?.access_token || null;
+
+    const expiresAt = undefined; // Slack bot tokens don't expire
+
     await storeUserIntegration(
       user.id,
       'slack',
       {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        expires_at: expiresAt
+        access_token: botToken,
+        refresh_token: undefined,
+        expires_at: expiresAt,
       },
       {
         team_id: data.team?.id,
         team_name: data.team?.name,
         bot_user_id: data.bot_user_id,
-        scope: data.scope
+        scope: data.scope,
+        // Store user token separately so polling can use it to read channels
+        // the user is a member of without needing to invite the bot.
+        user_access_token: userToken,
+        authed_user_id: data.authed_user?.id,
+        user_scope: data.authed_user?.scope,
       }
     );
     
