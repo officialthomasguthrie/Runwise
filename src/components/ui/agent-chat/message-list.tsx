@@ -5,7 +5,6 @@ import { UserBubble } from "./bubbles/user-bubble";
 import { AssistantBubble } from "./bubbles/assistant-bubble";
 import { IntegrationCheckCard } from "./cards/integration-check-card";
 import { QuestionnaireCard } from "./cards/questionnaire-card";
-import { WelcomeCard } from "./cards/welcome-card";
 import { ErrorRetryCard } from "./cards/error-retry-card";
 import { PlanPreviewCard } from "./cards/plan-preview-card";
 import { BuildProgressCard } from "./cards/build-progress-card";
@@ -23,6 +22,8 @@ interface MessageListProps {
   onQuestionnaireSubmit?: (answers: QuestionnaireAnswer[]) => void;
   onPlanBuild?: (plan: DeployAgentPlan) => void;
   onPlanAdjust?: (plan: DeployAgentPlan) => void;
+  /** Called when user clicks View Agent — use to switch tabs instead of navigating */
+  onViewAgent?: () => void;
   /** OAuth return URL for integration check card (e.g. /agents/new?resume=1) */
   integrationReturnUrl?: string;
   /** Called before OAuth redirect so parent can persist conversation state */
@@ -57,6 +58,7 @@ export function MessageList({
   onQuestionnaireSubmit,
   onPlanBuild,
   onPlanAdjust,
+  onViewAgent,
   integrationReturnUrl,
   onBeforeOAuthRedirect,
   onExampleClick,
@@ -71,7 +73,7 @@ export function MessageList({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 overflow-y-auto scrollbar-hide pb-4",
+        "flex flex-col gap-4 pb-1",
         className
       )}
     >
@@ -95,15 +97,7 @@ export function MessageList({
         }
         if (msg.role === "card") {
           if (msg.cardType === "welcome") {
-            return (
-              <div key={msg.id} className="animate-message-in">
-                <WelcomeCard
-                  content={msg.content}
-                  chips={msg.chips}
-                  onChipClick={onExampleClick ?? (() => {})}
-                />
-              </div>
-            );
+            return null;
           }
           if (msg.cardType === "error_retry") {
             return (
@@ -165,6 +159,10 @@ export function MessageList({
                 <CompletionCard
                   agentId={msg.agentId}
                   summary={msg.summary}
+                  requiredIntegrations={msg.requiredIntegrations}
+                  onViewAgent={onViewAgent}
+                  returnUrl={integrationReturnUrl}
+                  onBeforeOAuthRedirect={onBeforeOAuthRedirect}
                 />
               </div>
             );
