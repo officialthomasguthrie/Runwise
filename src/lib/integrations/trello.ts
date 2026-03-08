@@ -22,7 +22,7 @@ export interface TrelloList {
  * Get authenticated Trello API key and token
  * Supports both OAuth (preferred) and API key + token (backward compatibility)
  */
-async function getTrelloCredentials(userId: string): Promise<{ apiKey: string; token: string }> {
+export async function getTrelloCredentials(userId: string): Promise<{ apiKey: string; token: string }> {
   // Try OAuth token first (new method)
   try {
     const oauthIntegration = await getUserIntegration(userId, 'trello');

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { MessageList } from "./message-list";
 import { ChatInput, CHAT_INPUT_PLACEHOLDERS } from "./chat-input";
 import type {
@@ -9,7 +9,10 @@ import type {
   PipelinePhase,
   BuildStage,
   BuildStageStatus,
+  IntegrationCheckItem,
 } from "@/lib/agents/chat-pipeline";
+import { loadAgentBuilderChatById, saveAgentBuilderChat } from "@/lib/agents/chat-persistence";
+import { cn } from "@/lib/utils";
 import type { DeployAgentPlan } from "@/lib/agents/types";
 import type { QuestionnaireAnswer } from "@/lib/ai/types";
 
@@ -39,48 +42,74 @@ function mergeBuildStage(stages: BuildStage[], stage: string, status: BuildStage
 }
 
 const AGENT_CHAT_STORAGE_KEY = "agent-chat-builder-messages";
+const AGENT_CHAT_ID_STORAGE_KEY = "agent-chat-builder-chat-id";
+const AGENT_ID_STORAGE_KEY = "agent-chat-builder-agent-id";
 const AGENT_RETURN_URL = "/agents/new?resume=1";
 
-const WELCOME_MESSAGE =
-  "Hey! I'm your agent builder. Tell me what you'd like your agent to do — be as detailed or vague as you like.";
-
 const EXAMPLE_CHIPS = [
-  "Watch my Gmail for important emails",
-  "Summarize my Slack channels daily",
-  "Alert me when GitHub issues are assigned to me",
+  "Find and qualify partnership opportunities, then reach out and book calls.",
+  "Monitor competitors and alert me when they launch new features or campaigns.",
+  "Follow up with warm leads until they convert or go cold.",
 ];
 
 interface AgentChatBuilderProps {
+  userId?: string | null;
   onComplete?: (agentId: string) => void;
+  /** Called when user clicks View Agent — use to switch to Agent tab instead of navigating */
+  onViewAgent?: () => void;
+  /** Top padding for scroll content so first message can scroll fully into view below overlay headers */
+  scrollTopOffset?: string;
 }
 
-export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
+const SAVE_DEBOUNCE_MS = 1500;
+
+const CHAT_URL_PARAM = "chat";
+
+export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOffset }: AgentChatBuilderProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [pipelinePhase, setPipelinePhase] = useState<PipelinePhase>("initial");
   const [pendingPlan, setPendingPlan] = useState<DeployAgentPlan | null>(null);
   const [agentId, setAgentId] = useState<string | null>(null);
   const [inputFillValue, setInputFillValue] = useState<string | null>(null);
+  const [accumulatedQuestionnaireAnswers, setAccumulatedQuestionnaireAnswers] = useState<QuestionnaireAnswer[]>([]);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [isLoadingChat, setIsLoadingChat] = useState(true);
   const messagesRef = useRef<ChatMessage[]>([]);
   messagesRef.current = messages;
   const hasInitializedRef = useRef(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Restore conversation when returning from OAuth (resume=1), or add welcome on first load
+  // Restore conversation: OAuth return (sessionStorage) > Supabase > empty
   useEffect(() => {
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
 
     const resume = searchParams.get("resume") === "1";
-    if (resume) {
+    if (resume && typeof window !== "undefined") {
       try {
-        const stored = typeof window !== "undefined" && sessionStorage.getItem(AGENT_CHAT_STORAGE_KEY);
+        const stored = sessionStorage.getItem(AGENT_CHAT_STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored) as ChatMessage[];
           if (Array.isArray(parsed) && parsed.length > 0) {
             setMessages(parsed);
             setPipelinePhase("awaiting_integrations");
             sessionStorage.removeItem(AGENT_CHAT_STORAGE_KEY);
+            const storedChatId = sessionStorage.getItem(AGENT_CHAT_ID_STORAGE_KEY);
+            if (storedChatId) {
+              setChatId(storedChatId);
+              sessionStorage.removeItem(AGENT_CHAT_ID_STORAGE_KEY);
+              router.replace(`/agents/new?${CHAT_URL_PARAM}=${storedChatId}`, { scroll: false });
+            }
+            const storedAgentId = sessionStorage.getItem(AGENT_ID_STORAGE_KEY);
+            if (storedAgentId) {
+              setAgentId(storedAgentId);
+              sessionStorage.removeItem(AGENT_ID_STORAGE_KEY);
+              onComplete?.(storedAgentId);
+            }
+            setIsLoadingChat(false);
             return;
           }
         }
@@ -89,26 +118,98 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
       }
     }
 
-    setMessages([
-      {
-        id: genId(),
-        role: "card",
-        cardType: "welcome",
-        content: WELCOME_MESSAGE,
-        chips: EXAMPLE_CHIPS,
-      },
-    ]);
-  }, [searchParams]);
+    if (!userId) {
+      setMessages([]);
+      setIsLoadingChat(false);
+      return;
+    }
+
+    const urlChatId = searchParams.get(CHAT_URL_PARAM);
+    if (!urlChatId) {
+      setMessages([]);
+      setIsLoadingChat(false);
+      return;
+    }
+
+    loadAgentBuilderChatById(userId, urlChatId).then((chat) => {
+      const hasRestorableState =
+        chat &&
+        (chat.data.messages.length > 0 ||
+          chat.data.pipelinePhase !== "initial" ||
+          !!chat.data.pendingPlan ||
+          (chat.data.accumulatedQuestionnaireAnswers?.length ?? 0) > 0 ||
+          !!chat.data.agentId);
+      if (hasRestorableState && chat) {
+        setMessages(chat.data.messages ?? []);
+        setPipelinePhase(chat.data.pipelinePhase ?? "initial");
+        setPendingPlan(chat.data.pendingPlan ?? null);
+        setAccumulatedQuestionnaireAnswers(chat.data.accumulatedQuestionnaireAnswers ?? []);
+        if (chat.data.agentId) {
+          setAgentId(chat.data.agentId);
+          onComplete?.(chat.data.agentId);
+        }
+        setChatId(chat.id);
+      } else {
+        setMessages([]);
+        router.replace("/agents/new", { scroll: false });
+      }
+      setIsLoadingChat(false);
+    });
+  }, [searchParams, userId]);
+
+  // Debounced save to Supabase (only when we have content to preserve)
+  const hasContentToSave = messages.length > 0 || pipelinePhase !== "initial" || !!pendingPlan || accumulatedQuestionnaireAnswers.length > 0 || !!agentId;
+  useEffect(() => {
+    if (!userId || isLoadingChat || !hasContentToSave) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      saveAgentBuilderChat(userId, {
+        messages: messagesRef.current,
+        pipelinePhase,
+        pendingPlan,
+        accumulatedQuestionnaireAnswers,
+        agentId,
+      }, chatId).then(({ id, error }) => {
+        if (!error && id && !chatId) {
+          setChatId(id);
+          router.replace(`/agents/new?${CHAT_URL_PARAM}=${id}`, { scroll: false });
+        }
+      });
+      saveTimeoutRef.current = null;
+    }, SAVE_DEBOUNCE_MS);
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [userId, messages, pipelinePhase, pendingPlan, accumulatedQuestionnaireAnswers, agentId, chatId, isLoadingChat, hasContentToSave]);
 
   const saveMessagesBeforeOAuth = useCallback(() => {
     try {
-      if (typeof window !== "undefined" && messagesRef.current.length > 0) {
-        sessionStorage.setItem(AGENT_CHAT_STORAGE_KEY, JSON.stringify(messagesRef.current));
+      if (typeof window !== "undefined") {
+        if (messagesRef.current.length > 0) {
+          sessionStorage.setItem(AGENT_CHAT_STORAGE_KEY, JSON.stringify(messagesRef.current));
+        }
+        if (agentId) {
+          sessionStorage.setItem(AGENT_ID_STORAGE_KEY, agentId);
+        }
+      }
+      if (userId) {
+        saveAgentBuilderChat(userId, {
+          messages: messagesRef.current,
+          pipelinePhase,
+          pendingPlan,
+          accumulatedQuestionnaireAnswers,
+          agentId,
+        }, chatId).then(({ id }) => {
+          if (id) {
+            if (!chatId) setChatId(id);
+            sessionStorage.setItem(AGENT_CHAT_ID_STORAGE_KEY, id);
+          }
+        });
       }
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [userId, pipelinePhase, pendingPlan, accumulatedQuestionnaireAnswers, agentId, chatId, router]);
 
   const placeholder =
     pipelinePhase === "awaiting_questionnaire"
@@ -130,6 +231,17 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
           { ...last, content: last.content + delta },
         ];
       }
+      // Replace "Thinking..." with actual content when it arrives
+      if (
+        last?.role === "assistant" &&
+        "content" in last &&
+        last.content === "Thinking..."
+      ) {
+        return [
+          ...prev.slice(0, -1),
+          { ...last, content: delta, isStreaming: true },
+        ];
+      }
       return [...prev, { id: genId(), role: "assistant", content: delta, isStreaming: true }];
     });
   }, []);
@@ -144,16 +256,22 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
     });
   }, []);
 
-  const updateBuildProgress = useCallback((stage: string, status: BuildStageStatus) => {
+  const updateBuildProgress = useCallback((stage: string, status: BuildStageStatus, removeThinking = false) => {
     setMessages((prev) => {
-      const idx = prev.findIndex((m) => m.role === "card" && "cardType" in m && m.cardType === "build_progress");
-      if (idx < 0) {
-        return [...prev, { id: genId(), role: "card", cardType: "build_progress", stages: [{ label: stage, status }] }];
+      let working = prev;
+      if (removeThinking) {
+        working = prev.filter(
+          (m) => !(m.role === "assistant" && "content" in m && m.content === "Thinking...")
+        );
       }
-      const m = prev[idx];
-      if (m.role !== "card" || m.cardType !== "build_progress") return prev;
+      const idx = working.findIndex((m) => m.role === "card" && "cardType" in m && m.cardType === "build_progress");
+      if (idx < 0) {
+        return [...working, { id: genId(), role: "card", cardType: "build_progress", stages: [{ label: stage, status }] }];
+      }
+      const m = working[idx];
+      if (m.role !== "card" || m.cardType !== "build_progress") return working;
       const stages = mergeBuildStage(m.stages, stage, status);
-      const out = [...prev];
+      const out = [...working];
       out[idx] = { ...m, stages };
       return out;
     });
@@ -204,6 +322,7 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
                 });
                 break;
               case "plan":
+                setAccumulatedQuestionnaireAnswers([]);
                 setPendingPlan(event.plan as DeployAgentPlan);
                 setPipelinePhase("awaiting_confirmation");
                 appendMessage({
@@ -236,14 +355,30 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
   );
 
   const sendMessage = useCallback(
-    async (text: string, options?: { pendingPlan?: DeployAgentPlan; answers?: QuestionnaireAnswer[]; integrationsConnected?: boolean }) => {
-      appendMessage({ id: genId(), role: "user", content: text });
+    async (
+      text: string,
+      options?: {
+        pendingPlan?: DeployAgentPlan;
+        answers?: QuestionnaireAnswer[];
+        integrationsConnected?: boolean;
+        conversationOverride?: Array<{ role: "user" | "assistant"; content: string }>;
+        skipAppend?: boolean;
+      }
+    ) => {
+      if (!options?.answers) {
+        setAccumulatedQuestionnaireAnswers([]);
+      }
+      if (!options?.skipAppend) {
+        appendMessage({ id: genId(), role: "user", content: text });
+      }
       setIsStreaming(true);
 
-      const conversation = getConversationForApi([
-        ...messages,
-        { id: "temp", role: "user", content: text },
-      ]);
+      const conversation =
+        options?.conversationOverride ??
+        getConversationForApi([
+          ...messages,
+          { id: "temp", role: "user", content: text },
+        ]);
 
       try {
         const res = await fetch("/api/agents/chat", {
@@ -313,17 +448,48 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
 
   const submitAnswers = useCallback(
     (answers: QuestionnaireAnswer[]) => {
+      const allAnswers = [...accumulatedQuestionnaireAnswers, ...answers];
+      setAccumulatedQuestionnaireAnswers(allAnswers);
+
+      const formatted = answers
+        .map(
+          (a) =>
+            `${a.question}${a.question.trim().endsWith("?") ? "" : "?"} - ${Array.isArray(a.answer) ? a.answer.join(", ") : a.answer}`
+        )
+        .join("\n");
+
       const conversation = getConversationForApi(messages);
-      const lastUser = conversation.filter((m) => m.role === "user").pop()?.content ?? "";
-      sendMessage(lastUser, { answers });
+      const conversationWithFormatted = [
+        ...conversation,
+        { role: "user" as const, content: formatted },
+      ];
+
+      setMessages((prev) => {
+        const withoutQuestionnaire = prev.filter(
+          (m) =>
+            !(
+              m.role === "card" &&
+              "cardType" in m &&
+              m.cardType === "questionnaire"
+            )
+        );
+        return [...withoutQuestionnaire, { id: genId(), role: "user", content: formatted }];
+      });
+
+      sendMessage(formatted, {
+        answers: allAnswers,
+        conversationOverride: conversationWithFormatted,
+        skipAppend: true,
+      });
     },
-    [messages, sendMessage]
+    [messages, sendMessage, accumulatedQuestionnaireAnswers]
   );
 
   const startBuild = useCallback(
     async (plan: DeployAgentPlan, description: string) => {
       setPipelinePhase("building");
       setIsStreaming(true);
+      appendMessage({ id: genId(), role: "assistant", content: "Thinking...", isStreaming: true });
 
       try {
         const res = await fetch("/api/agents/build", {
@@ -334,10 +500,12 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          setMessages((prev) => [
-            ...prev,
-            { id: genId(), role: "assistant", content: (err.error as string) ?? "Build failed." },
-          ]);
+          setMessages((prev) => {
+            const withoutThinking = prev.filter(
+              (m) => !(m.role === "assistant" && "content" in m && m.content === "Thinking...")
+            );
+            return [...withoutThinking, { id: genId(), role: "assistant", content: (err.error as string) ?? "Build failed." }];
+          });
           return;
         }
 
@@ -357,30 +525,69 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             try {
-              const event = JSON.parse(line.slice(6)) as { type: string; stage?: string; status?: string; agentId?: string; summary?: string };
+              const event = JSON.parse(line.slice(6)) as { type: string; delta?: string; stage?: string; status?: string; agentId?: string; summary?: string };
               if (event.type === "build_stage" && event.stage && event.status) {
-                updateBuildProgress(event.stage, event.status as BuildStageStatus);
+                updateBuildProgress(event.stage, event.status as BuildStageStatus, true);
+              }
+              if (event.type === "text_delta" && typeof event.delta === "string") {
+                const delta = event.delta;
+                setMessages((prev) => {
+                  const last = prev[prev.length - 1];
+                  if (last?.role === "assistant" && last.isStreaming && "content" in last) {
+                    return [...prev.slice(0, -1), { ...last, content: (last.content ?? "") + delta }];
+                  }
+                  return [...prev, { id: genId(), role: "assistant", content: delta, isStreaming: true }];
+                });
+              }
+              if (event.type === "text_done") {
+                setMessages((prev) => {
+                  const last = prev[prev.length - 1];
+                  if (last?.role === "assistant") {
+                    return [...prev.slice(0, -1), { ...last, isStreaming: false }];
+                  }
+                  return prev;
+                });
               }
               if (event.type === "build_complete") {
+                setAccumulatedQuestionnaireAnswers([]);
                 setPipelinePhase("complete");
                 setAgentId(event.agentId ?? null);
-                setMessages((prev) => [
-                  ...prev.slice(0, -1),
-                  {
+                setMessages((prev) => {
+                  const completionCard = {
                     id: genId(),
-                    role: "card",
-                    cardType: "completion",
+                    role: "card" as const,
+                    cardType: "completion" as const,
                     agentId: event.agentId ?? "",
-                    summary: event.summary ?? "",
-                  },
-                ]);
+                    summary: "",
+                    requiredIntegrations: (event as { requiredIntegrations?: IntegrationCheckItem[] }).requiredIntegrations,
+                  };
+                  const next = [...prev, completionCard];
+                  // Persist immediately so pipeline + completion survive reload
+                  if (userId) {
+                    saveAgentBuilderChat(userId, {
+                      messages: next,
+                      pipelinePhase: "complete",
+                      pendingPlan: null,
+                      accumulatedQuestionnaireAnswers: [],
+                      agentId: event.agentId ?? null,
+                    }, chatId).then(({ id, error }) => {
+                      if (!error && id && !chatId) {
+                        setChatId(id);
+                        router.replace(`/agents/new?${CHAT_URL_PARAM}=${id}`, { scroll: false });
+                      }
+                    });
+                  }
+                  return next;
+                });
                 onComplete?.(event.agentId ?? "");
               }
               if (event.type === "error") {
-                setMessages((prev) => [
-                  ...prev,
-                  { id: genId(), role: "assistant", content: (event as any).message ?? "Build failed." },
-                ]);
+                setMessages((prev) => {
+                  const withoutThinking = prev.filter(
+                    (m) => !(m.role === "assistant" && "content" in m && m.content === "Thinking...")
+                  );
+                  return [...withoutThinking, { id: genId(), role: "assistant", content: (event as any).message ?? "Build failed." }];
+                });
               }
             } catch {
               /* ignore */
@@ -388,36 +595,82 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
           }
         }
       } catch (e: any) {
-        setMessages((prev) => [
-          ...prev,
-          { id: genId(), role: "assistant", content: e?.message ?? "Build failed." },
-        ]);
+        setMessages((prev) => {
+          const withoutThinking = prev.filter(
+            (m) => !(m.role === "assistant" && "content" in m && m.content === "Thinking...")
+          );
+          return [...withoutThinking, { id: genId(), role: "assistant", content: e?.message ?? "Build failed." }];
+        });
       } finally {
         setIsStreaming(false);
       }
     },
-    [updateBuildProgress, onComplete]
+    [updateBuildProgress, onComplete, userId, chatId, router, appendMessage]
   );
 
-  const startAdjust = useCallback((plan: DeployAgentPlan) => {
-    setPendingPlan(plan);
-    appendMessage({
-      id: genId(),
-      role: "assistant",
-      content: "Of course. What would you like to change?",
-    });
-    setPipelinePhase("initial");
-  }, [appendMessage]);
+  const startAdjust = useCallback(
+    async (plan: DeployAgentPlan) => {
+      setPendingPlan(plan);
+      setPipelinePhase("initial");
+      setMessages((prev) =>
+        prev.filter(
+          (m) =>
+            !(
+              m.role === "card" &&
+              "cardType" in m &&
+              m.cardType === "plan"
+            )
+        )
+      );
+      setIsStreaming(true);
+      try {
+        const res = await fetch("/api/agents/chat/adjust-prompt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        if (res.ok) {
+          await readSSEChat(res);
+        } else {
+          appendMessage({
+            id: genId(),
+            role: "assistant",
+            content: "Of course. What would you like to change?",
+          });
+        }
+      } catch {
+        appendMessage({
+          id: genId(),
+          role: "assistant",
+          content: "Of course. What would you like to change?",
+        });
+      } finally {
+        setIsStreaming(false);
+      }
+    },
+    [appendMessage, readSSEChat]
+  );
 
   const handlePlanBuild = useCallback(
     (plan: DeployAgentPlan) => {
+      appendMessage({ id: genId(), role: "user", content: "Build it." });
       const lastUser = getConversationForApi(messages).filter((m) => m.role === "user").pop()?.content ?? "";
       startBuild(plan, lastUser);
     },
-    [messages, startBuild]
+    [messages, startBuild, appendMessage]
   );
 
-  const handlePlanAdjust = useCallback((plan: DeployAgentPlan) => startAdjust(plan), [startAdjust]);
+  const handlePlanAdjust = useCallback(
+    (plan: DeployAgentPlan) => {
+      const lastUserContent = [...messages].reverse().find((m) => m.role === "user")?.content?.trim() ?? "";
+      const alreadySent = /^let me adjust something\.?$/i.test(lastUserContent);
+      if (!alreadySent) {
+        appendMessage({ id: genId(), role: "user", content: "Let me adjust something." });
+      }
+      startAdjust(plan);
+    },
+    [startAdjust, messages, appendMessage]
+  );
 
   const handleExampleClick = useCallback((text: string) => {
     setInputFillValue(text);
@@ -437,6 +690,8 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
     [pendingPlan, sendMessage]
   );
 
+  const hasMessages = messages.length > 0;
+
   const handleSend = useCallback(
     (text: string) => {
       const plan = pendingPlan;
@@ -450,32 +705,104 @@ export function AgentChatBuilder({ onComplete }: AgentChatBuilderProps) {
     [pendingPlan, sendMessage]
   );
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto scrollbar-hide px-1">
-        <MessageList
-          messages={messages}
-          isStreaming={isStreaming}
-          onIntegrationCheckAllConnected={resumeAfterIntegrations}
-          onQuestionnaireSubmit={submitAnswers}
-          onPlanBuild={handlePlanBuild}
-          onPlanAdjust={handlePlanAdjust}
-          integrationReturnUrl={AGENT_RETURN_URL}
-          onBeforeOAuthRedirect={saveMessagesBeforeOAuth}
-          onExampleClick={handleExampleClick}
-          onRetry={handleRetry}
-        />
+  if (isLoadingChat) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="h-8 w-48 rounded-lg bg-white/40 dark:bg-zinc-900/40 animate-pulse" />
       </div>
-      <div className="flex-shrink-0 pt-4">
-        <ChatInput
-          placeholder={placeholder}
-          disabled={pipelinePhase === "building" || pipelinePhase === "complete"}
-          isStreaming={isStreaming}
-          onSend={handleSend}
-          fillValue={inputFillValue}
-          onFillApplied={() => setInputFillValue(null)}
-          autoFocus
-        />
+    );
+  }
+
+  return (
+    <div
+      className="flex flex-col h-full"
+      style={scrollTopOffset && !hasMessages ? { paddingTop: scrollTopOffset } : undefined}
+    >
+      {!hasMessages && (
+        <div className="flex-shrink-0 pt-2 pb-4 flex flex-col items-center justify-center text-center px-4">
+          <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight">
+            Deploy an Agent
+          </h1>
+          <p className="mt-2 text-sm md:text-base text-muted-foreground max-w-xl">
+            Hey! I'm your agent builder. Tell me what you'd like your agent to do — be as detailed or vague as you like.
+          </p>
+        </div>
+      )}
+      <div className="flex-1 flex flex-col items-center min-h-0 overflow-hidden">
+        <div className="w-full max-w-[66.666%] min-w-[280px] flex flex-col flex-1 min-h-0 px-2">
+          <div
+            className={cn(
+              "flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col",
+              hasMessages ? "pb-2" : "pt-2 pb-2"
+            )}
+            style={scrollTopOffset && hasMessages ? { paddingTop: scrollTopOffset } : undefined}
+          >
+            <MessageList
+              messages={messages}
+              isStreaming={isStreaming}
+              onIntegrationCheckAllConnected={resumeAfterIntegrations}
+              onQuestionnaireSubmit={submitAnswers}
+              onPlanBuild={handlePlanBuild}
+              onPlanAdjust={handlePlanAdjust}
+              onViewAgent={onViewAgent}
+              integrationReturnUrl={AGENT_RETURN_URL}
+              onBeforeOAuthRedirect={saveMessagesBeforeOAuth}
+              onExampleClick={handleExampleClick}
+              onRetry={handleRetry}
+            />
+          </div>
+          <div className="flex-shrink-0 pt-2 flex flex-col gap-2">
+            {!hasMessages && pipelinePhase === "initial" && (
+              <div className="flex flex-col items-start gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExampleClick(EXAMPLE_CHIPS[0])}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                    "bg-stone-100 text-muted-foreground dark:bg-white/[0.08]",
+                    "hover:text-black dark:hover:text-white"
+                  )}
+                >
+                  {EXAMPLE_CHIPS[0]}
+                </button>
+                <div className="flex flex-wrap justify-start gap-2">
+                  {EXAMPLE_CHIPS.slice(1).map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => handleExampleClick(chip)}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                        "bg-stone-100 text-muted-foreground dark:bg-white/[0.08]",
+                        "hover:text-black dark:hover:text-white"
+                      )}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <ChatInput
+              placeholder={placeholder}
+              disabled={pipelinePhase === "complete"}
+              sendDisabled={pipelinePhase === "building" || pipelinePhase === "complete"}
+              isStreaming={isStreaming}
+              onEnterAction={
+                pipelinePhase === "awaiting_confirmation" && pendingPlan
+                  ? () => handlePlanBuild(pendingPlan)
+                  : undefined
+              }
+              onSend={handleSend}
+              fillValue={inputFillValue}
+              onFillApplied={() => setInputFillValue(null)}
+              autoFocus
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground/70 text-center">
+              Runwise can make mistakes. Check important info.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

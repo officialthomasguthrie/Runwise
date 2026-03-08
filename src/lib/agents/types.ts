@@ -2,7 +2,7 @@
 // CORE ENTITY TYPES (mirror Supabase tables)
 // ============================================================================
 
-export type AgentStatus = 'active' | 'paused' | 'deploying' | 'error';
+export type AgentStatus = 'active' | 'paused' | 'deploying' | 'error' | 'pending_integrations';
 export type AgentMemoryType = 'fact' | 'preference' | 'contact' | 'event' | 'instruction';
 export type AgentActivityStatus = 'success' | 'error' | 'skipped';
 export type AgentBehaviourType = 'polling' | 'schedule' | 'webhook' | 'heartbeat';
@@ -12,10 +12,13 @@ export interface Agent {
   user_id: string;
   name: string;
   description: string | null;
+  short_description?: string | null;
   persona: string | null;
   instructions: string;
   status: AgentStatus;
   avatar_emoji: string;
+  /** Profile image path (e.g. /Profile2.jpg) — persisted for consistency between list and detail */
+  avatar_image?: string | null;
   model: string;
   max_steps: number;
   created_at: string;
@@ -30,6 +33,7 @@ export interface AgentBehaviour {
   trigger_type: string | null;
   schedule_cron: string | null;
   config: Record<string, any>;
+  description?: string | null;
   enabled: boolean;
   last_run_at: string | null;
   created_at: string;
@@ -108,6 +112,7 @@ export interface AgentRunContext {
     items?: any[];
     polledAt?: string;
     raw?: any;
+    _receivedAt?: string;
   };
   runId?: string;
 }
@@ -145,6 +150,10 @@ export interface DeployAgentPlan {
   avatarEmoji: string;
   behaviours: AgentBehaviourPlan[];
   initialMemories: string[];
+  /** Goals to work toward, extracted from user prompts and questionnaire */
+  initialGoals?: string[];
+  /** Rules/constraints for behaviour, extracted from user prompts and questionnaire */
+  initialRules?: string[];
 }
 
 // ============================================================================
