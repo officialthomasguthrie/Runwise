@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { AgentChatBuilder, AgentPlaceholder, BuilderTabs, type BuilderTab } from "@/components/ui/agent-chat";
 import { AgentTabContent } from "@/components/ui/agent-tab-content";
 
-export default function NewAgentPage() {
+function NewAgentPageContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -129,5 +129,17 @@ export default function NewAgentPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NewAgentPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-screen bg-background items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-stone-300 border-t-stone-600" />
+      </div>
+    }>
+      <NewAgentPageContent />
+    </Suspense>
   );
 }
