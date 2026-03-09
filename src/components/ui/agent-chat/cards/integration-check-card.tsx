@@ -42,13 +42,13 @@ export function IntegrationCheckCard({
 
   const allConnected = integrations.every((i) => connectedMap[i.service]);
 
-  // Poll /api/integrations/status every 3s while any disconnected
+  // Poll /api/integrations/status and listen for credential popup success
   useEffect(() => {
     if (allConnected) return;
 
     const poll = async () => {
       try {
-        const res = await fetch("/api/integrations/status");
+        const res = await fetch("/api/integrations/status", { credentials: "include" });
         if (!res.ok) return;
         const json = await res.json();
         const services: string[] = (json.integrations ?? []).map(
@@ -72,9 +72,20 @@ export function IntegrationCheckCard({
       }
     };
 
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === "integration-connected" && event.data?.service) {
+        poll(); // Immediate refresh when credential popup completes
+      }
+    };
+
     poll();
+    window.addEventListener("message", handleMessage);
     const id = setInterval(poll, 3000);
-    return () => clearInterval(id);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      clearInterval(id);
+    };
   }, [integrations, allConnected]);
 
   // When all connected: show "All integrations connected ✓" briefly, then call parent
@@ -149,21 +160,24 @@ function ConnectButton({
   onBeforeOAuthRedirect?: () => void;
 }) {
   const handleClick = () => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
     if (item.connectionMethod === "oauth") {
-      let url = item.connectUrl;
+      let url = item.connectUrl.startsWith("http") ? item.connectUrl : `${origin}${item.connectUrl}`;
       if (returnUrl) {
+        const fullReturnUrl = returnUrl.startsWith("http") ? returnUrl : `${origin}${returnUrl}`;
         const sep = url.includes("?") ? "&" : "?";
-        url += `${sep}returnUrl=${encodeURIComponent(returnUrl)}`;
+        url += `${sep}returnUrl=${encodeURIComponent(fullReturnUrl)}`;
       }
       onBeforeOAuthRedirect?.();
       window.location.href = url;
     } else {
+      const connectUrl = item.connectUrl.startsWith("http") ? item.connectUrl : `${origin}${item.connectUrl}`;
       const w = 600;
       const h = 700;
       const left = Math.round((window.screen.width - w) / 2);
       const top = Math.round((window.screen.height - h) / 2);
       window.open(
-        item.connectUrl,
+        connectUrl,
         "ConnectIntegration",
         `width=${w},height=${h},left=${left},top=${top}`
       );

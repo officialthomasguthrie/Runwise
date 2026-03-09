@@ -240,12 +240,23 @@ Be decisive. Do not ask clarifying questions; make sensible decisions based on y
 
 function buildTriggerMessage(context: AgentRunContext): string {
   const { triggerType, triggerData } = context;
-  const polledAt = triggerData.polledAt
-    ? new Date(triggerData.polledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC'
-    : 'just now';
+  const polledAt = triggerData._receivedAt
+    ? new Date(triggerData._receivedAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC'
+    : triggerData.polledAt
+      ? new Date(triggerData.polledAt).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC'
+      : 'just now';
 
-  // Format trigger data into a readable description
-  const items = triggerData.items ?? [];
+  // For webhook, the payload is in triggerData (minus _prefixed keys)
+  const items =
+    triggerType === 'webhook'
+      ? (() => {
+          const payload: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(triggerData)) {
+            if (!k.startsWith('_')) payload[k] = v;
+          }
+          return Object.keys(payload).length ? [payload] : [];
+        })()
+      : (triggerData.items ?? []);
 
   const triggerLabels: Record<string, string> = {
     'new-email-received': 'New email(s) received',
@@ -255,7 +266,9 @@ function buildTriggerMessage(context: AgentRunContext): string {
     'new-github-issue': 'New GitHub issue(s)',
     'file-uploaded': 'File(s) uploaded',
     'new-form-submission': 'New form submission(s)',
+    webhook: 'Webhook request received',
     heartbeat: 'Scheduled check-in',
+    schedule: 'Scheduled run',
     manual: 'Manually triggered',
   };
 
@@ -276,8 +289,10 @@ function buildTriggerMessage(context: AgentRunContext): string {
     if (items.length > 10) {
       lines.push(`... and ${items.length - 10} more items.`);
     }
-  } else if (triggerType === 'heartbeat') {
-    lines.push('\nThis is your scheduled check-in. Review your instructions and take any proactive actions needed.');
+  } else if (triggerType === 'heartbeat' || triggerType === 'schedule') {
+    lines.push('\nThis is your scheduled run. Review your instructions and take any proactive actions needed.');
+  } else if (triggerType === 'webhook') {
+    lines.push('\nWebhook payload received. Process it according to your instructions.');
   } else {
     lines.push('\nNo data items were provided with this trigger.');
   }
@@ -315,7 +330,9 @@ function buildTriggerSummary(context: AgentRunContext): string {
       return count > 1 ? `${count} new Discord messages` : `New Discord message from ${author}: "${content}"`;
     },
     heartbeat: () => 'Scheduled check-in',
+    schedule: () => 'Scheduled run',
     manual: () => 'Manually triggered',
+    webhook: () => 'Webhook request',
   };
 
   const fn = summaries[triggerType];

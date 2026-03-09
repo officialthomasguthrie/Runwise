@@ -10,6 +10,7 @@ interface CreditBalance {
   monthlyAllocation: number;
   lastReset: string;
   nextReset: string;
+  subscriptionTier?: string;
 }
 
 export function UsageSettings() {
@@ -118,12 +119,13 @@ export function UsageSettings() {
     );
   }
 
-  const percentageUsed = creditData.monthlyAllocation > 0
+  const isFreeTier = (creditData.subscriptionTier ?? 'free').toLowerCase() === 'free' || creditData.monthlyAllocation === 0;
+  const percentageUsed = !isFreeTier && creditData.monthlyAllocation > 0
     ? (creditData.usedThisMonth / creditData.monthlyAllocation) * 100
     : 0;
   const percentageRemaining = 100 - percentageUsed;
-  const isLow = percentageUsed >= 80;
-  const isVeryLow = percentageUsed >= 95;
+  const isLow = !isFreeTier && percentageUsed >= 80;
+  const isVeryLow = !isFreeTier && percentageUsed >= 95;
 
   // Format next reset date
   const nextResetDate = new Date(creditData.nextReset);
@@ -142,12 +144,13 @@ export function UsageSettings() {
           <p className="text-3xl font-semibold text-foreground">
             {creditData.balance}
             <span className="text-lg text-muted-foreground font-normal ml-2">
-              / {creditData.monthlyAllocation}
+              {isFreeTier ? '(one-time)' : ` / ${creditData.monthlyAllocation}`}
             </span>
           </p>
         </div>
 
-        {/* Progress Bar */}
+        {/* Progress Bar — hide for free tier */}
+        {!isFreeTier && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">
@@ -176,6 +179,7 @@ export function UsageSettings() {
             />
           </div>
         </div>
+        )}
 
         {isLow && (
           <div className={`rounded-lg px-4 py-3 text-sm ${
@@ -198,13 +202,13 @@ export function UsageSettings() {
         <div className="rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <TrendingUp className="w-4 h-4" />
-            <span>Used This Month</span>
+            <span>{isFreeTier ? 'Total Used' : 'Used This Month'}</span>
           </div>
           <p className="text-2xl font-semibold text-foreground">
             {creditData.usedThisMonth}
           </p>
           <p className="text-xs text-muted-foreground">
-            {creditData.monthlyAllocation - creditData.usedThisMonth} credits remaining
+            {isFreeTier ? 'Free plan: one-time 5 credits' : `${creditData.monthlyAllocation - creditData.usedThisMonth} credits remaining`}
           </p>
         </div>
 
@@ -214,10 +218,10 @@ export function UsageSettings() {
             <span>Next Reset</span>
           </div>
           <p className="text-2xl font-semibold text-foreground">
-            {formattedNextReset}
+            {isFreeTier ? '—' : formattedNextReset}
           </p>
           <p className="text-xs text-muted-foreground">
-            Credits reset on the 1st of each month
+            {isFreeTier ? 'Upgrade to Pro for monthly credits' : 'Credits reset on the 1st of each month'}
           </p>
         </div>
       </div>
@@ -238,6 +242,7 @@ export function UsageSettings() {
             <ul className="list-disc list-inside space-y-1 ml-2">
               <li>Workflow generation: 2-7 credits (depending on complexity)</li>
               <li>Chat messages: 1-3 credits (depending on length)</li>
+              <li>Agent runs: ~5 credits minimum; actual usage based on tokens (~$0.01/credit)</li>
               <li>Node configuration help: ~1 credit</li>
             </ul>
           </div>

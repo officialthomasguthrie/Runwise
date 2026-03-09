@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { deleteAgentBehaviours } from '@/lib/agents/behaviour-manager';
+import { deriveAgentCapabilities } from '@/lib/agents/chat-pipeline';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -50,11 +51,29 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       .eq('agent_id', id)
       .eq('user_id', user.id);
 
+    // Fetch memories (AI-generated + user-added) for Knowledge & Memory section
+    const { data: memories } = await (admin as any)
+      .from('agent_memory')
+      .select('id, content, memory_type')
+      .eq('agent_id', id)
+      .eq('user_id', user.id)
+      .order('importance', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    // Derive capabilities (integrations/tools) from behaviours + instructions
+    const capabilities = deriveAgentCapabilities({
+      instructions: agent.instructions,
+      persona: agent.persona,
+      behaviours: behaviours ?? [],
+    });
+
     return NextResponse.json({
       agent: {
         ...agent,
         behaviours: behaviours ?? [],
         memory_count: memoryCount ?? 0,
+        memories: memories ?? [],
+        capabilities,
       },
     });
   } catch (err: any) {
@@ -84,9 +103,23 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     // Only allow safe fields to be updated
     const allowed: Record<string, any> = {};
-    const PATCHABLE = ['name', 'persona', 'instructions', 'status', 'avatar_emoji', 'max_steps'] as const;
+    const PATCHABLE = ['name', 'persona', 'instructions', 'status', 'avatar_emoji', 'max_steps', 'goals_rules'] as const;
     for (const field of PATCHABLE) {
-      if (field in body) allowed[field] = body[field];
+      if (field in body) {
+        if (field === 'goals_rules') {
+          if (Array.isArray(body[field])) {
+            allowed[field] = body[field]
+              .filter((g: any) => g && typeof g.label === 'string' && g.label.trim())
+              .map((g: any, i: number) => ({
+                id: g.id || `gr-${Date.now()}-${i}`,
+                type: ['goal', 'rule'].includes(g.type) ? g.type : 'goal',
+                label: g.label.trim(),
+              }));
+          }
+        } else {
+          allowed[field] = body[field];
+        }
+      }
     }
 
     if (Object.keys(allowed).length === 0) {

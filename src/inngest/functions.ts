@@ -506,7 +506,7 @@ export const agentHeartbeat = inngest.createFunction(
           agentId: b.agent_id,
           userId: b.user_id,
           behaviourId: b.id,
-          triggerType: "heartbeat",
+          triggerType: b.behaviour_type === "schedule" ? "schedule" : "heartbeat",
           triggerData: {
             polledAt: new Date().toISOString(),
             items: [],

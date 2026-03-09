@@ -73,6 +73,40 @@ export interface IntegrationCredentials {
 }
 
 /**
+ * Ensure user exists in public.users. The user_integrations table has a foreign key
+ * to public.users, but auth users may not have a row if the handle_new_user trigger
+ * failed or the user predates the trigger. This syncs from auth.users to public.users.
+ */
+async function ensureUserExistsInPublic(userId: string): Promise<void> {
+  const supabase = await createAdminClient();
+  const { data: existing } = await supabase.from('users').select('id').eq('id', userId).single();
+  if (existing) return;
+
+  const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
+  if (authError || !authUser?.user) {
+    console.warn('[ensureUserExistsInPublic] Could not fetch auth user:', authError?.message);
+    return;
+  }
+  const u = authUser.user;
+  const { error: insertError } = await (supabase.from('users') as any).upsert(
+    {
+      id: u.id,
+      email: u.email ?? `${u.id}@placeholder.local`,
+      first_name: u.user_metadata?.first_name ?? u.user_metadata?.full_name?.split(' ')[0] ?? null,
+      last_name: u.user_metadata?.last_name ?? (typeof u.user_metadata?.full_name === 'string' && u.user_metadata.full_name.includes(' ') ? u.user_metadata.full_name.split(' ').slice(1).join(' ') : null),
+      subscription_tier: 'free',
+      subscription_status: 'active',
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'id' }
+  );
+  if (insertError) {
+    console.error('[ensureUserExistsInPublic] Failed to create user:', insertError);
+    throw new Error(`Failed to sync user to public.users: ${insertError.message}`);
+  }
+}
+
+/**
  * Store or update user integration (OAuth tokens)
  */
 export async function storeUserIntegration(
@@ -86,6 +120,7 @@ export async function storeUserIntegration(
   metadata?: Record<string, any>
 ): Promise<UserIntegration> {
   const supabase = await createAdminClient();
+  await ensureUserExistsInPublic(userId);
   
   // Map service_name to integration name in the integrations table
   const integrationNameMap: Record<string, string> = {
@@ -579,6 +614,7 @@ export async function storeIntegrationCredential(
   metadata?: Record<string, any>
 ): Promise<IntegrationCredentials> {
   const supabase = await createAdminClient();
+  await ensureUserExistsInPublic(userId);
   
   // Encrypt credential
   const encrypted = encrypt(credentialValue);

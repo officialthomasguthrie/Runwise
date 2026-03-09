@@ -678,6 +678,67 @@ export interface Database {
           created_at?: string
         }
       }
+      agent_chats: {
+        Row: {
+          id: string
+          agent_id: string
+          user_id: string
+          messages: Record<string, any>[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          agent_id: string
+          user_id: string
+          messages?: Record<string, any>[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          agent_id?: string
+          user_id?: string
+          messages?: Record<string, any>[]
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      agent_builder_chats: {
+        Row: {
+          id: string
+          user_id: string
+          messages: Record<string, any>[]
+          pipeline_phase: string
+          pending_plan: Record<string, any> | null
+          accumulated_questionnaire_answers: Record<string, any>[]
+          agent_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          messages?: Record<string, any>[]
+          pipeline_phase?: string
+          pending_plan?: Record<string, any> | null
+          accumulated_questionnaire_answers?: Record<string, any>[]
+          agent_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          messages?: Record<string, any>[]
+          pipeline_phase?: string
+          pending_plan?: Record<string, any> | null
+          accumulated_questionnaire_answers?: Record<string, any>[]
+          agent_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

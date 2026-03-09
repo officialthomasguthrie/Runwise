@@ -68,15 +68,35 @@ export function estimateChatResponseCredits(
 }
 
 /**
+ * Estimate credits for an agent run based on total token usage.
+ * Uses 70% input / 30% output split (typical for agent loops with context + responses).
+ */
+export function estimateAgentRunCredits(totalTokens: number): number {
+  if (totalTokens <= 0) return 0;
+  const inputTokens = Math.ceil(totalTokens * 0.7);
+  const outputTokens = Math.ceil(totalTokens * 0.3);
+  return calculateCreditsFromTokens(inputTokens, outputTokens);
+}
+
+/**
+ * Minimum credits required to start an agent run (pre-run reserve).
+ * Actual deduction uses estimateAgentRunCredits(tokensUsed) after completion.
+ */
+export const AGENT_RUN_MIN_CREDITS = 5;
+
+/**
  * Get monthly credit allocation based on subscription tier
  */
 export function getMonthlyCreditAllocation(tier: string): number {
-  switch (tier) {
+  const t = tier?.toLowerCase() ?? '';
+  switch (t) {
     case 'personal':
       return 100; // $1/month OpenAI budget
+    case 'pro':
     case 'professional':
-      return 500; // $5/month OpenAI budget
+      return 500; // $5/month OpenAI budget (Pro plan)
     case 'enterprise':
+    case 'enterprises':
       return 2000; // $20/month OpenAI budget (custom)
     default:
       return 0; // Free tier gets no credits

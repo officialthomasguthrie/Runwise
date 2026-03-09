@@ -218,7 +218,7 @@ export function BlankHeader({ className }: BlankHeaderProps) {
       {/* Mobile Header - visible on mobile only */}
       <div
         className={cn(
-          "relative h-16 w-full shrink-0 border-b border-stone-200 dark:border-white/10 bg-stone-50/95 dark:bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-stone-50/90 dark:supports-[backdrop-filter]:bg-background/60 z-50 md:hidden",
+          "relative h-16 w-full shrink-0 border-b border-stone-200 dark:border-white/10 bg-[#FAFAF9] dark:bg-[#0B0B0B] z-50 md:hidden",
           className
         )}
         ref={mobileMenuRef}
@@ -296,7 +296,7 @@ export function BlankHeader({ className }: BlankHeaderProps) {
       {/* Desktop Header - visible on desktop only */}
       <div
         className={cn(
-          "relative h-16 w-full shrink-0 border-b border-stone-200 dark:border-white/10 bg-stone-50/95 dark:bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-stone-50/90 dark:supports-[backdrop-filter]:bg-background/60 z-50 hidden md:flex",
+          "relative h-16 w-full shrink-0 border-b border-stone-200 dark:border-white/10 bg-[#FAFAF9] dark:bg-[#0B0B0B] z-50 hidden md:flex",
           className
         )}
       >

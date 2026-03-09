@@ -3,7 +3,7 @@
  */
 
 export interface ScheduleConfig {
-  frequency: 'daily' | 'weekly' | 'monthly' | 'custom';
+  frequency: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'custom';
   time: {
     hour: number; // 0-23
     minute: number; // 0-59
@@ -24,6 +24,10 @@ export function scheduleToCron(config: ScheduleConfig): string {
   const { hour, minute } = config.time;
 
   switch (config.frequency) {
+    case 'hourly':
+      // Every hour at specified minute: "minute * * * *"
+      return `${minute} * * * *`;
+
     case 'daily':
       // Every day at specified time: "minute hour * * *"
       return `${minute} ${hour} * * *`;
@@ -67,9 +71,17 @@ export function cronToSchedule(cron: string): ScheduleConfig {
   const dayOfWeek = parts[4];
 
   // Check if it's a simple pattern we can convert
+  const isHourly = dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && parts[1] === '*';
   const isDaily = dayOfMonth === '*' && month === '*' && dayOfWeek === '*';
   const isWeekly = dayOfMonth === '*' && month === '*' && dayOfWeek !== '*';
   const isMonthly = dayOfMonth !== '*' && month === '*' && dayOfWeek === '*';
+
+  if (isHourly) {
+    return {
+      frequency: 'hourly',
+      time: { hour: 0, minute: isNaN(minute) ? 0 : minute },
+    };
+  }
 
   if (isDaily) {
     return {

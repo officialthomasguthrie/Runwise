@@ -10,6 +10,7 @@ interface CreditBalance {
   monthlyAllocation: number;
   lastReset: string;
   nextReset: string;
+  subscriptionTier?: string;
 }
 
 export function CreditBalance() {

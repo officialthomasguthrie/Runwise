@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     
     // Store state in httpOnly cookie
     response.cookies.set('oauth_state', state, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
     
     // Store user ID for callback
     response.cookies.set('oauth_user_id', user.id, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -61,6 +63,7 @@ export async function GET(request: NextRequest) {
     
     // Store return URL for callback
     response.cookies.set('oauth_return_url', returnUrl, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -69,6 +72,7 @@ export async function GET(request: NextRequest) {
     
     // Store audience for callback (needed for token exchange)
     response.cookies.set('oauth_audience', audience, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

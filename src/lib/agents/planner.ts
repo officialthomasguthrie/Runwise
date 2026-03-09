@@ -63,6 +63,12 @@ const TRIGGER_CATALOGUE: TriggerDef[] = [
     requiredIntegration: 'google-forms',
     defaultConfig: {},
   },
+  {
+    triggerType: 'new-calendar-event',
+    label: 'Watch Google Calendar for new events',
+    requiredIntegration: 'google-calendar',
+    defaultConfig: {},
+  },
 ];
 
 // ============================================================================
@@ -91,7 +97,7 @@ export async function planAgent(
       ? availableTriggers
           .map((t) => `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}`)
           .join('\n')
-      : '- None (no integrations connected — use heartbeat only)';
+      : '- None (no integrations connected — use webhook, schedule, or heartbeat only)';
 
   const systemPrompt = buildSystemPrompt(availableTriggersText);
   const userMessage = `USER'S AGENT DESCRIPTION:\n"${description}"`;
@@ -144,7 +150,7 @@ export async function regenerateAgentPlan(
       ? availableTriggers
           .map((t) => `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}`)
           .join('\n')
-      : '- None (no integrations connected — use heartbeat only)';
+      : '- None (no integrations connected — use webhook, schedule, or heartbeat only)';
 
   const systemPrompt = `You are an expert AI agent designer. The user had this plan and wants to change it.
 
@@ -157,23 +163,19 @@ THEY WANT TO CHANGE:
 Return an updated plan that incorporates their requested changes.
 
 ---
-AVAILABLE TRIGGER TYPES (only use these):
+POLLING TRIGGERS (only use if user has integration):
 ${availableTriggersText}
+
+BUILT-IN TRIGGERS (no integration): webhook (config.path required), schedule (scheduleCron required), heartbeat (scheduleCron required).
 
 ---
 Your job: Return an UPDATED plan that incorporates the user's feedback. Use the exact same JSON structure as the current plan.
-Output format (strict JSON, no markdown):
-{
-  "name": "...",
-  "persona": "...",
-  "instructions": "...",
-  "avatarEmoji": "...",
-  "behaviours": [...],
-  "initialMemories": [...]
-}
+- behaviours: only include when user specifies or infers a trigger. Empty [] = manual-only agent.
+- webhook: config.path = URL-safe slug
+- schedule/heartbeat: scheduleCron = cron expression
 
 RULES:
-1. Only use trigger types from the available list.
+1. Only use trigger types from the available list for polling.
 2. Preserve parts of the plan the user did not ask to change.
 3. Apply the requested changes precisely.
 4. Return ONLY valid JSON, no markdown, no code fences.`;
@@ -208,54 +210,65 @@ function buildSystemPrompt(availableTriggersText: string): string {
 Your job is to produce a complete, structured deployment plan for that agent.
 
 ---
-AVAILABLE TRIGGER TYPES (only use these):
+TRIGGERS — ADD ONLY WHEN USER SPECIFIES OR YOU CAN CLEARLY INFER:
+
+POLLING TRIGGERS (require connected integration — only use if user mentions the source):
 ${availableTriggersText}
 
-SPECIAL BEHAVIOUR TYPES:
-- heartbeat: a proactive scheduled check-in (no external trigger required). Use for daily briefings, periodic tasks, proactive outreach. Specify scheduleCron.
-- schedule: run on a fixed cron schedule (similar to heartbeat but for precise recurring actions)
+BUILT-IN TRIGGERS (no integration required — always available):
+- webhook: Run when HTTP POST hits a webhook URL. Use when user says "webhook", "when someone hits my URL", "when a form submits". config MUST include "path" (URL-safe slug, e.g. "signup", "order-notify").
+- schedule: Run on fixed cron. Use for "daily at X", "every morning", "hourly". scheduleCron REQUIRED.
+- heartbeat: Proactive check-in (same as schedule). Use for "daily briefing", "check in every day".
+
+CRITICAL: Only add triggers when user EXPLICITLY specifies one or you can strongly infer. If user does NOT mention how/when to run → behaviours: [] (manual-only agent).
 
 ---
 OUTPUT FORMAT (strict JSON, no markdown):
 {
-  "name": "Short memorable agent name (1-2 words, e.g. 'Aria', 'Scout', 'Briefing Bot', 'Deal Tracker')",
-  "persona": "2-3 sentence personality and communication style description",
-  "instructions": "Full, detailed operating instructions for the agent. Be specific: what to look for, how to respond, what to remember, what NOT to do. This is the agent's north star — the more detail the better.",
-  "avatarEmoji": "A single emoji that represents this agent",
+  "name": "Short memorable agent name (1-2 words)",
+  "persona": "2-3 sentence personality",
+  "instructions": "Full operating instructions — at least 3-5 sentences.",
+  "avatarEmoji": "A single emoji",
   "behaviours": [
     {
-      "behaviourType": "polling" | "schedule" | "heartbeat",
-      "triggerType": "one of the available trigger types above (omit for heartbeat/schedule)",
-      "scheduleCron": "cron expression (only for schedule/heartbeat, e.g. '0 9 * * 1-5' for 9am Mon-Fri)",
-      "config": {},
-      "description": "Human-readable: what this behaviour does (e.g. 'Watch Gmail inbox for new emails')"
+      "behaviourType": "polling" | "webhook" | "schedule" | "heartbeat",
+      "triggerType": "required for polling only — one of the polling types above",
+      "scheduleCron": "required for schedule/heartbeat — e.g. '0 9 * * *' (9am daily), '0 * * * *' (hourly)",
+      "config": { "path": "webhook-path" } for webhook, {} for others,
+      "description": "Human-readable label (e.g. 'Watch Gmail for new emails', 'Run when webhook at /signup')"
     }
   ],
   "initialMemories": [
     "A specific fact to pre-load (e.g. 'User prefers concise replies under 3 sentences')",
     "Another fact (e.g. 'Always sign off messages as Aria')"
+  ],
+  "initialGoals": [
+    "What the agent should work toward (e.g. 'Keep user informed of high-priority emails within 2 hours')"
+  ],
+  "initialRules": [
+    "Behaviour constraints (e.g. 'Never forward emails without explicit user consent')"
   ]
 }
 
 ---
 RULES:
-1. Only use trigger types from the available list above. Never invent trigger types.
-2. If a behaviour needs a polling trigger but no matching integration is connected, use "heartbeat" instead (so the agent can still check proactively).
-3. The "instructions" field should be thorough — at least 3-5 sentences. Include what the agent should do, how it should communicate, what it should remember, and any constraints.
-4. "initialMemories" are facts that are true right now — useful context the agent needs from day one. Include communication preferences, user context, or operational rules. Include 2-5 items.
-5. "config" is usually {} unless you have a specific value to set (e.g. a label filter).
-6. Pick a name that sounds like a real assistant name or a descriptive bot name. Avoid generic names like "Agent" or "Bot".
-7. The avatarEmoji should meaningfully reflect the agent's primary purpose.
-8. Be practical: if the user mentions "every morning" or "daily", add a heartbeat behaviour with the appropriate cron.
-9. If the user's description doesn't clearly mention a polling source but does mention a time-based action, use heartbeat.
-10. Do not add behaviours for integrations that are NOT in the available triggers list.`;
+1. behaviours: ONLY add when user specifies a trigger or you can clearly infer one. If none → behaviours: [].
+2. Polling: Only use trigger types from the polling list.
+3. Webhook: behaviourType "webhook", config.path = URL-safe slug (e.g. "signup", "order-webhook"). No triggerType.
+4. Schedule/heartbeat: scheduleCron REQUIRED. "daily at 9am" → "0 9 * * *", "hourly" → "0 * * * *", "9am Mon-Fri" → "0 9 * * 1-5".
+5. "instructions" should be thorough — at least 3-5 sentences.
+6. "initialMemories" MUST extract ALL specific knowledge from the user's prompts.
+7. "initialGoals" and "initialRules" from prompts.
+8. Pick a real-sounding name. Avoid "Agent" or "Bot".
+9. config for polling: fill when you have specific values; otherwise {}.
+10. Do NOT add a default heartbeat when the user did not ask for a time-based trigger. Manual-only agents have empty behaviours.`;
 }
 
 // ============================================================================
 // VALIDATION + NORMALISATION
 // ============================================================================
 
-const VALID_BEHAVIOUR_TYPES = new Set(['polling', 'schedule', 'heartbeat']);
+const VALID_BEHAVIOUR_TYPES = new Set(['polling', 'webhook', 'schedule', 'heartbeat']);
 const VALID_TRIGGER_TYPES = new Set(TRIGGER_CATALOGUE.map((t) => t.triggerType));
 
 function validateAndNormalisePlan(
@@ -291,31 +304,38 @@ function validateAndNormalisePlan(
   const behaviours: AgentBehaviourPlan[] = rawBehaviours
     .filter((b: any) => {
       if (!VALID_BEHAVIOUR_TYPES.has(b.behaviourType)) return false;
-      // For polling behaviours, triggerType must be in the available list
       if (b.behaviourType === 'polling') {
         if (!b.triggerType || !VALID_TRIGGER_TYPES.has(b.triggerType)) return false;
         if (!availableTriggerTypes.has(b.triggerType)) return false;
       }
+      if (b.behaviourType === 'webhook') {
+        // Webhook needs config.path; we allow through and default in map
+      }
+      if ((b.behaviourType === 'schedule' || b.behaviourType === 'heartbeat') && !b.scheduleCron) {
+        return false; // Must have cron
+      }
       return true;
     })
-    .map((b: any) => ({
-      behaviourType: b.behaviourType,
-      triggerType: b.triggerType ?? undefined,
-      scheduleCron: typeof b.scheduleCron === 'string' ? b.scheduleCron : undefined,
-      config: b.config && typeof b.config === 'object' ? b.config : {},
-      description:
-        typeof b.description === 'string' ? b.description.trim() : b.behaviourType,
-    }));
-
-  // If no valid behaviours were produced, add a default hourly heartbeat
-  if (behaviours.length === 0) {
-    behaviours.push({
-      behaviourType: 'heartbeat',
-      scheduleCron: '0 * * * *',
-      config: {},
-      description: 'Hourly check-in to review instructions and take any needed actions',
+    .map((b: any) => {
+      const config = b.config && typeof b.config === 'object' ? { ...b.config } : {};
+      // Webhook: ensure path is set (URL-safe slug)
+      if (b.behaviourType === 'webhook') {
+        const path = config.path;
+        const safePath =
+          typeof path === 'string' && path.trim()
+            ? path.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-') || 'webhook'
+            : 'webhook';
+        config.path = safePath;
+      }
+      return {
+        behaviourType: b.behaviourType,
+        triggerType: b.behaviourType === 'polling' ? (b.triggerType ?? undefined) : undefined,
+        scheduleCron: typeof b.scheduleCron === 'string' ? b.scheduleCron : undefined,
+        config,
+        description:
+          typeof b.description === 'string' ? b.description.trim() : b.behaviourType,
+      };
     });
-  }
 
   // Initial memories
   const rawMemories: any[] = Array.isArray(raw.initialMemories) ? raw.initialMemories : [];
@@ -324,5 +344,26 @@ function validateAndNormalisePlan(
     .map((m: string) => m.trim())
     .slice(0, 10);
 
-  return { name, persona, instructions, avatarEmoji, behaviours, initialMemories };
+  // Initial goals and rules
+  const rawGoals: any[] = Array.isArray(raw.initialGoals) ? raw.initialGoals : [];
+  const initialGoals: string[] = rawGoals
+    .filter((g: any) => typeof g === 'string' && g.trim())
+    .map((g: string) => g.trim())
+    .slice(0, 8);
+  const rawRules: any[] = Array.isArray(raw.initialRules) ? raw.initialRules : [];
+  const initialRules: string[] = rawRules
+    .filter((r: any) => typeof r === 'string' && r.trim())
+    .map((r: string) => r.trim())
+    .slice(0, 8);
+
+  return {
+    name,
+    persona,
+    instructions,
+    avatarEmoji,
+    behaviours,
+    initialMemories,
+    initialGoals,
+    initialRules,
+  };
 }

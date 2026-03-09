@@ -32,6 +32,11 @@ export async function createAgentBehaviours(
 
   for (const plan of behaviours) {
     // 1. Insert into agent_behaviours
+    const description =
+      typeof (plan as any).description === 'string' && (plan as any).description.trim()
+        ? (plan as any).description.trim()
+        : null;
+
     const { data: row, error } = await (supabase as any)
       .from('agent_behaviours')
       .insert({
@@ -41,6 +46,7 @@ export async function createAgentBehaviours(
         trigger_type: plan.triggerType ?? null,
         schedule_cron: plan.scheduleCron ?? null,
         config: plan.config ?? {},
+        description,
         enabled: true,
       })
       .select()
@@ -67,9 +73,8 @@ export async function createAgentBehaviours(
           userId,
         };
 
-        // Use agentId as workflow_id — the (workflow_id, trigger_type) unique
-        // constraint allows one polling trigger per agent per trigger type.
-        await createPollingTrigger(agentId, plan.triggerType, triggerConfig);
+        // Use agent_id column (workflow_id stays null) — see add_polling_triggers_agent_support migration
+        await createPollingTrigger(agentId, plan.triggerType, triggerConfig, { isAgent: true });
 
         console.log(
           `[BehaviourManager] Created polling trigger for agent ${agentId}, ` +
@@ -86,6 +91,64 @@ export async function createAgentBehaviours(
   }
 
   return created;
+}
+
+// ============================================================================
+// DELETE SINGLE BEHAVIOUR
+// ============================================================================
+
+/**
+ * Delete a single behaviour by ID.
+ * For polling behaviours, also deletes the corresponding polling_trigger.
+ */
+export async function deleteAgentBehaviour(
+  agentId: string,
+  userId: string,
+  behaviourId: string
+): Promise<void> {
+  const supabase = createAdminClient();
+
+  // Fetch the behaviour to get trigger_type for polling cleanup
+  const { data: behaviour, error: fetchError } = await (supabase as any)
+    .from('agent_behaviours')
+    .select('id, behaviour_type, trigger_type')
+    .eq('id', behaviourId)
+    .eq('agent_id', agentId)
+    .eq('user_id', userId)
+    .single();
+
+  if (fetchError || !behaviour) {
+    console.error('[BehaviourManager] Behaviour not found:', behaviourId);
+    throw new Error('Behaviour not found');
+  }
+
+  // For polling behaviours, delete the polling_trigger (agent triggers use agent_id)
+  if (behaviour.behaviour_type === 'polling' && behaviour.trigger_type) {
+    const { error: ptError } = await (supabase as any)
+      .from('polling_triggers')
+      .delete()
+      .eq('agent_id', agentId)
+      .eq('trigger_type', behaviour.trigger_type);
+
+    if (ptError) {
+      console.error('[BehaviourManager] Failed to delete polling trigger:', ptError.message);
+    }
+  }
+
+  // Delete the behaviour row
+  const { error: bhError } = await (supabase as any)
+    .from('agent_behaviours')
+    .delete()
+    .eq('id', behaviourId)
+    .eq('agent_id', agentId)
+    .eq('user_id', userId);
+
+  if (bhError) {
+    console.error('[BehaviourManager] Failed to delete behaviour:', bhError.message);
+    throw new Error('Failed to delete behaviour');
+  }
+
+  console.log(`[BehaviourManager] Deleted behaviour ${behaviourId} for agent ${agentId}`);
 }
 
 // ============================================================================
@@ -113,11 +176,11 @@ export async function disableAgentBehaviours(
     console.error('[BehaviourManager] Failed to disable behaviours:', bhError.message);
   }
 
-  // Disable the polling_triggers row (uses agentId as workflow_id)
+  // Disable the polling_triggers rows (agent triggers use agent_id)
   const { error: ptError } = await (supabase as any)
     .from('polling_triggers')
     .update({ enabled: false, updated_at: new Date().toISOString() })
-    .eq('workflow_id', agentId);
+    .eq('agent_id', agentId);
 
   if (ptError) {
     console.error('[BehaviourManager] Failed to disable polling triggers:', ptError.message);
@@ -151,7 +214,7 @@ export async function enableAgentBehaviours(
     console.error('[BehaviourManager] Failed to enable behaviours:', bhError.message);
   }
 
-  // Re-enable polling triggers and set next_poll_at to now so they fire immediately
+  // Re-enable polling triggers and set next_poll_at to now so they fire immediately (agent triggers use agent_id)
   const { error: ptError } = await (supabase as any)
     .from('polling_triggers')
     .update({
@@ -159,7 +222,7 @@ export async function enableAgentBehaviours(
       next_poll_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('workflow_id', agentId);
+    .eq('agent_id', agentId);
 
   if (ptError) {
     console.error('[BehaviourManager] Failed to enable polling triggers:', ptError.message);
@@ -182,11 +245,11 @@ export async function deleteAgentBehaviours(
 ): Promise<void> {
   const supabase = createAdminClient();
 
-  // Delete polling_triggers rows first (FK-safe since no FK from polling_triggers → agent_behaviours)
+  // Delete polling_triggers rows first (agent triggers use agent_id)
   const { error: ptError } = await (supabase as any)
     .from('polling_triggers')
     .delete()
-    .eq('workflow_id', agentId);
+    .eq('agent_id', agentId);
 
   if (ptError) {
     console.error('[BehaviourManager] Failed to delete polling triggers:', ptError.message);

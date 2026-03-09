@@ -12,6 +12,8 @@ export interface CreditBalance {
   monthlyAllocation: number;
   lastReset: string;
   nextReset: string;
+  /** Subscription tier for UI (e.g. 'free' | 'pro') */
+  subscriptionTier?: string;
 }
 
 /**
@@ -42,6 +44,7 @@ export async function getCreditBalance(userId: string): Promise<CreditBalance | 
     monthlyAllocation,
     lastReset,
     nextReset: nextReset.toISOString(),
+    subscriptionTier: user.subscription_tier || 'free',
   };
 }
 

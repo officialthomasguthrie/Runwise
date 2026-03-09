@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Bot, Play, Pause, Trash2, ArrowRight, Zap, Clock } from "lucide-react";
-import { GridCard } from "@/components/ui/grid-card";
+import { Play, Pause, Trash2, ArrowRight, Clock, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AgentWithStats } from "@/lib/agents/types";
+import { getAgentAvatarUrl } from "@/lib/agents/avatar";
 
 interface AgentCardProps {
   agent: AgentWithStats;
@@ -15,14 +15,13 @@ interface AgentCardProps {
 export function AgentCard({ agent, onPause, onDelete }: AgentCardProps) {
   const router = useRouter();
 
-  const statusConfig: Record<string, { label: string; dot: string }> = {
-    active:    { label: "Active",    dot: "bg-emerald-400" },
-    paused:    { label: "Paused",    dot: "bg-amber-400" },
-    deploying: { label: "Deploying", dot: "bg-blue-400 animate-pulse" },
-    error:     { label: "Error",     dot: "bg-red-400" },
+  const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+    active:    { bg: "bg-emerald-500/15", text: "text-emerald-600 dark:text-emerald-400", label: "Active" },
+    paused:    { bg: "bg-amber-500/15", text: "text-amber-600 dark:text-amber-400", label: "Paused" },
+    deploying: { bg: "bg-sky-500/15", text: "text-sky-600 dark:text-sky-400", label: "Deploying" },
+    error:     { bg: "bg-rose-500/15", text: "text-rose-600 dark:text-rose-400", label: "Error" },
   };
-
-  const status = statusConfig[agent.status] ?? { label: agent.status, dot: "bg-zinc-400" };
+  const status = statusConfig[agent.status] ?? { bg: "bg-zinc-500/15", text: "text-zinc-600 dark:text-zinc-400", label: agent.status };
 
   return (
     <div className="group relative">
@@ -34,67 +33,80 @@ export function AgentCard({ agent, onPause, onDelete }: AgentCardProps) {
           e.stopPropagation();
           onDelete(agent.id);
         }}
-        className="absolute right-2 top-2 z-20 inline-flex items-center justify-center rounded-md border border-stone-200 dark:border-white/10 bg-background/80 p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-background"
+        className="absolute right-2 top-2 z-20 inline-flex items-center justify-center p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100"
       >
         <Trash2 className="h-4 w-4" />
       </button>
 
-      <GridCard
-        className="cursor-pointer transition-colors hover:border-pink-400/50 min-h-[140px]"
+      <div
+        className={cn(
+          "cursor-pointer h-[148px] relative flex flex-col overflow-hidden rounded-xl",
+          "bg-stone-200/50 dark:bg-white/5 backdrop-blur-xl border border-stone-300/60 dark:border-white/10",
+          "shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]",
+          "transition-colors duration-150 hover:bg-stone-200/60 dark:hover:bg-white/[0.07]",
+          "px-5 py-4"
+        )}
         onClick={() => router.push(`/agents/${agent.id}`)}
       >
-        <div className="relative z-10 flex flex-col h-full gap-3">
+        <div className="relative z-10 flex flex-col h-full gap-3 min-h-0">
           {/* Top row: avatar + name + status */}
-          <div className="flex items-start gap-3">
-            {/* Emoji avatar */}
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl leading-none">
-              {agent.avatar_emoji || "🤖"}
+          <div className="flex items-start gap-3 min-h-0">
+            {/* Profile image (same as agent tab) */}
+            <div className="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden border border-white/10 bg-white/5">
+              <img
+                src={agent.avatar_image ?? getAgentAvatarUrl(agent.id)}
+                alt=""
+                className="w-full h-full object-cover"
+              />
             </div>
 
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="flex items-center gap-2 min-w-0">
                 <span className="font-medium text-foreground truncate text-sm">
                   {agent.name}
                 </span>
-                {/* Status badge */}
-                <span className="inline-flex items-center gap-1.5 flex-shrink-0">
-                  <span className={cn("h-1.5 w-1.5 rounded-full", status.dot)} />
-                  <span className="text-xs text-muted-foreground">{status.label}</span>
+                {/* Status badge — same design as agent tab (pill with colored bg) */}
+                <span
+                  className={cn(
+                    "inline-flex items-center flex-shrink-0 px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap",
+                    status.bg,
+                    status.text
+                  )}
+                >
+                  {status.label}
                 </span>
               </div>
 
-              {/* Description */}
-              {agent.description && (
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                  {agent.description}
-                </p>
-              )}
+              {/* Description — always one line with ellipsis */}
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                {agent.description ?? ""}
+              </p>
             </div>
           </div>
 
-          {/* Stats row */}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-auto">
-            <span className="flex items-center gap-1">
-              <Zap className="h-3 w-3" />
-              {agent.activity_count ?? 0} actions
+          {/* Middle: activity + created — fills space, always visible */}
+          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3 w-3 flex-shrink-0" />
+              {agent.last_activity_at
+                ? `Last run ${relativeTime(agent.last_activity_at)}`
+                : "No runs yet"}
             </span>
-            {agent.last_activity_at && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {relativeTime(agent.last_activity_at)}
-              </span>
-            )}
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="h-3 w-3 flex-shrink-0" />
+              Added {relativeTime(agent.created_at)}
+            </span>
           </div>
 
-          {/* Bottom row: actions + arrow */}
-          <div className="flex items-center justify-between">
+          {/* Bottom row: pause/resume (left-aligned with content) + arrow (right) — same gap as above */}
+          <div className="flex items-center justify-between w-full">
             <button
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onPause(agent.id);
               }}
-              className="inline-flex items-center gap-1 rounded-md border border-stone-200 dark:border-white/10 bg-background/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-white/20 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               {agent.status === "active" ? (
                 <><Pause className="h-3 w-3" /> Pause</>
@@ -102,10 +114,10 @@ export function AgentCard({ agent, onPause, onDelete }: AgentCardProps) {
                 <><Play className="h-3 w-3" /> Resume</>
               )}
             </button>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           </div>
         </div>
-      </GridCard>
+      </div>
     </div>
   );
 }

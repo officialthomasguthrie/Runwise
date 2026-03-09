@@ -12,14 +12,21 @@ import {
   Trash2,
   Zap,
   Check,
+  Webhook,
+  Timer,
+  Target,
+  Settings2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
 import { AgentActivityFeed } from "@/components/ui/agent-activity-feed";
 import { AgentMemoryPanel } from "@/components/ui/agent-memory-panel";
+import { AgentWorkspaceTabs } from "@/components/ui/agent-workspace-tabs";
+import { AgentWorkspaceChat } from "@/components/ui/agent-workspace-chat";
 import { cn } from "@/lib/utils";
 import type { Agent, AgentBehaviour, AgentMemory } from "@/lib/agents/types";
+import { planFromBehaviours, buildIntegrationCheckListForPolling } from "@/lib/agents/chat-pipeline";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,6 +43,7 @@ function StatusBadge({ status }: { status: string }) {
     paused:    { dot: "bg-amber-400",                label: "Paused"    },
     deploying: { dot: "bg-blue-400 animate-pulse",   label: "Deploying" },
     error:     { dot: "bg-red-400",                  label: "Error"     },
+    pending_integrations: { dot: "bg-amber-400",     label: "Pending integrations" },
   };
   const c = cfg[status] ?? { dot: "bg-zinc-400", label: status };
   return (
@@ -231,6 +239,11 @@ export default function AgentDetailPage() {
   const [activityCount, setActivityCount] = useState<number>(0);
   const [pageLoading, setPageLoading] = useState(true);
   const [togglingPause, setTogglingPause] = useState(false);
+  const [pauseError, setPauseError] = useState<string | null>(null);
+  const [activateLoading, setActivateLoading] = useState(false);
+  const [activateError, setActivateError] = useState<string | null>(null);
+  const [connectedServices, setConnectedServices] = useState<string[]>([]);
+  const [workspaceTab, setWorkspaceTab] = useState<"agent" | "chat">("agent");
 
   // Auth guard
   useEffect(() => {
@@ -242,6 +255,27 @@ export default function AgentDetailPage() {
     if (!user || !agentId) return;
     loadAll();
   }, [user, agentId]);
+
+  // Poll integrations when agent is pending_integrations
+  useEffect(() => {
+    if (!agent || agent.status !== "pending_integrations") return;
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/integrations/status", { credentials: "include" });
+        if (!res.ok) return;
+        const json = await res.json();
+        const services: string[] = (json.integrations ?? [])
+          .filter((x: { service: string; connected?: boolean }) => x.service && x.connected !== false)
+          .map((x: { service: string }) => x.service);
+        setConnectedServices(services);
+      } catch {
+        /* ignore */
+      }
+    };
+    poll();
+    const id = setInterval(poll, 3000);
+    return () => clearInterval(id);
+  }, [agent?.id, agent?.status]);
 
   async function loadAll() {
     setPageLoading(true);
@@ -280,16 +314,33 @@ export default function AgentDetailPage() {
   async function handleTogglePause() {
     if (!agent) return;
     setTogglingPause(true);
+    setPauseError(null);
     const res = await fetch(`/api/agents/${agent.id}/pause`, {
       method: "POST",
     });
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      const json = await res.json();
       setAgent((prev) =>
-        prev ? { ...prev, status: json.newStatus } : prev
+        prev ? { ...prev, status: data.newStatus } : prev
       );
+    } else {
+      setPauseError(data.error ?? "Failed to resume");
     }
     setTogglingPause(false);
+  }
+
+  async function handleActivate() {
+    if (!agent || agent.status !== "pending_integrations") return;
+    setActivateLoading(true);
+    setActivateError(null);
+    const res = await fetch(`/api/agents/${agent.id}/activate`, { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.agent) {
+      setAgent((prev) => (prev ? { ...prev, ...data.agent } : prev));
+    } else if (!res.ok) {
+      setActivateError(data.error ?? "Failed to activate");
+    }
+    setActivateLoading(false);
   }
 
   function handleUpdate(patch: Partial<Agent>) {
@@ -327,9 +378,9 @@ export default function AgentDetailPage() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <BlankHeader />
 
-        <main className="flex flex-1 flex-col overflow-hidden">
-          {/* ── Page header ──────────────────────────────────────────────── */}
-          <div className="flex-shrink-0 px-4 sm:px-6 lg:px-8 pt-6 pb-4 border-b border-white/5">
+        <main className="relative flex flex-1 flex-col overflow-hidden">
+          {/* ── Page header: sticky on top, chat scrolls behind ───────────── */}
+          <div className="sticky top-0 z-10 flex-shrink-0 px-4 sm:px-6 lg:px-8 pt-6 pb-4 border-b border-white/5 bg-background">
             {/* Back link */}
             <button
               onClick={() => router.push("/agents")}
@@ -340,8 +391,8 @@ export default function AgentDetailPage() {
             </button>
 
             <div className="flex items-start justify-between gap-4 flex-wrap">
-              {/* Agent identity */}
-              <div className="flex items-center gap-3">
+              {/* Agent identity + workspace tabs */}
+              <div className="flex items-center gap-4 flex-wrap">
                 <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl flex-shrink-0">
                   {agent.avatar_emoji || "🤖"}
                 </div>
@@ -359,59 +410,180 @@ export default function AgentDetailPage() {
                     )}
                   </div>
                 </div>
+                <AgentWorkspaceTabs
+                  activeTab={workspaceTab}
+                  onTabChange={setWorkspaceTab}
+                />
               </div>
 
-              {/* Pause / Resume */}
-              <button
-                onClick={handleTogglePause}
-                disabled={togglingPause}
-                className="inline-flex items-center gap-2 rounded-md border border-white/10 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06] px-4 py-2 text-sm text-foreground transition-colors disabled:opacity-50"
-              >
-                {togglingPause ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : isActive ? (
-                  <>
-                    <Pause className="h-4 w-4" /> Pause
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4" /> Resume
-                  </>
-                )}
-              </button>
+              {/* Activate (when pending_integrations) or Pause / Resume */}
+              {agent.status === "pending_integrations" ? (
+                <button
+                  onClick={handleActivate}
+                  disabled={activateLoading}
+                  className="inline-flex items-center gap-2 rounded-md border border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 px-4 py-2 text-sm text-foreground transition-colors disabled:opacity-50"
+                >
+                  {activateLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" /> Activate
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={handleTogglePause}
+                  disabled={togglingPause}
+                  className="inline-flex items-center gap-2 rounded-md border border-white/10 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06] px-4 py-2 text-sm text-foreground transition-colors disabled:opacity-50"
+                >
+                  {togglingPause ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : isActive ? (
+                    <>
+                      <Pause className="h-4 w-4" /> Pause
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" /> Resume
+                    </>
+                  )}
+                </button>
+              )}
             </div>
+            {(pauseError || activateError) && (
+              <p className="mt-2 text-xs text-red-400" role="alert">
+                {pauseError ?? activateError}
+              </p>
+            )}
+            {/* Integration gate when pending_integrations */}
+            {agent.status === "pending_integrations" && (() => {
+              const plan = planFromBehaviours((agent.behaviours ?? []) as Array<{ behaviour_type: string; trigger_type?: string | null; config?: Record<string, unknown>; description?: string }>);
+              const requiredIntegrations = buildIntegrationCheckListForPolling(plan, connectedServices);
+              const disconnected = requiredIntegrations.filter((i) => !i.connected);
+              if (disconnected.length === 0) return null;
+              const origin = typeof window !== "undefined" ? window.location.origin : "";
+              return (
+                <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
+                  <p className="text-sm font-medium text-amber-200 mb-3">
+                    Connect these integrations to activate your agent:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {disconnected.map((item) => (
+                      <button
+                        key={item.service}
+                        type="button"
+                        onClick={() => {
+                          let url = item.connectUrl.startsWith("http") ? item.connectUrl : `${origin}${item.connectUrl}`;
+                          const returnUrl = `${origin}/integrations/oauth-return?service=${encodeURIComponent(item.service)}`;
+                          if (item.connectionMethod === "oauth") {
+                            const sep = url.includes("?") ? "&" : "?";
+                            url += `${sep}returnUrl=${encodeURIComponent(returnUrl)}${agentId ? `&agent_id=${encodeURIComponent(agentId)}` : ""}`;
+                            window.location.href = url;
+                          } else {
+                            const sep = url.includes("?") ? "&" : "?";
+                            url += `${sep}returnUrl=${encodeURIComponent(returnUrl)}`;
+                            window.open(url, "ConnectIntegration", "width=600,height=700");
+                          }
+                        }}
+                        className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border border-amber-500/40 bg-white/5 text-amber-100 hover:bg-amber-500/10 transition-colors"
+                      >
+                        <span className="text-base">{item.icon}</span>
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* ── Main content: two-column layout ──────────────────────────── */}
-          <div className="flex flex-1 overflow-hidden">
-            {/* Left: Activity feed (60%) */}
-            <div className="flex-[3] min-w-0 overflow-y-auto scrollbar-hide border-r border-white/5 px-4 sm:px-6 lg:px-8 py-6">
-              <AgentActivityFeed
+          {/* ── Main content: Agent tab or Chat tab ───────────────────────── */}
+          {workspaceTab === "chat" ? (
+            <div className="absolute inset-0 z-0 flex flex-col overflow-hidden">
+              <AgentWorkspaceChat
                 agentId={agentId}
-                isActive={isActive}
+                userId={user?.id ?? null}
+                agentName={agent.name}
+                className="flex-1 min-w-0 min-h-0"
               />
             </div>
+          ) : (
+            <div className="flex flex-1 overflow-hidden">
+              {/* Left: Activity feed (60%) */}
+                <div className="flex-[3] min-w-0 overflow-y-auto scrollbar-hide border-r border-white/5 px-4 sm:px-6 lg:px-8 py-6">
+                  <AgentActivityFeed
+                    agentId={agentId}
+                    isActive={isActive}
+                  />
+                </div>
 
-            {/* Right: Memory + Settings (40%) */}
-            <div className="flex-[2] min-w-0 overflow-y-auto scrollbar-hide px-4 sm:px-6 py-6 flex flex-col gap-6">
-              {/* Memory */}
-              <CollapsibleSection title="Memory" defaultOpen>
-                <AgentMemoryPanel
-                  agentId={agentId}
-                  initialMemories={memories}
-                />
-              </CollapsibleSection>
+                {/* Right: Triggers + Memory + Settings (40%) */}
+                <div className="flex-[2] min-w-0 overflow-y-auto scrollbar-hide px-4 sm:px-6 py-6 flex flex-col gap-6">
+                  {/* Triggers */}
+                  <CollapsibleSection title="Triggers" defaultOpen>
+                    <div className="space-y-2">
+                      {(agent.behaviours?.length ?? 0) > 0 ? (
+                        (agent.behaviours as AgentBehaviour[]).map((b) => {
+                          const label =
+                            (b as { description?: string }).description?.trim() ||
+                            (b.behaviour_type === "webhook"
+                              ? `Webhook: /${(b.config as { path?: string })?.path ?? "..."}`
+                              : b.behaviour_type === "schedule"
+                                ? `Schedule: ${(b.config as { frequency?: string })?.frequency ?? "cron"}`
+                                : b.trigger_type
+                                  ? b.trigger_type.replace(/-/g, " ")
+                                  : b.behaviour_type);
+                          const Icon =
+                            b.behaviour_type === "webhook"
+                              ? Webhook
+                              : b.behaviour_type === "schedule"
+                                ? Timer
+                                : Target;
+                          return (
+                            <div
+                              key={b.id}
+                              className="flex items-center gap-2 rounded-md bg-white/[0.03] border border-white/10 px-3 py-2"
+                            >
+                              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-white/5">
+                                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                              </div>
+                              <span className="text-sm font-medium text-foreground truncate">{label}</span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-xs text-muted-foreground">This agent runs manually. No triggers configured.</p>
+                      )}
+                      <a
+                        href={`/agents/new?agentId=${agent.id}`}
+                        className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Settings2 className="h-3.5 w-3.5" />
+                        Manage triggers
+                      </a>
+                    </div>
+                  </CollapsibleSection>
 
-              {/* Settings */}
-              <CollapsibleSection title="Settings" defaultOpen={false}>
-                <AgentSettings
-                  agent={agent}
-                  onUpdate={handleUpdate}
-                  onDelete={handleDelete}
-                />
-              </CollapsibleSection>
+                  {/* Memory */}
+                  <CollapsibleSection title="Memory" defaultOpen>
+                    <AgentMemoryPanel
+                      agentId={agentId}
+                      initialMemories={memories}
+                    />
+                  </CollapsibleSection>
+
+                  {/* Settings */}
+                  <CollapsibleSection title="Settings" defaultOpen={false}>
+                    <AgentSettings
+                      agent={agent}
+                      onUpdate={handleUpdate}
+                      onDelete={handleDelete}
+                    />
+                  </CollapsibleSection>
+                </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
     </div>

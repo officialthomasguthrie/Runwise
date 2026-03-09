@@ -13,8 +13,12 @@ import { writeMemory } from '@/lib/agents/memory';
 import {
   createSSEStream,
   SSE_HEADERS,
+  buildIntegrationCheckListForPolling,
   type AgentBuildRequest,
 } from '@/lib/agents/chat-pipeline';
+import { streamCompletionSummary, generateShortDescription } from '@/lib/ai/agent-streaming';
+import { getUserIntegrations } from '@/lib/integrations/service';
+import { getAgentAvatarUrl } from '@/lib/agents/avatar';
 
 const STAGES = [
   'Intent analysed',
@@ -130,20 +134,55 @@ export async function POST(request: NextRequest) {
         await sleep(400);
         writer.buildStage(STAGES[4], 'done');
 
-        // 6. Agent deployed — update status to active
+        // 6. Agent deployed — generate short tagline and set status (active or pending_integrations)
         writer.buildStage(STAGES[5], 'running');
+
+        const shortDescription = await generateShortDescription(plan, description.trim());
+
+        // Assign profile image (same randomized style as agent tab) and persist
+        const avatarImage = getAgentAvatarUrl(agent.id);
+
+        // Build goals_rules from plan for Goals & Rules section
+        const goalsRules = [
+          ...(plan.initialGoals ?? []).map((label: string, i: number) => ({
+            id: `goal-${agent.id}-${i}`,
+            type: 'goal' as const,
+            label: label.trim(),
+          })),
+          ...(plan.initialRules ?? []).map((label: string, i: number) => ({
+            id: `rule-${agent.id}-${i}`,
+            type: 'rule' as const,
+            label: label.trim(),
+          })),
+        ].filter((g) => g.label);
+
+        // Integration gate: only block on polling-required integrations
+        const integrations = await getUserIntegrations(user.id);
+        const connectedServices = integrations
+          .map((i) => i.service_name)
+          .filter(Boolean) as string[];
+        const requiredIntegrations = buildIntegrationCheckListForPolling(plan, connectedServices);
+        const hasDisconnected = requiredIntegrations.some((i) => !i.connected);
+        const finalStatus = hasDisconnected ? 'pending_integrations' : 'active';
 
         await (admin as any)
           .from('agents')
-          .update({ status: 'active', updated_at: new Date().toISOString() })
+          .update({
+            status: finalStatus,
+            updated_at: new Date().toISOString(),
+            short_description: shortDescription,
+            avatar_image: avatarImage,
+            goals_rules: goalsRules,
+          })
           .eq('id', agent.id)
           .eq('user_id', user.id);
 
         writer.buildStage(STAGES[5], 'done');
 
-        // 7. Complete
-        const summary = `${plan.name} is live and watching. ${plan.behaviours.length} behaviour(s) active.`;
-        writer.complete(agent.id, summary);
+        // 7. Stream AI-generated summary, then complete
+        await streamCompletionSummary(writer, plan, description.trim());
+
+        writer.complete(agent.id, '', requiredIntegrations.length > 0 ? requiredIntegrations : undefined);
       } catch (err: any) {
         console.error('[POST /api/agents/build]', err);
         writer.error(err?.message ?? 'Something went wrong');

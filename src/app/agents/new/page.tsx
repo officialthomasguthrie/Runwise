@@ -1,17 +1,30 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
-import { AgentChatBuilder, BuilderTabs } from "@/components/ui/agent-chat";
+import { cn } from "@/lib/utils";
+import { AgentChatBuilder, AgentPlaceholder, BuilderTabs, type BuilderTab } from "@/components/ui/agent-chat";
+import { AgentTabContent } from "@/components/ui/agent-tab-content";
 
 export default function NewAgentPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editAgentId = searchParams.get("agentId");
   const [agentId, setAgentId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<BuilderTab>("builder");
+
+  // When ?agentId= is present, load that agent and show agent tab (for editing triggers/config)
+  useEffect(() => {
+    if (editAgentId && editAgentId !== "new") {
+      setAgentId(editAgentId);
+      setActiveTab("agent");
+    }
+  }, [editAgentId]);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -23,38 +36,97 @@ export default function NewAgentPage() {
     <div className="flex h-screen w-screen bg-background">
       <CollapsibleSidebar />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative flex flex-1 flex-col overflow-hidden min-h-0">
         <BlankHeader />
 
-        <main className="flex h-full grow flex-col overflow-hidden">
-          <div className="relative z-10 px-4 sm:px-6 lg:px-8 pt-7 pb-4 flex-shrink-0">
-            <button
-              onClick={() => router.push("/agents")}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to agents
-            </button>
+        {/* Page header: fixed bar — scrolling content goes behind and is cut off */}
+        <div className="absolute top-16 left-0 right-0 z-20 flex h-16 flex-shrink-0 flex-row items-center justify-between gap-4 border-b border-stone-200 dark:border-white/10 bg-background px-4 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            onClick={() => router.push("/agents")}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to agents
+          </button>
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div>
-                <h1 className="text-4xl sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl tracking-tighter font-geist text-foreground leading-tight">
-                  Deploy an Agent
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Describe what you need. We&apos;ll plan and deploy it in seconds.
-                </p>
-              </div>
-              <BuilderTabs activeTab="builder" agentId={agentId} />
-            </div>
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
+            <BuilderTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              agentId={agentId}
+            />
           </div>
 
-          <div className="flex-1 min-h-0 px-4 sm:px-6 lg:px-8 pb-6">
-            <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>}>
-              <AgentChatBuilder onComplete={setAgentId} />
+          <div className="w-[120px] shrink-0" aria-hidden />
+        </div>
+
+        {/* Both panels always mounted — hide builder instantly when switching away to avoid visible fade of completion card */}
+        <div
+          className={cn(
+            "absolute inset-0 z-0 flex flex-col overflow-hidden",
+            activeTab !== "builder"
+              ? "invisible opacity-0 pointer-events-none transition-none"
+              : "transition-opacity duration-150"
+          )}
+          aria-hidden={activeTab !== "builder"}
+        >
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col px-4 sm:px-6 lg:px-8 pb-2">
+            <Suspense fallback={
+              <div className="h-full grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="min-h-[140px] rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] px-5 py-4 animate-pulse"
+                  >
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-[#303030] flex-shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-3/4 bg-gray-200 dark:bg-[#303030] rounded-md" />
+                        <div className="h-3 w-full bg-gray-200 dark:bg-[#303030] rounded-md" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <div className="h-3 w-20 bg-gray-200 dark:bg-[#303030] rounded-md" />
+                      <div className="h-3 w-16 bg-gray-200 dark:bg-[#303030] rounded-md" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            }>
+              <AgentChatBuilder
+                userId={user?.id ?? null}
+                onComplete={setAgentId}
+                onViewAgent={() => setActiveTab("agent")}
+                scrollTopOffset="9rem"
+              />
             </Suspense>
           </div>
-        </main>
+        </div>
+
+        {/* Agent panel fades in when switching to it */}
+        <div
+          className={cn(
+            "absolute inset-0 z-0 flex flex-col overflow-hidden",
+            activeTab !== "agent"
+              ? "invisible opacity-0 pointer-events-none transition-none"
+              : "transition-opacity duration-150"
+          )}
+          aria-hidden={activeTab !== "agent"}
+        >
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col pt-[9rem] px-4 sm:px-6 lg:px-8">
+            {agentId ? (
+              <AgentTabContent
+                agentId={agentId}
+                onDeleted={() => router.push("/agents")}
+              />
+            ) : (
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                <AgentPlaceholder />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

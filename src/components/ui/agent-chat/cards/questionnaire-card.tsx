@@ -14,7 +14,6 @@ export function QuestionnaireCard({ questions, onSubmit }: QuestionnaireCardProp
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<QuestionnaireAnswer[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState<string | string[]>("");
-  const [submitted, setSubmitted] = useState(false);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
 
   const currentQuestion = questions[currentIndex];
@@ -42,7 +41,6 @@ export function QuestionnaireCard({ questions, onSubmit }: QuestionnaireCardProp
     const updatedAnswers = [...answers, answer];
 
     if (isLastQuestion) {
-      setSubmitted(true);
       onSubmit(updatedAnswers);
     } else {
       setAnswers(updatedAnswers);
@@ -76,45 +74,22 @@ export function QuestionnaireCard({ questions, onSubmit }: QuestionnaireCardProp
     }
   };
 
-  // Collapsed summary after submit
-  if (submitted) {
-    return (
-      <div className="rounded-md border border-white/10 bg-white/[0.03] overflow-hidden">
-        <div className="px-4 py-2.5 border-b border-white/5">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Your answers
-          </h3>
-        </div>
-        <div className="px-4 py-3 space-y-2">
-          {answers.map((a, i) => (
-            <div key={i} className="text-sm">
-              <span className="text-muted-foreground">{a.question}</span>
-              <span className="text-foreground ml-1">
-                — {Array.isArray(a.answer) ? a.answer.join(", ") : a.answer}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   if (!currentQuestion) return null;
 
   return (
-    <div className="rounded-md border border-white/10 bg-white/[0.03] overflow-hidden">
+    <div className="rounded-md bg-stone-100 dark:bg-zinc-900 overflow-hidden">
       {/* Progress */}
       <div className="px-4 pt-3 pb-1 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          {questions.map((_, idx) => (
-            <div
-              key={idx}
-              className={cn(
-                "h-1 rounded-full transition-all duration-200",
-                idx < currentIndex && "bg-pink-400/60",
-                idx === currentIndex && "bg-pink-400",
-                idx > currentIndex && "bg-white/10"
-              )}
+            {questions.map((_, idx) => (
+              <div
+                key={idx}
+                className={cn(
+                  "h-1 rounded-full transition-all duration-200",
+                  idx < currentIndex && "bg-pink-400/60",
+                  idx === currentIndex && "bg-pink-400",
+                  idx > currentIndex && "bg-stone-300/70 dark:bg-white/10"
+                )}
               style={{ width: idx <= currentIndex ? 18 : 10 }}
             />
           ))}
@@ -140,14 +115,14 @@ export function QuestionnaireCard({ questions, onSubmit }: QuestionnaireCardProp
                   "w-full text-left px-3 py-2 rounded-lg text-sm border transition-colors",
                   currentAnswer === opt
                     ? "border-pink-400/50 bg-pink-400/10 text-foreground"
-                    : "border-white/10 bg-white/[0.02] text-muted-foreground hover:border-white/20"
+                    : "border-stone-300 bg-white text-muted-foreground hover:border-stone-400 dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20"
                 )}
               >
                 <span className="inline-flex items-center gap-2">
                   <span
                     className={cn(
                       "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                      currentAnswer === opt ? "border-pink-400 bg-pink-400" : "border-white/20"
+                      currentAnswer === opt ? "border-pink-400 bg-pink-400" : "border-stone-400 dark:border-white/20"
                     )}
                   >
                     {currentAnswer === opt && (
@@ -173,14 +148,14 @@ export function QuestionnaireCard({ questions, onSubmit }: QuestionnaireCardProp
                     "w-full text-left px-3 py-2 rounded-lg text-sm border transition-colors",
                     selected
                       ? "border-pink-400/50 bg-pink-400/10 text-foreground"
-                      : "border-white/10 bg-white/[0.02] text-muted-foreground hover:border-white/20"
+                      : "border-stone-300 bg-white text-muted-foreground hover:border-stone-400 dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20"
                   )}
                 >
                   <span className="inline-flex items-center gap-2">
                     <span
                       className={cn(
                         "w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0",
-                        selected ? "border-pink-400 bg-pink-400" : "border-white/20"
+                        selected ? "border-pink-400 bg-pink-400" : "border-stone-400 dark:border-white/20"
                       )}
                     >
                       {selected && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
@@ -203,7 +178,7 @@ export function QuestionnaireCard({ questions, onSubmit }: QuestionnaireCardProp
             onChange={(e) => setCurrentAnswer(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={currentQuestion.placeholder ?? "Type your answer…"}
-            className="w-full min-h-[60px] max-h-[120px] resize-none rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-pink-400/30"
+            className="w-full min-h-[60px] max-h-[120px] resize-none rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-pink-400/30 dark:border-white/10 dark:bg-white/[0.02]"
             rows={2}
           />
         )}

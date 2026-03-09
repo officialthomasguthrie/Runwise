@@ -337,17 +337,17 @@ Remember: configSchema MUST have at least 1 field. Use config.* for every parame
 
       // Helper: call OpenAI and parse the result
       const callCodeGen = async (msgs: { role: 'system' | 'user' | 'assistant'; content: string }[]) => {
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4o',
-          response_format: { type: 'json_object' },
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        response_format: { type: 'json_object' },
           messages: msgs,
           temperature: 0.3,
           max_tokens: 2500,
         });
         return {
           content: completion.choices[0]?.message?.content || null,
-          inputTokens: completion.usage?.prompt_tokens || 0,
-          outputTokens: completion.usage?.completion_tokens || 0,
+        inputTokens: completion.usage?.prompt_tokens || 0,
+        outputTokens: completion.usage?.completion_tokens || 0,
         };
       };
 

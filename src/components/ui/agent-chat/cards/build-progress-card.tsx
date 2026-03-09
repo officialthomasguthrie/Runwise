@@ -1,66 +1,98 @@
 "use client";
 
-import { Loader2, Check, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import type { BuildStage, BuildStageStatus } from "@/lib/agents/chat-pipeline";
 
 interface BuildProgressCardProps {
   stages: BuildStage[];
 }
 
-function StageIcon({ status }: { status: BuildStageStatus }) {
-  if (status === "pending") {
-    return (
-      <span className="w-5 h-5 rounded-full border-2 border-white/20 flex items-center justify-center flex-shrink-0 text-white/30" />
-    );
-  }
-  if (status === "running") {
-    return (
-      <Loader2 className="w-5 h-5 flex-shrink-0 text-pink-400 animate-spin" />
-    );
-  }
-  if (status === "done") {
-    return (
-      <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center flex-shrink-0">
-        <Check className="w-3 h-3 text-white" strokeWidth={3} />
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span className="w-5 h-5 rounded-full bg-red-400 flex items-center justify-center flex-shrink-0">
-        <X className="w-3 h-3 text-white" strokeWidth={3} />
-      </span>
-    );
-  }
-  return null;
+/** Canonical order of build stages — always show all 6, merge with received stages */
+const CANONICAL_STAGES: string[] = [
+  "Intent analysed",
+  "Execution logic generated",
+  "Integrations validated",
+  "Memory seeded",
+  "Safeguards applied",
+  "Agent deployed",
+];
+
+/** Maps stage label to in-progress label (for shimmer state) */
+const STAGE_LABELS: Record<string, string> = {
+  "Intent analysed": "Analysing intent",
+  "Execution logic generated": "Generating execution logic",
+  "Integrations validated": "Validating integrations",
+  "Memory seeded": "Seeding memory",
+  "Safeguards applied": "Applying safeguards",
+  "Agent deployed": "Deploying agent",
+};
+
+function getInProgressLabel(completedLabel: string): string {
+  return STAGE_LABELS[completedLabel] ?? completedLabel.replace("d", "ing").replace("ed", "ing");
 }
 
 export function BuildProgressCard({ stages }: BuildProgressCardProps) {
+  const stagesByLabel = new Map((stages ?? []).map((s) => [s.label, s]));
+  const mergedStages: BuildStage[] = CANONICAL_STAGES.map((label) => ({
+    label,
+    status: (stagesByLabel.get(label)?.status ?? "pending") as BuildStageStatus,
+  }));
+
   return (
-    <div className="rounded-md border border-white/10 bg-white/[0.03] overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-white/5">
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Building your agent
-        </h3>
-      </div>
-      <div className="px-4 py-3 flex flex-col gap-2">
-        {stages.map((stage, i) => (
-          <div
-            key={`${stage.label}-${i}`}
-            className={cn(
-              "flex items-center gap-3 text-sm animate-in fade-in slide-in-from-left-2 duration-200",
-              stage.status === "pending" && "text-muted-foreground/60",
-              stage.status === "running" && "text-foreground",
-              stage.status === "done" && "text-muted-foreground",
-              stage.status === "error" && "text-red-400"
-            )}
-            style={{ animationDelay: `${i * 60}ms`, animationFillMode: "both" }}
-          >
-            <StageIcon status={stage.status} />
-            <span>{stage.label}</span>
-          </div>
-        ))}
+    <div className="flex gap-3 justify-start">
+      <div className="max-w-[95%] rounded-lg px-4 py-2 bg-transparent text-foreground">
+        <div className="flex flex-col gap-2">
+          {mergedStages.map((stage, i) => {
+              const isPending = stage.status === "pending";
+              const isInProgress = stage.status === "running";
+              const isCompleted = stage.status === "done";
+              const isFailed = stage.status === "error";
+              const inProgressLabel = getInProgressLabel(stage.label);
+
+              return (
+                <div key={`${stage.label}-${i}`} className="flex items-center gap-2">
+                  {isPending && (
+                    <span className="w-3.5 h-3.5 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
+                  )}
+                  {isInProgress && (
+                    <Loader2 className="h-3.5 w-3.5 text-foreground animate-spin flex-shrink-0" />
+                  )}
+                  {isCompleted && (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500/70 dark:text-green-400/70 flex-shrink-0" />
+                  )}
+                  {isFailed && (
+                    <XCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    {isInProgress ? (
+                      <p
+                        className="text-sm whitespace-pre-wrap inline-block"
+                        style={{
+                          background:
+                            "linear-gradient(90deg, hsl(var(--foreground)) 0%, hsl(var(--foreground) / 0.8) 25%, hsl(var(--foreground) / 0.4) 50%, hsl(var(--foreground) / 0.8) 75%, hsl(var(--foreground)) 100%)",
+                          backgroundSize: "200% 100%",
+                          backgroundClip: "text",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          animation: "shimmer 2s ease-in-out infinite",
+                        }}
+                      >
+                        {inProgressLabel}
+                      </p>
+                    ) : isCompleted ? (
+                      <p className="text-sm text-muted-foreground">{stage.label}</p>
+                    ) : isFailed ? (
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        {inProgressLabel} - Failed
+                      </p>
+                    ) : isPending ? (
+                      <p className="text-sm text-muted-foreground/60">{stage.label}</p>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export type BuilderTab = "builder" | "agent";
@@ -13,20 +12,18 @@ interface BuilderTabsProps {
 
 /**
  * Two tab pills: Builder and Agent.
- * - Builder: always active on /agents/new
- * - Agent: grayed out + cursor-not-allowed when agentId === null;
- *   clickable once agentId is set → navigates to /agents/[agentId]
+ * Both switch tab content in-place — never navigates away.
+ * When agentId is null, Agent tab shows placeholder; when set, shows embedded agent workspace.
  */
-export function BuilderTabs({ activeTab, onTabChange, agentId }: BuilderTabsProps) {
-  const router = useRouter();
-  const agentDisabled = agentId === null;
-
-  const handleAgentClick = () => {
-    if (agentDisabled) return;
-    router.push(`/agents/${agentId}`);
+export function BuilderTabs({ activeTab, onTabChange, agentId: _agentId }: BuilderTabsProps) {
+  const handleAgentClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onTabChange?.("agent");
   };
-
-  const handleBuilderClick = () => {
+  const handleBuilderClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     onTabChange?.("builder");
   };
 
@@ -34,7 +31,7 @@ export function BuilderTabs({ activeTab, onTabChange, agentId }: BuilderTabsProp
     <div
       role="tablist"
       aria-label="Builder tabs"
-      className="flex items-center gap-0.5 rounded-full bg-white/[0.04] p-1 w-fit"
+      className="flex items-center gap-0.5 rounded-full bg-stone-100 dark:bg-[#141414] p-1 w-fit"
     >
       <button
         type="button"
@@ -44,8 +41,8 @@ export function BuilderTabs({ activeTab, onTabChange, agentId }: BuilderTabsProp
         className={cn(
           "px-4 py-2 text-sm font-medium rounded-full transition-colors",
           activeTab === "builder"
-            ? "bg-white/10 text-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground hover:bg-white/[0.05]"
+            ? "bg-white text-foreground shadow-sm dark:bg-[#2c2c2c]"
+            : "text-muted-foreground hover:text-foreground hover:bg-white/60 dark:hover:bg-white/[0.05]"
         )}
       >
         Builder
@@ -54,17 +51,12 @@ export function BuilderTabs({ activeTab, onTabChange, agentId }: BuilderTabsProp
         type="button"
         role="tab"
         aria-selected={activeTab === "agent"}
-        aria-disabled={agentDisabled}
         onClick={handleAgentClick}
-        disabled={agentDisabled}
         className={cn(
           "px-4 py-2 text-sm font-medium rounded-full transition-colors",
-          agentDisabled && "opacity-50 cursor-not-allowed",
-          !agentDisabled && activeTab === "agent"
-            ? "bg-white/10 text-foreground shadow-sm"
-            : !agentDisabled
-            ? "text-muted-foreground hover:text-foreground hover:bg-white/[0.05]"
-            : "text-muted-foreground"
+          activeTab === "agent"
+            ? "bg-white text-foreground shadow-sm dark:bg-[#2c2c2c]"
+            : "text-muted-foreground hover:text-foreground hover:bg-white/60 dark:hover:bg-white/[0.05]"
         )}
       >
         Agent

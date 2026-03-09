@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(getTwitterAuthUrl(state));
     
     response.cookies.set('oauth_state', state, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
     });
     
     response.cookies.set('oauth_user_id', user.id, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -50,6 +52,7 @@ export async function GET(request: NextRequest) {
     });
     
     response.cookies.set('oauth_return_url', returnUrl, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

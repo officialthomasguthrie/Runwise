@@ -193,6 +193,16 @@
   background: hsl(var(--background)) !important;
 }
 
+/* Progressive blur: ensures backdrop-filter works (isolation + minimal bg) */
+.gradient-blur {
+  isolation: isolate;
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.dark .gradient-blur {
+  background: rgba(0, 0, 0, 0.01);
+}
+
 /* Hide scrollbar utility */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE and Edge */

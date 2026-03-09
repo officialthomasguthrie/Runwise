@@ -247,7 +247,7 @@ export default function WorkflowsPage() {
                 {workflowsLoading ? (
                   <div className="w-full max-w-[1600px] grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                     {Array.from({ length: 8 }).map((_, index) => (
-                      <div key={index} className="h-32 rounded-sm border border-stone-200 dark:border-white/10 bg-background px-5 py-4">
+                      <div key={index} className="h-32 rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] px-5 py-4">
                         <div className="space-y-3">
                           {/* Title skeleton */}
                           <div className="h-5 w-3/4 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />

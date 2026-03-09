@@ -16,42 +16,76 @@ export interface PollingTriggerConfig {
 
 const POLL_INTERVAL_SECONDS = 60;
 
+export interface CreatePollingTriggerOptions {
+  /** When true, uses agent_id instead of workflow_id (for agent polling triggers) */
+  isAgent?: boolean;
+}
+
 /**
- * Create or update a polling trigger entry
+ * Create or update a polling trigger entry.
+ * For workflows: pass workflowId, leave options empty.
+ * For agents: pass agentId as first arg and { isAgent: true } as options.
  */
 export async function createPollingTrigger(
-  workflowId: string,
+  workflowIdOrAgentId: string,
   triggerType: string,
-  config: Record<string, any>
+  config: Record<string, any>,
+  options?: CreatePollingTriggerOptions
 ): Promise<void> {
   try {
     const supabase = createAdminClient();
-    
-    // Calculate next_poll_at (immediate for first poll)
+    const isAgent = options?.isAgent === true;
     const nextPollAt = new Date().toISOString();
-    
-    const { error } = await (supabase as any)
-      .from('polling_triggers')
-      .upsert({
-        workflow_id: workflowId,
-        trigger_type: triggerType,
-        config: config,
-        next_poll_at: nextPollAt,
-        poll_interval: POLL_INTERVAL_SECONDS,
-        enabled: true,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'workflow_id,trigger_type',
-      });
 
-    if (error) {
-      console.error(`[Polling Triggers] Error creating trigger for ${workflowId}:`, error);
-      throw error;
+    if (isAgent) {
+      const { error } = await (supabase as any)
+        .from('polling_triggers')
+        .upsert(
+          {
+            agent_id: workflowIdOrAgentId,
+            workflow_id: null,
+            trigger_type: triggerType,
+            config,
+            next_poll_at: nextPollAt,
+            poll_interval: POLL_INTERVAL_SECONDS,
+            enabled: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'agent_id,trigger_type' }
+        );
+
+      if (error) {
+        console.error(`[Polling Triggers] Error creating agent trigger for ${workflowIdOrAgentId}:`, error);
+        throw error;
+      }
+      console.log(
+        `[Polling Triggers] Created/updated polling trigger for agent ${workflowIdOrAgentId}, type ${triggerType}, interval ${POLL_INTERVAL_SECONDS}s`
+      );
+    } else {
+      const { error } = await (supabase as any)
+        .from('polling_triggers')
+        .upsert(
+          {
+            workflow_id: workflowIdOrAgentId,
+            agent_id: null,
+            trigger_type: triggerType,
+            config,
+            next_poll_at: nextPollAt,
+            poll_interval: POLL_INTERVAL_SECONDS,
+            enabled: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'workflow_id,trigger_type' }
+        );
+
+      if (error) {
+        console.error(`[Polling Triggers] Error creating trigger for ${workflowIdOrAgentId}:`, error);
+        throw error;
+      }
+      console.log(
+        `[Polling Triggers] Created/updated polling trigger for workflow ${workflowIdOrAgentId}, type ${triggerType}, interval ${POLL_INTERVAL_SECONDS}s`
+      );
     }
-    
-    console.log(
-      `[Polling Triggers] Created/updated polling trigger for workflow ${workflowId}, type ${triggerType}, interval ${POLL_INTERVAL_SECONDS}s`
-    );
   } catch (error) {
     console.error(`[Polling Triggers] Error creating polling trigger:`, error);
     throw error;

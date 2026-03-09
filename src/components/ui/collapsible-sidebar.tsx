@@ -130,15 +130,12 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
                 className={cn(
                   "relative flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
                   pathname === href || pathname.startsWith(href + "/")
-                    ? "border-stone-200 dark:border-white/10 text-foreground"
+                    ? "bg-stone-300/60 dark:bg-zinc-800 text-foreground"
                     : ""
                 )}
                 aria-label={label}
               >
                 <Icon className="h-4 w-4" />
-                {badge && (
-                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-pink-500 ring-2 ring-background" />
-                )}
               </Link>
                   </TooltipTrigger>
                   <TooltipContent 
@@ -185,7 +182,7 @@ export function CollapsibleSidebar({ className }: CollapsibleSidebarProps) {
                 href={href}
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground",
-                  pathname === href ? "border-stone-200 dark:border-white/10 text-foreground" : ""
+                  pathname === href ? "bg-stone-300/60 dark:bg-zinc-800 text-foreground" : ""
                 )}
                 aria-label={label}
               >

@@ -117,6 +117,18 @@ export async function POST(request: NextRequest) {
       case 'new-discord-message':
         pollResult = await pollDiscord(userId, config, lastCursor);
         break;
+      case 'new-notion-page':
+        pollResult = await pollNotion(userId, config, lastTimestamp);
+        break;
+      case 'new-airtable-record':
+        pollResult = await pollAirtable(userId, config, lastTimestamp);
+        break;
+      case 'new-trello-card':
+        pollResult = await pollTrello(userId, config, lastTimestamp);
+        break;
+      case 'new-calendar-event':
+        pollResult = await pollGoogleCalendar(userId, config, lastTimestamp);
+        break;
       default:
         return NextResponse.json(
           { error: `Unsupported trigger type: ${triggerType}`, hasNewData: false },
@@ -556,5 +568,217 @@ async function pollDiscord(
     hasNewData: true,
     newData: sorted,
     newCursor: latestId,
+  };
+}
+
+async function pollNotion(
+  userId: string,
+  config: Record<string, any>,
+  lastTimestamp: string | null
+): Promise<{ hasNewData: boolean; newData?: any[]; newTimestamp?: string }> {
+  const { getUserIntegration } = await import('@/lib/integrations/service');
+  const integration = await getUserIntegration(userId, 'notion');
+  const token = integration?.access_token;
+  if (!token) {
+    throw new Error('Notion integration not connected. Please connect your Notion account.');
+  }
+  const databaseId = config?.databaseId;
+  if (!databaseId) {
+    throw new Error('Notion database not configured.');
+  }
+  const cutoffIso = lastTimestamp
+    ? new Date(lastTimestamp.replace(/"/g, '').trim()).toISOString()
+    : new Date(Date.now() - 3600000).toISOString();
+
+  const response = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Notion-Version': '2022-06-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      filter: {
+        timestamp: 'created_time',
+        created_time: { after: cutoffIso },
+      },
+      page_size: 50,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Notion API error: ${err}`);
+  }
+
+  const data = (await response.json()) as { results?: any[] };
+  const pages = data.results || [];
+  if (pages.length === 0) return { hasNewData: false };
+
+  const latest = pages.reduce((best: any, p: any) => {
+    const created = p.created_time;
+    return !best || (created && new Date(created) > new Date(best.created_time)) ? p : best;
+  }, null);
+  const newTimestamp = latest?.created_time ? new Date(latest.created_time).toISOString() : cutoffIso;
+
+  return {
+    hasNewData: true,
+    newData: pages,
+    newTimestamp,
+  };
+}
+
+async function pollAirtable(
+  userId: string,
+  config: Record<string, any>,
+  lastTimestamp: string | null
+): Promise<{ hasNewData: boolean; newData?: any[]; newTimestamp?: string }> {
+  const { getUserIntegration } = await import('@/lib/integrations/service');
+  const integration = await getUserIntegration(userId, 'airtable');
+  const token = integration?.access_token;
+  if (!token) {
+    throw new Error('Airtable integration not connected. Please connect your Airtable account.');
+  }
+  const { baseId, tableId } = config;
+  if (!baseId || !tableId) {
+    throw new Error('Airtable base and table not configured.');
+  }
+  const cutoffMs = lastTimestamp
+    ? new Date(lastTimestamp.replace(/"/g, '').trim()).getTime()
+    : Date.now() - 3600000;
+
+  const params = new URLSearchParams({
+    maxRecords: '100',
+    sort: '[{"field":"createdTime","direction":"desc"}]',
+  });
+  const response = await fetch(
+    `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableId)}?${params}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Airtable API error: ${err}`);
+  }
+
+  const data = (await response.json()) as { records?: any[] };
+  const allRecords = data.records || [];
+  const records = allRecords.filter((r: any) => r.createdTime && new Date(r.createdTime).getTime() > cutoffMs);
+  if (records.length === 0) return { hasNewData: false };
+
+  const latest = records.reduce((best: any, r: any) => {
+    const created = r.createdTime;
+    return !best || (created && new Date(created) > new Date(best.createdTime)) ? r : best;
+  }, null);
+  const newTimestamp = latest?.createdTime ? new Date(latest.createdTime).toISOString() : new Date(cutoffMs).toISOString();
+
+  return {
+    hasNewData: true,
+    newData: records,
+    newTimestamp,
+  };
+}
+
+async function pollTrello(
+  userId: string,
+  config: Record<string, any>,
+  lastTimestamp: string | null
+): Promise<{ hasNewData: boolean; newData?: any[]; newTimestamp?: string }> {
+  const { getTrelloCredentials } = await import('@/lib/integrations/trello');
+  const { apiKey, token } = await getTrelloCredentials(userId);
+  const boardId = config?.boardId;
+  if (!boardId) {
+    throw new Error('Trello board not configured.');
+  }
+  const cutoffMs = lastTimestamp
+    ? new Date(lastTimestamp.replace(/"/g, '').trim()).getTime()
+    : Date.now() - 3600000;
+
+  const response = await fetch(
+    `https://api.trello.com/1/boards/${boardId}/cards?filter=open&fields=id,name,desc,dateLastActivity,createdAt&key=${apiKey}&token=${token}`,
+    { headers: { Accept: 'application/json' } }
+  );
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Trello API error: ${err}`);
+  }
+
+  const cards = (await response.json()) as any[];
+  const cutoffIso = new Date(cutoffMs).toISOString();
+  const newCards = cards.filter((c: any) => {
+    const created = c.createdAt || c.dateLastActivity;
+    return created && new Date(created).toISOString() > cutoffIso;
+  });
+
+  if (newCards.length === 0) return { hasNewData: false };
+
+  const latest = newCards.reduce((best: any, c: any) => {
+    const created = c.createdAt || c.dateLastActivity;
+    return !best || (created && new Date(created) > new Date(best.createdAt || best.dateLastActivity)) ? c : best;
+  }, null);
+  const created = latest?.createdAt || latest?.dateLastActivity;
+  const newTimestamp = created ? new Date(created).toISOString() : cutoffIso;
+
+  return {
+    hasNewData: true,
+    newData: newCards,
+    newTimestamp,
+  };
+}
+
+async function pollGoogleCalendar(
+  userId: string,
+  config: Record<string, any>,
+  lastTimestamp: string | null
+): Promise<{ hasNewData: boolean; newData?: any[]; newTimestamp?: string }> {
+  const accessToken = await getGoogleAccessToken(userId, 'google-calendar');
+  const calendarId = config?.calendarId || config?.calendar_id || 'primary';
+
+  const rawTimestamp = lastTimestamp
+    ? lastTimestamp.replace(/"/g, '').trim()
+    : new Date(Date.now() - 3600000).toISOString();
+  const cutoffMs = new Date(rawTimestamp).getTime() || Date.now() - 3600000;
+  const timeMin = new Date(cutoffMs).toISOString();
+
+  // Calendar API: list events with created/updated after timeMin
+  // Use updatedMin to get events modified after cutoff (covers new events)
+  const params = new URLSearchParams({
+    maxResults: '50',
+    orderBy: 'updated',
+    updatedMin: timeMin,
+    singleEvents: 'true',
+  });
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`;
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Google Calendar API error: ${response.status} ${err}`);
+  }
+
+  const data = (await response.json()) as { items?: any[] };
+  const events = data.items || [];
+
+  if (events.length === 0) return { hasNewData: false };
+
+  const latestUpdated = events
+    .map((e: any) => e.updated)
+    .filter(Boolean)
+    .sort()
+    .reverse()[0];
+  const newTimestamp = latestUpdated ? new Date(latestUpdated).toISOString() : timeMin;
+
+  return {
+    hasNewData: true,
+    newData: events,
+    newTimestamp,
   };
 }

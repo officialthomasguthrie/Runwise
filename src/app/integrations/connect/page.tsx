@@ -25,13 +25,18 @@ function ConnectIntegrationPageContent() {
     const connectionConfig = getConnectionConfig(
       serviceName,
       async (values) => {
+        const apiUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/integrations/store-credential` : '/api/integrations/store-credential';
+        const fetchOpts: RequestInit = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        };
         try {
           // Handle connection based on service
           if (serviceName === 'twilio') {
             // Save Account SID
-            const response1 = await fetch('/api/integrations/store-credential', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+            const response1 = await fetch(apiUrl, {
+              ...fetchOpts,
               body: JSON.stringify({
                 serviceName: 'twilio',
                 credentialType: 'account_sid',
@@ -45,9 +50,8 @@ function ConnectIntegrationPageContent() {
             }
 
             // Save Auth Token
-            const response2 = await fetch('/api/integrations/store-credential', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+            const response2 = await fetch(apiUrl, {
+              ...fetchOpts,
               body: JSON.stringify({
                 serviceName: 'twilio',
                 credentialType: 'auth_token',
@@ -85,9 +89,8 @@ function ConnectIntegrationPageContent() {
               throw new Error('Credential value is required');
             }
 
-            const response = await fetch('/api/integrations/store-credential', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+            const response = await fetch(apiUrl, {
+              ...fetchOpts,
               body: JSON.stringify({
                 serviceName,
                 credentialType,

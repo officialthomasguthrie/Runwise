@@ -263,7 +263,7 @@ export function ScheduleInput({ value, onChange, placeholder, className }: Sched
       return cronToSchedule(value);
     }
     return {
-      frequency: 'daily',
+      frequency: 'daily' as const,
       time: { hour: 9, minute: 0 },
     };
   });
@@ -354,6 +354,7 @@ export function ScheduleInput({ value, onChange, placeholder, className }: Sched
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-lg">
+            <SelectItem value="hourly">Every hour</SelectItem>
             <SelectItem value="daily">Daily</SelectItem>
             <SelectItem value="weekly">Weekly</SelectItem>
             <SelectItem value="monthly">Monthly</SelectItem>
@@ -363,7 +364,7 @@ export function ScheduleInput({ value, onChange, placeholder, className }: Sched
       </div>
 
       {/* Custom Cron Input */}
-      {showCustomInput && config.frequency === 'custom' ? (
+      {showCustomInput && config.frequency === 'custom' && (
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground">Cron Expression</label>
           <Input
@@ -377,9 +378,11 @@ export function ScheduleInput({ value, onChange, placeholder, className }: Sched
             Format: minute hour dayOfMonth month dayOfWeek (e.g., "0 9 * * *" for daily at 9 AM)
           </p>
         </div>
-      ) : (
+      )}
+
+      {/* Time / Day selectors (hidden for custom and hourly) */}
+      {!showCustomInput && config.frequency !== 'custom' && config.frequency !== 'hourly' && (
         <>
-          {/* Time Selector */}
           <div className="space-y-2">
             <label className="text-xs text-muted-foreground">Time</label>
             <div className="flex items-center gap-2">
@@ -406,7 +409,6 @@ export function ScheduleInput({ value, onChange, placeholder, className }: Sched
             </div>
           </div>
 
-          {/* Day of Week Selector (for weekly) */}
           {config.frequency === 'weekly' && (
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground">Day of Week</label>
@@ -428,7 +430,6 @@ export function ScheduleInput({ value, onChange, placeholder, className }: Sched
             </div>
           )}
 
-          {/* Day of Month Selector (for monthly) */}
           {config.frequency === 'monthly' && (
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground">Day of Month</label>
@@ -449,7 +450,6 @@ export function ScheduleInput({ value, onChange, placeholder, className }: Sched
               </Select>
             </div>
           )}
-
         </>
       )}
     </div>

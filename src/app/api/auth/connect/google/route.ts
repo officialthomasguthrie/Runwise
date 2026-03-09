@@ -47,8 +47,9 @@ export async function GET(request: NextRequest) {
     // Pass serviceName to get service-specific scopes
     const response = NextResponse.redirect(getGoogleAuthUrl(state, serviceName));
     
-    // Store state in httpOnly cookie
+    // Store state in httpOnly cookie (path: '/' so callback receives them)
     response.cookies.set('oauth_state', state, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
     
     // Store user ID for callback
     response.cookies.set('oauth_user_id', user.id, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -65,6 +67,7 @@ export async function GET(request: NextRequest) {
     
     // Store service name for callback (so we know which service to store)
     response.cookies.set('oauth_service_name', serviceName, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -73,6 +76,7 @@ export async function GET(request: NextRequest) {
     
     // Store return URL for callback
     response.cookies.set('oauth_return_url', returnUrl, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

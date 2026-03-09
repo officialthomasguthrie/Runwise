@@ -12,6 +12,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { enableAgentBehaviours, disableAgentBehaviours } from '@/lib/agents/behaviour-manager';
+import {
+  planFromBehaviours,
+  buildIntegrationCheckListForPolling,
+} from '@/lib/agents/chat-pipeline';
+import { getUserIntegrations } from '@/lib/integrations/service';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -48,6 +53,30 @@ export async function POST(_request: NextRequest, context: RouteContext) {
     }
 
     const newStatus = agent.status === 'active' ? 'paused' : 'active';
+
+    // When resuming (paused → active), verify required integrations are connected
+    if (newStatus === 'active') {
+      const { data: behaviours } = await (admin as any)
+        .from('agent_behaviours')
+        .select('behaviour_type, trigger_type, config, description')
+        .eq('agent_id', id);
+      const plan = planFromBehaviours(behaviours ?? []);
+      const integrations = await getUserIntegrations(user.id);
+      const connectedServices = integrations
+        .map((i) => i.service_name)
+        .filter(Boolean) as string[];
+      const requiredIntegrations = buildIntegrationCheckListForPolling(plan, connectedServices);
+      const disconnected = requiredIntegrations.filter((i) => !i.connected);
+      if (disconnected.length > 0) {
+        return NextResponse.json(
+          {
+            error: 'Connect all required integrations before resuming',
+            requiredIntegrations: disconnected.map((i) => ({ service: i.service, label: i.label })),
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     // Update agent status first
     const { data: updated, error: updateError } = await (admin as any)

@@ -8,4 +8,5 @@ export { PlanPreviewCard } from "./cards/plan-preview-card";
 export { BuildProgressCard } from "./cards/build-progress-card";
 export { CompletionCard } from "./cards/completion-card";
 export { AgentChatBuilder } from "./agent-chat-builder";
-export { BuilderTabs } from "./builder-tabs";
+export { AgentPlaceholder } from "./agent-placeholder";
+export { BuilderTabs, type BuilderTab } from "./builder-tabs";
