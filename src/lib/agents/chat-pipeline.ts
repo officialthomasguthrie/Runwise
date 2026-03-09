@@ -74,7 +74,7 @@ export type ChatEvent =
   /** Appends / updates a stage row in the build progress card */
   | { type: 'build_stage'; stage: string; status: BuildStageStatus }
   /** Build is finished — show completion card */
-  | { type: 'build_complete'; agentId: string; summary: string }
+  | { type: 'build_complete'; agentId: string; summary: string; requiredIntegrations?: IntegrationCheckItem[] }
   /** Fatal pipeline error */
   | { type: 'error'; message: string };
 
@@ -94,7 +94,7 @@ export type ChatMessage =
   | { id: string; role: 'card'; cardType: 'plan'; data: DeployAgentPlan }
   | { id: string; role: 'card'; cardType: 'confirmation' }
   | { id: string; role: 'card'; cardType: 'build_progress'; stages: BuildStage[] }
-  | { id: string; role: 'card'; cardType: 'completion'; agentId: string; summary: string };
+  | { id: string; role: 'card'; cardType: 'completion'; agentId: string; summary: string; requiredIntegrations?: IntegrationCheckItem[] };
 
 // ============================================================================
 // PIPELINE PHASE
@@ -147,7 +147,7 @@ export interface SSEWriter {
   /** Append / update a build stage row */
   buildStage(stage: string, status: BuildStageStatus): void;
   /** Signal build completion */
-  complete(agentId: string, summary: string): void;
+  complete(agentId: string, summary: string, requiredIntegrations?: IntegrationCheckItem[]): void;
   /** Push a fatal error and close the stream */
   error(message: string): void;
   /** Close the stream cleanly */
@@ -206,8 +206,8 @@ export function createSSEStream(): SSEStream {
       push({ type: 'build_stage', stage, status });
     },
 
-    complete(agentId, summary) {
-      push({ type: 'build_complete', agentId, summary });
+    complete(agentId: string, summary: string, requiredIntegrations?: IntegrationCheckItem[]) {
+      push({ type: 'build_complete', agentId, summary, requiredIntegrations });
       try {
         controller.close();
       } catch {
@@ -328,6 +328,13 @@ export const INTEGRATION_CATALOGUE: IntegrationCatalogueEntry[] = [
     connectUrl: '/api/auth/connect/airtable',
   },
   {
+    service: 'trello',
+    label: 'Trello',
+    icon: '📋',
+    connectionMethod: 'oauth',
+    connectUrl: '/api/auth/connect/trello',
+  },
+  {
     service: 'openai',
     label: 'OpenAI',
     icon: '🤖',
@@ -369,6 +376,10 @@ const TRIGGER_TO_SERVICE: Record<string, string> = {
   'new-github-issue':        'github',
   'file-uploaded':           'google-drive',
   'new-form-submission':     'google-forms',
+  'new-calendar-event':      'google-calendar',
+  'new-notion-page':         'notion',
+  'new-airtable-record':     'airtable',
+  'new-trello-card':         'trello',
 };
 
 /**
@@ -385,7 +396,49 @@ const INSTRUCTION_KEYWORD_TO_SERVICE: Array<{ pattern: RegExp; service: string }
   { pattern: /notion/i,                                                      service: 'notion' },
   { pattern: /github|pull.{0,10}request|issue/i,                            service: 'github' },
   { pattern: /airtable/i,                                                    service: 'airtable' },
+  { pattern: /openai|gpt|chatgpt/i,                                          service: 'openai' },
+  { pattern: /twilio|sms|text.{0,10}message/i,                               service: 'twilio' },
 ];
+
+/** Service ID → { slug, name } for capabilities display (matches agent-tab-content logo slugs) */
+const SERVICE_TO_CAPABILITY: Record<string, { slug: string; name: string }> = {
+  'google-gmail':    { slug: 'gmail', name: 'Gmail' },
+  'google-sheets':   { slug: 'googlesheets', name: 'Google Sheets' },
+  'google-drive':    { slug: 'googledrive', name: 'Google Drive' },
+  'google-forms':    { slug: 'googleforms', name: 'Google Forms' },
+  'google-calendar': { slug: 'googlecalendar', name: 'Google Calendar' },
+  'slack':           { slug: 'slack', name: 'Slack' },
+  'discord':         { slug: 'discord', name: 'Discord' },
+  'github':          { slug: 'github', name: 'GitHub' },
+  'notion':          { slug: 'notion', name: 'Notion' },
+  'airtable':        { slug: 'airtable', name: 'Airtable' },
+  'trello':          { slug: 'trello', name: 'Trello' },
+  'openai':          { slug: 'openai', name: 'OpenAI' },
+  'twilio':          { slug: 'twilio', name: 'Twilio' },
+};
+
+/** Slug → service ID (reverse of SERVICE_TO_CAPABILITY) for connect flows */
+const SLUG_TO_SERVICE: Record<string, string> = Object.fromEntries(
+  Object.entries(SERVICE_TO_CAPABILITY).map(([service, { slug }]) => [slug, service])
+);
+
+/**
+ * Returns integration metadata for a capability slug, or null if the slug
+ * has no known connectable integration. Used by the agent tab Capabilities section.
+ */
+export function getCapabilityIntegrationInfo(
+  slug: string
+): { service: string; connectUrl: string; connectionMethod: IntegrationConnectionMethod } | null {
+  const service = SLUG_TO_SERVICE[slug];
+  if (!service) return null;
+  const meta = getIntegrationMeta(service);
+  if (!meta) return null;
+  return {
+    service: meta.service,
+    connectUrl: meta.connectUrl,
+    connectionMethod: meta.connectionMethod,
+  };
+}
 
 /**
  * Given a `DeployAgentPlan`, returns the list of service IDs that are
@@ -423,6 +476,80 @@ export function detectRequiredIntegrations(plan: DeployAgentPlan): string[] {
   }
 
   return Array.from(required);
+}
+
+/**
+ * Builds a minimal DeployAgentPlan from agent behaviours for integration checks.
+ * Used by activate and pause routes when we only have the agent (not the original plan).
+ */
+export function planFromBehaviours(
+  behaviours: Array<{ behaviour_type: string; trigger_type?: string | null; config?: Record<string, any>; description?: string }>
+): DeployAgentPlan {
+  return {
+    name: '',
+    persona: '',
+    instructions: '',
+    avatarEmoji: '🤖',
+    behaviours: behaviours.map((b) => ({
+      behaviourType:
+        b.behaviour_type === 'schedule' || b.behaviour_type === 'heartbeat'
+          ? (b.behaviour_type as 'schedule' | 'heartbeat')
+          : 'polling',
+      triggerType: b.trigger_type ?? undefined,
+      config: b.config ?? {},
+      description: (b as any).description ?? '',
+    })),
+    initialMemories: [],
+  };
+}
+
+/**
+ * Returns only the service IDs required by polling behaviours (trigger types).
+ * Used for the integration gate: we only block activation when polling triggers
+ * need integrations that are disconnected. Webhook/schedule/heartbeat/manual
+ * do not require integrations to be connected.
+ */
+export function detectRequiredIntegrationsForPolling(plan: DeployAgentPlan): string[] {
+  const required = new Set<string>();
+  for (const behaviour of plan.behaviours) {
+    if (behaviour.behaviourType === 'polling' && behaviour.triggerType) {
+      const service = TRIGGER_TO_SERVICE[behaviour.triggerType];
+      if (service) required.add(service);
+    }
+  }
+  return Array.from(required);
+}
+
+/**
+ * Builds integration check list for polling-only (used by integration gate).
+ * Only includes integrations required by polling triggers.
+ */
+export function buildIntegrationCheckListForPolling(
+  plan: DeployAgentPlan,
+  connectedServices: string[]
+): IntegrationCheckItem[] {
+  const requiredServiceIds = detectRequiredIntegrationsForPolling(plan);
+  return requiredServiceIds
+    .map((serviceId) => {
+      const meta = getIntegrationMeta(serviceId);
+      if (!meta) return null;
+      const isConnected = connectedServices.some(
+        (cs) =>
+          cs === serviceId ||
+          (serviceId.startsWith('google-') && cs.startsWith('google-')) ||
+          (cs.startsWith('google-') && serviceId.startsWith('google-'))
+      );
+      return {
+        service: meta.service,
+        label: meta.label,
+        icon: meta.icon,
+        required: true,
+        connected: isConnected,
+        connectUrl: meta.connectUrl,
+        connectionMethod: meta.connectionMethod,
+      } as IntegrationCheckItem;
+    })
+    .filter((item): item is IntegrationCheckItem => item !== null);
 }
 
 /**
@@ -464,4 +591,49 @@ export function buildIntegrationCheckList(
       return item;
     })
     .filter((item): item is IntegrationCheckItem => item !== null);
+}
+
+// ============================================================================
+// DERIVE CAPABILITIES FOR AGENT TAB
+// ============================================================================
+
+/** Agent shape with behaviours + instructions for capability derivation */
+export interface AgentForCapabilities {
+  instructions?: string | null;
+  persona?: string | null;
+  behaviours?: Array<{ behaviour_type?: string; trigger_type?: string; config?: Record<string, any>; description?: string }>;
+}
+
+/**
+ * Derives the list of integrations/capabilities this agent uses from its
+ * behaviours (trigger types) and instructions. Used to populate the
+ * Capabilities section in the agent tab.
+ *
+ * Returns { slug, name }[] for display (matches agent-tab-content logo slugs).
+ */
+export function deriveAgentCapabilities(agent: AgentForCapabilities): Array<{ slug: string; name: string }> {
+  const syntheticPlan: DeployAgentPlan = {
+    name: '',
+    persona: agent.persona ?? '',
+    instructions: agent.instructions ?? '',
+    avatarEmoji: '🤖',
+    behaviours: (agent.behaviours ?? []).map((b) => ({
+      behaviourType: (b.behaviour_type === 'schedule' || b.behaviour_type === 'heartbeat' ? b.behaviour_type : 'polling') as 'polling' | 'schedule' | 'heartbeat',
+      triggerType: b.trigger_type,
+      config: b.config ?? {},
+      description: (b as any).description ?? '',
+    })),
+    initialMemories: [],
+  };
+  const serviceIds = detectRequiredIntegrations(syntheticPlan);
+  const result: Array<{ slug: string; name: string }> = [];
+  const seen = new Set<string>();
+  for (const sid of serviceIds) {
+    const cap = SERVICE_TO_CAPABILITY[sid];
+    if (cap && !seen.has(cap.slug)) {
+      seen.add(cap.slug);
+      result.push(cap);
+    }
+  }
+  return result;
 }
