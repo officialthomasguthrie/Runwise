@@ -75,9 +75,9 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
   const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
   const [showAddCardModal, setShowAddCardModal] = useState(false);
   const checkoutInFlightRef = useRef(false);
+  const portalInFlightRef = useRef(false);
 
-  // Cancel plan state
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  // Portal loading state (for Manage subscription button)
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelSuccess, setCancelSuccess] = useState(false);
@@ -273,23 +273,31 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
     }
   };
 
-  // Handle plan switch/checkout
-  const handleCancelPlan = async () => {
+  // Open Stripe Customer Portal (for cancel, plan change, payment method, etc.)
+  const handleOpenPortal = async () => {
+    if (portalInFlightRef.current) return;
+    portalInFlightRef.current = true;
     setIsCancelling(true);
     setCancelError(null);
     try {
-      const response = await fetch('/api/stripe/cancel-subscription', { method: 'POST' });
+      const response = await fetch('/api/stripe/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/settings?tab=billing` }),
+      });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error ?? 'Failed to cancel subscription.');
+        throw new Error(payload.error ?? 'Failed to open billing portal.');
       }
-      await refreshSubscription();
-      setCancelSuccess(true);
-      setShowCancelConfirm(false);
+      if (payload.url) {
+        window.location.href = payload.url;
+      } else {
+        throw new Error('No portal URL returned.');
+      }
     } catch (err: any) {
-      setCancelError(err.message ?? 'Failed to cancel. Please try again.');
-    } finally {
+      portalInFlightRef.current = false;
       setIsCancelling(false);
+      setCancelError(err.message ?? 'Failed to open billing portal. Please try again.');
     }
   };
 
@@ -516,58 +524,45 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
           {currentPlan === "personal" ? (
             cancelSuccess ? (
               <p className="text-xs text-center text-muted-foreground py-1.5">Plan cancelled. You are now on the free plan.</p>
-            ) : !showCancelConfirm ? (
-              <button
-                onClick={() => { setShowCancelConfirm(true); setCancelError(null); }}
-                className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/10 w-full rounded-lg py-1.5 px-3 cursor-pointer text-xs font-normal text-muted-foreground transition-all flex items-center justify-center gap-1.5"
-              >
-                <XCircle className="w-3.5 h-3.5 text-red-400/80 flex-shrink-0" />
-                Cancel Plan
-              </button>
             ) : (
-              <div className="rounded-md border border-red-400/40 bg-red-500/5 p-3 space-y-2">
-                <p className="text-xs font-medium">Cancel your plan?</p>
-                <p className="text-xs text-muted-foreground">Your subscription will be cancelled <strong>immediately</strong> and you will be moved to the free plan.</p>
+              <div className="space-y-1">
+                <button
+                  onClick={handleOpenPortal}
+                  disabled={isCancelling}
+                  className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/10 w-full rounded-lg py-1.5 px-3 cursor-pointer text-xs font-normal text-muted-foreground transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-red-400/80 flex-shrink-0" />
+                  {isCancelling ? 'Opening…' : 'Manage subscription'}
+                </button>
                 {cancelError && <p className="text-xs text-red-500">{cancelError}</p>}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCancelPlan}
-                    disabled={isCancelling}
-                    className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/15 rounded-md py-1 px-2.5 text-xs text-muted-foreground disabled:opacity-50 transition-all"
-                  >
-                    {isCancelling ? 'Cancelling…' : 'Yes, cancel'}
-                  </button>
-                  <button
-                    onClick={() => { setShowCancelConfirm(false); setCancelError(null); }}
-                    disabled={isCancelling}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Keep plan
-                  </button>
-                </div>
               </div>
             )
           ) : (
-            <button 
-              onClick={() => handleCheckout(plans[0].name)}
-              disabled={loadingPlan === plans[0].name}
-              className="border border-gray-300 dark:border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-1.5 px-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="flex items-end justify-center gap-1">
-                <p className="text-xs font-normal leading-[1.2em] text-white">
-                  {loadingPlan === plans[0].name ? 'Redirecting...' : currentPlan ? 'Switch to Personal' : plans[0].buttonText}
-                </p>
+            <div className="space-y-1">
+              <button 
+                onClick={() => currentPlan ? handleOpenPortal() : handleCheckout(plans[0].name)}
+                disabled={currentPlan ? isCancelling : loadingPlan === plans[0].name}
+                className="border border-gray-300 dark:border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-1.5 px-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="flex items-end justify-center gap-1">
+                  <p className="text-xs font-normal leading-[1.2em] text-white">
+                    {currentPlan
+                      ? (isCancelling ? 'Opening…' : 'Switch to Personal')
+                      : (loadingPlan === plans[0].name ? 'Redirecting...' : plans[0].buttonText)}
+                  </p>
 
-                {loadingPlan !== plans[0].name && (
-                  <img
-                    src="/assets/icons/arrow-top.svg"
-                    alt="arrow-top"
-                    loading="lazy"
-                    className="w-3 h-3 brightness-0 invert dark:brightness-100 dark:invert-0"
-                  />
-                )}
-              </div>
-            </button>
+                  {(currentPlan ? !isCancelling : loadingPlan !== plans[0].name) && (
+                    <img
+                      src="/assets/icons/arrow-top.svg"
+                      alt="arrow-top"
+                      loading="lazy"
+                      className="w-3 h-3 brightness-0 invert dark:brightness-100 dark:invert-0"
+                    />
+                  )}
+                </div>
+              </button>
+              {currentPlan && cancelError && <p className="text-xs text-red-500">{cancelError}</p>}
+            </div>
           )}
 
           {/* Features */}
@@ -636,64 +631,49 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
           {currentPlan === "professional" ? (
             cancelSuccess ? (
               <p className="text-xs text-center text-muted-foreground py-1.5">Plan cancelled. You are now on the free plan.</p>
-            ) : !showCancelConfirm ? (
-              <button
-                onClick={() => { setShowCancelConfirm(true); setCancelError(null); }}
-                className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/10 w-full rounded-lg py-1.5 px-3 cursor-pointer text-xs font-normal text-muted-foreground transition-all flex items-center justify-center gap-1.5"
-              >
-                <XCircle className="w-3.5 h-3.5 text-red-400/80 flex-shrink-0" />
-                Cancel Plan
-              </button>
             ) : (
-              <div className="rounded-md border border-red-400/40 bg-red-500/5 p-3 space-y-2">
-                <p className="text-xs font-medium">Cancel your plan?</p>
-                <p className="text-xs text-muted-foreground">Your subscription will be cancelled <strong>immediately</strong> and you will be moved to the free plan.</p>
+              <div className="space-y-1">
+                <button
+                  onClick={handleOpenPortal}
+                  disabled={isCancelling}
+                  className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/10 w-full rounded-lg py-1.5 px-3 cursor-pointer text-xs font-normal text-muted-foreground transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-red-400/80 flex-shrink-0" />
+                  {isCancelling ? 'Opening…' : 'Manage subscription'}
+                </button>
                 {cancelError && <p className="text-xs text-red-500">{cancelError}</p>}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCancelPlan}
-                    disabled={isCancelling}
-                    className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/15 rounded-md py-1 px-2.5 text-xs text-muted-foreground disabled:opacity-50 transition-all"
-                  >
-                    {isCancelling ? 'Cancelling…' : 'Yes, cancel'}
-                  </button>
-                  <button
-                    onClick={() => { setShowCancelConfirm(false); setCancelError(null); }}
-                    disabled={isCancelling}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Keep plan
-                  </button>
-                </div>
               </div>
             )
           ) : (
-            <button 
-              onClick={() => handleCheckout(plans[1].name)}
-              disabled={loadingPlan === plans[1].name}
-              className="border border-gray-300 dark:border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-1.5 px-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="flex items-end justify-center gap-1">
-                <p className="text-xs font-normal leading-[1.2em] text-white">
-                  {loadingPlan === plans[1].name
-                    ? 'Redirecting...'
-                    : currentPlan !== null
-                      ? 'Switch to Professional'
-                      : hasCancelledPlan
-                        ? 'Get Started'
-                        : 'Start Free Trial'}
-                </p>
+            <div className="space-y-1">
+              <button 
+                onClick={() => currentPlan ? handleOpenPortal() : handleCheckout(plans[1].name)}
+                disabled={currentPlan ? isCancelling : loadingPlan === plans[1].name}
+                className="border border-gray-300 dark:border-[#ffffff1a] bg-[#bd28b3ba] w-full rounded-lg start-building-btn py-1.5 px-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="flex items-end justify-center gap-1">
+                  <p className="text-xs font-normal leading-[1.2em] text-white">
+                    {currentPlan
+                      ? (isCancelling ? 'Opening…' : 'Switch to Professional')
+                      : (loadingPlan === plans[1].name
+                          ? 'Redirecting...'
+                          : hasCancelledPlan
+                            ? 'Get Started'
+                            : 'Start Free Trial')}
+                  </p>
 
-                {loadingPlan !== plans[1].name && (
-                  <img
-                    src="/assets/icons/arrow-top.svg"
-                    alt="arrow-top"
-                    loading="lazy"
-                    className="w-3 h-3 brightness-0 invert dark:brightness-100 dark:invert-0"
-                  />
-                )}
-              </div>
-            </button>
+                  {(currentPlan ? !isCancelling : loadingPlan !== plans[1].name) && (
+                    <img
+                      src="/assets/icons/arrow-top.svg"
+                      alt="arrow-top"
+                      loading="lazy"
+                      className="w-3 h-3 brightness-0 invert dark:brightness-100 dark:invert-0"
+                    />
+                  )}
+                </div>
+              </button>
+              {currentPlan && cancelError && <p className="text-xs text-red-500">{cancelError}</p>}
+            </div>
           )}
 
           {/* Features */}
@@ -762,35 +742,17 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
           {currentPlan === "enterprises" ? (
             cancelSuccess ? (
               <p className="text-xs text-center text-muted-foreground py-1.5">Plan cancelled. You are now on the free plan.</p>
-            ) : !showCancelConfirm ? (
-              <button
-                onClick={() => { setShowCancelConfirm(true); setCancelError(null); }}
-                className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/10 w-full rounded-lg py-1.5 px-3 cursor-pointer text-xs font-normal text-muted-foreground transition-all flex items-center justify-center gap-1.5"
-              >
-                <XCircle className="w-3.5 h-3.5 text-red-400/80 flex-shrink-0" />
-                Cancel Plan
-              </button>
             ) : (
-              <div className="rounded-md border border-red-400/40 bg-red-500/5 p-3 space-y-2">
-                <p className="text-xs font-medium">Cancel your plan?</p>
-                <p className="text-xs text-muted-foreground">Your subscription will be cancelled <strong>immediately</strong> and you will be moved to the free plan.</p>
+              <div className="space-y-1">
+                <button
+                  onClick={handleOpenPortal}
+                  disabled={isCancelling}
+                  className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/10 w-full rounded-lg py-1.5 px-3 cursor-pointer text-xs font-normal text-muted-foreground transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-red-400/80 flex-shrink-0" />
+                  {isCancelling ? 'Opening…' : 'Manage subscription'}
+                </button>
                 {cancelError && <p className="text-xs text-red-500">{cancelError}</p>}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCancelPlan}
-                    disabled={isCancelling}
-                    className="border border-red-400/60 bg-red-500/5 hover:bg-red-500/15 rounded-md py-1 px-2.5 text-xs text-muted-foreground disabled:opacity-50 transition-all"
-                  >
-                    {isCancelling ? 'Cancelling…' : 'Yes, cancel'}
-                  </button>
-                  <button
-                    onClick={() => { setShowCancelConfirm(false); setCancelError(null); }}
-                    disabled={isCancelling}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Keep plan
-                  </button>
-                </div>
               </div>
             )
           ) : (

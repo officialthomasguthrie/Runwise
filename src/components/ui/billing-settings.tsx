@@ -25,8 +25,7 @@ import {
   Crown,
   Star,
   Building,
-  User,
-  XCircle
+  User
 } from "lucide-react";
 
 interface PaymentMethod {
@@ -85,10 +84,9 @@ export function BillingSettings() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [saveMessage, setSaveMessage] = useState('');
 
-  // Cancel plan state
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [cancelError, setCancelError] = useState<string | null>(null);
+  // Portal loading state
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   // Load real subscription info from the database
   useEffect(() => {
@@ -125,32 +123,31 @@ export function BillingSettings() {
     loadBillingData();
   }, [user]);
 
-  // Handle immediate plan cancellation via Stripe
-  const handleCancelPlan = async () => {
-    setIsCancelling(true);
-    setCancelError(null);
+  // Open Stripe Customer Portal (manage subscription, cancel, change plan, payment methods)
+  const handleOpenPortal = async () => {
+    setIsOpeningPortal(true);
+    setPortalError(null);
     try {
-      const response = await fetch('/api/stripe/cancel-subscription', {
+      const returnUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/settings?tab=billing`;
+      const response = await fetch('/api/stripe/create-portal-session', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnUrl }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error ?? 'Failed to cancel subscription.');
+        throw new Error(payload.error ?? 'Failed to open billing portal.');
       }
-      // Refresh auth subscription tier so UI reflects free plan immediately
-      await refreshSubscription();
-      setHasStripeSubscription(false);
-      setSubscriptionStatus('cancelled');
-      setSubscription(prev => ({ ...prev, plan: 'free', status: 'cancelled' }));
-      setShowCancelConfirm(false);
-      setSaveStatus('success');
-      setSaveMessage('Your plan has been cancelled. You are now on the free plan.');
-      setTimeout(() => setSaveStatus('idle'), 6000);
+      if (payload.url) {
+        window.location.href = payload.url;
+      } else {
+        throw new Error('No portal URL returned.');
+      }
     } catch (error: any) {
-      console.error('Error cancelling plan:', error);
-      setCancelError(error.message ?? 'Failed to cancel. Please try again.');
+      console.error('Error opening portal:', error);
+      setPortalError(error.message ?? 'Failed to open billing portal. Please try again.');
     } finally {
-      setIsCancelling(false);
+      setIsOpeningPortal(false);
     }
   };
 
@@ -302,52 +299,27 @@ export function BillingSettings() {
             </div>
           </div>
 
-          {/* Cancel Plan — only shown for users with an active paid Stripe subscription */}
+          {/* Manage subscription — opens Stripe Customer Portal (cancel, change plan, payment methods) */}
           {hasStripeSubscription && subscriptionStatus !== 'cancelled' && (
-            <div className="mt-2">
-              {!showCancelConfirm ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => { setShowCancelConfirm(true); setCancelError(null); }}
-                  className="border-red-400/60 bg-red-500/5 text-muted-foreground hover:bg-red-500/10 hover:text-foreground hover:border-red-400"
-                >
-                  <XCircle className="h-3.5 w-3.5 mr-1.5 text-red-400/80" />
-                  Cancel Plan
-                </Button>
-              ) : (
-                <div className="rounded-md border border-red-400/40 bg-red-500/5 p-4 space-y-3">
-                  <p className="text-sm font-medium text-foreground">Cancel your plan?</p>
-                  <p className="text-xs text-muted-foreground">
-                    Your subscription will be cancelled <strong>immediately</strong>. You will be moved to the free plan and will lose access to paid features right away.
-                  </p>
-                  {cancelError && (
-                    <p className="text-xs text-red-500">{cancelError}</p>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      onClick={handleCancelPlan}
-                      disabled={isCancelling}
-                      className="border-red-400/60 bg-red-500/5 text-muted-foreground hover:bg-red-500/15 hover:text-foreground hover:border-red-400"
-                      variant="outline"
-                    >
-                      {isCancelling ? (
-                        <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Cancelling…</>
-                      ) : (
-                        'Yes, cancel immediately'
-                      )}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => { setShowCancelConfirm(false); setCancelError(null); }}
-                      disabled={isCancelling}
-                    >
-                      Keep plan
-                    </Button>
-                  </div>
-                </div>
+            <div className="mt-2 space-y-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenPortal}
+                disabled={isOpeningPortal}
+                className="border-muted-foreground/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                {isOpeningPortal ? (
+                  <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Opening…</>
+                ) : (
+                  <>
+                    <Settings className="h-3.5 w-3.5 mr-1.5" />
+                    Manage subscription
+                  </>
+                )}
+              </Button>
+              {portalError && (
+                <p className="text-xs text-red-500">{portalError}</p>
               )}
             </div>
           )}
