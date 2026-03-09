@@ -172,7 +172,7 @@ export function AgentDeployWizard() {
         return;
       }
 
-      router.push(`/agents/${json.agent.id}`);
+      router.push(`/agents/new?agentId=${json.agent.id}`);
     } catch (err: any) {
       setDeployError(err?.message ?? "Network error");
       setDeploying(false);

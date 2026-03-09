@@ -131,7 +131,7 @@ export function CompletionCard({
     if (onViewAgent) {
       onViewAgent();
     } else {
-      router.push(`/agents/${agentId}`);
+      router.push(`/agents/new?agentId=${agentId}`);
     }
   };
 

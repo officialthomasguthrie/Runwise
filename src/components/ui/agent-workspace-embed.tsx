@@ -313,7 +313,7 @@ export function AgentWorkspaceEmbed({ agentId, userId, onDelete }: AgentWorkspac
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                window.open(`/agents/${agentId}`, "_blank", "noopener,noreferrer");
+                window.open(`/agents/new?agentId=${agentId}`, "_blank", "noopener,noreferrer");
               }}
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >

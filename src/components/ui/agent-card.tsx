@@ -46,7 +46,7 @@ export function AgentCard({ agent, onPause, onDelete }: AgentCardProps) {
           "transition-colors duration-150 hover:bg-stone-200/60 dark:hover:bg-white/[0.07]",
           "px-5 py-4"
         )}
-        onClick={() => router.push(`/agents/${agent.id}`)}
+        onClick={() => router.push(`/agents/new?agentId=${agent.id}`)}
       >
         <div className="relative z-10 flex flex-col h-full gap-3 min-h-0">
           {/* Top row: avatar + name + status */}
