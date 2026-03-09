@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, X, Clock, Trash2 } from "lucide-react";
+import { ArrowRight, X, Clock, Trash2, Workflow, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -245,23 +245,32 @@ export default function WorkflowsPage() {
               </div>
 
                 {workflowsLoading ? (
+                  /* Loading skeleton — matches agents page style, customized for workflow cards */
                   <div className="w-full max-w-[1600px] grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                    {Array.from({ length: 8 }).map((_, index) => (
-                      <div key={index} className="h-32 rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] px-5 py-4">
-                        <div className="space-y-3">
-                          {/* Title skeleton */}
-                          <div className="h-5 w-3/4 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
-                          {/* Timestamp skeleton */}
-                          <div className="flex items-center gap-1">
-                            <div className="h-3 w-3 bg-gray-200 dark:bg-[#303030] rounded-full animate-pulse" />
-                            <div className="h-3 w-24 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-32 rounded-xl overflow-hidden flex flex-col px-5 py-4 gap-3 bg-stone-100 dark:bg-stone-800/50"
+                      >
+                        {/* Top: title */}
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="h-5 w-32 max-w-[140px] bg-gray-200 dark:bg-[#303030] rounded animate-pulse" />
                           </div>
-                          {/* Status skeleton */}
-                          <div className="flex items-center justify-between mt-4">
-                            <div className="h-4 w-16 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
+                        </div>
+                        {/* Middle: timestamp (clock + text) */}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                            <div className="h-3 w-3 rounded-full bg-gray-200 dark:bg-[#303030] animate-pulse flex-shrink-0" />
+                            <div className="h-3 w-24 bg-gray-200 dark:bg-[#303030] rounded animate-pulse" />
+                          </div>
+                        </div>
+                        {/* Bottom: status left, arrow right */}
+                        <div className="flex items-center justify-between mt-auto">
+                          <div className="h-4 w-16 bg-gray-200 dark:bg-[#303030] rounded animate-pulse" />
+                          <div className="h-4 w-4 bg-gray-200 dark:bg-[#303030] rounded animate-pulse" />
                         </div>
                       </div>
-                    </div>
                     ))}
                   </div>
                 ) : workflows.length > 0 ? (
@@ -327,23 +336,30 @@ export default function WorkflowsPage() {
                         ))}
                       </div>
                 ) : (
-                  <div className="max-w-full overflow-hidden">
-                    <div className="w-full" style={{ maxWidth: "calc(100vw - 200px)" }}>
-                      <div className="h-32 md:h-40 cursor-pointer hover:border-pink-400/50 transition-colors border-none w-full bg-transparent rounded-sm border flex flex-col justify-center items-start">
-                        <div className="relative z-10 flex flex-col items-start justify-center h-full text-left">
-                          <h3 className="font-medium text-foreground mb-3 text-lg md:text-xl">No workflows yet</h3>
-                          <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-5">
+                  /* Empty state — matches agents page liquid glass style */
+                  <div className="w-full max-w-[1600px]">
+                    <Link href="/dashboard">
+                      <div
+                        className="cursor-pointer group rounded-xl overflow-hidden flex flex-col justify-center min-h-[200px] px-8 py-10 border border-stone-300/60 dark:border-white/10 bg-stone-200/40 dark:bg-white/[0.04] backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)] transition-all duration-200 hover:bg-stone-200/55 dark:hover:bg-white/[0.06]"
+                      >
+                        <div className="flex flex-col items-center text-center max-w-md mx-auto">
+                          <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 bg-stone-300/40 dark:bg-white/10 backdrop-blur-sm">
+                            <Workflow className="w-7 h-7 text-stone-500 dark:text-stone-400" />
+                          </div>
+                          <h3 className="font-semibold text-foreground text-lg md:text-xl mb-1.5">
+                            No workflows yet
+                          </h3>
+                          <p className="text-sm text-muted-foreground mb-6">
                             Create your first automation workflow from the dashboard
                           </p>
-                          <Link href="/dashboard">
-                            <div className="flex items-center gap-2 text-sm md:text-base text-pink-400 hover:text-pink-300 transition-colors cursor-pointer">
-                              <span>Get started</span>
-                              <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
-            </div>
-                          </Link>
+                          <span className="inline-flex items-center gap-2 text-sm font-medium text-stone-600 dark:text-stone-300 group-hover:text-foreground transition-colors">
+                            <Plus className="w-4 h-4" />
+                            Get started
+                            <ArrowRight className="w-4 h-4" />
+                          </span>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   </div>
                 )}
               </section>
