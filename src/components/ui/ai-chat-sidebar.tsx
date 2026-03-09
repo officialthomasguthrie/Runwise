@@ -127,6 +127,7 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
     'code-generation': { status: 'pending' },
     'validation': { status: 'pending' },
   });
+  const checkoutInFlightRef = useRef(false);
   const stepProgressMessageIdRef = useRef<string | null>(null);
   
   // Clarification questionnaire state
@@ -3233,6 +3234,8 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                             </button>
                             <button
                               onClick={async () => {
+                                if (checkoutInFlightRef.current) return;
+                                checkoutInFlightRef.current = true;
                                 try {
                                   const response = await fetch('/api/stripe/create-checkout-session', {
                                     method: 'POST',
@@ -3248,10 +3251,15 @@ export const AIChatSidebar: React.FC<AIChatSidebarProps> = ({
                                     const data = await response.json();
                                     if (data.url) {
                                       window.location.href = data.url;
+                                    } else {
+                                      checkoutInFlightRef.current = false;
                                     }
+                                  } else {
+                                    checkoutInFlightRef.current = false;
                                   }
                                 } catch (error) {
                                   console.error('Error starting checkout:', error);
+                                  checkoutInFlightRef.current = false;
                                 }
                               }}
                               className="w-full rounded-lg border border-gray-300 dark:border-white/20 bg-gray-100 dark:bg-white/5 py-2 px-4 cursor-pointer flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/10 transition-all"

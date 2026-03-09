@@ -10,6 +10,66 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 const stripe = stripeSecretKey != null ? new Stripe(stripeSecretKey) : null;
 
+function planFromPriceId(priceId: string | undefined): 'personal' | 'professional' | 'free' {
+  if (!priceId) return 'free';
+  const pid = priceId.toLowerCase();
+  if (pid.includes('personal')) return 'personal';
+  if (pid.includes('pro')) return 'professional';
+  return 'free';
+}
+
+async function syncSubscriptionToUser(
+  stripe: Stripe,
+  subscription: Stripe.Subscription,
+  isCreated = false
+): Promise<void> {
+  const adminSupabase = createAdminClient();
+  const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id;
+  if (!customerId) return;
+
+  let userId: string | null = subscription.metadata?.initiatedByUserId ?? null;
+  if (!userId) {
+    try {
+      const customer = await stripe.customers.retrieve(customerId);
+      if (!customer.deleted && 'email' in customer && customer.email) {
+        const { data: u } = await adminSupabase.from('users').select('id').eq('email', customer.email).maybeSingle();
+        userId = (u as { id?: string } | null)?.id ?? null;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  const status = subscription.status;
+  const isActive = status === 'active' || status === 'trialing';
+  const isCancelled = status === 'canceled' || status === 'unpaid' || status === 'incomplete_expired';
+  const tier = isActive ? planFromPriceId((subscription.items?.data?.[0]?.price?.id as string | undefined) ?? subscription.metadata?.plan) : 'free';
+
+  const now = new Date().toISOString();
+  const subAny = subscription as unknown as Record<string, unknown>;
+  const periodEndTs = (subAny['current_period_end'] as number | undefined)
+    ?? (subscription.items?.data?.[0] as { current_period_end?: number } | undefined)?.current_period_end;
+  const periodEnd = periodEndTs ? new Date(periodEndTs * 1000).toISOString() : null;
+
+  const updatePayload: Record<string, unknown> = {
+    stripe_customer_id: customerId,
+    stripe_subscription_id: isCancelled ? null : subscription.id,
+    subscription_tier: tier,
+    subscription_status: isActive ? 'active' : isCancelled ? 'cancelled' : 'past_due',
+    subscription_expires_at: periodEnd,
+    updated_at: now,
+  };
+  if (isActive && isCreated) {
+    updatePayload.subscription_started_at = now;
+  }
+
+  if (userId) {
+    await (adminSupabase.from('users') as any).update(updatePayload).eq('id', userId);
+  } else {
+    await (adminSupabase.from('users') as any).update(updatePayload).eq('stripe_customer_id', customerId);
+  }
+}
+
 export async function POST(request: Request) {
   if (!stripe || !stripeSecretKey) {
     return NextResponse.json(
@@ -106,7 +166,10 @@ export async function POST(request: Request) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        
+
+        // Sync subscription state to users table to prevent drift and double-charge scenarios
+        await syncSubscriptionToUser(stripe, subscription, event.type === 'customer.subscription.created');
+
         // If subscription has a trial, record it
         if (subscription.trial_start && subscription.trial_end) {
           try {
@@ -209,6 +272,12 @@ export async function POST(request: Request) {
           }
         }
         
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription;
+        await syncSubscriptionToUser(stripe, subscription);
         break;
       }
 

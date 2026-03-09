@@ -1,7 +1,7 @@
 "use client";
 
 import { X, Loader2, Crown, Rocket, Clock, Zap, Activity, BarChart, Headphones } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
@@ -25,6 +25,7 @@ export function UpgradeRequiredModal({
 }: UpgradeRequiredModalProps) {
   const router = useRouter();
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const checkoutInFlightRef = useRef(false);
   const { subscriptionStatus } = useAuth();
 
   // Users who have previously cancelled a plan have already used their free trial
@@ -38,8 +39,10 @@ export function UpgradeRequiredModal({
   };
 
   const handleStartFreeTrial = async () => {
+    if (checkoutInFlightRef.current) return;
+    checkoutInFlightRef.current = true;
+    setIsCheckoutLoading(true);
     try {
-      setIsCheckoutLoading(true);
       const response = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: {
@@ -69,17 +72,20 @@ export function UpgradeRequiredModal({
       window.location.href = payload.url as string;
     } catch (error: any) {
       console.error("Failed to start checkout from upgrade modal:", error);
+      checkoutInFlightRef.current = false;
+      setIsCheckoutLoading(false);
       alert(
         error?.message ??
           "We could not start the checkout flow. Please try again."
       );
-      setIsCheckoutLoading(false);
     }
   };
 
   const handleUpgradeNow = async () => {
+    if (checkoutInFlightRef.current) return;
+    checkoutInFlightRef.current = true;
+    setIsCheckoutLoading(true);
     try {
-      setIsCheckoutLoading(true);
       const response = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: {
@@ -108,11 +114,12 @@ export function UpgradeRequiredModal({
       window.location.href = payload.url as string;
     } catch (error: any) {
       console.error("Failed to start checkout from upgrade modal:", error);
+      checkoutInFlightRef.current = false;
+      setIsCheckoutLoading(false);
       alert(
         error?.message ??
           "We could not start the checkout flow. Please try again."
       );
-      setIsCheckoutLoading(false);
     }
   };
 

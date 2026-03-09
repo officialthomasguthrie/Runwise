@@ -74,6 +74,7 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
   const [showAddCardModal, setShowAddCardModal] = useState(false);
+  const checkoutInFlightRef = useRef(false);
 
   // Cancel plan state
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -308,6 +309,8 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
       return;
     }
 
+    if (checkoutInFlightRef.current) return;
+    checkoutInFlightRef.current = true;
     setLoadingPlan(planName);
 
     // Determine if this should include a free trial.
@@ -345,11 +348,12 @@ export const BillingPricing: React.FC<BillingPricingProps> = ({ subscriptionTier
       window.location.href = payload.url as string;
     } catch (error: any) {
       console.error('Failed to start checkout:', error);
+      checkoutInFlightRef.current = false;
+      setLoadingPlan(null);
       alert(
         error?.message ??
           'We could not start the checkout flow. Please try again.',
       );
-      setLoadingPlan(null);
     }
   };
   

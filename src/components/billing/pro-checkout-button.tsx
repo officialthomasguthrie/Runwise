@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button, type ButtonProps } from '@/components/ui/button';
 
 interface ProCheckoutButtonProps extends ButtonProps {
@@ -17,10 +17,13 @@ export function ProCheckoutButton({
 }: ProCheckoutButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
 
   const isDisabled = disabled || isLoading;
 
   async function handleClick() {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setIsLoading(true);
     setError(null);
 
@@ -54,6 +57,7 @@ export function ProCheckoutButton({
         error?.message ??
           'We could not start the checkout flow. Please try again.',
       );
+      inFlightRef.current = false;
       setIsLoading(false);
     }
   }

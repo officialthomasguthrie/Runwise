@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { motion, Variants } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -19,6 +19,7 @@ export const Pricing: React.FC = () => {
   const { subscriptionTier } = useAuth();
   const [isAnnual, setIsAnnual] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const checkoutInFlightRef = useRef(false);
 
   // Determine current plan from subscription tier
   // Map: personal -> "personal", pro/professional -> "professional", enterprise/enterprises -> "enterprises"
@@ -50,6 +51,8 @@ export const Pricing: React.FC = () => {
     }
 
     const planId = isAnnual ? planConfig.yearly : planConfig.monthly;
+    if (checkoutInFlightRef.current) return;
+    checkoutInFlightRef.current = true;
     setLoadingPlan(planName);
 
     try {
@@ -78,11 +81,12 @@ export const Pricing: React.FC = () => {
       window.location.href = payload.url as string;
     } catch (error: any) {
       console.error('Failed to start checkout:', error);
+      checkoutInFlightRef.current = false;
+      setLoadingPlan(null);
       alert(
         error?.message ??
           'We could not start the checkout flow. Please try again.',
       );
-      setLoadingPlan(null);
     }
   };
 

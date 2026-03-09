@@ -203,11 +203,58 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Try to get user if authenticated, but don't require it
+    const adminSupabase = createAdminClient();
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser().catch(() => ({ data: { user: null }, error: null }));
+
+    // Fetch user record once (for active-sub check and customer reuse)
+    type UserBilling = { stripe_customer_id?: string; stripe_subscription_id?: string; subscription_status?: string };
+    let userRecord: UserBilling | null = null;
+    if (user?.id) {
+      const { data } = await adminSupabase
+        .from('users')
+        .select('stripe_customer_id, stripe_subscription_id, subscription_status')
+        .eq('id', user.id)
+        .maybeSingle();
+      userRecord = data as UserBilling | null;
+    }
+
+    // Prevent double charging: block users with active subscription from creating new checkout.
+    // Redirect them to billing portal for plan changes instead.
+    if (userRecord) {
+      const status = userRecord.subscription_status;
+      const hasSubId = !!userRecord.stripe_subscription_id;
+
+      if (status === 'active' && hasSubId) {
+        // User has active subscription - use billing portal for plan changes
+        const stripeCustomerId = userRecord.stripe_customer_id;
+        if (stripeCustomerId && stripe) {
+          try {
+            const portalSession = await stripe.billingPortal.sessions.create({
+              customer: stripeCustomerId,
+              return_url: customCancelUrl ? `${origin}${customCancelUrl}` : `${origin}/settings?tab=billing`,
+            });
+            if (portalSession.url) {
+              return NextResponse.json({
+                url: portalSession.url,
+                isPortal: true,
+              });
+            }
+          } catch (portalError: any) {
+            console.error('Portal session creation failed:', portalError);
+          }
+        }
+        return NextResponse.json(
+          {
+            error: 'You already have an active subscription. To change your plan, go to Settings → Billing.',
+            usePortal: true,
+          },
+          { status: 400 },
+        );
+      }
+    }
 
     const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
       metadata: {
@@ -257,11 +304,16 @@ export async function POST(request: NextRequest) {
       subscriptionData.trial_period_days = 7;
     }
 
+    // Use existing customer when available to avoid duplicate Stripe customers
+    const stripeCustomerId = userRecord?.stripe_customer_id ?? null;
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
       allow_promotion_codes: false,
-      customer_email: user?.email ?? body?.email ?? undefined,
+      ...(stripeCustomerId
+        ? { customer: stripeCustomerId }
+        : { customer_email: user?.email ?? body?.email ?? undefined }),
       client_reference_id: user?.id ?? undefined,
       line_items: [
         {
