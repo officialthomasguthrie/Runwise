@@ -69,6 +69,24 @@ const TRIGGER_CATALOGUE: TriggerDef[] = [
     requiredIntegration: 'google-calendar',
     defaultConfig: {},
   },
+  {
+    triggerType: 'new-notion-page',
+    label: 'Watch a Notion database for new pages',
+    requiredIntegration: 'notion',
+    defaultConfig: {},
+  },
+  {
+    triggerType: 'new-airtable-record',
+    label: 'Watch an Airtable base for new records',
+    requiredIntegration: 'airtable',
+    defaultConfig: {},
+  },
+  {
+    triggerType: 'new-trello-card',
+    label: 'Watch a Trello board for new cards',
+    requiredIntegration: 'trello',
+    defaultConfig: {},
+  },
 ];
 
 // ============================================================================
@@ -166,7 +184,7 @@ Return an updated plan that incorporates their requested changes.
 POLLING TRIGGERS (only use if user has integration):
 ${availableTriggersText}
 
-BUILT-IN TRIGGERS (no integration): webhook (config.path required), schedule (scheduleCron required), heartbeat (scheduleCron required).
+BUILT-IN TRIGGERS (no integration, ALWAYS available): webhook (config.path required), schedule (scheduleCron required for "daily", "hourly", "every morning", etc.), heartbeat (scheduleCron required). schedule/heartbeat are ALWAYS supported for time-based agents.
 
 ---
 Your job: Return an UPDATED plan that incorporates the user's feedback. Use the exact same JSON structure as the current plan.
@@ -215,11 +233,12 @@ TRIGGERS — ADD ONLY WHEN USER SPECIFIES OR YOU CAN CLEARLY INFER:
 POLLING TRIGGERS (require connected integration — only use if user mentions the source):
 ${availableTriggersText}
 
-BUILT-IN TRIGGERS (no integration required — always available):
-- webhook: Run when HTTP POST hits a webhook URL. Use when user says "webhook", "when someone hits my URL", "when a form submits". config MUST include "path" (URL-safe slug, e.g. "signup", "order-notify").
-- schedule: Run on fixed cron. Use for "daily at X", "every morning", "hourly". scheduleCron REQUIRED.
-- heartbeat: Proactive check-in (same as schedule). Use for "daily briefing", "check in every day".
+BUILT-IN TRIGGERS (NO integration required — ALWAYS available, use for time-based agents):
+- schedule: Run on a cron schedule. REQUIRED for: "daily", "hourly", "every morning", "every day at 9am", "time-based", "scheduled", "every hour", "weekly", "at 8am". scheduleCron REQUIRED. Examples: "0 9 * * *" (9am daily), "0 * * * *" (hourly), "0 8 * * 1-5" (8am Mon-Fri).
+- heartbeat: Same as schedule, proactive check-in. Use for "daily briefing", "check in every day", "run every morning". scheduleCron REQUIRED.
+- webhook: Run when HTTP POST hits a webhook URL. Use for "webhook", "when someone hits my URL", "when a form submits". config MUST include "path" (URL-safe slug).
 
+CRITICAL: schedule and heartbeat are ALWAYS supported. If user says "time-based", "scheduled", "daily", "hourly", "every morning", etc. → use behaviourType "schedule" or "heartbeat" with appropriate scheduleCron. Do NOT say we don't support time schedules.
 CRITICAL: Only add triggers when user EXPLICITLY specifies one or you can strongly infer. If user does NOT mention how/when to run → behaviours: [] (manual-only agent).
 
 ---
@@ -261,7 +280,25 @@ RULES:
 7. "initialGoals" and "initialRules" from prompts.
 8. Pick a real-sounding name. Avoid "Agent" or "Bot".
 9. config for polling: fill when you have specific values; otherwise {}.
-10. Do NOT add a default heartbeat when the user did not ask for a time-based trigger. Manual-only agents have empty behaviours.`;
+10. Do NOT add a default heartbeat when the user did not ask for a time-based trigger. Manual-only agents have empty behaviours.
+
+---
+AGENT CAPABILITIES (what agents can DO — include in instructions when relevant):
+- Gmail: watch for new emails, read emails, send emails, REPLY to emails (we support replying to email threads)
+- Slack: post messages to channels
+- Discord: send messages to channels
+- Google Sheets: read rows, add/update rows
+- Notion: create pages
+- Airtable: create/update/list records
+- Trello: create cards (via workflow nodes)
+- Google Calendar: create events
+- Google Drive: list, upload, share, read, search files
+- GitHub: create issues, list issues, add comments
+- Twilio: send SMS
+- Twitter: post tweets, search tweets
+- Stripe: list customers, get customer, create invoice, subscriptions
+- Web search (Serper), read URL content, get current time, HTTP requests, memory (remember/recall)
+When user says "reply to emails", "respond to emails", "answer emails" → we support it. Use new-email-received trigger + instructions to reply.`;
 }
 
 // ============================================================================

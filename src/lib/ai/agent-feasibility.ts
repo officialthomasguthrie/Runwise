@@ -12,36 +12,41 @@ export type FeasibilityResult = {
 };
 
 const SUPPORTED_TRIGGERS = `
-- Gmail (new email) — requires google-gmail
-- Slack (new channel message) — requires slack
-- Discord (new message) — requires discord
-- Google Sheets (new row) — requires google-sheets
-- GitHub (new issue) — requires github
-- Google Drive (file upload) — requires google-drive
-- Google Forms (form submission) — requires google-forms
-- Google Calendar (new event) — requires google-calendar
-- Webhook (HTTP POST to a URL) — no integration
-- Schedule (cron: daily, hourly, etc.) — no integration
-- Heartbeat (proactive check-in) — no integration
+POLLING TRIGGERS (require connected integration):
+- new-email-received (Gmail) — google-gmail
+- new-message-in-slack (Slack) — slack
+- new-discord-message (Discord) — discord
+- new-row-in-google-sheet (Google Sheets) — google-sheets
+- new-github-issue (GitHub) — github
+- file-uploaded (Google Drive) — google-drive
+- new-form-submission (Google Forms) — google-forms
+- new-calendar-event (Google Calendar) — google-calendar
+- new-notion-page (Notion) — notion
+- new-airtable-record (Airtable) — airtable
+- new-trello-card (Trello) — trello
+
+BUILT-IN TRIGGERS (NO integration required — ALWAYS supported):
+- schedule: "daily", "hourly", "every morning", "every day at 9am", "time-based", "scheduled", "cron" — ALWAYS feasible
+- heartbeat: "daily briefing", "check in every day", "proactive" — ALWAYS feasible
+- webhook: HTTP POST to URL — ALWAYS feasible
 `.trim();
 
 const SUPPORTED_ACTIONS = `
-- Send/read email (Gmail)
-- Post to Slack or Discord
-- Create Notion pages
-- Update Google Sheets, Airtable, Trello
-- Create Google Calendar events
-- Google Drive (list, upload, share, read files, search)
-- GitHub (create/list issues, add comments)
-- Stripe (customers, invoices, subscriptions)
-- Twitter/X (post tweets, search, get profile)
-- Send SMS (Twilio)
-- Web search (Serper API)
-- Read URL content
-- Get current time / timezone conversion
-- Generic HTTP request
-- Memory (remember/recall facts)
-- Send notification to user
+- Gmail: watch inbox, READ emails, SEND emails, REPLY to emails (we fully support replying/responding to emails)
+- Slack: post messages
+- Discord: send messages
+- Google Sheets: read, add, update rows
+- Notion: create pages
+- Airtable: create, update, list records
+- Trello: create cards
+- Google Calendar: create events
+- Google Drive: list, upload, share, read, search files
+- GitHub: create/list issues, add comments
+- Twilio: send SMS
+- Twitter/X: post tweets, search
+- Stripe: customers, invoices, subscriptions
+- Web search, read URL, get current time, HTTP requests
+- Memory (remember/recall), send notification to user
 `.trim();
 
 /**
@@ -60,28 +65,34 @@ export async function checkAgentFeasibility(
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const systemPrompt = `You are a feasibility checker for Runwise, an AI agent builder. Your ONLY job is to determine if a user's agent request uses triggers or actions we DON'T SUPPORT AT ALL (we haven't built the OAuth/credential flow for that service yet).
+  const systemPrompt = `You are a feasibility checker for Runwise, an AI agent builder. Your ONLY job is to determine if a user's agent request uses triggers or actions we DON'T SUPPORT AT ALL.
 
-SUPPORTED TRIGGERS (we have these — always feasible):
+SUPPORTED TRIGGERS:
 ${SUPPORTED_TRIGGERS}
 
-SUPPORTED ACTIONS (we have these — always feasible):
+SUPPORTED ACTIONS:
 ${SUPPORTED_ACTIONS}
 
-CRITICAL: Whether the user has CONNECTED an integration (Gmail, Slack, etc.) is IRRELEVANT. Users connect integrations AFTER building the agent. Only reject when the user asks for a service we don't support.
+REJECT (feasible: false) ONLY for services we truly don't support:
+- Microsoft Teams, Zoom, WhatsApp, Jira, Linear, Salesforce, HubSpot (unless we add them), Asana, Monday.com, etc.
+- Anything that requires an integration we have not built
+
+NEVER REJECT (feasible: true) for these — we support them:
+- "daily", "hourly", "every morning", "time-based", "scheduled", "cron" → schedule/heartbeat ALWAYS supported
+- "reply to emails", "respond to emails", "answer all emails" → Gmail + send_email (we support replying)
+- Gmail, Slack, Discord, Google Sheets/Forms/Calendar/Drive, GitHub, Notion, Airtable, Trello
+- Webhook, schedule, heartbeat — always available
+
+CRITICAL: Whether the user has CONNECTED an integration is IRRELEVANT. Users connect after building. Only reject when we don't support the SERVICE at all.
 
 RULES:
-1. feasible: false ONLY when the user asks for a TRIGGER we don't support (e.g. Microsoft Teams, Zoom, WhatsApp, Jira, Linear, Salesforce, HubSpot). Explain which service we don't support.
-2. feasible: false ONLY when the user asks for an ACTION we don't support (e.g. post to Teams, update Jira, send WhatsApp, create Zoom meeting). Explain which service we don't support.
-3. feasible: true when the request uses ONLY our supported triggers and actions — even if the user hasn't connected Gmail, Slack, etc. They will connect them later.
-4. When feasible: false, provide a SHORT, FRIENDLY reason (1-3 sentences). Be honest and specific.
-5. Examples of infeasible: "post to Microsoft Teams", "watch my Zoom for new meetings", "update Jira when I get an email", "send WhatsApp messages", "create a Salesforce lead"
-6. Examples of feasible (always proceed): "summarize my Gmail" (we support Gmail), "post to Slack when I get a new row in Sheets" (we support both), "watch my Gmail and send me an SMS" (we support Gmail + Twilio). Do NOT reject because user might not have connected them yet.
+1. feasible: false ONLY for unsupported services (Teams, Zoom, WhatsApp, Jira, etc.)
+2. feasible: true for: schedule, heartbeat, webhook, Gmail, Slack, Discord, Sheets, Forms, Calendar, Drive, GitHub, Notion, Airtable, Trello, Twilio, Twitter, Stripe, and email reply/send/read
+3. "reply to emails" or "respond to emails" = feasible (we support Gmail trigger + send/reply)
+4. "daily agent", "hourly check", "every morning" = feasible (schedule/heartbeat)
 
-OUTPUT FORMAT (JSON only):
-{"feasible": boolean, "reason": "Short explanation when feasible is false"}
-
-Return ONLY valid JSON, no markdown, no code fences. When feasible is true, omit reason or set it to null.`;
+OUTPUT: JSON only: {"feasible": boolean, "reason": "..." when false}
+Return ONLY valid JSON. When feasible is true, omit reason or null.`;
 
   try {
     const completion = await openai.chat.completions.create({
