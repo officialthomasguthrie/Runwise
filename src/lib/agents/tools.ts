@@ -562,6 +562,27 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     type: 'function',
     function: {
+      name: 'read_url',
+      description: 'Fetch and read content from a URL. Returns parsed text from web pages, JSON from APIs, or raw text. Use for link previews, scraping article content, or fetching external data. Combines well with web_search to read pages found in search results.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            description: 'The full URL to fetch (must be http or https)',
+          },
+          maxChars: {
+            type: 'number',
+            description: 'Maximum characters to return (1–100000). Defaults to 30000. Use to avoid token limits on long pages.',
+          },
+        },
+        required: ['url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'list_stripe_customers',
       description: 'List customers in Stripe.',
       parameters: {
@@ -835,6 +856,8 @@ export async function executeAgentTool(
         return await toolListStripeSubscriptions(toolParams, context);
       case 'web_search':
         return await toolWebSearch(toolParams, context);
+      case 'read_url':
+        return await toolReadUrl(toolParams, context);
       case 'http_request':
         return await toolHttpRequest(toolParams, context);
       case 'remember':
@@ -2044,6 +2067,125 @@ async function toolWebSearch(
         : undefined,
     },
   };
+}
+
+/** Convert HTML to readable plain text (no external deps). */
+function htmlToText(html: string): string {
+  let text = html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, '');
+  text = text
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.replace(/\n\s*\n/g, '\n\n');
+}
+
+async function toolReadUrl(
+  params: Record<string, any>,
+  _context: AgentRunContext
+): Promise<ToolResult> {
+  const url = (params.url as string)?.trim();
+  const maxChars = Math.min(
+    Math.max(Number(params.maxChars) || 30000, 1000),
+    100000
+  );
+
+  if (!url) {
+    throw new Error('read_url requires a url parameter');
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('URL must use http or https');
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (compatible; RunwiseAgent/1.0; +https://runwise.ai)',
+      },
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    const isHtml = contentType.toLowerCase().includes('text/html');
+    const isJson = contentType.toLowerCase().includes('application/json');
+
+    const sizeLimit = 1024 * 1024;
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > sizeLimit) {
+      throw new Error(
+        `Response too large (${contentLength} bytes). Max 1MB supported.`
+      );
+    }
+
+    const raw = await response.text();
+    if (raw.length > sizeLimit) {
+      throw new Error(
+        `Response too large (${raw.length} bytes). Max 1MB supported.`
+      );
+    }
+
+    let content: string;
+    if (isHtml) {
+      content = htmlToText(raw);
+    } else if (isJson) {
+      try {
+        const parsed = JSON.parse(raw);
+        content = typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2);
+      } catch {
+        content = raw;
+      }
+    } else {
+      content = raw;
+    }
+
+    const truncated = content.length > maxChars;
+    if (truncated) {
+      content = content.slice(0, maxChars) + '\n\n[Content truncated for length]';
+    }
+
+    return {
+      success: true,
+      data: {
+        url,
+        content,
+        contentType: isHtml ? 'text' : isJson ? 'json' : 'text',
+        truncated,
+        status: response.status,
+      },
+    };
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error('Request timed out after 15 seconds');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function toolHttpRequest(

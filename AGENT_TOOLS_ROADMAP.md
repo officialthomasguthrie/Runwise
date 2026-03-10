@@ -1,7 +1,7 @@
 # Top 50 Agent Tools Roadmap
 
 A prioritised list of the most useful tools to add to Runwise agents. Organised by category.  
-**Already implemented**: Gmail (send/read), Slack, Discord, Notion, Google Sheets, Google Calendar, **Google Drive** (list, upload, share, create folder, get metadata, read file, search), **Airtable** (create, update, list, get record), **GitHub** (create issue, list issues, add comment), **Stripe** (list customers, get customer, create invoice, get subscription, list subscriptions), Twitter/X, **`web_search`** (Serper API), `http_request`, memory (remember/recall), `send_notification_to_user`, `do_nothing`.
+**Already implemented**: Gmail (send/read), Slack, Discord, Notion, Google Sheets, Google Calendar, **Google Drive** (list, upload, share, create folder, get metadata, read file, search), **Airtable** (create, update, list, get record), **GitHub** (create issue, list issues, add comment), **Stripe** (list customers, get customer, create invoice, get subscription, list subscriptions), Twitter/X, **`web_search`** (Serper API), **`read_url`** (fetch & parse URL content), `http_request`, memory (remember/recall), `send_notification_to_user`, `do_nothing`.
 
 ---
 
@@ -18,7 +18,7 @@ A prioritised list of the most useful tools to add to Runwise agents. Organised 
 | 7 | **`web_search`** — Search the web | Generic | **DONE** — Serper API (Google results) | Research, facts, real-time info. |
 | 8 | **`send_sms`** (Twilio) | Integration | Send SMS via Twilio | Alerts, 2FA, critical notifications. |
 | 9 | **`get_current_time`** / `get_timezone` | Generic | Current time, timezone conversion | Scheduling, reminders, date logic. |
-| 10 | **`read_url`** — Fetch and parse URL content | Generic | GET URL, return text/HTML | Scraping, link previews, external data. |
+| 10 | **`read_url`** — Fetch and parse URL content | Generic | **DONE** — GET URL, HTML→text, JSON support | Scraping, link previews, external data. |
 
 ---
 
