@@ -583,6 +583,31 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     type: 'function',
     function: {
+      name: 'get_current_time',
+      description: 'Get the current date and time, optionally in a specific timezone. Use for scheduling, reminders, date logic, or converting between timezones. Returns ISO format and human-readable string.',
+      parameters: {
+        type: 'object',
+        properties: {
+          timezone: {
+            type: 'string',
+            description: 'IANA timezone (e.g. America/New_York, Europe/London, Asia/Tokyo). If omitted, returns UTC.',
+          },
+          datetime: {
+            type: 'string',
+            description: 'Optional ISO datetime to convert (e.g. 2024-03-15T14:30:00Z). Use with toTimezone to convert.',
+          },
+          toTimezone: {
+            type: 'string',
+            description: 'When datetime is provided, convert to this IANA timezone.',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'list_stripe_customers',
       description: 'List customers in Stripe.',
       parameters: {
@@ -858,6 +883,8 @@ export async function executeAgentTool(
         return await toolWebSearch(toolParams, context);
       case 'read_url':
         return await toolReadUrl(toolParams, context);
+      case 'get_current_time':
+        return await toolGetCurrentTime(toolParams, context);
       case 'http_request':
         return await toolHttpRequest(toolParams, context);
       case 'remember':
@@ -2186,6 +2213,76 @@ async function toolReadUrl(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function formatInTimezone(date: Date, timezone: string): { iso: string; human: string; utcOffset: string } {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    dateStyle: 'full',
+    timeStyle: 'long',
+  });
+  const isoStr = date.toLocaleString('sv-SE', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).replace(' ', 'T');
+  const offsetParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    timeZoneName: 'shortOffset',
+  }).formatToParts(date);
+  const utcOffset = offsetParts.find((p) => p.type === 'timeZoneName')?.value ?? '';
+  return {
+    iso: isoStr,
+    human: formatter.format(date),
+    utcOffset,
+  };
+}
+
+async function toolGetCurrentTime(
+  params: Record<string, any>,
+  _context: AgentRunContext
+): Promise<ToolResult> {
+  const timezone = (params.timezone as string)?.trim() || 'UTC';
+  const datetime = (params.datetime as string)?.trim();
+  const toTimezone = (params.toTimezone as string)?.trim();
+
+  let date: Date;
+  if (datetime) {
+    date = new Date(datetime);
+    if (isNaN(date.getTime())) {
+      throw new Error(`Invalid datetime: ${datetime}. Use ISO format (e.g. 2024-03-15T14:30:00Z)`);
+    }
+  } else {
+    date = new Date();
+  }
+
+  const targetZone = toTimezone || timezone;
+
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: targetZone });
+  } catch {
+    throw new Error(`Invalid timezone: ${targetZone}. Use IANA format (e.g. America/New_York, Europe/London)`);
+  }
+
+  const formatted = formatInTimezone(date, targetZone);
+  const result: Record<string, unknown> = {
+    iso: formatted.iso,
+    human: formatted.human,
+    timezone: targetZone,
+    utcOffset: formatted.utcOffset,
+  };
+
+  if (datetime && toTimezone) {
+    result.originalDatetime = datetime;
+    result.convertedTo = targetZone;
+  }
+
+  return { success: true, data: result };
 }
 
 async function toolHttpRequest(
