@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
           );
           const adjustmentContext = `User asked to adjust: ${latestUserContent}`;
           await streamPlanIntro(writer, plan, adjustmentContext);
-          writer.card({ type: 'plan', plan, isEditingAgent: !!agentId });
+          writer.card({ type: 'plan', plan });
           writer.close();
           return;
         }
