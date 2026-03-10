@@ -572,7 +572,7 @@ export function IntegrationsSettings() {
               return (
                 <div
                   key={integration.id}
-                  className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-4 transition-all duration-300 text-foreground hover:shadow-lg"
+                  className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-4 transition-all duration-300 text-foreground"
                 >
                   <div className="flex items-start gap-3">
                     <div className="shrink-0">
@@ -659,7 +659,7 @@ export function IntegrationsSettings() {
           return (
             <div
               key={integration.id}
-              className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-4 transition-all duration-300 text-foreground hover:shadow-lg"
+              className="group relative rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 dark:border-white/20 backdrop-blur-xl p-4 transition-all duration-300 text-foreground"
             >
               <div className="flex items-start gap-3">
                 <div className="shrink-0">
