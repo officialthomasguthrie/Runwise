@@ -26,7 +26,7 @@ export interface AirtableField {
  * Get authenticated Airtable API token
  * Supports both OAuth (preferred) and API token (backward compatibility)
  */
-async function getAirtableToken(userId: string): Promise<string> {
+export async function getAirtableToken(userId: string): Promise<string> {
   // Try OAuth token first (new method)
   try {
     const oauthIntegration = await getUserIntegration(userId, 'airtable');

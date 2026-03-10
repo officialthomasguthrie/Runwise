@@ -1,7 +1,7 @@
 # Top 50 Agent Tools Roadmap
 
 A prioritised list of the most useful tools to add to Runwise agents. Organised by category.  
-**Already implemented**: Gmail (send/read), Slack, Discord, Notion, Google Sheets, Google Calendar, **Google Drive** (list, upload, share, create folder, get metadata, read file, search), Twitter/X, `http_request`, memory (remember/recall), `send_notification_to_user`, `do_nothing`.
+**Already implemented**: Gmail (send/read), Slack, Discord, Notion, Google Sheets, Google Calendar, **Google Drive** (list, upload, share, create folder, get metadata, read file, search), **Airtable** (create, update, list, get record), Twitter/X, `http_request`, memory (remember/recall), `send_notification_to_user`, `do_nothing`.
 
 ---
 
@@ -11,7 +11,7 @@ A prioritised list of the most useful tools to add to Runwise agents. Organised 
 |---|------|------|--------------|-----|
 | 1 | **Twitter/X** — `post_tweet`, `search_tweets`, `get_user_tweets` | Integration | Post tweets, search, fetch user timelines | Social presence, monitoring, engagement. Twitter lib already exists. |
 | 2 | **Google Drive** — `list_drive_files`, `upload_to_drive`, `share_drive_file`, `create_drive_folder`, `get_drive_file_metadata`, `read_drive_file`, `search_drive_files` | Integration | **DONE** — List, upload, share, create folders, metadata, read, search | Often used with Sheets/Calendar. High overlap with Gmail users. |
-| 3 | **Airtable** — `create_record`, `update_record`, `list_records` | Integration | CRUD on Airtable bases | Flexible databases, popular with small teams. |
+| 3 | **Airtable** — `create_airtable_record`, `update_airtable_record`, `list_airtable_records`, `get_airtable_record` | Integration | **DONE** — Create, update, list, get records | Flexible databases, popular with small teams. |
 | 4 | **GitHub** — `create_issue`, `list_issues`, `add_comment` | Integration | Manage issues and comments | Dev workflows, bug tracking, project coordination. |
 | 5 | **Stripe** — `list_customers`, `create_invoice`, `get_subscription` | Integration | Basic Stripe operations | Billing, subscriptions, revenue visibility. |
 | 6 | **`run_script`** — Execute user-defined scripts (sandboxed) | Generic | Run JS/Python in isolated runtime | Dynamic logic, data transforms, custom APIs. |

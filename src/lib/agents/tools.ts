@@ -5,6 +5,7 @@ import { getGoogleAccessToken } from '@/lib/integrations/google';
 import { sendDiscordMessage } from '@/lib/integrations/discord';
 import { postTweet, searchTweets, getTwitterProfile } from '@/lib/integrations/twitter';
 import { getIntegrationCredential } from '@/lib/integrations/service';
+import { getAirtableToken } from '@/lib/integrations/airtable';
 
 // ============================================================================
 // TOOL DEFINITIONS (OpenAI ChatCompletionTool format)
@@ -374,6 +375,104 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     type: 'function',
     function: {
+      name: 'create_airtable_record',
+      description: 'Create a new record in an Airtable table.',
+      parameters: {
+        type: 'object',
+        properties: {
+          baseId: { type: 'string', description: 'Airtable base ID (from the base URL)' },
+          tableId: {
+            type: 'string',
+            description: 'Table name or table ID (e.g. "Tasks", "tblXXXXXXXXXXXXXX")',
+          },
+          fields: {
+            type: 'object',
+            description: 'Record fields as key-value pairs. Keys are field names.',
+            additionalProperties: true,
+          },
+        },
+        required: ['baseId', 'tableId', 'fields'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_airtable_record',
+      description: 'Update an existing record in an Airtable table.',
+      parameters: {
+        type: 'object',
+        properties: {
+          baseId: { type: 'string', description: 'Airtable base ID' },
+          tableId: { type: 'string', description: 'Table name or table ID' },
+          recordId: { type: 'string', description: 'Record ID (recXXXXXXXXXXXXXX)' },
+          fields: {
+            type: 'object',
+            description: 'Fields to update as key-value pairs',
+            additionalProperties: true,
+          },
+        },
+        required: ['baseId', 'tableId', 'recordId', 'fields'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_airtable_records',
+      description: 'List records from an Airtable table. Supports filtering and sorting.',
+      parameters: {
+        type: 'object',
+        properties: {
+          baseId: { type: 'string', description: 'Airtable base ID' },
+          tableId: { type: 'string', description: 'Table name or table ID' },
+          maxRecords: {
+            type: 'number',
+            description: 'Maximum number of records to return (1–100). Defaults to 100.',
+          },
+          view: {
+            type: 'string',
+            description: 'Optional view name or ID to filter/sort by that view',
+          },
+          filterByFormula: {
+            type: 'string',
+            description: 'Airtable formula to filter records (e.g. "{Status}=\'Done\'", "AND({Score}>5,{Active}=TRUE())")',
+          },
+          sort: {
+            type: 'array',
+            description: 'Sort order, e.g. [{"field":"Name","direction":"asc"}]',
+            items: {
+              type: 'object',
+              properties: {
+                field: { type: 'string' },
+                direction: { type: 'string', enum: ['asc', 'desc'] },
+              },
+            },
+          },
+        },
+        required: ['baseId', 'tableId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_airtable_record',
+      description: 'Get a single record from an Airtable table by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          baseId: { type: 'string', description: 'Airtable base ID' },
+          tableId: { type: 'string', description: 'Table name or table ID' },
+          recordId: { type: 'string', description: 'Record ID' },
+        },
+        required: ['baseId', 'tableId', 'recordId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'http_request',
       description: 'Make a raw HTTP request to any URL. Use for APIs not covered by other tools.',
       parameters: {
@@ -519,6 +618,14 @@ export async function executeAgentTool(
         return await toolReadDriveFile(toolParams, context);
       case 'search_drive_files':
         return await toolSearchDriveFiles(toolParams, context);
+      case 'create_airtable_record':
+        return await toolCreateAirtableRecord(toolParams, context);
+      case 'update_airtable_record':
+        return await toolUpdateAirtableRecord(toolParams, context);
+      case 'list_airtable_records':
+        return await toolListAirtableRecords(toolParams, context);
+      case 'get_airtable_record':
+        return await toolGetAirtableRecord(toolParams, context);
       case 'http_request':
         return await toolHttpRequest(toolParams, context);
       case 'remember':
@@ -1215,6 +1322,152 @@ async function toolSearchDriveFiles(
   }));
 
   return { success: true, data: { files, count: files.length } };
+}
+
+// ============================================================================
+// AIRTABLE TOOLS
+// ============================================================================
+
+async function toolCreateAirtableRecord(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { baseId, tableId, fields } = params;
+
+  const token = await getAirtableToken(context.userId);
+
+  const response = await fetch(
+    `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableId)}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fields }),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Airtable create failed: ${err?.error?.message || response.statusText}`);
+  }
+
+  const record = await response.json();
+  return {
+    success: true,
+    data: { recordId: record.id, fields: record.fields },
+  };
+}
+
+async function toolUpdateAirtableRecord(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { baseId, tableId, recordId, fields } = params;
+
+  const token = await getAirtableToken(context.userId);
+
+  const response = await fetch(
+    `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableId)}/${recordId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fields }),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Airtable update failed: ${err?.error?.message || response.statusText}`);
+  }
+
+  const record = await response.json();
+  return {
+    success: true,
+    data: { recordId: record.id, fields: record.fields },
+  };
+}
+
+async function toolListAirtableRecords(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { baseId, tableId, maxRecords = 100, view, filterByFormula, sort } = params;
+
+  const token = await getAirtableToken(context.userId);
+
+  const url = new URL(
+    `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableId)}`
+  );
+  url.searchParams.set('maxRecords', String(Math.min(Math.max(maxRecords, 1), 100)));
+  if (view) url.searchParams.set('view', view);
+  if (filterByFormula) url.searchParams.set('filterByFormula', filterByFormula);
+  if (sort && Array.isArray(sort) && sort.length > 0) {
+    url.searchParams.set('sort[0][field]', sort[0].field || '');
+    url.searchParams.set('sort[0][direction]', sort[0].direction || 'asc');
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Airtable list failed: ${err?.error?.message || response.statusText}`);
+  }
+
+  const data = await response.json();
+  const records = (data.records || []).map((r: any) => ({
+    id: r.id,
+    fields: r.fields,
+    createdTime: r.createdTime,
+  }));
+
+  return {
+    success: true,
+    data: { records, count: records.length, offset: data.offset },
+  };
+}
+
+async function toolGetAirtableRecord(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { baseId, tableId, recordId } = params;
+
+  const token = await getAirtableToken(context.userId);
+
+  const response = await fetch(
+    `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableId)}/${recordId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Airtable get failed: ${err?.error?.message || response.statusText}`);
+  }
+
+  const record = await response.json();
+  return {
+    success: true,
+    data: {
+      id: record.id,
+      fields: record.fields,
+      createdTime: record.createdTime,
+    },
+  };
 }
 
 async function toolHttpRequest(
