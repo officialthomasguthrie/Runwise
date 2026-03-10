@@ -18,7 +18,7 @@ export interface GitHubRepository {
 /**
  * Get authenticated GitHub access token
  */
-async function getGitHubToken(userId: string): Promise<string> {
+export async function getGitHubToken(userId: string): Promise<string> {
   // Try OAuth token first
   const integration = await getUserIntegration(userId, 'github');
   

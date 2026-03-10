@@ -6,6 +6,7 @@ import { sendDiscordMessage } from '@/lib/integrations/discord';
 import { postTweet, searchTweets, getTwitterProfile } from '@/lib/integrations/twitter';
 import { getIntegrationCredential } from '@/lib/integrations/service';
 import { getAirtableToken } from '@/lib/integrations/airtable';
+import { getGitHubToken } from '@/lib/integrations/github';
 
 // ============================================================================
 // TOOL DEFINITIONS (OpenAI ChatCompletionTool format)
@@ -473,6 +474,72 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     type: 'function',
     function: {
+      name: 'create_github_issue',
+      description: 'Create a new issue in a GitHub repository.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string', description: 'Repository owner (username or org)' },
+          repo: { type: 'string', description: 'Repository name' },
+          title: { type: 'string', description: 'Issue title' },
+          body: { type: 'string', description: 'Issue body/description (optional)' },
+          labels: {
+            type: 'array',
+            description: 'Labels to add (optional)',
+            items: { type: 'string' },
+          },
+        },
+        required: ['owner', 'repo', 'title'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_github_issues',
+      description: 'List issues in a GitHub repository.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string', description: 'Repository owner' },
+          repo: { type: 'string', description: 'Repository name' },
+          state: {
+            type: 'string',
+            description: 'Filter by state',
+            enum: ['open', 'closed', 'all'],
+          },
+          maxResults: {
+            type: 'number',
+            description: 'Maximum number of issues to return (1–100). Defaults to 30.',
+          },
+        },
+        required: ['owner', 'repo'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_github_comment',
+      description: 'Add a comment to a GitHub issue or pull request.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string', description: 'Repository owner' },
+          repo: { type: 'string', description: 'Repository name' },
+          issueNumber: {
+            type: 'number',
+            description: 'Issue or PR number',
+          },
+          body: { type: 'string', description: 'Comment text' },
+        },
+        required: ['owner', 'repo', 'issueNumber', 'body'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'http_request',
       description: 'Make a raw HTTP request to any URL. Use for APIs not covered by other tools.',
       parameters: {
@@ -626,6 +693,12 @@ export async function executeAgentTool(
         return await toolListAirtableRecords(toolParams, context);
       case 'get_airtable_record':
         return await toolGetAirtableRecord(toolParams, context);
+      case 'create_github_issue':
+        return await toolCreateGitHubIssue(toolParams, context);
+      case 'list_github_issues':
+        return await toolListGitHubIssues(toolParams, context);
+      case 'add_github_comment':
+        return await toolAddGitHubComment(toolParams, context);
       case 'http_request':
         return await toolHttpRequest(toolParams, context);
       case 'remember':
@@ -1466,6 +1539,134 @@ async function toolGetAirtableRecord(
       id: record.id,
       fields: record.fields,
       createdTime: record.createdTime,
+    },
+  };
+}
+
+// ============================================================================
+// GITHUB TOOLS
+// ============================================================================
+
+const GITHUB_HEADERS = {
+  Accept: 'application/vnd.github.v3+json',
+  'User-Agent': 'Runwise-Agent',
+};
+
+async function toolCreateGitHubIssue(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { owner, repo, title, body, labels } = params;
+
+  const token = await getGitHubToken(context.userId);
+
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/issues`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...GITHUB_HEADERS,
+      },
+      body: JSON.stringify({
+        title,
+        body: body || '',
+        labels: Array.isArray(labels) ? labels : [],
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`GitHub create issue failed: ${err?.message || response.statusText}`);
+  }
+
+  const issue = await response.json();
+  return {
+    success: true,
+    data: {
+      number: issue.number,
+      title: issue.title,
+      htmlUrl: issue.html_url,
+      state: issue.state,
+    },
+  };
+}
+
+async function toolListGitHubIssues(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { owner, repo, state = 'open', maxResults = 30 } = params;
+
+  const token = await getGitHubToken(context.userId);
+
+  const url = new URL(`https://api.github.com/repos/${owner}/${repo}/issues`);
+  url.searchParams.set('state', state);
+  url.searchParams.set('per_page', String(Math.min(Math.max(maxResults, 1), 100)));
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...GITHUB_HEADERS,
+    },
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`GitHub list issues failed: ${err?.message || response.statusText}`);
+  }
+
+  const issues = await response.json();
+  const items = issues.map((i: any) => ({
+    number: i.number,
+    title: i.title,
+    state: i.state,
+    htmlUrl: i.html_url,
+    createdAt: i.created_at,
+    user: i.user?.login,
+  }));
+
+  return {
+    success: true,
+    data: { issues: items, count: items.length },
+  };
+}
+
+async function toolAddGitHubComment(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { owner, repo, issueNumber, body } = params;
+
+  const token = await getGitHubToken(context.userId);
+
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...GITHUB_HEADERS,
+      },
+      body: JSON.stringify({ body }),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`GitHub add comment failed: ${err?.message || response.statusText}`);
+  }
+
+  const comment = await response.json();
+  return {
+    success: true,
+    data: {
+      id: comment.id,
+      htmlUrl: comment.html_url,
+      body: comment.body,
     },
   };
 }
