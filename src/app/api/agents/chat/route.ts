@@ -21,8 +21,10 @@ import {
   createSSEStream,
   SSE_HEADERS,
   type AgentChatRequest,
+  agentToPlan,
 } from '@/lib/agents/chat-pipeline';
 import { getUserIntegrations } from '@/lib/integrations/service';
+import { createAdminClient } from '@/lib/supabase-admin';
 
 /** Stream "Thinking..." — kept as instant template since it's a loading placeholder */
 function streamThinking(writer: ReturnType<typeof createSSEStream>['writer']) {
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { messages, answers, pendingPlan } = body;
+    const { messages, answers, pendingPlan, agentId } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: 'messages array is required' }), {
@@ -83,7 +85,33 @@ export async function POST(request: NextRequest) {
           .filter((n): n is string => !!n);
 
         // ── Branch: User wants to adjust the plan ─────────────────────────────
-        if (pendingPlan) {
+        let effectivePendingPlan = pendingPlan;
+
+        // When editing an existing agent, fetch it and build plan for regeneration
+        if (!effectivePendingPlan && agentId) {
+          const intent = await analyzeAgentIntent(messages);
+          if (intent.wantsAgent) {
+            const admin = createAdminClient();
+            const { data: agent, error: agentError } = await (admin as any)
+              .from('agents')
+              .select('id, name, persona, instructions, avatar_emoji')
+              .eq('id', agentId)
+              .eq('user_id', user.id)
+              .single();
+
+            if (!agentError && agent) {
+              const { data: behaviours } = await (admin as any)
+                .from('agent_behaviours')
+                .select('*')
+                .eq('agent_id', agentId)
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: true });
+              effectivePendingPlan = agentToPlan(agent, behaviours ?? []);
+            }
+          }
+        }
+
+        if (effectivePendingPlan) {
           const adjustmentDescription = `User wants to change their agent plan: "${latestUserContent}"`;
           const feasibility = await checkAgentFeasibility(adjustmentDescription, userIntegrationNames);
           if (!feasibility.feasible && feasibility.reason) {
@@ -93,13 +121,13 @@ export async function POST(request: NextRequest) {
             return;
           }
           const plan = await regenerateAgentPlan(
-            pendingPlan,
+            effectivePendingPlan,
             latestUserContent,
             userIntegrationNames
           );
           const adjustmentContext = `User asked to adjust: ${latestUserContent}`;
           await streamPlanIntro(writer, plan, adjustmentContext);
-          writer.card({ type: 'plan', plan });
+          writer.card({ type: 'plan', plan, isEditingAgent: !!agentId });
           writer.close();
           return;
         }

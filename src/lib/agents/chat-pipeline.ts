@@ -125,6 +125,8 @@ export interface AgentChatRequest {
   pendingPlan?: DeployAgentPlan;
   /** Sent after all required integrations are connected */
   integrationsConnected?: boolean;
+  /** When editing an existing agent after build, used to fetch agent as plan for regeneration */
+  agentId?: string;
 }
 
 /** Shape of the request body sent to POST /api/agents/build */
@@ -518,6 +520,24 @@ export function planFromBehaviours(
       description: (b as any).description ?? '',
     })),
     initialMemories: [],
+  };
+}
+
+/**
+ * Builds a full DeployAgentPlan from an agent and its behaviours.
+ * Used when editing an existing agent — reconstructs the plan for regeneration.
+ */
+export function agentToPlan(
+  agent: { name?: string; persona?: string | null; instructions?: string; avatar_emoji?: string | null },
+  behaviours: Array<{ behaviour_type: string; trigger_type?: string | null; config?: Record<string, any>; description?: string }>
+): DeployAgentPlan {
+  const base = planFromBehaviours(behaviours);
+  return {
+    ...base,
+    name: agent.name ?? '',
+    persona: agent.persona ?? '',
+    instructions: agent.instructions ?? '',
+    avatarEmoji: agent.avatar_emoji ?? '🤖',
   };
 }
 

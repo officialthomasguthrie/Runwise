@@ -389,6 +389,7 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
             answers: options?.answers,
             pendingPlan: options?.pendingPlan,
             integrationsConnected: options?.integrationsConnected,
+            agentId: agentId ?? undefined,
           }),
         });
 
@@ -417,7 +418,7 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
         setIsStreaming(false);
       }
     },
-    [messages, appendMessage, readSSEChat]
+    [messages, appendMessage, readSSEChat, agentId]
   );
 
   const resumeAfterIntegrations = useCallback(async () => {
@@ -672,6 +673,46 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
     [startAdjust, messages, appendMessage]
   );
 
+  const handlePlanUpdate = useCallback(
+    async (plan: DeployAgentPlan) => {
+      if (!agentId) return;
+      appendMessage({ id: genId(), role: "user", content: "Update agent." });
+      setIsStreaming(true);
+      try {
+        const res = await fetch(`/api/agents/${agentId}/update-from-plan`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          appendMessage({
+            id: genId(),
+            role: "assistant",
+            content: (err.error as string) ?? "Failed to update agent.",
+          });
+          return;
+        }
+        setPendingPlan(null);
+        setPipelinePhase("complete");
+        appendMessage({
+          id: genId(),
+          role: "assistant",
+          content: "Your agent has been updated.",
+        });
+      } catch (e: any) {
+        appendMessage({
+          id: genId(),
+          role: "assistant",
+          content: e?.message ?? "Failed to update agent.",
+        });
+      } finally {
+        setIsStreaming(false);
+      }
+    },
+    [agentId, appendMessage]
+  );
+
   const handleExampleClick = useCallback((text: string) => {
     setInputFillValue(text);
   }, []);
@@ -744,6 +785,8 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
               onQuestionnaireSubmit={submitAnswers}
               onPlanBuild={handlePlanBuild}
               onPlanAdjust={handlePlanAdjust}
+              onPlanUpdate={handlePlanUpdate}
+              agentId={agentId}
               onViewAgent={onViewAgent}
               integrationReturnUrl={AGENT_RETURN_URL}
               onBeforeOAuthRedirect={saveMessagesBeforeOAuth}
@@ -785,12 +828,15 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
             )}
             <ChatInput
               placeholder={placeholder}
-              disabled={pipelinePhase === "complete"}
-              sendDisabled={pipelinePhase === "building" || pipelinePhase === "complete"}
+              disabled={pipelinePhase === "building"}
+              sendDisabled={pipelinePhase === "building"}
               isStreaming={isStreaming}
               onEnterAction={
                 pipelinePhase === "awaiting_confirmation" && pendingPlan
-                  ? () => handlePlanBuild(pendingPlan)
+                  ? () =>
+                      agentId
+                        ? handlePlanUpdate(pendingPlan)
+                        : handlePlanBuild(pendingPlan)
                   : undefined
               }
               onSend={handleSend}

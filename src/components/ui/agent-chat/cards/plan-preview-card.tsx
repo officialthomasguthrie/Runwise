@@ -9,6 +9,9 @@ interface PlanPreviewCardProps {
   plan: DeployAgentPlan;
   onBuild: () => void;
   onAdjust: () => void;
+  /** When true, show "Update agent" instead of "Build Agent" and call onUpdate on confirm */
+  isEditingAgent?: boolean;
+  onUpdate?: () => void;
 }
 
 /**
@@ -16,12 +19,16 @@ interface PlanPreviewCardProps {
  * The plan content is streamed as assistant text above; this card is just the CTAs.
  * Hides both buttons when either is clicked.
  */
-export function PlanPreviewCard({ plan, onBuild, onAdjust }: PlanPreviewCardProps) {
+export function PlanPreviewCard({ plan, onBuild, onAdjust, isEditingAgent, onUpdate }: PlanPreviewCardProps) {
   const [hidden, setHidden] = useState(false);
 
-  const handleBuild = () => {
+  const handlePrimary = () => {
     setHidden(true);
-    onBuild();
+    if (isEditingAgent && onUpdate) {
+      onUpdate();
+    } else {
+      onBuild();
+    }
   };
 
   const handleAdjust = () => {
@@ -35,7 +42,7 @@ export function PlanPreviewCard({ plan, onBuild, onAdjust }: PlanPreviewCardProp
     <div className="flex items-center gap-3 flex-wrap mt-2">
       <button
         type="button"
-        onClick={handleBuild}
+        onClick={handlePrimary}
         className={cn(
           "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200",
           "bg-stone-200/40 dark:bg-white/[0.06] backdrop-blur-xl",
@@ -45,7 +52,7 @@ export function PlanPreviewCard({ plan, onBuild, onAdjust }: PlanPreviewCardProp
           "shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
         )}
       >
-        Build Agent
+        {isEditingAgent ? "Update agent" : "Build Agent"}
         <CornerDownLeft className="h-3.5 w-3.5" />
       </button>
       <button

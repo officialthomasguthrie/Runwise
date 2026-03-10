@@ -22,6 +22,10 @@ interface MessageListProps {
   onQuestionnaireSubmit?: (answers: QuestionnaireAnswer[]) => void;
   onPlanBuild?: (plan: DeployAgentPlan) => void;
   onPlanAdjust?: (plan: DeployAgentPlan) => void;
+  /** Called when user clicks Update agent (editing existing agent) */
+  onPlanUpdate?: (plan: DeployAgentPlan) => void;
+  /** When set, plan cards show "Update agent" instead of "Build Agent" */
+  agentId?: string | null;
   /** Called when user clicks View Agent — use to switch tabs instead of navigating */
   onViewAgent?: () => void;
   /** OAuth return URL for integration check card (e.g. /agents/new?resume=1) */
@@ -58,6 +62,8 @@ export function MessageList({
   onQuestionnaireSubmit,
   onPlanBuild,
   onPlanAdjust,
+  onPlanUpdate,
+  agentId,
   onViewAgent,
   integrationReturnUrl,
   onBeforeOAuthRedirect,
@@ -142,6 +148,8 @@ export function MessageList({
                   plan={msg.data}
                   onBuild={() => onPlanBuild?.(msg.data)}
                   onAdjust={() => onPlanAdjust?.(msg.data)}
+                  isEditingAgent={!!agentId}
+                  onUpdate={agentId ? () => onPlanUpdate?.(msg.data) : undefined}
                 />
               </div>
             );
