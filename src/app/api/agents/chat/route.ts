@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase-server';
 import { planAgent, regenerateAgentPlan } from '@/lib/agents/planner';
 import { analyzeClarificationNeeds, buildEnrichedPrompt } from '@/lib/ai/clarification';
 import { analyzeAgentIntent } from '@/lib/ai/agent-intent';
+import { checkAgentFeasibility } from '@/lib/ai/agent-feasibility';
 import { streamAgentChatResponse } from '@/lib/ai/agent-chat-response';
 import {
   streamClarificationIntro,
@@ -83,6 +84,14 @@ export async function POST(request: NextRequest) {
 
         // ── Branch: User wants to adjust the plan ─────────────────────────────
         if (pendingPlan) {
+          const adjustmentDescription = `User wants to change their agent plan: "${latestUserContent}"`;
+          const feasibility = await checkAgentFeasibility(adjustmentDescription, userIntegrationNames);
+          if (!feasibility.feasible && feasibility.reason) {
+            writer.text(feasibility.reason);
+            writer.textDone();
+            writer.close();
+            return;
+          }
           const plan = await regenerateAgentPlan(
             pendingPlan,
             latestUserContent,
@@ -107,15 +116,24 @@ export async function POST(request: NextRequest) {
             )
           : latestUserContent;
 
-        streamThinking(writer);
-        writer.textDone();
-
         // Agent intent detection — respond conversationally if user is just chatting/asking
         const intent = await analyzeAgentIntent(messages);
         if (!intent.wantsAgent) {
           await streamAgentChatResponse(writer, messages);
           return;
         }
+
+        // Feasibility check — if we can't build it, explain why and stop (no questionnaire, no plan)
+        const feasibility = await checkAgentFeasibility(description, userIntegrationNames);
+        if (!feasibility.feasible && feasibility.reason) {
+          writer.text(feasibility.reason);
+          writer.textDone();
+          writer.close();
+          return;
+        }
+
+        streamThinking(writer);
+        writer.textDone();
 
         const plan = await planAgent(description, userIntegrationNames);
 
