@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { getGoogleAccessToken } from '@/lib/integrations/google';
+import { getTrelloCredentials } from '@/lib/integrations/trello';
 import { getUserIntegration } from '@/lib/integrations/service';
 
 function authenticateRequest(request: NextRequest): boolean {
@@ -689,7 +690,6 @@ async function pollTrello(
   config: Record<string, any>,
   lastTimestamp: string | null
 ): Promise<{ hasNewData: boolean; newData?: any[]; newTimestamp?: string }> {
-  const { getTrelloCredentials } = await import('@/lib/integrations/trello');
   const { apiKey, token } = await getTrelloCredentials(userId);
   const boardId = config?.boardId;
   if (!boardId) {
