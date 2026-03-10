@@ -26,10 +26,18 @@ import {
 import { getUserIntegrations } from '@/lib/integrations/service';
 import { createAdminClient } from '@/lib/supabase-admin';
 
-/** Stream "Thinking..." — kept as instant template since it's a loading placeholder */
+/** Stream "Thinking..." — loading placeholder shown while AI is working */
 function streamThinking(writer: ReturnType<typeof createSSEStream>['writer']) {
   for (const char of 'Thinking...') {
     writer.text(char);
+  }
+}
+
+/** Stream text in word-sized chunks so it appears typed, matching other AI replies */
+function streamTextChunked(writer: ReturnType<typeof createSSEStream>['writer'], text: string) {
+  const words = text.split(/(\s+)/); // preserve spaces
+  for (const chunk of words) {
+    if (chunk) writer.text(chunk);
   }
 }
 
@@ -84,6 +92,9 @@ export async function POST(request: NextRequest) {
           .map((i) => i.service_name)
           .filter((n): n is string => !!n);
 
+        // Show "Thinking..." immediately for every message — consistent loading UX
+        streamThinking(writer);
+
         // ── Branch: User wants to adjust the plan ─────────────────────────────
         let effectivePendingPlan = pendingPlan;
 
@@ -115,7 +126,7 @@ export async function POST(request: NextRequest) {
           const adjustmentDescription = `User wants to change their agent plan: "${latestUserContent}"`;
           const feasibility = await checkAgentFeasibility(adjustmentDescription, userIntegrationNames);
           if (!feasibility.feasible && feasibility.reason) {
-            writer.text(feasibility.reason);
+            streamTextChunked(writer, feasibility.reason);
             writer.textDone();
             writer.close();
             return;
@@ -154,15 +165,13 @@ export async function POST(request: NextRequest) {
         // Feasibility check — if we can't build it, explain why and stop (no questionnaire, no plan)
         const feasibility = await checkAgentFeasibility(description, userIntegrationNames);
         if (!feasibility.feasible && feasibility.reason) {
-          writer.text(feasibility.reason);
+          streamTextChunked(writer, feasibility.reason);
           writer.textDone();
           writer.close();
           return;
         }
 
-        streamThinking(writer);
-        writer.textDone();
-
+        // Feasible: first delta from streamPlanIntro will replace "Thinking..."
         const plan = await planAgent(description, userIntegrationNames);
 
         // Check clarification (including multi-round)
