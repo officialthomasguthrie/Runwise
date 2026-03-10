@@ -375,6 +375,21 @@ export function getDiscordAuthUrl(state: string): string {
 }
 
 /**
+ * Generate PKCE code verifier (43-128 chars, base64url)
+ */
+export function generatePKCECodeVerifier(): string {
+  return crypto.randomBytes(32).toString('base64url');
+}
+
+/**
+ * Generate PKCE code challenge (S256 = base64url(SHA256(verifier)))
+ */
+export function generatePKCECodeChallenge(verifier: string): string {
+  const hash = crypto.createHash('sha256').update(verifier).digest();
+  return hash.toString('base64url');
+}
+
+/**
  * Twitter/X OAuth Configuration
  */
 export function getTwitterOAuthConfig() {
@@ -400,9 +415,9 @@ export function getTwitterOAuthConfig() {
 }
 
 /**
- * Generate Twitter OAuth authorization URL
+ * Generate Twitter OAuth authorization URL with PKCE
  */
-export function getTwitterAuthUrl(state: string): string {
+export function getTwitterAuthUrl(state: string, codeChallenge: string): string {
   const config = getTwitterOAuthConfig();
   const params = new URLSearchParams({
     client_id: config.clientId,
@@ -410,8 +425,8 @@ export function getTwitterAuthUrl(state: string): string {
     response_type: 'code',
     scope: config.scopes.join(' '),
     state: state,
-    code_challenge: 'challenge', // PKCE will be implemented properly in callback
-    code_challenge_method: 'plain'
+    code_challenge: codeChallenge,
+    code_challenge_method: 'S256'
   });
 
   return `https://twitter.com/i/oauth2/authorize?${params.toString()}`;

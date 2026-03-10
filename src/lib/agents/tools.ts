@@ -3,6 +3,7 @@ import { writeMemory, getAgentMemory } from './memory';
 import { getUserIntegration } from '@/lib/integrations/service';
 import { getGoogleAccessToken } from '@/lib/integrations/google';
 import { sendDiscordMessage } from '@/lib/integrations/discord';
+import { postTweet, searchTweets, getTwitterProfile } from '@/lib/integrations/twitter';
 import { getIntegrationCredential } from '@/lib/integrations/service';
 
 // ============================================================================
@@ -178,6 +179,54 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     type: 'function',
     function: {
+      name: 'post_tweet',
+      description: 'Post a tweet to X (Twitter) using the user\'s connected account.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: { type: 'string', description: 'The tweet text (max 280 characters)' },
+          replyTo: {
+            type: 'string',
+            description: 'Tweet ID to reply to (optional). Use when replying to another tweet.',
+          },
+        },
+        required: ['text'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_tweets',
+      description: 'Search recent tweets on X (Twitter). Use for monitoring mentions, hashtags, or topics.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query (e.g. "runwise", "#AI", "from:username")' },
+          maxResults: {
+            type: 'number',
+            description: 'Maximum number of tweets to return (1–100). Defaults to 10.',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_twitter_profile',
+      description: 'Get the connected user\'s X (Twitter) profile (username, name, id).',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'http_request',
       description: 'Make a raw HTTP request to any URL. Use for APIs not covered by other tools.',
       parameters: {
@@ -303,6 +352,12 @@ export async function executeAgentTool(
         return await toolSearchGoogleSheet(toolParams, context);
       case 'create_calendar_event':
         return await toolCreateCalendarEvent(toolParams, context);
+      case 'post_tweet':
+        return await toolPostTweet(toolParams, context);
+      case 'search_tweets':
+        return await toolSearchTweets(toolParams, context);
+      case 'get_twitter_profile':
+        return await toolGetTwitterProfile(context);
       case 'http_request':
         return await toolHttpRequest(toolParams, context);
       case 'remember':
@@ -629,6 +684,29 @@ async function toolCreateCalendarEvent(
 
   const event = await response.json();
   return { success: true, data: { eventId: event.id, htmlLink: event.htmlLink } };
+}
+
+async function toolPostTweet(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { text, replyTo } = params;
+  const result = await postTweet(context.userId, { text, replyTo });
+  return { success: true, data: result };
+}
+
+async function toolSearchTweets(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { query, maxResults } = params;
+  const result = await searchTweets(context.userId, { query, maxResults });
+  return { success: true, data: result };
+}
+
+async function toolGetTwitterProfile(context: AgentRunContext): Promise<ToolResult> {
+  const profile = await getTwitterProfile(context.userId);
+  return { success: true, data: profile };
 }
 
 async function toolHttpRequest(

@@ -444,7 +444,7 @@ export function IntegrationsSettings() {
     // Check if it's a Google service (google-sheets, google-gmail, etc.)
     const isGoogleService = serviceName.startsWith('google-');
     const baseService = isGoogleService ? 'google' : serviceName;
-    const oauthServices = ['google', 'slack', 'github', 'notion', 'airtable', 'trello', 'shopify', 'hubspot', 'asana', 'jira'];
+    const oauthServices = ['google', 'slack', 'github', 'notion', 'airtable', 'trello', 'shopify', 'hubspot', 'asana', 'jira', 'twitter', 'paypal'];
     
     if (oauthServices.includes(baseService)) {
       // Shopify requires shop parameter - prompt user for shop domain

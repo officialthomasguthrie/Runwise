@@ -140,7 +140,7 @@ export async function storeUserIntegration(
     'asana': 'asana',
     'jira': 'jira',
     'discord': 'discord',
-    'twitter': 'webhook', // Twitter might use webhook, or we need to add it
+    'twitter': 'twitter',
     'paypal': 'webhook', // PayPal might use webhook, or we need to add it
   };
   
@@ -307,7 +307,7 @@ export async function getUserIntegration(
       'airtable': 'airtable',
       'trello': 'trello',
       'discord': 'discord',
-      'twitter': 'webhook',
+      'twitter': 'twitter',
       'paypal': 'webhook',
     };
     const integrationName = integrationNameMap[serviceName] || serviceName;

@@ -60,6 +60,14 @@ export async function GET(request: NextRequest) {
     
     // Exchange code for tokens
     const config = getTwitterOAuthConfig();
+    const codeVerifier = request.cookies.get('oauth_code_verifier')?.value;
+    
+    if (!codeVerifier) {
+      console.error('Missing PKCE code_verifier cookie');
+      return NextResponse.redirect(
+        new URL(getErrorUrl('pkce_error'), request.url)
+      );
+    }
     
     // Twitter uses Basic Auth with client_id:client_secret as credentials
     const credentials = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
@@ -74,7 +82,7 @@ export async function GET(request: NextRequest) {
         code,
         grant_type: 'authorization_code',
         redirect_uri: config.redirectUri,
-        code_verifier: 'challenge' // Simplified - should use proper PKCE
+        code_verifier: codeVerifier
       })
     });
     
@@ -129,6 +137,7 @@ export async function GET(request: NextRequest) {
     response.cookies.delete('oauth_state');
     response.cookies.delete('oauth_user_id');
     response.cookies.delete('oauth_return_url');
+    response.cookies.delete('oauth_code_verifier');
     
     return response;
   } catch (error: any) {

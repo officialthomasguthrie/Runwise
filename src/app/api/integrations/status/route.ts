@@ -53,9 +53,9 @@ export async function GET(request: NextRequest) {
     
     console.log('[API /integrations/status] Final status array:', status);
     
-    // Check credential-based integrations (OpenAI, SendGrid, Twilio, Stripe, Discord, Twitter)
-    // Note: Notion, Airtable, and Trello now use OAuth, so they're checked above
-    const credentialServices = ['openai', 'sendgrid', 'twilio', 'stripe', 'discord', 'twitter'];
+    // Check credential-based integrations (OpenAI, SendGrid, Twilio, Stripe, Discord)
+    // Note: Twitter now uses OAuth (checked above); legacy bearer_token fallback below
+    const credentialServices = ['openai', 'sendgrid', 'twilio', 'stripe', 'discord'];
     for (const service of credentialServices) {
       let hasCredential = false;
       
@@ -76,10 +76,6 @@ export async function GET(request: NextRequest) {
         // Check for bot token only
         const botToken = await getIntegrationCredential(user.id, service, 'bot_token');
         hasCredential = !!botToken;
-      } else if (service === 'twitter') {
-        // Check for Bearer Token
-        const bearerToken = await getIntegrationCredential(user.id, service, 'bearer_token');
-        hasCredential = !!bearerToken;
       }
       
       if (hasCredential) {
@@ -96,7 +92,33 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Twitter is now checked above in credentialServices
+    // Check Twitter OAuth integration
+    const twitterIntegration = integrations.find(i => i.service_name === 'twitter');
+    if (twitterIntegration?.access_token) {
+      const existing = status.find(s => s.service === 'twitter');
+      if (!existing) {
+        status.push({
+          service: 'twitter',
+          connected: true,
+          expiresAt: twitterIntegration.token_expires_at,
+          createdAt: twitterIntegration.created_at
+        });
+      }
+    } else {
+      // Legacy: check for bearer_token credential
+      const bearerToken = await getIntegrationCredential(user.id, 'twitter', 'bearer_token');
+      if (bearerToken) {
+        const existing = status.find(s => s.service === 'twitter');
+        if (!existing) {
+          status.push({
+            service: 'twitter',
+            connected: true,
+            expiresAt: undefined,
+            createdAt: undefined
+          });
+        }
+      }
+    }
     
     // Check PayPal OAuth integration
     const paypalIntegration = integrations.find(i => i.service_name === 'paypal');

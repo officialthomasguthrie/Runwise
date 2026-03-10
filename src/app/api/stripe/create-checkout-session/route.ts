@@ -223,37 +223,61 @@ export async function POST(request: NextRequest) {
 
     // Prevent double charging: block users with active subscription from creating new checkout.
     // Redirect them to billing portal for plan changes instead.
-    if (userRecord) {
+    // Check both our DB and Stripe API (DB can be stale for existing customers).
+    let shouldUsePortal = false;
+    let portalCustomerId: string | null = null;
+
+    if (userRecord?.stripe_customer_id) {
       const status = userRecord.subscription_status;
       const hasSubId = !!userRecord.stripe_subscription_id;
-
       if (status === 'active' && hasSubId) {
-        // User has active subscription - use billing portal for plan changes
-        const stripeCustomerId = userRecord.stripe_customer_id;
-        if (stripeCustomerId && stripe) {
-          try {
-            const portalSession = await stripe.billingPortal.sessions.create({
-              customer: stripeCustomerId,
-              return_url: customCancelUrl ? `${origin}${customCancelUrl}` : `${origin}/settings?tab=billing`,
-            });
-            if (portalSession.url) {
-              return NextResponse.json({
-                url: portalSession.url,
-                isPortal: true,
-              });
-            }
-          } catch (portalError: any) {
-            console.error('Portal session creation failed:', portalError);
-          }
-        }
-        return NextResponse.json(
-          {
-            error: 'You already have an active subscription. To change your plan, go to Settings → Billing.',
-            usePortal: true,
-          },
-          { status: 400 },
-        );
+        shouldUsePortal = true;
+        portalCustomerId = userRecord.stripe_customer_id;
       }
+    }
+
+    // Fallback: if our DB says no active sub but user has stripe_customer_id, check Stripe directly
+    if (!shouldUsePortal && userRecord?.stripe_customer_id && stripe) {
+      try {
+        const subs = await stripe.subscriptions.list({
+          customer: userRecord.stripe_customer_id,
+          status: 'all',
+          limit: 10,
+        });
+        const hasActive = subs.data.some(
+          (s) => s.status === 'active' || s.status === 'trialing'
+        );
+        if (hasActive) {
+          shouldUsePortal = true;
+          portalCustomerId = userRecord.stripe_customer_id;
+        }
+      } catch (e) {
+        console.error('Stripe subscription check failed:', e);
+      }
+    }
+
+    if (shouldUsePortal && portalCustomerId && stripe) {
+      try {
+        const portalSession = await stripe.billingPortal.sessions.create({
+          customer: portalCustomerId,
+          return_url: customCancelUrl ? `${origin}${customCancelUrl}` : `${origin}/settings?tab=billing`,
+        });
+        if (portalSession.url) {
+          return NextResponse.json({
+            url: portalSession.url,
+            isPortal: true,
+          });
+        }
+      } catch (portalError: any) {
+        console.error('Portal session creation failed:', portalError);
+      }
+      return NextResponse.json(
+        {
+          error: 'You already have an active subscription. To change your plan, go to Settings → Billing.',
+          usePortal: true,
+        },
+        { status: 400 },
+      );
     }
 
     const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {

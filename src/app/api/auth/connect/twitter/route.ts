@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { getTwitterAuthUrl, generateStateToken } from '@/lib/integrations/oauth';
+import { getTwitterAuthUrl, generateStateToken, generatePKCECodeVerifier, generatePKCECodeChallenge } from '@/lib/integrations/oauth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
     }
     
     const state = generateStateToken();
+    const codeVerifier = generatePKCECodeVerifier();
+    const codeChallenge = generatePKCECodeChallenge(codeVerifier);
     
     // Get return URL from query parameter, referer, or default
     const { searchParams } = new URL(request.url);
@@ -33,7 +35,15 @@ export async function GET(request: NextRequest) {
         : '/settings?tab=integrations';
     }
     
-    const response = NextResponse.redirect(getTwitterAuthUrl(state));
+    const response = NextResponse.redirect(getTwitterAuthUrl(state, codeChallenge));
+    
+    response.cookies.set('oauth_code_verifier', codeVerifier, {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600
+    });
     
     response.cookies.set('oauth_state', state, {
       path: '/',

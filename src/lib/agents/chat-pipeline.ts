@@ -335,6 +335,13 @@ export const INTEGRATION_CATALOGUE: IntegrationCatalogueEntry[] = [
     connectUrl: '/api/auth/connect/trello',
   },
   {
+    service: 'twitter',
+    label: 'Twitter/X',
+    icon: '🐦',
+    connectionMethod: 'oauth',
+    connectUrl: '/api/auth/connect/twitter',
+  },
+  {
     service: 'openai',
     label: 'OpenAI',
     icon: '🤖',
@@ -398,6 +405,7 @@ const INSTRUCTION_KEYWORD_TO_SERVICE: Array<{ pattern: RegExp; service: string }
   { pattern: /airtable/i,                                                    service: 'airtable' },
   { pattern: /openai|gpt|chatgpt/i,                                          service: 'openai' },
   { pattern: /twilio|sms|text.{0,10}message/i,                               service: 'twilio' },
+  { pattern: /twitter|tweet|post.{0,10}x\b|x\b.{0,10}post/i,                 service: 'twitter' },
 ];
 
 /** Service ID → { slug, name } for capabilities display (matches agent-tab-content logo slugs) */
@@ -413,6 +421,7 @@ const SERVICE_TO_CAPABILITY: Record<string, { slug: string; name: string }> = {
   'notion':          { slug: 'notion', name: 'Notion' },
   'airtable':        { slug: 'airtable', name: 'Airtable' },
   'trello':          { slug: 'trello', name: 'Trello' },
+  'twitter':         { slug: 'x', name: 'Twitter/X' },
   'openai':          { slug: 'openai', name: 'OpenAI' },
   'twilio':          { slug: 'twilio', name: 'Twilio' },
 };

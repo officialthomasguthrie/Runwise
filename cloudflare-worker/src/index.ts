@@ -25,7 +25,8 @@ interface Env {
 
 interface PollingTrigger {
   id: string;
-  workflow_id: string;
+  workflow_id: string | null;
+  agent_id: string | null;
   trigger_type: string;
   config: Record<string, any>;
   last_cursor: string | null;
@@ -133,7 +134,13 @@ async function runPollingTriggers(env: Env, cronScheduledTime?: number): Promise
             });
           } else {
             // ── Workflow trigger: existing path ────────────────────────────
-            const workflowData = await getWorkflowData(env, trigger.workflow_id);
+            const workflowId = trigger.workflow_id;
+            if (!workflowId) {
+              console.error(`[Polling] Trigger ${trigger.id}: workflow trigger has no workflow_id`);
+              await disableTrigger(env, trigger.id);
+              continue;
+            }
+            const workflowData = await getWorkflowData(env, workflowId);
 
             if (!workflowData) {
               await disableTrigger(env, trigger.id);
@@ -142,7 +149,7 @@ async function runPollingTriggers(env: Env, cronScheduledTime?: number): Promise
 
             await sendToInngest(env, {
               eventId,
-              workflowId: trigger.workflow_id,
+              workflowId,
               nodes: workflowData.nodes,
               edges: workflowData.edges,
               userId: workflowData.user_id,
@@ -184,6 +191,9 @@ async function runPollingTriggers(env: Env, cronScheduledTime?: number): Promise
 async function executeTrigger(env: Env, trigger: PollingTrigger): Promise<PollResult> {
   const appUrl = env.APP_URL || 'https://runwiseai.app';
 
+  // For agent triggers: agent_id is set, workflow_id is null. For workflow triggers: vice versa.
+  const entityId = trigger.agent_id ?? trigger.workflow_id;
+
   const response = await fetch(`${appUrl}/api/polling/execute-trigger`, {
     method: 'POST',
     headers: {
@@ -191,7 +201,7 @@ async function executeTrigger(env: Env, trigger: PollingTrigger): Promise<PollRe
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      workflowId: trigger.workflow_id,
+      workflowId: entityId,
       triggerType: trigger.trigger_type,
       lastTimestamp: trigger.last_seen_timestamp,
       lastCursor: trigger.last_cursor,
