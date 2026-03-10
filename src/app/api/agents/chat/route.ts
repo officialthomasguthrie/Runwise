@@ -33,11 +33,15 @@ function streamThinking(writer: ReturnType<typeof createSSEStream>['writer']) {
   }
 }
 
-/** Stream text in word-sized chunks so it appears typed, matching other AI replies */
-function streamTextChunked(writer: ReturnType<typeof createSSEStream>['writer'], text: string) {
+/** Stream text in word-sized chunks with small delays so it appears typed, matching other AI replies */
+async function streamTextChunked(writer: ReturnType<typeof createSSEStream>['writer'], text: string) {
   const words = text.split(/(\s+)/); // preserve spaces
+  const delayMs = 25;
   for (const chunk of words) {
-    if (chunk) writer.text(chunk);
+    if (chunk) {
+      writer.text(chunk);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
   }
 }
 
@@ -126,7 +130,7 @@ export async function POST(request: NextRequest) {
           const adjustmentDescription = `User wants to change their agent plan: "${latestUserContent}"`;
           const feasibility = await checkAgentFeasibility(adjustmentDescription, userIntegrationNames);
           if (!feasibility.feasible && feasibility.reason) {
-            streamTextChunked(writer, feasibility.reason);
+            await streamTextChunked(writer, feasibility.reason);
             writer.textDone();
             writer.close();
             return;
@@ -165,7 +169,7 @@ export async function POST(request: NextRequest) {
         // Feasibility check — if we can't build it, explain why and stop (no questionnaire, no plan)
         const feasibility = await checkAgentFeasibility(description, userIntegrationNames);
         if (!feasibility.feasible && feasibility.reason) {
-          streamTextChunked(writer, feasibility.reason);
+          await streamTextChunked(writer, feasibility.reason);
           writer.textDone();
           writer.close();
           return;
