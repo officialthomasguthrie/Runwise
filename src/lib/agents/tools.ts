@@ -7,6 +7,7 @@ import { postTweet, searchTweets, getTwitterProfile } from '@/lib/integrations/t
 import { getIntegrationCredential } from '@/lib/integrations/service';
 import { getAirtableToken } from '@/lib/integrations/airtable';
 import { getGitHubToken } from '@/lib/integrations/github';
+import { getStripeApiKey } from '@/lib/integrations/stripe';
 
 // ============================================================================
 // TOOL DEFINITIONS (OpenAI ChatCompletionTool format)
@@ -540,6 +541,108 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     type: 'function',
     function: {
+      name: 'list_stripe_customers',
+      description: 'List customers in Stripe.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: {
+            type: 'number',
+            description: 'Maximum number of customers to return (1–100). Defaults to 10.',
+          },
+          email: {
+            type: 'string',
+            description: 'Optional: filter by customer email',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_stripe_customer',
+      description: 'Get a single Stripe customer by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          customerId: { type: 'string', description: 'Stripe customer ID (cus_...)' },
+        },
+        required: ['customerId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_stripe_invoice',
+      description: 'Create a draft invoice for a Stripe customer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          customerId: { type: 'string', description: 'Stripe customer ID' },
+          amount: {
+            type: 'number',
+            description: 'Amount in cents (e.g. 1000 = $10.00)',
+          },
+          currency: {
+            type: 'string',
+            description: 'Three-letter currency code (e.g. usd, eur)',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional line item description',
+          },
+          autoAdvance: {
+            type: 'boolean',
+            description: 'If true, finalize and attempt to collect. Defaults to false (draft).',
+          },
+        },
+        required: ['customerId', 'amount', 'currency'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_stripe_subscription',
+      description: 'Get a Stripe subscription by ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscriptionId: { type: 'string', description: 'Stripe subscription ID (sub_...)' },
+        },
+        required: ['subscriptionId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_stripe_subscriptions',
+      description: 'List subscriptions for a Stripe customer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          customerId: { type: 'string', description: 'Stripe customer ID' },
+          status: {
+            type: 'string',
+            description: 'Filter by status',
+            enum: ['active', 'past_due', 'canceled', 'all'],
+          },
+          limit: {
+            type: 'number',
+            description: 'Maximum number to return (1–100). Defaults to 10.',
+          },
+        },
+        required: ['customerId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'http_request',
       description: 'Make a raw HTTP request to any URL. Use for APIs not covered by other tools.',
       parameters: {
@@ -699,6 +802,16 @@ export async function executeAgentTool(
         return await toolListGitHubIssues(toolParams, context);
       case 'add_github_comment':
         return await toolAddGitHubComment(toolParams, context);
+      case 'list_stripe_customers':
+        return await toolListStripeCustomers(toolParams, context);
+      case 'get_stripe_customer':
+        return await toolGetStripeCustomer(toolParams, context);
+      case 'create_stripe_invoice':
+        return await toolCreateStripeInvoice(toolParams, context);
+      case 'get_stripe_subscription':
+        return await toolGetStripeSubscription(toolParams, context);
+      case 'list_stripe_subscriptions':
+        return await toolListStripeSubscriptions(toolParams, context);
       case 'http_request':
         return await toolHttpRequest(toolParams, context);
       case 'remember':
@@ -1669,6 +1782,182 @@ async function toolAddGitHubComment(
       body: comment.body,
     },
   };
+}
+
+// ============================================================================
+// STRIPE TOOLS
+// ============================================================================
+
+async function toolListStripeCustomers(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { limit = 10, email } = params;
+  const apiKey = await getStripeApiKey(context.userId);
+
+  const searchParams = new URLSearchParams();
+  searchParams.set('limit', String(Math.min(Math.max(limit || 10, 1), 100)));
+  if (email) searchParams.set('email', email);
+
+  const response = await fetch(`https://api.stripe.com/v1/customers?${searchParams}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(`Stripe API error: ${data.error.message}`);
+
+  const customers = (data.data || []).map((c: any) => ({
+    id: c.id,
+    email: c.email,
+    name: c.name,
+    created: c.created,
+  }));
+
+  return { success: true, data: { customers, count: customers.length } };
+}
+
+async function toolGetStripeCustomer(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { customerId } = params;
+  const apiKey = await getStripeApiKey(context.userId);
+
+  const response = await fetch(`https://api.stripe.com/v1/customers/${customerId}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(`Stripe API error: ${data.error.message}`);
+
+  return {
+    success: true,
+    data: {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      created: data.created,
+    },
+  };
+}
+
+async function toolCreateStripeInvoice(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { customerId, amount, currency, description, autoAdvance = false } = params;
+  const apiKey = await getStripeApiKey(context.userId);
+
+  // Create invoice item first, then create invoice
+  const itemParams: Record<string, string> = {
+    customer: customerId,
+    amount: String(Math.round(amount)),
+    currency: (currency || 'usd').toLowerCase(),
+  };
+  if (description) itemParams.description = description;
+
+  const itemRes = await fetch('https://api.stripe.com/v1/invoiceitems', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(itemParams).toString(),
+  });
+  const itemData = await itemRes.json();
+  if (itemData.error) throw new Error(`Stripe API error: ${itemData.error.message}`);
+
+  const invParams: Record<string, string> = { customer: customerId };
+
+  const invRes = await fetch('https://api.stripe.com/v1/invoices', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(invParams).toString(),
+  });
+  let invData = await invRes.json();
+  if (invData.error) throw new Error(`Stripe API error: ${invData.error.message}`);
+
+  if (autoAdvance && invData.status === 'draft') {
+    const finalizeRes = await fetch(`https://api.stripe.com/v1/invoices/${invData.id}/finalize`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: '',
+    });
+    invData = await finalizeRes.json();
+    if (invData.error) throw new Error(`Stripe API error: ${invData.error.message}`);
+  }
+
+  return {
+    success: true,
+    data: {
+      id: invData.id,
+      status: invData.status,
+      amountDue: invData.amount_due,
+      invoicePdf: invData.invoice_pdf,
+      hostedInvoiceUrl: invData.hosted_invoice_url,
+    },
+  };
+}
+
+async function toolGetStripeSubscription(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { subscriptionId } = params;
+  const apiKey = await getStripeApiKey(context.userId);
+
+  const response = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(`Stripe API error: ${data.error.message}`);
+
+  return {
+    success: true,
+    data: {
+      id: data.id,
+      status: data.status,
+      customer: data.customer,
+      currentPeriodEnd: data.current_period_end,
+      items: data.items?.data?.map((i: any) => ({
+        id: i.id,
+        price: i.price?.id,
+        quantity: i.quantity,
+      })),
+    },
+  };
+}
+
+async function toolListStripeSubscriptions(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { customerId, status = 'all', limit = 10 } = params;
+  const apiKey = await getStripeApiKey(context.userId);
+
+  const searchParams = new URLSearchParams();
+  searchParams.set('customer', customerId);
+  searchParams.set('limit', String(Math.min(Math.max(limit || 10, 1), 100)));
+  if (status && status !== 'all') searchParams.set('status', status);
+
+  const response = await fetch(`https://api.stripe.com/v1/subscriptions?${searchParams}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(`Stripe API error: ${data.error.message}`);
+
+  const subscriptions = (data.data || []).map((s: any) => ({
+    id: s.id,
+    status: s.status,
+    currentPeriodEnd: s.current_period_end,
+    items: s.items?.data?.length || 0,
+  }));
+
+  return { success: true, data: { subscriptions, count: subscriptions.length } };
 }
 
 async function toolHttpRequest(

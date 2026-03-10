@@ -23,7 +23,7 @@ export interface StripeCharge {
 /**
  * Get Stripe API key
  */
-async function getStripeApiKey(userId: string): Promise<string> {
+export async function getStripeApiKey(userId: string): Promise<string> {
   const apiKey = await getIntegrationCredential(userId, 'stripe', 'secret_key');
   
   if (!apiKey) {

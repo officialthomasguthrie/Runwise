@@ -355,6 +355,13 @@ export const INTEGRATION_CATALOGUE: IntegrationCatalogueEntry[] = [
     connectionMethod: 'credential',
     connectUrl: '/integrations/connect?service=twilio',
   },
+  {
+    service: 'stripe',
+    label: 'Stripe',
+    icon: '💳',
+    connectionMethod: 'credential',
+    connectUrl: '/integrations/connect?service=stripe',
+  },
 ];
 
 /**
@@ -406,6 +413,7 @@ const INSTRUCTION_KEYWORD_TO_SERVICE: Array<{ pattern: RegExp; service: string }
   { pattern: /openai|gpt|chatgpt/i,                                          service: 'openai' },
   { pattern: /twilio|sms|text.{0,10}message/i,                               service: 'twilio' },
   { pattern: /twitter|tweet|post.{0,10}x\b|x\b.{0,10}post/i,                 service: 'twitter' },
+  { pattern: /stripe|invoice|subscription|customer.{0,10}billing|billing/i, service: 'stripe' },
 ];
 
 /** Service ID → { slug, name } for capabilities display (matches agent-tab-content logo slugs) */
@@ -424,6 +432,7 @@ const SERVICE_TO_CAPABILITY: Record<string, { slug: string; name: string }> = {
   'twitter':         { slug: 'x', name: 'Twitter/X' },
   'openai':          { slug: 'openai', name: 'OpenAI' },
   'twilio':          { slug: 'twilio', name: 'Twilio' },
+  'stripe':          { slug: 'stripe', name: 'Stripe' },
 };
 
 /** Slug → service ID (reverse of SERVICE_TO_CAPABILITY) for connect flows */
