@@ -1,7 +1,7 @@
 # Top 50 Agent Tools Roadmap
 
 A prioritised list of the most useful tools to add to Runwise agents. Organised by category.  
-**Already implemented**: Gmail (send/read), Slack, Discord, Notion, Google Sheets, Google Calendar, **Google Drive** (list, upload, share, create folder, get metadata, read file, search), **Airtable** (create, update, list, get record), **GitHub** (create issue, list issues, add comment), **Stripe** (list customers, get customer, create invoice, get subscription, list subscriptions), Twitter/X, `http_request`, memory (remember/recall), `send_notification_to_user`, `do_nothing`.
+**Already implemented**: Gmail (send/read), Slack, Discord, Notion, Google Sheets, Google Calendar, **Google Drive** (list, upload, share, create folder, get metadata, read file, search), **Airtable** (create, update, list, get record), **GitHub** (create issue, list issues, add comment), **Stripe** (list customers, get customer, create invoice, get subscription, list subscriptions), Twitter/X, **`web_search`** (Serper API), `http_request`, memory (remember/recall), `send_notification_to_user`, `do_nothing`.
 
 ---
 
@@ -15,7 +15,7 @@ A prioritised list of the most useful tools to add to Runwise agents. Organised 
 | 4 | **GitHub** — `create_github_issue`, `list_github_issues`, `add_github_comment` | Integration | **DONE** — Create/list issues, add comments | Dev workflows, bug tracking, project coordination. |
 | 5 | **Stripe** — `list_stripe_customers`, `get_stripe_customer`, `create_stripe_invoice`, `get_stripe_subscription`, `list_stripe_subscriptions` | Integration | **DONE** — List/get customers, create invoice, get/list subscriptions | Billing, subscriptions, revenue visibility. |
 | 6 | **`run_script`** — Execute user-defined scripts (sandboxed) | Generic | Run JS/Python in isolated runtime | Dynamic logic, data transforms, custom APIs. |
-| 7 | **`web_search`** — Search the web | Generic | Query Bing/Google/Searx | Research, facts, real-time info. |
+| 7 | **`web_search`** — Search the web | Generic | **DONE** — Serper API (Google results) | Research, facts, real-time info. |
 | 8 | **`send_sms`** (Twilio) | Integration | Send SMS via Twilio | Alerts, 2FA, critical notifications. |
 | 9 | **`get_current_time`** / `get_timezone` | Generic | Current time, timezone conversion | Scheduling, reminders, date logic. |
 | 10 | **`read_url`** — Fetch and parse URL content | Generic | GET URL, return text/HTML | Scraping, link previews, external data. |

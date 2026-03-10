@@ -541,6 +541,27 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     type: 'function',
     function: {
+      name: 'web_search',
+      description: 'Search the web for real-time information, facts, research, news, and current events. Use for thorough research, gathering facts, or finding up-to-date information.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The search query (e.g. "latest news on AI", "weather in London", "who won the 2024 election")',
+          },
+          numResults: {
+            type: 'number',
+            description: 'Number of results to return (1–20). Defaults to 10.',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'list_stripe_customers',
       description: 'List customers in Stripe.',
       parameters: {
@@ -812,6 +833,8 @@ export async function executeAgentTool(
         return await toolGetStripeSubscription(toolParams, context);
       case 'list_stripe_subscriptions':
         return await toolListStripeSubscriptions(toolParams, context);
+      case 'web_search':
+        return await toolWebSearch(toolParams, context);
       case 'http_request':
         return await toolHttpRequest(toolParams, context);
       case 'remember':
@@ -1958,6 +1981,69 @@ async function toolListStripeSubscriptions(
   }));
 
   return { success: true, data: { subscriptions, count: subscriptions.length } };
+}
+
+async function toolWebSearch(
+  params: Record<string, any>,
+  _context: AgentRunContext
+): Promise<ToolResult> {
+  const query = params.query as string;
+  const numResults = Math.min(Math.max(Number(params.numResults) || 10, 1), 20);
+
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      'SERPER_API_KEY is not configured. Add it to .env.local to use web search.'
+    );
+  }
+
+  const response = await fetch('https://google.serper.dev/search', {
+    method: 'POST',
+    headers: {
+      'X-API-KEY': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ q: query, num: numResults }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Serper API error (${response.status}): ${errText}`);
+  }
+
+  const data = (await response.json()) as {
+    organic?: Array<{ title?: string; link?: string; snippet?: string }>;
+    knowledgeGraph?: { title?: string; description?: string; type?: string };
+    answerBox?: { answer?: string; title?: string };
+  };
+
+  const organic = (data.organic || []).map((o) => ({
+    title: o.title || '',
+    link: o.link || '',
+    snippet: o.snippet || '',
+  }));
+
+  return {
+    success: true,
+    data: {
+      query,
+      results: organic,
+      count: organic.length,
+      knowledgeGraph: data.knowledgeGraph
+        ? {
+            title: data.knowledgeGraph.title,
+            description: data.knowledgeGraph.description,
+            type: data.knowledgeGraph.type,
+          }
+        : undefined,
+      answerBox: data.answerBox
+        ? {
+            answer: data.answerBox.answer,
+            title: data.answerBox.title,
+          }
+        : undefined,
+    },
+  };
 }
 
 async function toolHttpRequest(
