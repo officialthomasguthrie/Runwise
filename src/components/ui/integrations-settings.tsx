@@ -701,7 +701,7 @@ export function IntegrationsSettings() {
                 <Button
                     variant="ghost"
                     onClick={() => integration.serviceName && handleConnect(integration.serviceName)}
-                    className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground text-xs py-1.5 h-auto"
+                    className="w-full justify-center backdrop-blur-xl bg-white/60 dark:bg-white/5 border border-stone-200/50 dark:border-white/10 shadow-none hover:bg-white/70 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground text-xs py-1.5 h-auto"
                   >
                     <Plug className="h-3 w-3 mr-1.5" />
                     Connect
@@ -713,7 +713,7 @@ export function IntegrationsSettings() {
                       setSelectedIntegrationName(integration.name);
                       setComingSoonDialogOpen(true);
                     }}
-                    className="w-full justify-center backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_4px_10px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] dark:shadow-none hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground text-xs py-1.5 h-auto"
+                    className="w-full justify-center backdrop-blur-xl bg-white/60 dark:bg-white/5 border border-stone-200/50 dark:border-white/10 shadow-none hover:bg-white/70 dark:hover:bg-white/10 transition-all duration-300 active:scale-[0.98] text-foreground text-xs py-1.5 h-auto"
                   >
                     <Clock className="h-3 w-3 mr-1.5" />
                     Coming Soon
