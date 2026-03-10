@@ -14,6 +14,7 @@ import {
   createSSEStream,
   SSE_HEADERS,
   buildIntegrationCheckListForPolling,
+  buildIntegrationCheckList,
   type AgentBuildRequest,
 } from '@/lib/agents/chat-pipeline';
 import { streamCompletionSummary, generateShortDescription } from '@/lib/ai/agent-streaming';
@@ -156,13 +157,14 @@ export async function POST(request: NextRequest) {
           })),
         ].filter((g) => g.label);
 
-        // Integration gate: only block on polling-required integrations
+        // Integration check: show all integrations agent uses (triggers + instructions), block status on polling-only
         const integrations = await getUserIntegrations(user.id);
         const connectedServices = integrations
           .map((i) => i.service_name)
           .filter(Boolean) as string[];
-        const requiredIntegrations = buildIntegrationCheckListForPolling(plan, connectedServices);
-        const hasDisconnected = requiredIntegrations.some((i) => !i.connected);
+        const requiredIntegrations = buildIntegrationCheckList(plan, connectedServices);
+        const pollingRequired = buildIntegrationCheckListForPolling(plan, connectedServices);
+        const hasDisconnected = pollingRequired.some((i) => !i.connected);
         const finalStatus = hasDisconnected ? 'pending_integrations' : 'active';
 
         await (admin as any)

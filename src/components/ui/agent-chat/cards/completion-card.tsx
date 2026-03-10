@@ -75,9 +75,9 @@ export function CompletionCard({
 
   const allConnected = integrations.length === 0 || integrations.every((i) => connectedMap[i.service]);
 
-  // Only show integrations that were not connected at build time. Once user connects them during this session, show with Disconnect. When all connected, hide section.
-  const displayedIntegrations = integrations.filter((item) => !item.connected);
-  const showIntegrationSection = displayedIntegrations.length > 0 && !allConnected;
+  // Show all integrations the agent uses (connected and disconnected)
+  const displayedIntegrations = integrations;
+  const showIntegrationSection = integrations.length > 0;
 
   // Poll /api/integrations/status and listen for credential popup success
   useEffect(() => {
@@ -184,7 +184,9 @@ export function CompletionCard({
       {showIntegrationSection && (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-black dark:text-white leading-relaxed">
-            Connect these integrations to continue:
+            {allConnected
+              ? "Integrations this agent uses:"
+              : "Connect these integrations to continue:"}
           </p>
           <div className="flex flex-col gap-2">
             {displayedIntegrations.map((item) => {
@@ -217,9 +219,11 @@ export function CompletionCard({
                       disabled={disconnectingService === item.service}
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
-                        "border border-stone-200 dark:border-stone-600",
-                        "text-muted-foreground hover:text-foreground",
-                        "hover:bg-stone-100 dark:hover:bg-stone-800 hover:border-stone-300 dark:hover:border-stone-500",
+                        "backdrop-blur-xl border",
+                        "border-red-200/40 dark:border-red-500/20",
+                        "bg-red-50/50 dark:bg-red-950/20",
+                        "text-red-700 dark:text-red-400/90",
+                        "hover:bg-red-100/60 dark:hover:bg-red-950/30 hover:border-red-300/50 dark:hover:border-red-500/30",
                         "disabled:opacity-50 disabled:pointer-events-none"
                       )}
                     >
