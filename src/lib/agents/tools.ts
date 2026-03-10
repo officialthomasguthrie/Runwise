@@ -4,6 +4,7 @@ import { getUserIntegration } from '@/lib/integrations/service';
 import { getGoogleAccessToken } from '@/lib/integrations/google';
 import { sendDiscordMessage } from '@/lib/integrations/discord';
 import { postTweet, searchTweets, getTwitterProfile } from '@/lib/integrations/twitter';
+import { sendSMS } from '@/lib/integrations/twilio';
 import { getIntegrationCredential } from '@/lib/integrations/service';
 import { getAirtableToken } from '@/lib/integrations/airtable';
 import { getGitHubToken } from '@/lib/integrations/github';
@@ -608,6 +609,31 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     type: 'function',
     function: {
+      name: 'send_sms',
+      description: 'Send an SMS text message via Twilio. Use for alerts, 2FA codes, critical notifications. Requires Twilio to be connected. Phone numbers must be in E.164 format (e.g. +1234567890).',
+      parameters: {
+        type: 'object',
+        properties: {
+          to: {
+            type: 'string',
+            description: 'Recipient phone number in E.164 format (e.g. +1234567890)',
+          },
+          from: {
+            type: 'string',
+            description: 'Your Twilio phone number in E.164 format (e.g. +1234567890). Must be a number you own in your Twilio account.',
+          },
+          body: {
+            type: 'string',
+            description: 'SMS message text (max 1600 characters)',
+          },
+        },
+        required: ['to', 'from', 'body'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'list_stripe_customers',
       description: 'List customers in Stripe.',
       parameters: {
@@ -885,6 +911,8 @@ export async function executeAgentTool(
         return await toolReadUrl(toolParams, context);
       case 'get_current_time':
         return await toolGetCurrentTime(toolParams, context);
+      case 'send_sms':
+        return await toolSendSms(toolParams, context);
       case 'http_request':
         return await toolHttpRequest(toolParams, context);
       case 'remember':
@@ -2283,6 +2311,40 @@ async function toolGetCurrentTime(
   }
 
   return { success: true, data: result };
+}
+
+async function toolSendSms(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const to = (params.to as string)?.trim();
+  const from = (params.from as string)?.trim();
+  const body = (params.body as string)?.trim();
+
+  if (!to || !from || !body) {
+    throw new Error('send_sms requires to, from, and body parameters');
+  }
+
+  if (body.length > 1600) {
+    throw new Error('SMS body must be 1600 characters or fewer');
+  }
+
+  const result = await sendSMS(context.userId, {
+    to,
+    from,
+    body,
+  });
+
+  return {
+    success: true,
+    data: {
+      sid: result.sid,
+      status: result.status,
+      to: result.to,
+      from: result.from,
+      message: 'SMS sent successfully',
+    },
+  };
 }
 
 async function toolHttpRequest(
