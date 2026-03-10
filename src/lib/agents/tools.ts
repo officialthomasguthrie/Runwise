@@ -391,7 +391,6 @@ export const AGENT_TOOLS: AgentTool[] = [
           fields: {
             type: 'object',
             description: 'Record fields as key-value pairs. Keys are field names.',
-            additionalProperties: true,
           },
         },
         required: ['baseId', 'tableId', 'fields'],
@@ -412,7 +411,6 @@ export const AGENT_TOOLS: AgentTool[] = [
           fields: {
             type: 'object',
             description: 'Fields to update as key-value pairs',
-            additionalProperties: true,
           },
         },
         required: ['baseId', 'tableId', 'recordId', 'fields'],
