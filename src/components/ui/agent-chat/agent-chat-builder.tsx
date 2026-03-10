@@ -225,13 +225,7 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
   const appendAssistantText = useCallback((delta: string) => {
     setMessages((prev) => {
       const last = prev[prev.length - 1];
-      if (last?.role === "assistant" && "content" in last && last.isStreaming) {
-        return [
-          ...prev.slice(0, -1),
-          { ...last, content: last.content + delta },
-        ];
-      }
-      // Replace "Thinking..." with actual content when it arrives
+      // Replace "Thinking..." with actual content when real reply arrives (check first)
       if (
         last?.role === "assistant" &&
         "content" in last &&
@@ -240,6 +234,12 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
         return [
           ...prev.slice(0, -1),
           { ...last, content: delta, isStreaming: true },
+        ];
+      }
+      if (last?.role === "assistant" && "content" in last && last.isStreaming) {
+        return [
+          ...prev.slice(0, -1),
+          { ...last, content: last.content + delta },
         ];
       }
       return [...prev, { id: genId(), role: "assistant", content: delta, isStreaming: true }];
