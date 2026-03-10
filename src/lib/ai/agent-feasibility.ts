@@ -46,8 +46,9 @@ const SUPPORTED_ACTIONS = `
 
 /**
  * Check if the user's agent request can be fulfilled with our supported triggers and actions.
- * Returns feasible: false when the user asks for integrations or capabilities we don't support,
- * or when they require a trigger/action for an integration they haven't connected.
+ * Returns feasible: false ONLY when the user asks for integrations/capabilities we don't support
+ * (e.g. Microsoft Teams, Jira — we haven't built those yet). Missing connected integrations
+ * is NOT a reason to stop — users can connect them after the agent is built.
  */
 export async function checkAgentFeasibility(
   userDescription: string,
@@ -59,29 +60,23 @@ export async function checkAgentFeasibility(
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const connectedList =
-    userIntegrationNames.length > 0
-      ? userIntegrationNames.join(', ')
-      : 'None';
+  const systemPrompt = `You are a feasibility checker for Runwise, an AI agent builder. Your ONLY job is to determine if a user's agent request uses triggers or actions we DON'T SUPPORT AT ALL (we haven't built the OAuth/credential flow for that service yet).
 
-  const systemPrompt = `You are a feasibility checker for Runwise, an AI agent builder. Your ONLY job is to determine if a user's agent request can be fulfilled with our current capabilities.
-
-SUPPORTED TRIGGERS (what can start an agent):
+SUPPORTED TRIGGERS (we have these — always feasible):
 ${SUPPORTED_TRIGGERS}
 
-SUPPORTED ACTIONS (what agents can do):
+SUPPORTED ACTIONS (we have these — always feasible):
 ${SUPPORTED_ACTIONS}
 
-USER'S CONNECTED INTEGRATIONS: ${connectedList}
+CRITICAL: Whether the user has CONNECTED an integration (Gmail, Slack, etc.) is IRRELEVANT. Users connect integrations AFTER building the agent. Only reject when the user asks for a service we don't support.
 
 RULES:
-1. If the user asks for a TRIGGER we don't support (e.g. Microsoft Teams, Zoom, WhatsApp, Jira, Linear, Salesforce) → feasible: false. Explain which part we don't support.
-2. If the user asks for an ACTION we don't support (e.g. post to Teams, update Jira, send WhatsApp, create Zoom meeting) → feasible: false. Explain which part we don't support.
-3. If the user asks for a trigger that REQUIRES an integration they haven't connected (e.g. "watch my Gmail" but they have no Google connected) → feasible: false. Say they need to connect that integration first.
-4. If the request can be fulfilled with our triggers and actions (possibly using the user's connected integrations) → feasible: true.
-5. When feasible: false, provide a SHORT, FRIENDLY reason (1-3 sentences). Be honest and specific. Don't apologize excessively.
-6. Examples of infeasible: "post to Microsoft Teams", "watch my Zoom for new meetings", "update Jira when I get an email", "send WhatsApp messages", "create a Salesforce lead"
-7. Examples of feasible: "summarize my Gmail" (if Gmail connected), "post to Slack when I get a new row in Sheets" (if both connected), "webhook that sends an email" (webhook + Gmail/SendGrid)
+1. feasible: false ONLY when the user asks for a TRIGGER we don't support (e.g. Microsoft Teams, Zoom, WhatsApp, Jira, Linear, Salesforce, HubSpot). Explain which service we don't support.
+2. feasible: false ONLY when the user asks for an ACTION we don't support (e.g. post to Teams, update Jira, send WhatsApp, create Zoom meeting). Explain which service we don't support.
+3. feasible: true when the request uses ONLY our supported triggers and actions — even if the user hasn't connected Gmail, Slack, etc. They will connect them later.
+4. When feasible: false, provide a SHORT, FRIENDLY reason (1-3 sentences). Be honest and specific.
+5. Examples of infeasible: "post to Microsoft Teams", "watch my Zoom for new meetings", "update Jira when I get an email", "send WhatsApp messages", "create a Salesforce lead"
+6. Examples of feasible (always proceed): "summarize my Gmail" (we support Gmail), "post to Slack when I get a new row in Sheets" (we support both), "watch my Gmail and send me an SMS" (we support Gmail + Twilio). Do NOT reject because user might not have connected them yet.
 
 OUTPUT FORMAT (JSON only):
 {"feasible": boolean, "reason": "Short explanation when feasible is false"}
