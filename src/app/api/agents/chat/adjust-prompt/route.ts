@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     (async () => {
       try {
         streamThinking(writer);
-        writer.textDone();
         await streamAdjustPrompt(writer);
         writer.close();
       } catch (err: any) {
