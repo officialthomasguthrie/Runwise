@@ -227,6 +227,153 @@ export const AGENT_TOOLS: AgentTool[] = [
   {
     type: 'function',
     function: {
+      name: 'list_drive_files',
+      description: 'List files and folders in the user\'s Google Drive. Use folderId for a specific folder, or omit for root.',
+      parameters: {
+        type: 'object',
+        properties: {
+          folderId: {
+            type: 'string',
+            description: 'Folder ID to list (omit for root). Use "root" for top-level.',
+          },
+          maxResults: {
+            type: 'number',
+            description: 'Maximum number of items to return (1–100). Defaults to 50.',
+          },
+          query: {
+            type: 'string',
+            description: 'Optional Drive search query (e.g. "name contains \'report\'", "mimeType=\'application/pdf\'")',
+          },
+          orderBy: {
+            type: 'string',
+            description: 'Sort order (e.g. "modifiedTime desc", "name")',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'upload_to_drive',
+      description: 'Upload a file to Google Drive. Content can be plain text or base64-encoded for binary files.',
+      parameters: {
+        type: 'object',
+        properties: {
+          fileName: { type: 'string', description: 'Name of the file' },
+          mimeType: {
+            type: 'string',
+            description: 'MIME type (e.g. text/plain, text/csv, application/json, application/pdf)',
+          },
+          content: { type: 'string', description: 'File content as plain text or base64 string' },
+          parentFolderId: {
+            type: 'string',
+            description: 'Parent folder ID (omit to upload to root)',
+          },
+          isBase64: {
+            type: 'boolean',
+            description: 'Set to true if content is base64-encoded',
+          },
+        },
+        required: ['fileName', 'mimeType', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'share_drive_file',
+      description: 'Share a Google Drive file or folder with someone by email.',
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: 'The Drive file or folder ID' },
+          emailAddress: { type: 'string', description: 'Email address to share with' },
+          role: {
+            type: 'string',
+            description: 'Permission role',
+            enum: ['reader', 'writer', 'commenter'],
+          },
+          message: {
+            type: 'string',
+            description: 'Optional message to include in the share notification',
+          },
+        },
+        required: ['fileId', 'emailAddress', 'role'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_drive_folder',
+      description: 'Create a new folder in Google Drive.',
+      parameters: {
+        type: 'object',
+        properties: {
+          folderName: { type: 'string', description: 'Name of the folder' },
+          parentFolderId: {
+            type: 'string',
+            description: 'Parent folder ID (omit to create in root)',
+          },
+        },
+        required: ['folderName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_drive_file_metadata',
+      description: 'Get metadata for a Google Drive file or folder (name, size, mimeType, webViewLink, etc.).',
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: 'The Drive file or folder ID' },
+        },
+        required: ['fileId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_drive_file',
+      description: 'Read the content of a text file from Google Drive. Supports plain text, CSV, JSON, and exports Google Docs as plain text.',
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: 'The Drive file ID' },
+        },
+        required: ['fileId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_drive_files',
+      description: 'Search for files in Google Drive by name, mime type, or other criteria.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Search query (e.g. "name contains \'report\'", "mimeType=\'application/pdf\'", "fullText contains \'budget\'")',
+          },
+          maxResults: {
+            type: 'number',
+            description: 'Maximum number of results (1–100). Defaults to 20.',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'http_request',
       description: 'Make a raw HTTP request to any URL. Use for APIs not covered by other tools.',
       parameters: {
@@ -358,6 +505,20 @@ export async function executeAgentTool(
         return await toolSearchTweets(toolParams, context);
       case 'get_twitter_profile':
         return await toolGetTwitterProfile(context);
+      case 'list_drive_files':
+        return await toolListDriveFiles(toolParams, context);
+      case 'upload_to_drive':
+        return await toolUploadToDrive(toolParams, context);
+      case 'share_drive_file':
+        return await toolShareDriveFile(toolParams, context);
+      case 'create_drive_folder':
+        return await toolCreateDriveFolder(toolParams, context);
+      case 'get_drive_file_metadata':
+        return await toolGetDriveFileMetadata(toolParams, context);
+      case 'read_drive_file':
+        return await toolReadDriveFile(toolParams, context);
+      case 'search_drive_files':
+        return await toolSearchDriveFiles(toolParams, context);
       case 'http_request':
         return await toolHttpRequest(toolParams, context);
       case 'remember':
@@ -707,6 +868,353 @@ async function toolSearchTweets(
 async function toolGetTwitterProfile(context: AgentRunContext): Promise<ToolResult> {
   const profile = await getTwitterProfile(context.userId);
   return { success: true, data: profile };
+}
+
+// ============================================================================
+// GOOGLE DRIVE TOOLS
+// ============================================================================
+
+async function toolListDriveFiles(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { folderId, maxResults = 50, query: extraQuery, orderBy } = params;
+
+  const accessToken = await getGoogleAccessToken(context.userId, 'google-drive');
+
+  const queryParts: string[] = ['trashed=false'];
+  if (folderId && folderId !== 'root') {
+    queryParts.push(`'${folderId}' in parents`);
+  } else if (!folderId || folderId === 'root') {
+    queryParts.push("'root' in parents");
+  }
+  if (extraQuery) {
+    queryParts.push(`(${extraQuery})`);
+  }
+  const q = queryParts.join(' and ');
+
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', q);
+  url.searchParams.set('pageSize', String(Math.min(Math.max(maxResults, 1), 100)));
+  url.searchParams.set(
+    'fields',
+    'files(id,name,mimeType,size,modifiedTime,webViewLink,createdTime,parents)'
+  );
+  if (orderBy) url.searchParams.set('orderBy', orderBy);
+
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Drive list failed: ${err?.error?.message || response.statusText}`);
+  }
+
+  const data = await response.json();
+  const files = (data.files || []).map((f: any) => ({
+    id: f.id,
+    name: f.name,
+    mimeType: f.mimeType,
+    size: f.size,
+    modifiedTime: f.modifiedTime,
+    createdTime: f.createdTime,
+    webViewLink: f.webViewLink,
+    isFolder: f.mimeType === 'application/vnd.google-apps.folder',
+  }));
+
+  return { success: true, data: { files, count: files.length } };
+}
+
+async function toolUploadToDrive(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { fileName, mimeType, content, parentFolderId, isBase64 } = params;
+
+  const accessToken = await getGoogleAccessToken(context.userId, 'google-drive');
+
+  let fileContent: Buffer;
+  if (isBase64) {
+    fileContent = Buffer.from(content, 'base64');
+  } else {
+    fileContent = Buffer.from(content, 'utf-8');
+  }
+
+  const metadata: Record<string, any> = {
+    name: fileName,
+    mimeType: mimeType || 'text/plain',
+  };
+  if (parentFolderId) {
+    metadata.parents = [parentFolderId];
+  }
+
+  const boundary = '-------314159265358979323846';
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelim = `\r\n--${boundary}--`;
+  const body =
+    delimiter +
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify(metadata) +
+    delimiter +
+    `Content-Type: ${mimeType || 'text/plain'}\r\n\r\n` +
+    fileContent.toString(isBase64 ? 'binary' : 'utf-8') +
+    closeDelim;
+
+  const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`,
+      'Content-Length': String(Buffer.byteLength(body, 'binary')),
+    },
+    body: Buffer.from(body, 'binary'),
+  } as RequestInit);
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Drive upload failed: ${err?.error?.message || response.statusText}`);
+  }
+
+  const file = await response.json();
+  return {
+    success: true,
+    data: {
+      fileId: file.id,
+      name: file.name,
+      mimeType: file.mimeType,
+      webViewLink: file.webViewLink,
+    },
+  };
+}
+
+async function toolShareDriveFile(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { fileId, emailAddress, role, message } = params;
+
+  const accessToken = await getGoogleAccessToken(context.userId, 'google-drive');
+
+  const body: Record<string, any> = {
+    type: 'user',
+    role: role || 'reader',
+    emailAddress: emailAddress.trim(),
+  };
+  if (message) body.emailMessage = message;
+
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?sendNotificationEmail=true`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Drive share failed: ${err?.error?.message || response.statusText}`);
+  }
+
+  const perm = await response.json();
+  return {
+    success: true,
+    data: {
+      permissionId: perm.id,
+      role: perm.role,
+      emailAddress,
+      message: 'Shared successfully',
+    },
+  };
+}
+
+async function toolCreateDriveFolder(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { folderName, parentFolderId } = params;
+
+  const accessToken = await getGoogleAccessToken(context.userId, 'google-drive');
+
+  const body: Record<string, any> = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder',
+  };
+  if (parentFolderId) {
+    body.parents = [parentFolderId];
+  }
+
+  const response = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Drive create folder failed: ${err?.error?.message || response.statusText}`);
+  }
+
+  const folder = await response.json();
+  return {
+    success: true,
+    data: {
+      folderId: folder.id,
+      name: folder.name,
+      webViewLink: folder.webViewLink,
+    },
+  };
+}
+
+async function toolGetDriveFileMetadata(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { fileId } = params;
+
+  const accessToken = await getGoogleAccessToken(context.userId, 'google-drive');
+
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,createdTime,webViewLink,webContentLink,parents,owners,shared`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Drive get metadata failed: ${err?.error?.message || response.statusText}`);
+  }
+
+  const file = await response.json();
+  return {
+    success: true,
+    data: {
+      id: file.id,
+      name: file.name,
+      mimeType: file.mimeType,
+      size: file.size,
+      modifiedTime: file.modifiedTime,
+      createdTime: file.createdTime,
+      webViewLink: file.webViewLink,
+      webContentLink: file.webContentLink,
+      parents: file.parents,
+      shared: file.shared,
+    },
+  };
+}
+
+async function toolReadDriveFile(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { fileId } = params;
+
+  const accessToken = await getGoogleAccessToken(context.userId, 'google-drive');
+
+  // Get metadata first to determine mime type
+  const metaRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?fields=mimeType,name`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!metaRes.ok) {
+    const err = await metaRes.json().catch(() => ({}));
+    throw new Error(`Drive get file failed: ${err?.error?.message || metaRes.statusText}`);
+  }
+  const meta = await metaRes.json();
+  const mimeType = meta.mimeType || '';
+
+  let content: string;
+
+  if (mimeType === 'application/vnd.google-apps.document') {
+    const exportUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`;
+    const exportRes = await fetch(exportUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!exportRes.ok) {
+      const err = await exportRes.json().catch(() => ({}));
+      throw new Error(`Drive export failed: ${err?.error?.message || exportRes.statusText}`);
+    }
+    content = await exportRes.text();
+  } else if (
+    mimeType === 'application/vnd.google-apps.spreadsheet' ||
+    mimeType === 'application/vnd.google-apps.presentation'
+  ) {
+    const exportMime =
+      mimeType === 'application/vnd.google-apps.spreadsheet'
+        ? 'text/csv'
+        : 'text/plain';
+    const exportUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportMime)}`;
+    const exportRes = await fetch(exportUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!exportRes.ok) {
+      const err = await exportRes.json().catch(() => ({}));
+      throw new Error(`Drive export failed: ${err?.error?.message || exportRes.statusText}`);
+    }
+    content = await exportRes.text();
+  } else {
+    const fileRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!fileRes.ok) {
+      const err = await fileRes.json().catch(() => ({}));
+      throw new Error(`Drive read failed: ${err?.error?.message || fileRes.statusText}`);
+    }
+    content = await fileRes.text();
+  }
+
+  return {
+    success: true,
+    data: { fileId, name: meta.name, mimeType, content },
+  };
+}
+
+async function toolSearchDriveFiles(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { query, maxResults = 20 } = params;
+
+  const accessToken = await getGoogleAccessToken(context.userId, 'google-drive');
+
+  const q = `trashed=false and (${query})`;
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', q);
+  url.searchParams.set('pageSize', String(Math.min(Math.max(maxResults, 1), 100)));
+  url.searchParams.set(
+    'fields',
+    'files(id,name,mimeType,size,modifiedTime,webViewLink,createdTime,parents)'
+  );
+
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Drive search failed: ${err?.error?.message || response.statusText}`);
+  }
+
+  const data = await response.json();
+  const files = (data.files || []).map((f: any) => ({
+    id: f.id,
+    name: f.name,
+    mimeType: f.mimeType,
+    size: f.size,
+    modifiedTime: f.modifiedTime,
+    webViewLink: f.webViewLink,
+  }));
+
+  return { success: true, data: { files, count: files.length } };
 }
 
 async function toolHttpRequest(
