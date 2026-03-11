@@ -1,97 +1,112 @@
 "use client";
 
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { BuildStage, BuildStageStatus } from "@/lib/agents/chat-pipeline";
 
 interface BuildProgressCardProps {
   stages: BuildStage[];
 }
 
-/** Canonical order of build stages — always show all 6, merge with received stages */
+/** Canonical order of build stages — merge with received stages */
 const CANONICAL_STAGES: string[] = [
-  "Intent analysed",
-  "Execution logic generated",
-  "Integrations validated",
-  "Memory seeded",
-  "Safeguards applied",
-  "Agent deployed",
+  "Analyzing capabilities",
+  "Generating execution logic",
+  "Validating integrations",
+  "Seeding memory",
+  "Applying safeguards",
+  "Deploying agent",
 ];
 
-/** Maps stage label to in-progress label (for shimmer state) */
-const STAGE_LABELS: Record<string, string> = {
-  "Intent analysed": "Analysing intent",
-  "Execution logic generated": "Generating execution logic",
-  "Integrations validated": "Validating integrations",
-  "Memory seeded": "Seeding memory",
-  "Safeguards applied": "Applying safeguards",
-  "Agent deployed": "Deploying agent",
-};
-
-function getInProgressLabel(completedLabel: string): string {
-  return STAGE_LABELS[completedLabel] ?? completedLabel.replace("d", "ing").replace("ed", "ing");
+function getInProgressLabel(label: string): string {
+  return label;
 }
 
 export function BuildProgressCard({ stages }: BuildProgressCardProps) {
   const stagesByLabel = new Map((stages ?? []).map((s) => [s.label, s]));
-  const mergedStages: BuildStage[] = CANONICAL_STAGES.map((label) => ({
-    label,
-    status: (stagesByLabel.get(label)?.status ?? "pending") as BuildStageStatus,
-  }));
+  const mergedStages: BuildStage[] = CANONICAL_STAGES.map((label) => {
+    const received = stagesByLabel.get(label);
+    return {
+      label,
+      status: (received?.status ?? "pending") as BuildStageStatus,
+      detail: received?.detail,
+    };
+  });
 
   return (
-    <div className="flex gap-3 justify-start">
-      <div className="max-w-[95%] rounded-lg px-4 py-2 bg-transparent text-foreground">
-        <div className="flex flex-col gap-2">
+    <div className="w-full max-w-[420px]">
+      <div
+        className={cn(
+          "rounded-xl border border-stone-200/60 dark:border-white/[0.06]",
+          "bg-stone-50/80 dark:bg-white/[0.02]",
+          "shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.2)]",
+          "overflow-hidden"
+        )}
+      >
+        <div className="px-4 py-3 border-b border-stone-200/50 dark:border-white/[0.05]">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/80">
+            Building agent
+          </p>
+        </div>
+        <div className="divide-y divide-stone-200/40 dark:divide-white/[0.04]">
           {mergedStages.map((stage, i) => {
-              const isPending = stage.status === "pending";
-              const isInProgress = stage.status === "running";
-              const isCompleted = stage.status === "done";
-              const isFailed = stage.status === "error";
-              const inProgressLabel = getInProgressLabel(stage.label);
+            const isPending = stage.status === "pending";
+            const isInProgress = stage.status === "running";
+            const isCompleted = stage.status === "done";
+            const isFailed = stage.status === "error";
+            const inProgressLabel = getInProgressLabel(stage.label);
 
-              return (
-                <div key={`${stage.label}-${i}`} className="flex items-center gap-2">
+            return (
+              <div
+                key={`${stage.label}-${i}`}
+                className={cn(
+                  "flex items-start gap-3 px-4 py-2.5 transition-colors",
+                  isInProgress && "bg-stone-100/50 dark:bg-white/[0.03]"
+                )}
+              >
+                <div className="flex-shrink-0 pt-0.5">
                   {isPending && (
-                    <span className="w-3.5 h-3.5 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
+                    <span className="block w-4 h-4 rounded-full border-2 border-muted-foreground/25" />
                   )}
                   {isInProgress && (
-                    <Loader2 className="h-3.5 w-3.5 text-foreground animate-spin flex-shrink-0" />
+                    <Loader2 className="h-4 w-4 text-foreground/90 animate-spin" />
                   )}
                   {isCompleted && (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500/70 dark:text-green-400/70 flex-shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400/90" />
                   )}
                   {isFailed && (
-                    <XCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                    <XCircle className="h-4 w-4 text-red-500" />
                   )}
-                  <div className="flex-1">
-                    {isInProgress ? (
-                      <p
-                        className="text-sm whitespace-pre-wrap inline-block"
-                        style={{
-                          background:
-                            "linear-gradient(90deg, hsl(var(--foreground)) 0%, hsl(var(--foreground) / 0.8) 25%, hsl(var(--foreground) / 0.4) 50%, hsl(var(--foreground) / 0.8) 75%, hsl(var(--foreground)) 100%)",
-                          backgroundSize: "200% 100%",
-                          backgroundClip: "text",
-                          WebkitBackgroundClip: "text",
-                          WebkitTextFillColor: "transparent",
-                          animation: "shimmer 2s ease-in-out infinite",
-                        }}
-                      >
-                        {inProgressLabel}
-                      </p>
-                    ) : isCompleted ? (
-                      <p className="text-sm text-muted-foreground">{stage.label}</p>
-                    ) : isFailed ? (
-                      <p className="text-sm text-red-600 dark:text-red-400">
-                        {inProgressLabel} - Failed
-                      </p>
-                    ) : isPending ? (
-                      <p className="text-sm text-muted-foreground/60">{stage.label}</p>
-                    ) : null}
-                  </div>
                 </div>
-              );
-            })}
+                <div className="flex-1 min-w-0">
+                  {isInProgress ? (
+                    <p className="text-sm font-medium text-foreground">
+                      {inProgressLabel}
+                    </p>
+                  ) : isCompleted ? (
+                    <>
+                      <p className="text-sm font-medium text-foreground/90">
+                        {stage.label}
+                      </p>
+                      {stage.detail && (
+                        <p className="mt-0.5 text-xs text-muted-foreground/80 leading-relaxed">
+                          → {stage.detail}
+                        </p>
+                      )}
+                    </>
+                  ) : isFailed ? (
+                    <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                      {inProgressLabel} — Failed
+                    </p>
+                  ) : isPending ? (
+                    <p className="text-sm text-muted-foreground/50">
+                      {stage.label}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

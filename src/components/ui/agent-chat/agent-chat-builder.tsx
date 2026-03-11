@@ -30,9 +30,9 @@ function getConversationForApi(messages: ChatMessage[]): Array<{ role: "user" | 
 }
 
 /** Merge build_stage into stages array (update existing or append) */
-function mergeBuildStage(stages: BuildStage[], stage: string, status: BuildStageStatus): BuildStage[] {
+function mergeBuildStage(stages: BuildStage[], stage: string, status: BuildStageStatus, detail?: string): BuildStage[] {
   const idx = stages.findIndex((s) => s.label === stage);
-  const next = { label: stage, status };
+  const next: BuildStage = { label: stage, status, ...(detail != null && { detail }) };
   if (idx >= 0) {
     const out = [...stages];
     out[idx] = next;
@@ -256,7 +256,7 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
     });
   }, []);
 
-  const updateBuildProgress = useCallback((stage: string, status: BuildStageStatus, removeThinking = false) => {
+  const updateBuildProgress = useCallback((stage: string, status: BuildStageStatus, removeThinking = false, detail?: string) => {
     setMessages((prev) => {
       let working = prev;
       if (removeThinking) {
@@ -266,11 +266,11 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
       }
       const idx = working.findIndex((m) => m.role === "card" && "cardType" in m && m.cardType === "build_progress");
       if (idx < 0) {
-        return [...working, { id: genId(), role: "card", cardType: "build_progress", stages: [{ label: stage, status }] }];
+        return [...working, { id: genId(), role: "card", cardType: "build_progress", stages: [{ label: stage, status, ...(detail != null && { detail }) }] }];
       }
       const m = working[idx];
       if (m.role !== "card" || m.cardType !== "build_progress") return working;
-      const stages = mergeBuildStage(m.stages, stage, status);
+      const stages = mergeBuildStage(m.stages, stage, status, detail);
       const out = [...working];
       out[idx] = { ...m, stages };
       return out;
@@ -526,9 +526,9 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             try {
-              const event = JSON.parse(line.slice(6)) as { type: string; delta?: string; stage?: string; status?: string; agentId?: string; summary?: string };
+              const event = JSON.parse(line.slice(6)) as { type: string; delta?: string; stage?: string; status?: string; detail?: string; agentId?: string; summary?: string };
               if (event.type === "build_stage" && event.stage && event.status) {
-                updateBuildProgress(event.stage, event.status as BuildStageStatus, true);
+                updateBuildProgress(event.stage, event.status as BuildStageStatus, true, event.detail);
               }
               if (event.type === "text_delta" && typeof event.delta === "string") {
                 const delta = event.delta;

@@ -25,6 +25,8 @@ export type BuildStageStatus = 'pending' | 'running' | 'done' | 'error';
 export interface BuildStage {
   label: string;
   status: BuildStageStatus;
+  /** Optional result/detail shown when step completes (e.g. "3 capabilities: Gmail, Slack", "deployed in 1142ms") */
+  detail?: string;
 }
 
 // ============================================================================
@@ -72,7 +74,7 @@ export type ChatEvent =
   /** Renders the "Ready to build?" confirmation buttons */
   | { type: 'confirmation' }
   /** Appends / updates a stage row in the build progress card */
-  | { type: 'build_stage'; stage: string; status: BuildStageStatus }
+  | { type: 'build_stage'; stage: string; status: BuildStageStatus; detail?: string }
   /** Build is finished — show completion card */
   | { type: 'build_complete'; agentId: string; summary: string; requiredIntegrations?: IntegrationCheckItem[] }
   /** Fatal pipeline error */
@@ -146,8 +148,8 @@ export interface SSEWriter {
   textDone(): void;
   /** Push any card event (integration_check, questionnaire, plan, confirmation) */
   card(event: Exclude<ChatEvent, { type: 'text_delta' | 'text_done' | 'build_stage' | 'build_complete' | 'error' }>): void;
-  /** Append / update a build stage row */
-  buildStage(stage: string, status: BuildStageStatus): void;
+  /** Append / update a build stage row (detail shown when status is done) */
+  buildStage(stage: string, status: BuildStageStatus, detail?: string): void;
   /** Signal build completion */
   complete(agentId: string, summary: string, requiredIntegrations?: IntegrationCheckItem[]): void;
   /** Push a fatal error and close the stream */
@@ -204,8 +206,8 @@ export function createSSEStream(): SSEStream {
       push(event);
     },
 
-    buildStage(stage, status) {
-      push({ type: 'build_stage', stage, status });
+    buildStage(stage, status, detail) {
+      push({ type: 'build_stage', stage, status, ...(detail != null && { detail }) });
     },
 
     complete(agentId: string, summary: string, requiredIntegrations?: IntegrationCheckItem[]) {
