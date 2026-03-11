@@ -4,7 +4,7 @@
  */
 
 import OpenAI from 'openai';
-import { validateCustomCode } from '@/lib/workflow-execution/sandbox';
+import { validateCustomCode } from '@/lib/workflow-execution/sandbox-validation';
 import { getToolsSpec } from './capabilities-spec';
 import type { DeployAgentPlan, CustomToolSpec, CustomToolConfigKey } from './types';
 

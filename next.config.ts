@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // vm2 uses dynamic file loading (bridge.js) that breaks when bundled — exclude from bundle
+  serverExternalPackages: ['vm2'],
   outputFileTracingRoot: join(process.cwd()),
   outputFileTracingExcludes: {
     '*': [
