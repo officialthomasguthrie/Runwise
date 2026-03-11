@@ -6,6 +6,7 @@
 
 import OpenAI from 'openai';
 import type { DeployAgentPlan, AgentBehaviourPlan } from './types';
+import { getToolsSpec } from './capabilities-spec';
 
 // ============================================================================
 // TRIGGER CATALOGUE
@@ -283,25 +284,10 @@ RULES:
 10. Do NOT add a default heartbeat when the user did not ask for a time-based trigger. Manual-only agents have empty behaviours.
 
 ---
-AGENT CAPABILITIES (what agents can DO — include in instructions when relevant):
-- Web search: search the web for news, competitor info, launches, campaigns. Use for "monitor competitors", "watch for X", "track X"
-- Read URL: fetch and parse web pages. Use to check competitor sites, product pages, announcements
-- Gmail: watch for new emails, read emails, send emails, REPLY to emails (we support replying to email threads)
-- Slack: post messages to channels
-- Discord: send messages to channels
-- Google Sheets: read rows, add/update rows
-- Notion: create pages
-- Airtable: create/update/list records
-- Trello: create cards (via workflow nodes)
-- Google Calendar: create events
-- Google Drive: list, upload, share, read, search files
-- GitHub: create issues, list issues, add comments
-- Twilio: send SMS
-- Twitter: post tweets, search tweets
-- Stripe: list customers, get customer, create invoice, subscriptions
-- Web search (Serper), read URL content, get current time, HTTP requests, memory (remember/recall)
-When user says "reply to emails", "respond to emails", "answer emails" → we support it. Use new-email-received trigger + instructions to reply.
-When user says "monitor competitors", "watch for launches", "alert when X" → use schedule/heartbeat + instructions to web_search + read_url, then alert via Slack/email/Discord.`;
+AGENT CAPABILITIES (exhaustive — agents can ONLY use these tools; include in instructions when relevant):
+${getToolsSpec()}
+
+Match user phrasing by meaning: "reply to emails" → send_email_gmail with replyToThread; "monitor competitors" → schedule + web_search + read_url + send_notification/send_slack/send_email; "daily check" → schedule or heartbeat.`;
 }
 
 // ============================================================================

@@ -2,60 +2,24 @@
  * Agent Feasibility Check
  * Determines if a user's agent request can be fulfilled with available triggers and tools.
  * Runs before clarification/plan — if infeasible, we return early with an honest explanation.
+ *
+ * Uses the canonical capability spec (capabilities-spec.ts) — single source of truth derived
+ * from actual AGENT_TOOLS and trigger catalogue. The AI infers feasibility from the lists,
+ * not from example rules.
  */
 
 import OpenAI from 'openai';
+import { getCapabilitySpecForAI } from '@/lib/agents/capabilities-spec';
 
 export type FeasibilityResult = {
   feasible: boolean;
   reason?: string;
 };
 
-const SUPPORTED_TRIGGERS = `
-POLLING TRIGGERS (require connected integration):
-- new-email-received (Gmail) — google-gmail
-- new-message-in-slack (Slack) — slack
-- new-discord-message (Discord) — discord
-- new-row-in-google-sheet (Google Sheets) — google-sheets
-- new-github-issue (GitHub) — github
-- file-uploaded (Google Drive) — google-drive
-- new-form-submission (Google Forms) — google-forms
-- new-calendar-event (Google Calendar) — google-calendar
-- new-notion-page (Notion) — notion
-- new-airtable-record (Airtable) — airtable
-- new-trello-card (Trello) — trello
-
-BUILT-IN TRIGGERS (NO integration required — ALWAYS supported):
-- schedule: "daily", "hourly", "every morning", "every day at 9am", "time-based", "scheduled", "cron" — ALWAYS feasible
-- heartbeat: "daily briefing", "check in every day", "proactive" — ALWAYS feasible
-- webhook: HTTP POST to URL — ALWAYS feasible
-`.trim();
-
-const SUPPORTED_ACTIONS = `
-- Gmail: watch inbox, READ emails, SEND emails, REPLY to emails (we fully support replying/responding to emails)
-- Slack: post messages
-- Discord: send messages
-- Google Sheets: read, add, update rows
-- Notion: create pages
-- Airtable: create, update, list records
-- Trello: create cards
-- Google Calendar: create events
-- Google Drive: list, upload, share, read, search files
-- GitHub: create/list issues, add comments
-- Twilio: send SMS
-- Twitter/X: post tweets, search
-- Stripe: customers, invoices, subscriptions
-- Web search (Serper API): search the web for news, articles, competitor info, launches, campaigns — CRITICAL for monitoring/research
-- Read URL: fetch and parse web pages, check competitor websites
-- Get current time, HTTP requests
-- Memory (remember/recall), send notification to user
-`.trim();
-
 /**
- * Check if the user's agent request can be fulfilled with our supported triggers and actions.
- * Returns feasible: false ONLY when the user asks for integrations/capabilities we don't support
- * (e.g. Microsoft Teams, Jira — we haven't built those yet). Missing connected integrations
- * is NOT a reason to stop — users can connect them after the agent is built.
+ * Check if the user's agent request can be fulfilled with our supported triggers and tools.
+ * Returns feasible: false ONLY when the request requires triggers or tools not in our exhaustive list.
+ * Whether the user has connected an integration is IRRELEVANT — users connect after building.
  */
 export async function checkAgentFeasibility(
   userDescription: string,
@@ -66,38 +30,20 @@ export async function checkAgentFeasibility(
   }
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const capabilitySpec = getCapabilitySpecForAI();
 
-  const systemPrompt = `You are a feasibility checker for Runwise, an AI agent builder. Your ONLY job is to determine if a user's agent request uses triggers or actions we DON'T SUPPORT AT ALL.
+  const systemPrompt = `You are a feasibility checker for Runwise, an AI agent builder. You have ONE job: determine if a user's agent request can be fulfilled using ONLY the triggers and tools listed below. This list is EXHAUSTIVE — there are no other triggers or tools.
 
-SUPPORTED TRIGGERS:
-${SUPPORTED_TRIGGERS}
-
-SUPPORTED ACTIONS:
-${SUPPORTED_ACTIONS}
-
-REJECT (feasible: false) ONLY for services we truly don't support:
-- Microsoft Teams, Zoom, WhatsApp, Jira, Linear, Salesforce, HubSpot (unless we add them), Asana, Monday.com, etc.
-- Anything that requires an integration we have not built
-
-NEVER REJECT (feasible: true) for these — we support them:
-- "daily", "hourly", "every morning", "time-based", "scheduled", "cron" → schedule/heartbeat ALWAYS supported
-- "reply to emails", "respond to emails", "answer all emails" → Gmail + send_email (we support replying)
-- Gmail, Slack, Discord, Google Sheets/Forms/Calendar/Drive, GitHub, Notion, Airtable, Trello
-- Webhook, schedule, heartbeat — always available
-- "Monitor competitors", "watch for launches", "track competitors", "alert when X launches" → FEASIBLE: use schedule + web_search + read_url + Slack/email/Discord to alert. We have web search and URL reading.
-- "Competitive intelligence", "market research", "competitor tracking" → FEASIBLE (web search + read_url)
-
-CRITICAL: Whether the user has CONNECTED an integration is IRRELEVANT. Users connect after building. Only reject when we don't support the SERVICE at all.
+${capabilitySpec}
 
 RULES:
-1. feasible: false ONLY for unsupported services (Teams, Zoom, WhatsApp, Jira, etc.)
-2. feasible: true for: schedule, heartbeat, webhook, Gmail, Slack, Discord, Sheets, Forms, Calendar, Drive, GitHub, Notion, Airtable, Trello, Twilio, Twitter, Stripe, and email reply/send/read
-3. "reply to emails" or "respond to emails" = feasible (we support Gmail trigger + send/reply)
-4. "daily agent", "hourly check", "every morning" = feasible (schedule/heartbeat)
-5. "monitor competitors", "watch for new features", "alert when X launches", "track competitors" = feasible (schedule + web_search + read_url + alerts)
+1. feasible = true if the request can be fulfilled by combining triggers and tools from the lists above.
+2. feasible = false ONLY if the request requires a trigger or tool that does NOT appear in the lists above (e.g. Microsoft Teams, Zoom, WhatsApp, Jira, Linear, Salesforce, HubSpot, Asana, Monday.com, or any service not explicitly listed).
+3. Whether the user has connected an integration is IRRELEVANT. Users connect integrations after building. Only reject when we don't support the service/tool at all.
+4. Match user phrasing to capabilities by meaning: "reply to emails" uses send_email_gmail (replyToThread/threadId); "monitor competitors" uses schedule + web_search + read_url + send_notification/send_slack/send_email; "daily check" uses schedule or heartbeat. Infer from the tool descriptions.
 
-OUTPUT: JSON only: {"feasible": boolean, "reason": "..." when false}
-Return ONLY valid JSON. When feasible is true, omit reason or null.`;
+OUTPUT: JSON only. {"feasible": boolean, "reason": "..." when false}
+Return ONLY valid JSON. When feasible is true, omit reason or set to null.`;
 
   try {
     const completion = await openai.chat.completions.create({
