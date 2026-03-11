@@ -284,6 +284,8 @@ RULES:
 
 ---
 AGENT CAPABILITIES (what agents can DO — include in instructions when relevant):
+- Web search: search the web for news, competitor info, launches, campaigns. Use for "monitor competitors", "watch for X", "track X"
+- Read URL: fetch and parse web pages. Use to check competitor sites, product pages, announcements
 - Gmail: watch for new emails, read emails, send emails, REPLY to emails (we support replying to email threads)
 - Slack: post messages to channels
 - Discord: send messages to channels
@@ -298,7 +300,8 @@ AGENT CAPABILITIES (what agents can DO — include in instructions when relevant
 - Twitter: post tweets, search tweets
 - Stripe: list customers, get customer, create invoice, subscriptions
 - Web search (Serper), read URL content, get current time, HTTP requests, memory (remember/recall)
-When user says "reply to emails", "respond to emails", "answer emails" → we support it. Use new-email-received trigger + instructions to reply.`;
+When user says "reply to emails", "respond to emails", "answer emails" → we support it. Use new-email-received trigger + instructions to reply.
+When user says "monitor competitors", "watch for launches", "alert when X" → use schedule/heartbeat + instructions to web_search + read_url, then alert via Slack/email/Discord.`;
 }
 
 // ============================================================================

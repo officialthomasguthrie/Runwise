@@ -45,7 +45,9 @@ const SUPPORTED_ACTIONS = `
 - Twilio: send SMS
 - Twitter/X: post tweets, search
 - Stripe: customers, invoices, subscriptions
-- Web search, read URL, get current time, HTTP requests
+- Web search (Serper API): search the web for news, articles, competitor info, launches, campaigns — CRITICAL for monitoring/research
+- Read URL: fetch and parse web pages, check competitor websites
+- Get current time, HTTP requests
 - Memory (remember/recall), send notification to user
 `.trim();
 
@@ -82,6 +84,8 @@ NEVER REJECT (feasible: true) for these — we support them:
 - "reply to emails", "respond to emails", "answer all emails" → Gmail + send_email (we support replying)
 - Gmail, Slack, Discord, Google Sheets/Forms/Calendar/Drive, GitHub, Notion, Airtable, Trello
 - Webhook, schedule, heartbeat — always available
+- "Monitor competitors", "watch for launches", "track competitors", "alert when X launches" → FEASIBLE: use schedule + web_search + read_url + Slack/email/Discord to alert. We have web search and URL reading.
+- "Competitive intelligence", "market research", "competitor tracking" → FEASIBLE (web search + read_url)
 
 CRITICAL: Whether the user has CONNECTED an integration is IRRELEVANT. Users connect after building. Only reject when we don't support the SERVICE at all.
 
@@ -90,6 +94,7 @@ RULES:
 2. feasible: true for: schedule, heartbeat, webhook, Gmail, Slack, Discord, Sheets, Forms, Calendar, Drive, GitHub, Notion, Airtable, Trello, Twilio, Twitter, Stripe, and email reply/send/read
 3. "reply to emails" or "respond to emails" = feasible (we support Gmail trigger + send/reply)
 4. "daily agent", "hourly check", "every morning" = feasible (schedule/heartbeat)
+5. "monitor competitors", "watch for new features", "alert when X launches", "track competitors" = feasible (schedule + web_search + read_url + alerts)
 
 OUTPUT: JSON only: {"feasible": boolean, "reason": "..." when false}
 Return ONLY valid JSON. When feasible is true, omit reason or null.`;
