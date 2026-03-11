@@ -80,20 +80,30 @@ Output ONLY the sentence, no quotes, no preamble.`,
 /**
  * Stream an intro when presenting clarification questions.
  * Varies phrasing each time — AI generates a fresh intro, never a fixed phrase.
+ * Pass isFollowUp=true for round 2+ so the sentence signals "a few more" rather than "first time".
  */
 export async function streamClarificationIntro(
   writer: AgentStreamWriter,
-  summary: string
+  summary: string,
+  isFollowUp = false
 ): Promise<void> {
+  const systemPrompt = isFollowUp
+    ? `You are the Runwise agent builder. You've already asked the user an initial set of questions and now have a small follow-up set.
+Generate a single friendly sentence (5-15 words) that signals there are just a few MORE things to clarify — NOT that this is the first time asking.
+IMPORTANT: Vary your phrasing every time. End the sentence with a period, NEVER a colon.
+Examples: "Just a couple more things to confirm.", "I need to clarify a few more details.", "One more quick round of questions.", "Almost there — just a few more clarifications.", "Just need a bit more info."
+Output ONLY the sentence, no quotes, no preamble.`
+    : `You are the Runwise agent builder. You're about to ask the user a first set of clarification questions.
+Generate a single friendly sentence (5-15 words) that introduces these questions.
+IMPORTANT: Vary your phrasing every time. End the sentence with a period, NEVER a colon.
+Examples: "A few quick questions to nail this down.", "Let me ask you a couple of things.", "Just need a bit more detail to get started.", "Quick clarifications before we build this.", "I'd love a few more specifics."
+Use the summary context to tailor the tone if helpful. Output ONLY the sentence, no quotes, no preamble.`;
+
   await streamCompletion(
     writer,
-    `You are the Runwise agent builder. You're about to ask the user a few clarification questions.
-Generate a single friendly sentence (5-15 words) that introduces these questions. 
-IMPORTANT: Vary your phrasing every time. Never use the same sentence twice. Be creative and natural.
-Examples of varied intros: "A few quick questions to nail this down:", "Let me ask you a couple things:", "Just need a bit more detail to get started:", "Quick clarifications before we build this:", "I'd love a few more specifics:"
-Use the summary context to tailor the tone if helpful. Output ONLY the sentence, no quotes, no preamble.`,
+    systemPrompt,
     summary || 'User wants to build an agent.',
-    'A few quick questions:'
+    isFollowUp ? 'Just a couple more things to confirm.' : 'A few quick questions.'
   );
 }
 

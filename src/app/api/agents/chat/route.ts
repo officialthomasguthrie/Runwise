@@ -181,7 +181,8 @@ export async function POST(request: NextRequest) {
         const analysis = await analyzeClarificationNeeds(description, messages, answers ?? undefined);
 
         if (analysis.needsClarification && analysis.questions.length > 0) {
-          await streamClarificationIntro(writer, analysis.summary || '');
+          const isFollowUp = !!(answers && answers.length > 0);
+          await streamClarificationIntro(writer, analysis.summary || '', isFollowUp);
           writer.card({ type: 'questionnaire', questions: analysis.questions });
           writer.close();
           return;
