@@ -266,7 +266,7 @@ interface AgentDetail extends Agent {
   /** Integrations/tools the agent uses (derived from behaviours + instructions) */
   capabilities?: Array<{ slug: string; name: string }>;
   /** Custom tools (builder-generated: Teams, scrapers, etc.) */
-  customTools?: Array<{ name: string; description: string }>;
+  customTools?: Array<{ name: string; description: string; required_integrations?: string[] }>;
 }
 
 export interface AgentTabContentProps {
@@ -1722,22 +1722,65 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
                     <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-1">
                       Custom tools
                     </p>
-                    {agent!.customTools!.map((t) => (
-                      <div
-                        key={t.name}
-                        className="flex items-center gap-2 rounded-md bg-white/60 dark:bg-stone-900/60 border border-stone-200/60 dark:border-stone-600/40 px-3 py-1.5"
-                      >
-                        <Wrench className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <span className="text-sm font-medium text-foreground">{t.name.replace(/_/g, " ")}</span>
-                          {t.description && (
-                            <p className="text-xs text-muted-foreground truncate" title={t.description}>
-                              {t.description}
-                            </p>
+                    {agent!.customTools!.map((t) => {
+                      const toolRequiredIntegrations = t.required_integrations ?? [];
+                      const disconnectedForTool = toolRequiredIntegrations
+                        .map((svcId) => getIntegrationMeta(svcId))
+                        .filter((meta): meta is NonNullable<typeof meta> => !!meta)
+                        .filter((meta) => !isServiceConnected(meta.service, connectedServices));
+
+                      const handleToolConnect = (meta: NonNullable<ReturnType<typeof getIntegrationMeta>>) => {
+                        const origin = typeof window !== "undefined" ? window.location.origin : "";
+                        const returnUrl = typeof window !== "undefined"
+                          ? `${origin}${window.location.pathname}${window.location.search}`
+                          : "/agents/new";
+                        const connectUrl = meta.connectUrl.startsWith("http") ? meta.connectUrl : `${origin}${meta.connectUrl}`;
+                        if (meta.connectionMethod === "oauth") {
+                          const sep = connectUrl.includes("?") ? "&" : "?";
+                          window.location.href = `${connectUrl}${sep}returnUrl=${encodeURIComponent(returnUrl)}`;
+                        } else {
+                          window.open(connectUrl, "ConnectIntegration", "width=600,height=700");
+                        }
+                      };
+
+                      return (
+                        <div
+                          key={t.name}
+                          className="flex flex-col gap-1.5 rounded-md bg-white/60 dark:bg-stone-900/60 border border-stone-200/60 dark:border-stone-600/40 px-3 py-1.5"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Wrench className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <span className="text-sm font-medium text-foreground">{t.name.replace(/_/g, " ")}</span>
+                              {t.description && (
+                                <p className="text-xs text-muted-foreground truncate" title={t.description}>
+                                  {t.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {disconnectedForTool.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 pl-5">
+                              {disconnectedForTool.map((meta) => {
+                                const logoSlug = SERVICE_ID_TO_LOGO_SLUG[meta.service] ?? meta.service;
+                                const logoUrl = getIntegrationLogoUrl(logoSlug);
+                                return (
+                                  <button
+                                    key={meta.service}
+                                    type="button"
+                                    onClick={() => handleToolConnect(meta)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium border border-stone-300 dark:border-stone-500 bg-stone-50 dark:bg-stone-800/50 text-foreground hover:bg-stone-100 dark:hover:bg-stone-700/80 hover:border-stone-400 dark:hover:border-stone-400 transition-colors"
+                                  >
+                                    <img src={logoUrl} alt="" className="h-3.5 w-3.5 rounded object-contain" />
+                                    Connect {meta.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </>
                 )}
                 {capabilities.length === 0 && (agent?.customTools?.length ?? 0) === 0 && (

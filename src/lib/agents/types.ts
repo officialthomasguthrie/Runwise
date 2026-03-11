@@ -155,10 +155,16 @@ export interface CustomToolSpec {
   description: string;
   code: string;
   input_schema: Record<string, unknown>;
-  /** Keys this tool needs from user (webhook URL, API key) — drives clarification questions */
+  /** Keys this tool needs from user (webhook URL, non-OAuth API key) — drives clarification questions */
   configKeys?: CustomToolConfigKey[];
   /** Optional: defaults for config (webhook URL, API key) — user provides via questionnaire */
   config_defaults?: Record<string, string>;
+  /**
+   * Known service IDs from INTEGRATION_CATALOGUE that this tool requires.
+   * When set, the completion card shows Connect buttons instead of asking for credentials.
+   * Examples: ['slack'], ['github'], ['twilio']
+   */
+  requiredIntegrations?: string[];
 }
 
 export interface DeployAgentPlan {

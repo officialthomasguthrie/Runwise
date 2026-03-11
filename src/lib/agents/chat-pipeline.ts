@@ -482,7 +482,18 @@ export function detectRequiredIntegrations(plan: DeployAgentPlan): string[] {
     }
   }
 
-  // 2 — Instruction keyword scanning (best-effort for action tools)
+  // 2 — Custom tool requiredIntegrations (explicit, authoritative)
+  if (plan.customTools) {
+    for (const tool of plan.customTools) {
+      if (Array.isArray(tool.requiredIntegrations)) {
+        for (const svc of tool.requiredIntegrations) {
+          if (typeof svc === 'string' && svc) required.add(svc);
+        }
+      }
+    }
+  }
+
+  // 3 — Instruction keyword scanning (best-effort for action tools)
   const textToScan = [
     plan.instructions,
     plan.persona,

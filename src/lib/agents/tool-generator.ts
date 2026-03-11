@@ -8,22 +8,56 @@ import { validateCustomCode } from '@/lib/workflow-execution/sandbox-validation'
 import { getToolsSpec } from './capabilities-spec';
 import type { DeployAgentPlan, CustomToolSpec, CustomToolConfigKey } from './types';
 
+// Services in INTEGRATION_CATALOGUE — the user connects these via OAuth/credential modal,
+// so tools should NOT ask for credentials via configKeys; use requiredIntegrations instead.
+const KNOWN_INTEGRATIONS: Record<string, string> = {
+  'slack':            'slack',
+  'gmail':            'google-gmail',
+  'google-gmail':     'google-gmail',
+  'google sheets':    'google-sheets',
+  'google-sheets':    'google-sheets',
+  'google drive':     'google-drive',
+  'google-drive':     'google-drive',
+  'google calendar':  'google-calendar',
+  'google-calendar':  'google-calendar',
+  'google forms':     'google-forms',
+  'google-forms':     'google-forms',
+  'discord':          'discord',
+  'github':           'github',
+  'notion':           'notion',
+  'airtable':         'airtable',
+  'trello':           'trello',
+  'twitter':          'twitter',
+  'twilio':           'twilio',
+  'openai':           'openai',
+  'stripe':           'stripe',
+};
+
 const SYSTEM_PROMPT = `You are a tool generator for Runwise agents. Your job: when a user wants an agent that needs capabilities we DON'T have natively, generate CUSTOM TOOLS that the agent will use at runtime.
 
 SYSTEM TOOLS WE ALREADY HAVE (do NOT generate tools for these):
 ${getToolsSpec()}
 
-Generate custom tools ONLY when the user needs something not in the list above. Examples of when to generate:
-- Microsoft Teams: user wants to send/post to Teams → generate send_teams_message (uses Incoming Webhook: POST to webhookUrl with { text: message })
-- Scraping a specific site: user wants to scrape/extract data from a website → generate a scraper tool
-- Custom API: user wants to call a specific API (Shopify, etc.) → generate a tool that uses context.http
+Generate custom tools ONLY when the user needs something not in the list above. Examples:
+- Microsoft Teams: send/post to Teams → send_teams_message (POST to a Teams Incoming Webhook URL)
+- Scraping a specific site → generate a scraper tool using context.http.get
+- Custom API (Shopify, HubSpot, Jira, etc.) → tool that calls that API
 
 TOOL EXECUTION ENVIRONMENT:
 - Code runs as: async (inputData, config, context) => { ... }
 - context.http has: get(url, opts), post(url, data, opts), put(url, data, opts), patch(url, data, opts), delete(url, opts)
 - For HTTP: use context.http.post(url, { key: value }) — NOT fetch()
-- config contains user-provided values (webhook URL, API key) from questionnaire
+- config contains user-provided values (webhook URL, paste-in API key) set during setup
+- context.integrations is available for KNOWN services (Slack, GitHub, etc.) — the token is fetched automatically; the tool just calls context.http with Authorization Bearer
 - NO: require, import, eval, process, Function, __dirname, __filename
+
+KNOWN INTEGRATIONS — services users connect via OAuth/credential modal (do NOT use configKeys for credentials):
+slack, google-gmail, google-sheets, google-drive, google-calendar, google-forms, discord, github, notion, airtable, trello, twitter, twilio, openai, stripe
+
+RULES FOR CREDENTIALS:
+- If the tool uses a KNOWN integration: set requiredIntegrations: ["service-id"] and DO NOT add configKeys for the API key or token. The user will connect via modal.
+- If the tool uses an UNKNOWN service (e.g. Teams, Shopify, HubSpot, Jira, custom API): use configKeys for webhook URL or API key. Do NOT set requiredIntegrations.
+- Never mix both for the same service.
 
 OUTPUT FORMAT (JSON only):
 {
@@ -31,32 +65,34 @@ OUTPUT FORMAT (JSON only):
     {
       "name": "snake_case_name",
       "description": "Clear description for the LLM to decide when to use this tool",
-      "code": "async (inputData, config, context) => { const url = inputData.webhookUrl || config.webhookUrl; const res = await context.http.post(url, { text: inputData.message }); return res; }",
+      "code": "async (inputData, config, context) => { ... }",
       "input_schema": {
         "type": "object",
         "properties": {
-          "webhookUrl": { "type": "string", "description": "..." },
           "message": { "type": "string", "description": "..." }
         },
         "required": ["message"]
       },
-      "configKeys": [
-        { "key": "webhookUrl", "label": "Teams Incoming Webhook URL", "description": "URL from your Teams channel Incoming Webhook" }
-      ]
+      "requiredIntegrations": ["slack"],
+      "configKeys": []
     }
   ]
 }
+
+EXAMPLES:
+- send_teams_message: Uses Teams Incoming Webhook (NOT a known integration) → configKeys: [{ key: "webhookUrl", label: "Teams Webhook URL", description: "URL from your Teams channel" }], requiredIntegrations: []
+- call_shopify_api: Shopify not a known integration → configKeys: [{ key: "apiKey", label: "Shopify API Key" }, { key: "baseUrl", label: "Store URL" }], requiredIntegrations: []
+- post_to_slack_channel: Slack IS a known integration → requiredIntegrations: ["slack"], configKeys: []
+- create_github_issue: GitHub IS a known integration → requiredIntegrations: ["github"], configKeys: []
+- send_twilio_sms: Twilio IS a known integration → requiredIntegrations: ["twilio"], configKeys: []
+- scraper tools with no secrets → configKeys: [], requiredIntegrations: []
 
 RULES:
 1. Generate ONLY when system tools cannot fulfill the request.
 2. Return { "customTools": [] } if no custom tools are needed.
 3. Name tools in snake_case. Description must be clear for function-calling.
 4. Code must be valid JavaScript: async (inputData, config, context) => { ... }
-5. input_schema must have type, properties, and required array.
-6. configKeys: Add for any value the user must provide during setup (webhook URL, API key, base URL). Each tool that reads from config needs configKeys. Examples:
-   - send_teams_message → configKeys: [{ key: "webhookUrl", label: "Teams Incoming Webhook URL", description: "URL from your Teams channel Incoming Webhook" }]
-   - call_shopify_api → configKeys: [{ key: "apiKey", label: "Shopify API Key", description: "Your Shopify API access token" }, { key: "baseUrl", label: "Shopify Store URL", description: "e.g. https://your-store.myshopify.com" }]
-   - scraper tools or tools that need no secrets → configKeys: [] or omit`;
+5. input_schema must have type, properties, and required array.`;
 
 function parseConfigKeys(
   raw: unknown,
@@ -153,13 +189,27 @@ Output JSON only, no markdown.`;
 
       const configKeys = parseConfigKeys(spec.configKeys, spec.name);
 
+      // Parse requiredIntegrations — only allow known service IDs
+      const rawReqIntegrations: string[] = Array.isArray(spec.requiredIntegrations)
+        ? spec.requiredIntegrations.filter((s: unknown) => typeof s === 'string' && Object.values(KNOWN_INTEGRATIONS).includes(s as string))
+        : [];
+
+      // Remove configKeys for credentials of known integrations (safety filter)
+      const filteredConfigKeys = configKeys.filter((ck) => {
+        const isCredentialKey = /api.?key|token|secret|password|credential/i.test(ck.key);
+        if (!isCredentialKey) return true;
+        // If the service for this key is a known integration, drop it
+        return false;
+      });
+
       validated.push({
         name: spec.name.trim(),
         description: spec.description.trim(),
         code: spec.code.trim(),
         input_schema: inputSchema as Record<string, unknown>,
-        configKeys: configKeys.length > 0 ? configKeys : undefined,
+        configKeys: filteredConfigKeys.length > 0 ? filteredConfigKeys : undefined,
         config_defaults: spec.config_defaults,
+        requiredIntegrations: rawReqIntegrations.length > 0 ? rawReqIntegrations : undefined,
       });
     }
 

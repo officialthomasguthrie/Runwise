@@ -48,6 +48,10 @@ export function mergeCustomToolConfigQuestions(
   const usedIds = new Set(analysis.questions.map((q) => q.id));
 
   for (const tool of plan.customTools) {
+    // Skip configKeys entirely if the tool declares requiredIntegrations —
+    // the user will connect via the Connect button, not a text question.
+    if (tool.requiredIntegrations && tool.requiredIntegrations.length > 0) continue;
+
     const configKeys = tool.configKeys ?? [];
     for (const ck of configKeys) {
       const id = `${CONFIG_QUESTION_ID_PREFIX}${tool.name}:${ck.key}`;

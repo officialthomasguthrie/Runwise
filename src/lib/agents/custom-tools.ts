@@ -14,6 +14,8 @@ export interface AgentCustomToolRow {
   input_schema: Record<string, unknown>;
   language: string;
   config_defaults: Record<string, unknown>;
+  /** Service IDs the tool requires the user to connect (e.g. ['slack', 'github']) */
+  required_integrations: string[];
   created_at: string;
 }
 
@@ -51,6 +53,7 @@ export async function createAgentCustomTools(
     code: string;
     input_schema: Record<string, unknown>;
     config_defaults?: Record<string, string>;
+    requiredIntegrations?: string[];
   }>
 ): Promise<void> {
   const supabase = createAdminClient();
@@ -63,6 +66,7 @@ export async function createAgentCustomTools(
     input_schema: t.input_schema ?? {},
     language: 'javascript',
     config_defaults: t.config_defaults ?? {},
+    required_integrations: t.requiredIntegrations ?? [],
   }));
   const { error } = await (supabase as any)
     .from('agent_custom_tools')
