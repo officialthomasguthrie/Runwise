@@ -16,7 +16,6 @@ import {
   SSE_HEADERS,
   buildIntegrationCheckListForPolling,
   buildIntegrationCheckList,
-  deriveAgentCapabilities,
   type AgentBuildRequest,
 } from '@/lib/agents/chat-pipeline';
 import { streamCompletionSummary, generateShortDescription } from '@/lib/ai/agent-streaming';
@@ -24,12 +23,12 @@ import { getUserIntegrations } from '@/lib/integrations/service';
 import { getAgentAvatarUrl } from '@/lib/agents/avatar';
 
 const STAGES = [
-  'Analyzing capabilities',
-  'Generating execution logic',
-  'Validating integrations',
-  'Seeding memory',
-  'Applying safeguards',
-  'Deploying agent',
+  'Intent analysed',
+  'Execution logic generated',
+  'Integrations validated',
+  'Memory seeded',
+  'Safeguards applied',
+  'Agent deployed',
 ] as const;
 
 function sleep(ms: number): Promise<void> {
@@ -79,27 +78,11 @@ export async function POST(request: NextRequest) {
     (async () => {
       try {
         const admin = createAdminClient();
-        const buildStartMs = Date.now();
 
-        // 1. Analyzing capabilities — derive from plan
-        writer.buildStage(STAGES[0], 'running');
-        const capabilities = deriveAgentCapabilities({
-          instructions: plan.instructions,
-          persona: plan.persona,
-          behaviours: plan.behaviours.map((b) => ({
-            behaviour_type: b.behaviourType,
-            trigger_type: b.triggerType,
-            config: b.config,
-            description: b.description,
-          })),
-        });
-        const capDetail =
-          capabilities.length > 0
-            ? `${capabilities.length} ${capabilities.length === 1 ? 'capability' : 'capabilities'}: ${capabilities.map((c) => c.name).join(', ')}`
-            : 'Manual-only agent (no integrations)';
-        writer.buildStage(STAGES[0], 'done', capDetail);
+        // 1. Intent analysed (immediate)
+        writer.buildStage(STAGES[0], 'done');
 
-        // 2. Generating execution logic — insert agent row with status 'deploying'
+        // 2. Execution logic generated — insert agent row with status 'deploying'
         writer.buildStage(STAGES[1], 'running');
 
         const { data: agent, error: agentError } = await (admin as any)
@@ -124,29 +107,19 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        const instructionsWordCount = (plan.instructions ?? '').split(/\s+/).filter(Boolean).length;
-        writer.buildStage(STAGES[1], 'done', `Instructions generated (${instructionsWordCount} words)`);
+        writer.buildStage(STAGES[1], 'done');
 
-        // 3. Validating integrations — create behaviours + polling triggers
+        // 3. Integrations validated — create behaviours + polling triggers
         writer.buildStage(STAGES[2], 'running');
 
         await createAgentBehaviours(agent.id, user.id, plan.behaviours);
 
-        const behaviourCount = plan.behaviours?.length ?? 0;
         if (plan.customTools?.length && plan.customTools.length > 0) {
           await createAgentCustomTools(agent.id, plan.customTools);
         }
-        const customToolsDetail =
-          plan.customTools?.length && plan.customTools.length > 0
-            ? `, ${plan.customTools.length} custom ${plan.customTools.length === 1 ? 'tool' : 'tools'} added`
-            : '';
-        writer.buildStage(
-          STAGES[2],
-          'done',
-          `${behaviourCount} ${behaviourCount === 1 ? 'behaviour' : 'behaviours'} created${customToolsDetail}`
-        );
+        writer.buildStage(STAGES[2], 'done');
 
-        // 4. Seeding memory
+        // 4. Memory seeded
         writer.buildStage(STAGES[3], 'running');
 
         for (const content of plan.initialMemories ?? []) {
@@ -159,15 +132,14 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const memoryCount = (plan.initialMemories ?? []).filter((m) => typeof m === 'string' && m.trim()).length;
-        writer.buildStage(STAGES[3], 'done', memoryCount > 0 ? `${memoryCount} ${memoryCount === 1 ? 'memory' : 'memories'} added` : 'No memories to seed');
+        writer.buildStage(STAGES[3], 'done');
 
-        // 5. Applying safeguards — short delay for UX
+        // 5. Safeguards applied — short delay for UX
         writer.buildStage(STAGES[4], 'running');
         await sleep(400);
         writer.buildStage(STAGES[4], 'done');
 
-        // 6. Deploying agent — generate short tagline and set status (active or pending_integrations)
+        // 6. Agent deployed — generate short tagline and set status (active or pending_integrations)
         writer.buildStage(STAGES[5], 'running');
 
         const shortDescription = await generateShortDescription(plan, description.trim());
@@ -211,8 +183,7 @@ export async function POST(request: NextRequest) {
           .eq('id', agent.id)
           .eq('user_id', user.id);
 
-        const deployMs = Date.now() - buildStartMs;
-        writer.buildStage(STAGES[5], 'done', `Deployed in ${deployMs}ms`);
+        writer.buildStage(STAGES[5], 'done');
 
         // 7. Stream AI-generated summary, then complete
         await streamCompletionSummary(writer, plan, description.trim());
