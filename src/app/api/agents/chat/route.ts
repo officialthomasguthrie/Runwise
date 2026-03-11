@@ -9,13 +9,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { planAgent, regenerateAgentPlan } from '@/lib/agents/planner';
-import { generateCustomTools } from '@/lib/agents/tool-generator';
-import {
-  analyzeClarificationNeeds,
-  buildEnrichedPrompt,
-  mergeCustomToolConfigQuestions,
-  applyConfigAnswersToPlan,
-} from '@/lib/ai/clarification';
+import { analyzeClarificationNeeds, buildEnrichedPrompt } from '@/lib/ai/clarification';
 import { analyzeAgentIntent } from '@/lib/ai/agent-intent';
 import { checkAgentFeasibility } from '@/lib/ai/agent-feasibility';
 import { streamAgentChatResponse } from '@/lib/ai/agent-chat-response';
@@ -105,15 +99,6 @@ export async function POST(request: NextRequest) {
         // Show "Thinking..." immediately for every message — consistent loading UX
         streamThinking(writer);
 
-        // ── Branch: User submitted questionnaire with plan (merge config, show plan) ──
-        if (answers?.length && pendingPlan) {
-          const planWithConfig = applyConfigAnswersToPlan(pendingPlan, answers);
-          await streamPlanIntro(writer, planWithConfig, latestUserContent);
-          writer.card({ type: 'plan', plan: planWithConfig });
-          writer.close();
-          return;
-        }
-
         // ── Branch: User wants to adjust the plan ─────────────────────────────
         let effectivePendingPlan = pendingPlan;
 
@@ -155,11 +140,6 @@ export async function POST(request: NextRequest) {
             latestUserContent,
             userIntegrationNames
           );
-          const customTools = await generateCustomTools(
-            `User asked to adjust: ${latestUserContent}. Previous plan: ${effectivePendingPlan.instructions}`,
-            plan
-          );
-          plan.customTools = customTools;
           const adjustmentContext = `User asked to adjust: ${latestUserContent}`;
           await streamPlanIntro(writer, plan, adjustmentContext);
           writer.card({ type: 'plan', plan });
@@ -195,26 +175,22 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        // Feasible: first delta from streamPlanIntro will replace "Thinking..."
-        const plan = await planAgent(description, userIntegrationNames);
-        const customTools = await generateCustomTools(description, plan);
-        plan.customTools = customTools;
-
-        // Check clarification (including multi-round) + custom tool config questions
-        const baseAnalysis = await analyzeClarificationNeeds(description, messages);
-        const analysis = mergeCustomToolConfigQuestions(baseAnalysis, plan);
+        // Clarification check BEFORE generating the plan — no point planning if more info needed.
+        // Pass accumulated answers so round 2+ can ask context-dependent follow-up questions
+        // (e.g. after user picks "Slack", round 2 asks "which channel?" as a plain question).
+        const analysis = await analyzeClarificationNeeds(description, messages, answers ?? undefined);
 
         if (analysis.needsClarification && analysis.questions.length > 0) {
           await streamClarificationIntro(writer, analysis.summary || '');
-          writer.card({ type: 'questionnaire', questions: analysis.questions, pendingPlan: plan });
+          writer.card({ type: 'questionnaire', questions: analysis.questions });
           writer.close();
           return;
         }
 
-        // No clarification needed — merge any config answers, stream plan, then show Build/Adjust buttons
-        const planToShow = answers?.length ? applyConfigAnswersToPlan(plan, answers) : plan;
-        await streamPlanIntro(writer, planToShow, description);
-        writer.card({ type: 'plan', plan: planToShow });
+        // All clarification done — now generate the plan
+        const plan = await planAgent(description, userIntegrationNames);
+        await streamPlanIntro(writer, plan, description);
+        writer.card({ type: 'plan', plan });
         writer.close();
       } catch (err: any) {
         console.error('[POST /api/agents/chat]', err);

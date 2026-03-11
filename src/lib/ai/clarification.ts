@@ -1,116 +1,13 @@
 /**
  * Clarification Analysis
  * Analyzes agent prompts to determine if additional information is needed
- * before building the agent. Generates thorough questionnaires to minimize hallucination.
+ * before building the agent. Supports multi-round questionnaires so that
+ * conditional follow-up questions (e.g. "which Slack channel?" after the user
+ * says "Slack") are asked in a later round instead of crammed into one form.
  */
 
 import OpenAI from 'openai';
 import type { ClarificationAnalysis, ClarificationQuestion, QuestionnaireAnswer } from './types';
-import type { DeployAgentPlan } from '@/lib/agents/types';
-
-/** ID prefix for custom tool config questions — parse as config:toolName:key */
-export const CONFIG_QUESTION_ID_PREFIX = 'config:';
-
-/**
- * Whether a question id indicates a custom tool config value.
- */
-export function isConfigQuestionId(id: string): boolean {
-  return id.startsWith(CONFIG_QUESTION_ID_PREFIX);
-}
-
-/**
- * Parse config question id into toolName and configKey. Returns null if not a config id.
- */
-export function parseConfigQuestionId(
-  id: string
-): { toolName: string; configKey: string } | null {
-  if (!isConfigQuestionId(id)) return null;
-  const rest = id.slice(CONFIG_QUESTION_ID_PREFIX.length);
-  const colon = rest.indexOf(':');
-  if (colon < 0) return null;
-  return {
-    toolName: rest.slice(0, colon),
-    configKey: rest.slice(colon + 1),
-  };
-}
-
-/**
- * Merge custom tool config questions into the clarification analysis.
- * When plan has custom tools with configKeys, adds text questions for each.
- */
-export function mergeCustomToolConfigQuestions(
-  analysis: ClarificationAnalysis,
-  plan: DeployAgentPlan | null
-): ClarificationAnalysis {
-  if (!plan?.customTools?.length) return analysis;
-
-  const configQuestions: ClarificationQuestion[] = [];
-  const usedIds = new Set(analysis.questions.map((q) => q.id));
-
-  for (const tool of plan.customTools) {
-    // Skip configKeys entirely if the tool declares requiredIntegrations —
-    // the user will connect via the Connect button, not a text question.
-    if (tool.requiredIntegrations && tool.requiredIntegrations.length > 0) continue;
-
-    const configKeys = tool.configKeys ?? [];
-    for (const ck of configKeys) {
-      const id = `${CONFIG_QUESTION_ID_PREFIX}${tool.name}:${ck.key}`;
-      if (usedIds.has(id)) continue;
-      usedIds.add(id);
-      configQuestions.push({
-        id,
-        question: ck.label.endsWith('?') ? ck.label : `${ck.label}?`,
-        type: 'text',
-        placeholder: ck.description || undefined,
-      });
-    }
-  }
-
-  if (configQuestions.length === 0) return analysis;
-
-  return {
-    ...analysis,
-    needsClarification: true,
-    questions: [...analysis.questions, ...configQuestions],
-  };
-}
-
-/**
- * Map questionnaire answers into plan.customTools[].config_defaults.
- * Only processes answers whose questionId matches config:toolName:key.
- */
-export function applyConfigAnswersToPlan(
-  plan: DeployAgentPlan,
-  answers: QuestionnaireAnswer[]
-): DeployAgentPlan {
-  if (!plan.customTools?.length || !answers?.length) return plan;
-
-  const configByTool = new Map<string, Record<string, string>>();
-
-  for (const a of answers) {
-    const parsed = parseConfigQuestionId(a.questionId);
-    if (!parsed) continue;
-    const value = Array.isArray(a.answer) ? a.answer.join(', ').trim() : String(a.answer ?? '').trim();
-    if (!value) continue;
-    let map = configByTool.get(parsed.toolName);
-    if (!map) {
-      map = {};
-      configByTool.set(parsed.toolName, map);
-    }
-    map[parsed.configKey] = value;
-  }
-
-  const customTools = plan.customTools.map((t) => {
-    const defaults = configByTool.get(t.name);
-    if (!defaults) return t;
-    return {
-      ...t,
-      config_defaults: { ...(t.config_defaults ?? {}), ...defaults },
-    };
-  });
-
-  return { ...plan, customTools };
-}
 
 const CONDITIONAL_PATTERNS = [
   /\bif\s+you\s+(chose|chosen|selected|pick|picked|chosen|prefer|want|choose)\b/i,
@@ -132,11 +29,15 @@ function hasConditionalPhrasing(text: string): boolean {
 
 /**
  * Analyze an agent request and determine if clarification questions are needed.
- * Uses thorough agent-specific checklist to ensure the planner has a complete picture.
+ *
+ * @param userPrompt - The agent description (enriched with previous answers if multi-round)
+ * @param conversationHistory - Recent chat messages for context
+ * @param previousAnswers - Answers from earlier questionnaire rounds (enables follow-up questions)
  */
 export async function analyzeClarificationNeeds(
   userPrompt: string,
-  conversationHistory?: Array<{ role: string; content: string }>
+  conversationHistory?: Array<{ role: string; content: string }>,
+  previousAnswers?: QuestionnaireAnswer[]
 ): Promise<ClarificationAnalysis> {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY is not set');
@@ -146,49 +47,67 @@ export async function analyzeClarificationNeeds(
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const systemPrompt = `You are an expert agent requirements analyst for Runwise, an AI agent platform. Your job is to analyze a user's agent request and determine if you need more information before building it. You MUST be thorough — vague requests lead to wrong or hallucinated agent behaviour.
+  const isFollowUpRound = previousAnswers && previousAnswers.length > 0;
+
+  const previousAnswersSection = isFollowUpRound
+    ? `
+PREVIOUS ROUND — ALREADY CONFIRMED BY USER (do NOT re-ask):
+${previousAnswers.map((a) => `Q: ${a.question}\nA: ${Array.isArray(a.answer) ? a.answer.join(', ') : a.answer}`).join('\n\n')}
+
+This is a FOLLOW-UP round. The user already answered the questions above.
+Your job now is to look at those answers and ask ONLY the context-dependent questions they unlocked.
+Examples:
+  - If they said "Slack" for notifications → ask which Slack channel name to use (previously deferred as conditional, now directly answerable)
+  - If they said "Email" → ask which email address to send to
+  - If they said "daily" with no time → ask what time of day
+  - If they said "Google Sheets" → ask which spreadsheet and sheet tab
+Do NOT ask broad questions again. Only ask what the previous answers specifically unlocked.
+If nothing further is needed, set needsClarification to false.
+`.trim()
+    : `
+This is ROUND 1. Focus on essential, non-conditional questions only.
+IMPORTANT: If you would ask "what Slack channel if they chose Slack" — do NOT ask it yet.
+First ask "How would you like to be notified?" and defer the channel/address question to round 2.
+Round 2 will receive these answers and can then ask the specific follow-up as a direct question.
+`.trim();
+
+  const systemPrompt = `You are an expert agent requirements analyst for Runwise, an AI agent platform. Your job is to analyze a user's agent request and determine if you need more information before building it.
 
 AVAILABLE AGENT CAPABILITIES:
-- Triggers: Gmail (new email), Slack (new message), Discord, Google Sheets (new row), GitHub (new issue), Google Drive (file upload), Google Forms (submission)
-- Actions: Send email (SendGrid), post to Slack/Discord, create Notion pages, update Airtable/Trello/Sheets, create calendar events, AI processing (summaries, classification)
-- Scheduling: Cron-based (daily, hourly, etc.)
-- Persona: Tone, style, how the agent "speaks" or behaves
+- Triggers: Gmail (new email), Slack (new message), Discord, Google Sheets (new row), GitHub (new issue), Google Drive (file upload), Google Forms (submission), Notion, Airtable, Trello
+- Actions: send email/Gmail, post to Slack/Discord, create Notion pages, update Airtable/Trello/Sheets, create calendar events, web search, read URLs, send SMS (Twilio), post tweets
+- Scheduling: Cron-based (daily, hourly, etc.) — no integration required
+- Memory: remember and recall facts across runs
 
-AGENT-SPECIFIC ANALYSIS CHECKLIST (be exhaustive):
-1. TRIGGER: What starts the agent? (Email received? Slack message? New row? Form submission? Schedule?) Which specific source (Gmail, which channel, which sheet)?
-2. TIMING: If scheduled, how often? (Every hour, daily at 9am, weekly on Monday?) Timezone?
-3. BEHAVIOUR: What exactly should the agent DO when triggered? Step-by-step. What inputs does it need? What decisions does it make?
-4. OUTPUT DESTINATION: Where does the agent send results? (Email to whom? Slack channel? Notion page? Sheet row?) Specific recipients, channels, or locations?
-5. PERSONA & TONE: How should the agent communicate? Formal, casual, brief, detailed? Any specific phrasing or style?
-6. SUCCESS CRITERIA: What does "done" or "success" look like? When should it stop or consider a task complete?
-7. EDGE CASES: What if no data? What if multiple items? What if something fails? Should it retry, skip, or alert?
-8. FILTERING: Any criteria to ignore certain inputs? (e.g. "only if email is from X", "only issues labeled bug")
-9. AMBIGUOUS INTEGRATIONS: Does "notify me" mean email, Slack, or something else? Does "track" mean Sheets, Airtable, or something else?
-10. DATA MAPPING: What specific fields or data from the trigger feed into each action? (e.g. "Use the email subject for the Notion page title")
+AGENT-SPECIFIC ANALYSIS CHECKLIST:
+1. TRIGGER: What starts the agent? Which specific source?
+2. TIMING: If scheduled, how often? What time? Timezone?
+3. BEHAVIOUR: What exactly should the agent DO? Step-by-step.
+4. OUTPUT DESTINATION: Where does it send results? Which channel/email/page?
+5. PERSONA & TONE: Formal or casual? Brief or detailed?
+6. FILTERING: Any conditions to ignore certain inputs?
+7. AMBIGUOUS INTEGRATIONS: Does "notify me" mean email, Slack, or something else?
+
+${previousAnswersSection}
 
 RULES:
-- Ask questions that MATERIALLY prevent wrong agent behaviour — be thorough, not minimal
+- Ask questions that MATERIALLY prevent wrong agent behaviour
 - Keep questions simple, friendly, and non-technical
-- Ask only the questions that are truly needed — could be 1, 2, 3, or any number up to 12. Do NOT pad to reach a target. If only 2 things are unclear, ask 2 questions.
-- If the request is specific enough that wrong behaviour is unlikely, set needsClarification to false
-- Prefer single_choice when there are clear limited options (2-6 options)
-- CRITICAL - NO CONDITIONAL QUESTIONS: Each question MUST stand completely on its own. NEVER use phrases like: "If you chose X...", "If you selected...", "In case you picked...", "For those who chose...", "Depending on your answer...", "If email...", "If Slack...", "When you select...". Any question that depends on another question's answer MUST be asked in a SEPARATE questionnaire round AFTER the user submits. In that next round, you will receive their answers — then ask the follow-up as a direct, standalone question (e.g. "What email address should we send alerts to?" not "If you chose email, what address?").
-- Use multiple_choice when the user might want several options
-- Use text for freeform answers (emails, channel names, custom messages, URLs)
-- Never ask about API keys, credentials, or technical config — those are handled separately
-- Focus on decisions that change agent structure: which tools, what triggers, what output, when, to whom
-- If "notify me", "alert me", "send me" — always ask HOW (email, Slack, etc.) and TO WHERE (address, channel)
-- If timing is vague ("regularly", "often", "daily") — ask for specifics
-- If multiple possible integrations — ask which one
-- If the agent "qualifies" or "filters" something — ask the criteria
-- If it "follows up" or "reaches out" — ask format (email, call, Slack) and cadence
+- Ask only what is truly needed — could be 1, 2, or 3 questions. No padding.
+- Prefer single_choice when there are clear limited options (2–5 options)
+- CRITICAL — NO CONDITIONAL QUESTIONS IN A SINGLE ROUND: Each question MUST stand on its own. NEVER write "If you chose X..." or "If Slack..." in a single questionnaire. Questions that depend on another answer must go in the NEXT round.
+- Use text for freeform answers (emails, channel names, URLs)
+- Never ask about API keys or credentials
+- If "notify me" / "alert me" / "send me" — always ask HOW (email, Slack, etc.) before asking WHERE (address, channel) — these are separate rounds
+- If timing is vague ("regularly", "often") — ask for specifics
+- Max 5 questions per round in round 1; max 3 in follow-up rounds
 
 CONFIDENCE LEVELS:
-- 0.95-1.0: All details crystal clear, no ambiguity, no questions needed
-- 0.75-0.95: Mostly clear but 1-3 details could cause wrong behaviour — ask only those 1-3
-- 0.5-0.75: Several important details missing — ask only what's missing (no minimum)
-- 0.25-0.5: Vague, significant clarification needed — ask as many as needed, no arbitrary target
-- 0.0-0.25: Very vague — ask all the questions needed to clarify, but still no filler
+- 0.95–1.0: All details crystal clear — no questions needed
+- 0.75–0.95: 1–3 details could cause wrong behaviour
+- 0.5–0.75: Several important details missing
+- 0.25–0.5: Vague, significant clarification needed
+- 0.0–0.25: Very vague
 
 OUTPUT FORMAT (JSON only, no markdown):
 {
@@ -207,8 +126,7 @@ OUTPUT FORMAT (JSON only, no markdown):
 }
 
 If needsClarification is false, questions must be an empty array.
-The questions array length should match the actual number of gaps — 1 question if 1 gap, 5 if 5 gaps. Never add filler questions to hit a count.
-Return ONLY valid JSON, no markdown, no code fences, no explanations.`;
+Return ONLY valid JSON, no markdown, no code fences.`;
 
   const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [
     { role: 'system', content: systemPrompt },
@@ -224,7 +142,9 @@ Return ONLY valid JSON, no markdown, no code fences, no explanations.`;
 
   messages.push({
     role: 'user',
-    content: `Analyze this agent request and determine if clarification is needed:\n\n"${userPrompt}"`,
+    content: isFollowUpRound
+      ? `Based on the previous answers, are there any follow-up questions needed for this agent?\n\n"${userPrompt}"`
+      : `Analyze this agent request and determine if clarification is needed:\n\n"${userPrompt}"`,
   });
 
   try {
@@ -252,6 +172,7 @@ Return ONLY valid JSON, no markdown, no code fences, no explanations.`;
       parsed.questions = [];
     }
 
+    // Filter out questions with conditional phrasing (safety net on top of the prompt)
     parsed.questions = parsed.questions
       .filter((q): q is ClarificationQuestion =>
         typeof q.id === 'string' &&
@@ -259,9 +180,8 @@ Return ONLY valid JSON, no markdown, no code fences, no explanations.`;
         ['single_choice', 'multiple_choice', 'text'].includes(q.type)
       )
       .filter((q) => !hasConditionalPhrasing(q.question))
-      .slice(0, 12);
+      .slice(0, isFollowUpRound ? 3 : 5); // tighter cap on follow-up rounds
 
-    // Only skip clarification when confidence is very high (0.95+)
     if (parsed.confidence >= 0.95) {
       parsed.needsClarification = false;
       parsed.questions = [];
