@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { deleteAgentBehaviours } from '@/lib/agents/behaviour-manager';
 import { deriveAgentCapabilities } from '@/lib/agents/chat-pipeline';
+import { getAgentCustomTools } from '@/lib/agents/custom-tools';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -67,6 +68,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       behaviours: behaviours ?? [],
     });
 
+    // Fetch custom tools for this agent (builder-generated: Teams, scrapers, etc.)
+    const customTools = await getAgentCustomTools(id);
+
     return NextResponse.json({
       agent: {
         ...agent,
@@ -74,6 +78,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         memory_count: memoryCount ?? 0,
         memories: memories ?? [],
         capabilities,
+        customTools,
       },
     });
   } catch (err: any) {

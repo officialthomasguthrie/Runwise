@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createAgentBehaviours } from '@/lib/agents/behaviour-manager';
 import { writeMemory } from '@/lib/agents/memory';
+import { createAgentCustomTools } from '@/lib/agents/custom-tools';
 import {
   createSSEStream,
   SSE_HEADERS,
@@ -132,7 +133,18 @@ export async function POST(request: NextRequest) {
         await createAgentBehaviours(agent.id, user.id, plan.behaviours);
 
         const behaviourCount = plan.behaviours?.length ?? 0;
-        writer.buildStage(STAGES[2], 'done', `${behaviourCount} ${behaviourCount === 1 ? 'behaviour' : 'behaviours'} created`);
+        if (plan.customTools?.length && plan.customTools.length > 0) {
+          await createAgentCustomTools(agent.id, plan.customTools);
+        }
+        const customToolsDetail =
+          plan.customTools?.length && plan.customTools.length > 0
+            ? `, ${plan.customTools.length} custom ${plan.customTools.length === 1 ? 'tool' : 'tools'} added`
+            : '';
+        writer.buildStage(
+          STAGES[2],
+          'done',
+          `${behaviourCount} ${behaviourCount === 1 ? 'behaviour' : 'behaviours'} created${customToolsDetail}`
+        );
 
         // 4. Seeding memory
         writer.buildStage(STAGES[3], 'running');

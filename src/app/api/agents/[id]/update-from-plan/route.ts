@@ -13,6 +13,10 @@ import {
   deleteAgentBehaviours,
   createAgentBehaviours,
 } from '@/lib/agents/behaviour-manager';
+import {
+  deleteAgentCustomTools,
+  createAgentCustomTools,
+} from '@/lib/agents/custom-tools';
 import { buildIntegrationCheckListForPolling } from '@/lib/agents/chat-pipeline';
 import { getUserIntegrations } from '@/lib/integrations/service';
 import type { DeployAgentPlan } from '@/lib/agents/types';
@@ -68,6 +72,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // Delete existing behaviours and polling triggers
     await deleteAgentBehaviours(agentId, user.id);
+
+    // Delete existing custom tools, then create new ones from plan
+    await deleteAgentCustomTools(agentId);
+    if (plan.customTools?.length) {
+      await createAgentCustomTools(agentId, plan.customTools);
+    }
 
     // Update agent row
     const goalsRules = [

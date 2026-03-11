@@ -67,8 +67,8 @@ export type ChatEvent =
   | { type: 'text_done' }
   /** Renders the integration check card */
   | { type: 'integration_check'; integrations: IntegrationCheckItem[] }
-  /** Renders the dynamic questionnaire card */
-  | { type: 'questionnaire'; questions: ClarificationQuestion[] }
+  /** Renders the dynamic questionnaire card (pendingPlan included so client can send it back with answers) */
+  | { type: 'questionnaire'; questions: ClarificationQuestion[]; pendingPlan?: DeployAgentPlan }
   /** Renders the plan preview card */
   | { type: 'plan'; plan: DeployAgentPlan }
   /** Renders the "Ready to build?" confirmation buttons */

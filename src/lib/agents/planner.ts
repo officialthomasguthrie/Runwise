@@ -187,6 +187,8 @@ ${availableTriggersText}
 
 BUILT-IN TRIGGERS (no integration, ALWAYS available): webhook (config.path required), schedule (scheduleCron required for "daily", "hourly", "every morning", etc.), heartbeat (scheduleCron required). schedule/heartbeat are ALWAYS supported for time-based agents.
 
+CUSTOM TOOLS: When the user asks for integrations we don't have (Teams, scraping, custom APIs), describe the desired behaviour in the instructions. A separate tool generator will create custom tools — you do NOT output customTools.
+
 ---
 Your job: Return an UPDATED plan that incorporates the user's feedback. Use the exact same JSON structure as the current plan.
 - behaviours: only include when user specifies or infers a trigger. Empty [] = manual-only agent.
@@ -286,6 +288,8 @@ RULES:
 ---
 AGENT CAPABILITIES (exhaustive — agents can ONLY use these tools; include in instructions when relevant):
 ${getToolsSpec()}
+
+CUSTOM TOOLS: When the user requests an integration we don't have (Microsoft Teams, scraping a specific site, a custom API like Shopify), describe the desired behaviour in the instructions. A separate tool generator will create the appropriate custom tools — you do NOT output customTools. Examples: "send alerts to Teams" → describe posting to Microsoft Teams via Incoming Webhook; "scrape competitor site" → describe what to extract; "call our Shopify API" → describe the API purpose. Keep instructions clear so the tool generator knows what to build.
 
 Match user phrasing by meaning: "reply to emails" → send_email_gmail with replyToThread; "monitor competitors" → schedule + web_search + read_url + send_notification/send_slack/send_email; "daily check" → schedule or heartbeat.`;
 }

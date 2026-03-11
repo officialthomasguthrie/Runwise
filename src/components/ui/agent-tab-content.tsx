@@ -6,7 +6,7 @@
  */
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, User, Plus, MinusCircle, Brain, FileText, Link2, Target, ScrollText, CheckCircle2, MessageSquare, Play, AlertCircle, Send, Upload, X, Search, RefreshCw, Pause, ChevronRight, ChevronLeft, Clock, Timer, Pencil, PanelRightClose, Webhook, Copy, CopyCheck, FlaskConical } from "lucide-react";
+import { Loader2, User, Plus, MinusCircle, Brain, FileText, Link2, Target, ScrollText, CheckCircle2, MessageSquare, Play, AlertCircle, Send, Upload, X, Search, RefreshCw, Pause, ChevronRight, ChevronLeft, Clock, Timer, Pencil, PanelRightClose, Webhook, Copy, CopyCheck, FlaskConical, Wrench } from "lucide-react";
 import { getCapabilityIntegrationInfo, getIntegrationMeta, planFromBehaviours, buildIntegrationCheckListForPolling } from "@/lib/agents/chat-pipeline";
 import type { Agent } from "@/lib/agents/types";
 import {
@@ -265,6 +265,8 @@ interface AgentDetail extends Agent {
   goals_rules?: AgentGoalsRule[];
   /** Integrations/tools the agent uses (derived from behaviours + instructions) */
   capabilities?: Array<{ slug: string; name: string }>;
+  /** Custom tools (builder-generated: Teams, scrapers, etc.) */
+  customTools?: Array<{ name: string; description: string }>;
 }
 
 export interface AgentTabContentProps {
@@ -1711,7 +1713,34 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
                       </div>
                     );
                   })
-                ) : (
+                ) : null}
+                {(agent?.customTools?.length ?? 0) > 0 && (
+                  <>
+                    {capabilities.length > 0 && (
+                      <div className="border-t border-stone-200/60 dark:border-stone-600/40 pt-2 mt-2" />
+                    )}
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-1">
+                      Custom tools
+                    </p>
+                    {agent!.customTools!.map((t) => (
+                      <div
+                        key={t.name}
+                        className="flex items-center gap-2 rounded-md bg-white/60 dark:bg-stone-900/60 border border-stone-200/60 dark:border-stone-600/40 px-3 py-1.5"
+                      >
+                        <Wrench className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm font-medium text-foreground">{t.name.replace(/_/g, " ")}</span>
+                          {t.description && (
+                            <p className="text-xs text-muted-foreground truncate" title={t.description}>
+                              {t.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {capabilities.length === 0 && (agent?.customTools?.length ?? 0) === 0 && (
                   <div className="flex flex-1 min-h-[140px] flex-col items-center justify-center gap-3 py-8 text-center">
                     <div>
                       <p className="text-sm text-muted-foreground">No integrations added</p>

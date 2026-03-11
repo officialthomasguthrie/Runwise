@@ -6,6 +6,107 @@
 
 import OpenAI from 'openai';
 import type { ClarificationAnalysis, ClarificationQuestion, QuestionnaireAnswer } from './types';
+import type { DeployAgentPlan } from '@/lib/agents/types';
+
+/** ID prefix for custom tool config questions — parse as config:toolName:key */
+export const CONFIG_QUESTION_ID_PREFIX = 'config:';
+
+/**
+ * Whether a question id indicates a custom tool config value.
+ */
+export function isConfigQuestionId(id: string): boolean {
+  return id.startsWith(CONFIG_QUESTION_ID_PREFIX);
+}
+
+/**
+ * Parse config question id into toolName and configKey. Returns null if not a config id.
+ */
+export function parseConfigQuestionId(
+  id: string
+): { toolName: string; configKey: string } | null {
+  if (!isConfigQuestionId(id)) return null;
+  const rest = id.slice(CONFIG_QUESTION_ID_PREFIX.length);
+  const colon = rest.indexOf(':');
+  if (colon < 0) return null;
+  return {
+    toolName: rest.slice(0, colon),
+    configKey: rest.slice(colon + 1),
+  };
+}
+
+/**
+ * Merge custom tool config questions into the clarification analysis.
+ * When plan has custom tools with configKeys, adds text questions for each.
+ */
+export function mergeCustomToolConfigQuestions(
+  analysis: ClarificationAnalysis,
+  plan: DeployAgentPlan | null
+): ClarificationAnalysis {
+  if (!plan?.customTools?.length) return analysis;
+
+  const configQuestions: ClarificationQuestion[] = [];
+  const usedIds = new Set(analysis.questions.map((q) => q.id));
+
+  for (const tool of plan.customTools) {
+    const configKeys = tool.configKeys ?? [];
+    for (const ck of configKeys) {
+      const id = `${CONFIG_QUESTION_ID_PREFIX}${tool.name}:${ck.key}`;
+      if (usedIds.has(id)) continue;
+      usedIds.add(id);
+      configQuestions.push({
+        id,
+        question: ck.label.endsWith('?') ? ck.label : `${ck.label}?`,
+        type: 'text',
+        placeholder: ck.description || undefined,
+      });
+    }
+  }
+
+  if (configQuestions.length === 0) return analysis;
+
+  return {
+    ...analysis,
+    needsClarification: true,
+    questions: [...analysis.questions, ...configQuestions],
+  };
+}
+
+/**
+ * Map questionnaire answers into plan.customTools[].config_defaults.
+ * Only processes answers whose questionId matches config:toolName:key.
+ */
+export function applyConfigAnswersToPlan(
+  plan: DeployAgentPlan,
+  answers: QuestionnaireAnswer[]
+): DeployAgentPlan {
+  if (!plan.customTools?.length || !answers?.length) return plan;
+
+  const configByTool = new Map<string, Record<string, string>>();
+
+  for (const a of answers) {
+    const parsed = parseConfigQuestionId(a.questionId);
+    if (!parsed) continue;
+    const value = Array.isArray(a.answer) ? a.answer.join(', ').trim() : String(a.answer ?? '').trim();
+    if (!value) continue;
+    let map = configByTool.get(parsed.toolName);
+    if (!map) {
+      map = {};
+      configByTool.set(parsed.toolName, map);
+    }
+    map[parsed.configKey] = value;
+  }
+
+  const customTools = plan.customTools.map((t) => {
+    const defaults = configByTool.get(t.name);
+    if (!defaults) return t;
+    return {
+      ...t,
+      config_defaults: { ...(t.config_defaults ?? {}), ...defaults },
+    };
+  });
+
+  return { ...plan, customTools };
+}
 
 const CONDITIONAL_PATTERNS = [
   /\bif\s+you\s+(chose|chosen|selected|pick|picked|chosen|prefer|want|choose)\b/i,

@@ -30,8 +30,9 @@ const UNSUPPORTED_SERVICE_PATTERNS: { pattern: RegExp; label: string }[] = [
   { pattern: /\bmonday\.com\b.*\b(agent|bot|integration)\b|\bagent\b.*\bmonday\.com\b/i, label: 'Monday.com' },
 ];
 
-// Patterns we KNOW are feasible with schedule + web_search + read_url + alerts. Deterministic accept.
+// Patterns we KNOW are feasible (system tools or builder-generated custom tools). Deterministic accept.
 const ALWAYS_FEASIBLE_PATTERNS: RegExp[] = [
+  // System tools
   /\b(monitor|watch|track|follow)\b.*\b(competitor|competitors|competition)\b/i,
   /\b(competitor|competitors|competition)\b.*\b(monitor|watch|track|alert|launch|campaign|feature)\b/i,
   /\b(alert|notify)\b.*\b(when|if)\b.*\b(launch|campaign|feature|release)\b/i,
@@ -43,26 +44,33 @@ const ALWAYS_FEASIBLE_PATTERNS: RegExp[] = [
   /\b(send|post)\b.*\b(slack|discord|email|notification)\b/i,
   /\b(gmail|slack|discord|google\s*sheet|notion|airtable|trello|calendar|drive|github|stripe)\b/i,
   /\b(briefing|digest|summary)\b.*\b(daily|morning|weekly)\b/i,
+  // Custom-tool feasible (builder generates tools for these)
+  /\b(microsoft\s*teams|ms\s*teams|teams)\b.*\b(send|post|alert|notify|message)\b/i,
+  /\b(send|post|alert|notify)\b.*\b(microsoft\s*teams|ms\s*teams|teams)\b/i,
+  /\b(scrape|scraping)\b.*\b(site|website|url|page)\b/i,
+  /\b(webhook|incoming\s*webhook)\b/i,
+  /\b(shopify|custom\s*api|api\s*key)\b/i,
 ];
 
 /**
  * Programmatic check: return a definite result if we can decide without the LLM.
+ * Check FEASIBLE first (including custom-tool patterns) so e.g. "send to Teams" is accepted.
  */
 function getProgrammaticResult(description: string): FeasibilityResult | null {
   const trimmed = description.trim();
   if (!trimmed) return { feasible: true };
 
-  // 1. Known INFEASIBLE: request centrally requires an unsupported service
-  for (const { pattern, label } of UNSUPPORTED_SERVICE_PATTERNS) {
-    if (pattern.test(trimmed)) {
-      return { feasible: false, reason: `We don't support ${label} yet.` };
-    }
-  }
-
-  // 2. Known FEASIBLE: matches patterns we can definitely fulfill
+  // 1. Known FEASIBLE: system tools or custom-tool patterns (builder will generate tools)
   for (const pattern of ALWAYS_FEASIBLE_PATTERNS) {
     if (pattern.test(trimmed)) {
       return { feasible: true };
+    }
+  }
+
+  // 2. Known INFEASIBLE: request centrally requires an unsupported service (no custom-tool path)
+  for (const { pattern, label } of UNSUPPORTED_SERVICE_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return { feasible: false, reason: `We don't support ${label} yet.` };
     }
   }
 
@@ -114,7 +122,9 @@ CRITICAL — HOW TO MAP REQUESTS TO CAPABILITIES:
 • "Reply to emails", "respond to emails" → FEASIBLE. new-email-received + send_email_gmail (replyToThread).
 • "Post to Slack/Discord", "send notification" → FEASIBLE. send_slack_message, send_discord_message, send_notification_to_user.
 
-REJECT (feasible=false) ONLY when the request CENTRALLY requires a service not in our lists: Microsoft Teams, Zoom, WhatsApp, Jira, Linear, Salesforce, HubSpot, Asana, Monday.com. If the request can be fulfilled by combining our triggers and tools, it is FEASIBLE.
+CUSTOM TOOLS: We can generate custom tools for: Microsoft Teams (Incoming Webhook), scraping a site, webhooks, API-key APIs (Shopify, etc.). If the request can be fulfilled by a custom tool the builder will generate, mark feasible=true.
+
+REJECT (feasible=false) ONLY when the request CENTRALLY requires a service we truly cannot support: Zoom, WhatsApp, Jira, Linear, Salesforce, HubSpot, Asana, Monday.com. "Send to Teams" is FEASIBLE (custom webhook tool).
 
 WHEN UNCERTAIN: default to feasible=true. Only reject when you are CERTAIN we lack the required capability.
 
