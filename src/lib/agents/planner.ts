@@ -100,25 +100,22 @@ export async function planAgent(
 ): Promise<DeployAgentPlan> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  // Build the list of available triggers (filtered to connected integrations)
-  const availableTriggers = TRIGGER_CATALOGUE.filter((t) =>
+  // Build trigger list: ALL triggers, mark which are connected. Planner can add any — we show Connect button for unconnected.
+  const isIntegrationConnected = (required: string) =>
     userIntegrations.some(
       (ui) =>
-        ui === t.requiredIntegration ||
-        // also accept generic 'google' matching any google-* service
-        (t.requiredIntegration.startsWith('google-') && ui === 'google') ||
-        (ui.startsWith('google-') && t.requiredIntegration === 'google')
-    )
-  );
+        ui === required ||
+        (required.startsWith('google-') && ui === 'google') ||
+        (ui.startsWith('google-') && required === 'google')
+    );
 
-  const availableTriggersText =
-    availableTriggers.length > 0
-      ? availableTriggers
-          .map((t) => `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}`)
-          .join('\n')
-      : '- None (no integrations connected — use webhook, schedule, or heartbeat only)';
+  const allTriggersText = TRIGGER_CATALOGUE.map(
+    (t) =>
+      `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}` +
+      (isIntegrationConnected(t.requiredIntegration) ? ' [connected]' : ' [will prompt to connect]')
+  ).join('\n');
 
-  const systemPrompt = buildSystemPrompt(availableTriggersText);
+  const systemPrompt = buildSystemPrompt(allTriggersText);
   const userMessage = `USER'S AGENT DESCRIPTION:\n"${description}"`;
 
   const response = await openai.chat.completions.create({
@@ -140,7 +137,7 @@ export async function planAgent(
     throw new Error('Planner returned invalid JSON');
   }
 
-  return validateAndNormalisePlan(parsed, availableTriggers);
+  return validateAndNormalisePlan(parsed);
 }
 
 /**
@@ -155,21 +152,19 @@ export async function regenerateAgentPlan(
 ): Promise<DeployAgentPlan> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const availableTriggers = TRIGGER_CATALOGUE.filter((t) =>
+  const isIntegrationConnected = (required: string) =>
     userIntegrations.some(
       (ui) =>
-        ui === t.requiredIntegration ||
-        (t.requiredIntegration.startsWith('google-') && ui === 'google') ||
-        (ui.startsWith('google-') && t.requiredIntegration === 'google')
-    )
-  );
+        ui === required ||
+        (required.startsWith('google-') && ui === 'google') ||
+        (ui.startsWith('google-') && required === 'google')
+    );
 
-  const availableTriggersText =
-    availableTriggers.length > 0
-      ? availableTriggers
-          .map((t) => `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}`)
-          .join('\n')
-      : '- None (no integrations connected — use webhook, schedule, or heartbeat only)';
+  const allTriggersText = TRIGGER_CATALOGUE.map(
+    (t) =>
+      `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}` +
+      (isIntegrationConnected(t.requiredIntegration) ? ' [connected]' : ' [will prompt to connect]')
+  ).join('\n');
 
   const systemPrompt = `You are an expert AI agent designer. The user had this plan and wants to change it.
 
@@ -182,8 +177,8 @@ THEY WANT TO CHANGE:
 Return an updated plan that incorporates their requested changes.
 
 ---
-POLLING TRIGGERS (only use if user has integration):
-${availableTriggersText}
+POLLING TRIGGERS (add any the user requests — if not connected, we show Connect button after build):
+${allTriggersText}
 
 BUILT-IN TRIGGERS (no integration, ALWAYS available): webhook (config.path required), schedule (scheduleCron required for "daily", "hourly", "every morning", etc.), heartbeat (scheduleCron required). schedule/heartbeat are ALWAYS supported for time-based agents.
 
@@ -219,7 +214,7 @@ RULES:
     throw new Error('Planner returned invalid JSON');
   }
 
-  return validateAndNormalisePlan(parsed, availableTriggers);
+  return validateAndNormalisePlan(parsed);
 }
 
 // ============================================================================
@@ -233,7 +228,7 @@ Your job is to produce a complete, structured deployment plan for that agent.
 ---
 TRIGGERS — ADD ONLY WHEN USER SPECIFIES OR YOU CAN CLEARLY INFER:
 
-POLLING TRIGGERS (require connected integration — only use if user mentions the source):
+POLLING TRIGGERS (add any the user requests — if not connected, we show Connect button after build):
 ${availableTriggersText}
 
 BUILT-IN TRIGGERS (NO integration required — ALWAYS available, use for time-based agents):
@@ -301,12 +296,7 @@ Match user phrasing by meaning: "reply to emails" → send_email_gmail with repl
 const VALID_BEHAVIOUR_TYPES = new Set(['polling', 'webhook', 'schedule', 'heartbeat']);
 const VALID_TRIGGER_TYPES = new Set(TRIGGER_CATALOGUE.map((t) => t.triggerType));
 
-function validateAndNormalisePlan(
-  raw: any,
-  availableTriggers: TriggerDef[]
-): DeployAgentPlan {
-  const availableTriggerTypes = new Set(availableTriggers.map((t) => t.triggerType));
-
+function validateAndNormalisePlan(raw: any): DeployAgentPlan {
   // Name
   const name =
     typeof raw.name === 'string' && raw.name.trim()
@@ -336,7 +326,6 @@ function validateAndNormalisePlan(
       if (!VALID_BEHAVIOUR_TYPES.has(b.behaviourType)) return false;
       if (b.behaviourType === 'polling') {
         if (!b.triggerType || !VALID_TRIGGER_TYPES.has(b.triggerType)) return false;
-        if (!availableTriggerTypes.has(b.triggerType)) return false;
       }
       if (b.behaviourType === 'webhook') {
         // Webhook needs config.path; we allow through and default in map
