@@ -76,7 +76,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     // Delete existing custom tools, then create new ones from plan
     await deleteAgentCustomTools(agentId);
     if (plan.customTools?.length) {
-      await createAgentCustomTools(agentId, plan.customTools);
+      await createAgentCustomTools(agentId, user.id, plan.customTools);
     }
 
     // Update agent row

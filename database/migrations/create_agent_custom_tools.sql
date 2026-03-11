@@ -7,6 +7,7 @@
 CREATE TABLE IF NOT EXISTS public.agent_custom_tools (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   agent_id UUID NOT NULL REFERENCES public.agents(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT NOT NULL,
   code TEXT NOT NULL,

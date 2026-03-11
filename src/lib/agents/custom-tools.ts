@@ -44,6 +44,7 @@ export async function deleteAgentCustomTools(agentId: string): Promise<void> {
 
 export async function createAgentCustomTools(
   agentId: string,
+  userId: string,
   tools: Array<{
     name: string;
     description: string;
@@ -55,6 +56,7 @@ export async function createAgentCustomTools(
   const supabase = createAdminClient();
   const rows = tools.map((t) => ({
     agent_id: agentId,
+    user_id: userId,
     name: t.name,
     description: t.description,
     code: t.code,

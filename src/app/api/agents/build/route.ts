@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         await createAgentBehaviours(agent.id, user.id, plan.behaviours);
 
         if (plan.customTools?.length && plan.customTools.length > 0) {
-          await createAgentCustomTools(agent.id, plan.customTools);
+          await createAgentCustomTools(agent.id, user.id, plan.customTools);
         }
         writer.buildStage(STAGES[2], 'done');
 
