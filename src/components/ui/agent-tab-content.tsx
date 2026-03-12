@@ -6,7 +6,7 @@
  */
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, User, Plus, MinusCircle, Brain, FileText, Link2, Target, ScrollText, CheckCircle2, MessageSquare, Play, AlertCircle, Send, Upload, X, Search, RefreshCw, Pause, ChevronRight, ChevronLeft, Clock, Timer, Pencil, PanelRightClose, Webhook, Copy, CopyCheck, FlaskConical, Wrench } from "lucide-react";
+import { Loader2, User, Plus, MinusCircle, Brain, FileText, Link2, Target, ScrollText, CheckCircle2, MessageSquare, Play, AlertCircle, Send, Upload, X, Search, RefreshCw, Pause, ChevronRight, ChevronLeft, Clock, Timer, Pencil, PanelRightClose, Webhook, Copy, CopyCheck, FlaskConical } from "lucide-react";
 import { getCapabilityIntegrationInfo, getIntegrationMeta, planFromBehaviours, buildIntegrationCheckListForPolling } from "@/lib/agents/chat-pipeline";
 import type { Agent } from "@/lib/agents/types";
 import {
@@ -265,8 +265,6 @@ interface AgentDetail extends Agent {
   goals_rules?: AgentGoalsRule[];
   /** Integrations/tools the agent uses (derived from behaviours + instructions) */
   capabilities?: Array<{ slug: string; name: string }>;
-  /** Custom tools (builder-generated: Teams, scrapers, etc.) */
-  customTools?: Array<{ name: string; description: string; required_integrations?: string[] }>;
 }
 
 export interface AgentTabContentProps {
@@ -1713,77 +1711,7 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
                       </div>
                     );
                   })
-                ) : null}
-                {(agent?.customTools?.length ?? 0) > 0 && (
-                  <>
-                    {capabilities.length > 0 && (
-                      <div className="border-t border-stone-200/60 dark:border-stone-600/40 pt-2 mt-2" />
-                    )}
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-1">
-                      Custom tools
-                    </p>
-                    {agent!.customTools!.map((t) => {
-                      const toolRequiredIntegrations = t.required_integrations ?? [];
-                      const disconnectedForTool = toolRequiredIntegrations
-                        .map((svcId) => getIntegrationMeta(svcId))
-                        .filter((meta): meta is NonNullable<typeof meta> => !!meta)
-                        .filter((meta) => !isServiceConnected(meta.service, connectedServices));
-
-                      const handleToolConnect = (meta: NonNullable<ReturnType<typeof getIntegrationMeta>>) => {
-                        const origin = typeof window !== "undefined" ? window.location.origin : "";
-                        const returnUrl = typeof window !== "undefined"
-                          ? `${origin}${window.location.pathname}${window.location.search}`
-                          : "/agents/new";
-                        const connectUrl = meta.connectUrl.startsWith("http") ? meta.connectUrl : `${origin}${meta.connectUrl}`;
-                        if (meta.connectionMethod === "oauth") {
-                          const sep = connectUrl.includes("?") ? "&" : "?";
-                          window.location.href = `${connectUrl}${sep}returnUrl=${encodeURIComponent(returnUrl)}`;
-                        } else {
-                          window.open(connectUrl, "ConnectIntegration", "width=600,height=700");
-                        }
-                      };
-
-                      return (
-                        <div
-                          key={t.name}
-                          className="flex flex-col gap-1.5 rounded-md bg-white/60 dark:bg-stone-900/60 border border-stone-200/60 dark:border-stone-600/40 px-3 py-1.5"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Wrench className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <span className="text-sm font-medium text-foreground">{t.name.replace(/_/g, " ")}</span>
-                              {t.description && (
-                                <p className="text-xs text-muted-foreground truncate" title={t.description}>
-                                  {t.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          {disconnectedForTool.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 pl-5">
-                              {disconnectedForTool.map((meta) => {
-                                const logoSlug = SERVICE_ID_TO_LOGO_SLUG[meta.service] ?? meta.service;
-                                const logoUrl = getIntegrationLogoUrl(logoSlug);
-                                return (
-                                  <button
-                                    key={meta.service}
-                                    type="button"
-                                    onClick={() => handleToolConnect(meta)}
-                                    className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium border border-stone-300 dark:border-stone-500 bg-stone-50 dark:bg-stone-800/50 text-foreground hover:bg-stone-100 dark:hover:bg-stone-700/80 hover:border-stone-400 dark:hover:border-stone-400 transition-colors"
-                                  >
-                                    <img src={logoUrl} alt="" className="h-3.5 w-3.5 rounded object-contain" />
-                                    Connect {meta.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-                {capabilities.length === 0 && (agent?.customTools?.length ?? 0) === 0 && (
+                ) : (
                   <div className="flex flex-1 min-h-[140px] flex-col items-center justify-center gap-3 py-8 text-center">
                     <div>
                       <p className="text-sm text-muted-foreground">No integrations added</p>
@@ -1830,32 +1758,93 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
                           : b.trigger_type
                             ? `${b.trigger_type.replace(/-/g, " ")}`
                             : b.behaviour_type);
-                    const Icon =
+
+                    // For polling triggers, look up the integration logo slug from the trigger type
+                    const triggerLogoSlug =
+                      b.behaviour_type === "polling" && b.trigger_type
+                        ? (TRIGGER_TYPE_TO_ID[b.trigger_type] ?? null)
+                        : null;
+
+                    // Determine if the integration for this trigger is connected
+                    const triggerServiceId = triggerLogoSlug ? (TRIGGER_TO_SERVICE[triggerLogoSlug] ?? null) : null;
+                    const triggerIntegrationMeta = triggerServiceId ? getIntegrationMeta(triggerServiceId) : null;
+                    const triggerIsConnected = triggerServiceId
+                      ? isServiceConnected(triggerServiceId, connectedServices)
+                      : true;
+
+                    const handleTriggerConnect = () => {
+                      if (!triggerIntegrationMeta) return;
+                      const origin = typeof window !== "undefined" ? window.location.origin : "";
+                      const returnUrl =
+                        typeof window !== "undefined"
+                          ? `${origin}${window.location.pathname}${window.location.search}`
+                          : "/agents/new";
+                      const connectUrl = triggerIntegrationMeta.connectUrl.startsWith("http")
+                        ? triggerIntegrationMeta.connectUrl
+                        : `${origin}${triggerIntegrationMeta.connectUrl}`;
+                      if (triggerIntegrationMeta.connectionMethod === "oauth") {
+                        const sep = connectUrl.includes("?") ? "&" : "?";
+                        window.location.href = `${connectUrl}${sep}returnUrl=${encodeURIComponent(returnUrl)}`;
+                      } else {
+                        const w = 600;
+                        const h = 700;
+                        const left = Math.round((window.screen.width - w) / 2);
+                        const top = Math.round((window.screen.height - h) / 2);
+                        window.open(connectUrl, "ConnectIntegration", `width=${w},height=${h},left=${left},top=${top}`);
+                      }
+                    };
+
+                    // Fallback icon for webhook / schedule
+                    const FallbackIcon =
                       b.behaviour_type === "webhook"
                         ? Webhook
                         : b.behaviour_type === "schedule"
                           ? Timer
                           : Target;
+
                     return (
                       <div
                         key={b.id}
                         className="flex items-center justify-between gap-2 rounded-md bg-white dark:bg-stone-900/80 border border-stone-200/80 dark:border-stone-600/50 px-3 py-2 shadow-sm"
                       >
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-stone-100 dark:bg-stone-700/50">
-                            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                          </div>
+                          {triggerLogoSlug ? (
+                            <div className="relative w-6 h-6 rounded flex-shrink-0 overflow-hidden">
+                              <img
+                                src={getIntegrationLogoUrl(triggerLogoSlug)}
+                                alt=""
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.src = `https://cdn.simpleicons.org/${triggerLogoSlug}`;
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-stone-100 dark:bg-stone-700/50">
+                              <FallbackIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                            </div>
+                          )}
                           <span className="text-sm font-medium text-foreground truncate">{label}</span>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => handleEditTrigger(b)}
-                            className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-stone-200/80 dark:hover:bg-stone-600/50 transition-colors"
-                            aria-label={`Edit ${label}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
+                          {triggerIntegrationMeta && !triggerIsConnected ? (
+                            <button
+                              type="button"
+                              onClick={handleTriggerConnect}
+                              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-foreground/90 backdrop-blur-xl bg-stone-100/95 dark:bg-white/5 border border-stone-200 dark:border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)] hover:bg-stone-200/80 dark:hover:bg-white/10 transition-colors"
+                            >
+                              Configure
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleEditTrigger(b)}
+                              className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-stone-200/80 dark:hover:bg-stone-600/50 transition-colors"
+                              aria-label={`Edit ${label}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={async () => {
