@@ -1765,34 +1765,12 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
                         ? (TRIGGER_TYPE_TO_ID[b.trigger_type] ?? null)
                         : null;
 
-                    // Determine if the integration for this trigger is connected
+                    // Determine if the integration for this trigger is connected (used for Configure button)
                     const triggerServiceId = triggerLogoSlug ? (TRIGGER_TO_SERVICE[triggerLogoSlug] ?? null) : null;
-                    const triggerIntegrationMeta = triggerServiceId ? getIntegrationMeta(triggerServiceId) : null;
                     const triggerIsConnected = triggerServiceId
                       ? isServiceConnected(triggerServiceId, connectedServices)
                       : true;
-
-                    const handleTriggerConnect = () => {
-                      if (!triggerIntegrationMeta) return;
-                      const origin = typeof window !== "undefined" ? window.location.origin : "";
-                      const returnUrl =
-                        typeof window !== "undefined"
-                          ? `${origin}${window.location.pathname}${window.location.search}`
-                          : "/agents/new";
-                      const connectUrl = triggerIntegrationMeta.connectUrl.startsWith("http")
-                        ? triggerIntegrationMeta.connectUrl
-                        : `${origin}${triggerIntegrationMeta.connectUrl}`;
-                      if (triggerIntegrationMeta.connectionMethod === "oauth") {
-                        const sep = connectUrl.includes("?") ? "&" : "?";
-                        window.location.href = `${connectUrl}${sep}returnUrl=${encodeURIComponent(returnUrl)}`;
-                      } else {
-                        const w = 600;
-                        const h = 700;
-                        const left = Math.round((window.screen.width - w) / 2);
-                        const top = Math.round((window.screen.height - h) / 2);
-                        window.open(connectUrl, "ConnectIntegration", `width=${w},height=${h},left=${left},top=${top}`);
-                      }
-                    };
+                    const triggerNeedsConnect = !!triggerServiceId && !triggerIsConnected;
 
                     // Fallback icon for webhook / schedule
                     const FallbackIcon =
@@ -1827,10 +1805,10 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
                           <span className="text-sm font-medium text-foreground truncate">{label}</span>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          {triggerIntegrationMeta && !triggerIsConnected ? (
+                          {triggerNeedsConnect ? (
                             <button
                               type="button"
-                              onClick={handleTriggerConnect}
+                              onClick={() => handleEditTrigger(b)}
                               className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-foreground/90 backdrop-blur-xl bg-stone-100/95 dark:bg-white/5 border border-stone-200 dark:border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)] hover:bg-stone-200/80 dark:hover:bg-white/10 transition-colors"
                             >
                               Configure
