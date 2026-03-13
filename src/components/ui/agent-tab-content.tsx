@@ -53,6 +53,8 @@ const BRANDFETCH_LOGOS: Record<string, string> = {
   asana: `https://cdn.brandfetch.io/idxPi2Evsk/w/400/h/400/theme/dark/icon.jpeg?c=${BRANDFETCH_CLIENT}`,
   jira: `https://cdn.brandfetch.io/idchmboHEZ/theme/dark/symbol.svg?c=${BRANDFETCH_CLIENT}`,
   shopify: `https://cdn.brandfetch.io/idAgPm7IvG/theme/dark/symbol.svg?c=${BRANDFETCH_CLIENT}`,
+  // Twitter/X — slug is "x" (from chat-pipeline SERVICE_TO_CAPABILITY)
+  x: `https://cdn.brandfetch.io/idS9bXSG-3/theme/dark/symbol.svg?c=${BRANDFETCH_CLIENT}`,
 };
 
 const AVAILABLE_INTEGRATIONS: Array<{ slug: string; name: string; description: string }> = [
@@ -78,7 +80,8 @@ const AVAILABLE_INTEGRATIONS: Array<{ slug: string; name: string; description: s
 ];
 
 function getIntegrationLogoUrl(slug: string): string {
-  return BRANDFETCH_LOGOS[slug] ?? BRANDFETCH_LOGOS.notion;
+  // Fall back to simpleicons (not Notion) so unknown slugs show their own logo or nothing
+  return BRANDFETCH_LOGOS[slug] ?? `https://cdn.simpleicons.org/${slug}`;
 }
 
 /** Service ID (e.g. google-gmail) → logo slug for BRANDFETCH_LOGOS */
