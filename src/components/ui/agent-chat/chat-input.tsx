@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export const CHAT_INPUT_PLACEHOLDERS = {
   default: "Describe what you want your agent to do…",
-  questionnaire: "Type your answers…",
+  questionnaire: "Describe what you want your agent to do…",
   adjusting: "Tell me what to change…",
 } as const;
 const DEFAULT_PLACEHOLDER = CHAT_INPUT_PLACEHOLDERS.default;
