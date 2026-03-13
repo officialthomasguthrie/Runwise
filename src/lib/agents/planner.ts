@@ -100,22 +100,25 @@ export async function planAgent(
 ): Promise<DeployAgentPlan> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  // Build trigger list: ALL triggers, mark which are connected. Planner can add any — we show Connect button for unconnected.
-  const isIntegrationConnected = (required: string) =>
+  // Build the list of available triggers (filtered to connected integrations)
+  const availableTriggers = TRIGGER_CATALOGUE.filter((t) =>
     userIntegrations.some(
       (ui) =>
-        ui === required ||
-        (required.startsWith('google-') && ui === 'google') ||
-        (ui.startsWith('google-') && required === 'google')
-    );
+        ui === t.requiredIntegration ||
+        // also accept generic 'google' matching any google-* service
+        (t.requiredIntegration.startsWith('google-') && ui === 'google') ||
+        (ui.startsWith('google-') && t.requiredIntegration === 'google')
+    )
+  );
 
-  const allTriggersText = TRIGGER_CATALOGUE.map(
-    (t) =>
-      `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}` +
-      (isIntegrationConnected(t.requiredIntegration) ? ' [connected]' : ' [will prompt to connect]')
-  ).join('\n');
+  const availableTriggersText =
+    availableTriggers.length > 0
+      ? availableTriggers
+          .map((t) => `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}`)
+          .join('\n')
+      : '- None (no integrations connected — use webhook, schedule, or heartbeat only)';
 
-  const systemPrompt = buildSystemPrompt(allTriggersText);
+  const systemPrompt = buildSystemPrompt(availableTriggersText);
   const userMessage = `USER'S AGENT DESCRIPTION:\n"${description}"`;
 
   const response = await openai.chat.completions.create({
@@ -137,7 +140,7 @@ export async function planAgent(
     throw new Error('Planner returned invalid JSON');
   }
 
-  return validateAndNormalisePlan(parsed);
+  return validateAndNormalisePlan(parsed, availableTriggers);
 }
 
 /**
@@ -152,19 +155,21 @@ export async function regenerateAgentPlan(
 ): Promise<DeployAgentPlan> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const isIntegrationConnected = (required: string) =>
+  const availableTriggers = TRIGGER_CATALOGUE.filter((t) =>
     userIntegrations.some(
       (ui) =>
-        ui === required ||
-        (required.startsWith('google-') && ui === 'google') ||
-        (ui.startsWith('google-') && required === 'google')
-    );
+        ui === t.requiredIntegration ||
+        (t.requiredIntegration.startsWith('google-') && ui === 'google') ||
+        (ui.startsWith('google-') && t.requiredIntegration === 'google')
+    )
+  );
 
-  const allTriggersText = TRIGGER_CATALOGUE.map(
-    (t) =>
-      `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}` +
-      (isIntegrationConnected(t.requiredIntegration) ? ' [connected]' : ' [will prompt to connect]')
-  ).join('\n');
+  const availableTriggersText =
+    availableTriggers.length > 0
+      ? availableTriggers
+          .map((t) => `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}`)
+          .join('\n')
+      : '- None (no integrations connected — use webhook, schedule, or heartbeat only)';
 
   const systemPrompt = `You are an expert AI agent designer. The user had this plan and wants to change it.
 
@@ -177,12 +182,12 @@ THEY WANT TO CHANGE:
 Return an updated plan that incorporates their requested changes.
 
 ---
-POLLING TRIGGERS (add any the user requests — if not connected, we show Connect button after build):
-${allTriggersText}
+POLLING TRIGGERS (only use if user has integration):
+${availableTriggersText}
 
 BUILT-IN TRIGGERS (no integration, ALWAYS available): webhook (config.path required), schedule (scheduleCron required for "daily", "hourly", "every morning", etc.), heartbeat (scheduleCron required). schedule/heartbeat are ALWAYS supported for time-based agents.
 
-CUSTOM TOOLS: When the user asks for integrations we don't have (Teams, scraping, custom APIs), describe the desired behaviour in the instructions. A separate tool generator will create custom tools — you do NOT output customTools.
+TRIGGER vs TOOL DISTINCTION: A polling trigger means the agent reacts to EACH individual new event. If the agent runs on a schedule and reads/writes to a service during that run, the service is a TOOL — do NOT add a polling trigger for it. Example: "every hour summarise Slack" → schedule only, NOT schedule + polling(slack).
 
 ---
 Your job: Return an UPDATED plan that incorporates the user's feedback. Use the exact same JSON structure as the current plan.
@@ -194,7 +199,8 @@ RULES:
 1. Only use trigger types from the available list for polling.
 2. Preserve parts of the plan the user did not ask to change.
 3. Apply the requested changes precisely.
-4. Return ONLY valid JSON, no markdown, no code fences.`;
+4. Do NOT add a polling trigger for a service the agent just reads from during a scheduled run.
+5. Return ONLY valid JSON, no markdown, no code fences.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -214,7 +220,7 @@ RULES:
     throw new Error('Planner returned invalid JSON');
   }
 
-  return validateAndNormalisePlan(parsed);
+  return validateAndNormalisePlan(parsed, availableTriggers);
 }
 
 // ============================================================================
@@ -228,7 +234,7 @@ Your job is to produce a complete, structured deployment plan for that agent.
 ---
 TRIGGERS — ADD ONLY WHEN USER SPECIFIES OR YOU CAN CLEARLY INFER:
 
-POLLING TRIGGERS (add any the user requests — if not connected, we show Connect button after build):
+POLLING TRIGGERS (require connected integration — only use if user mentions the source):
 ${availableTriggersText}
 
 BUILT-IN TRIGGERS (NO integration required — ALWAYS available, use for time-based agents):
@@ -238,6 +244,27 @@ BUILT-IN TRIGGERS (NO integration required — ALWAYS available, use for time-ba
 
 CRITICAL: schedule and heartbeat are ALWAYS supported. If user says "time-based", "scheduled", "daily", "hourly", "every morning", etc. → use behaviourType "schedule" or "heartbeat" with appropriate scheduleCron. Do NOT say we don't support time schedules.
 CRITICAL: Only add triggers when user EXPLICITLY specifies one or you can strongly infer. If user does NOT mention how/when to run → behaviours: [] (manual-only agent).
+
+CRITICAL — TRIGGER vs TOOL DISTINCTION:
+A polling trigger means the agent wakes up and runs ONCE PER NEW EVENT (one email, one Slack message, one Sheet row).
+If the agent runs on a SCHEDULE and merely READS from or WRITES to a service during that run, the service is a TOOL — do NOT add a polling trigger for it.
+
+Ask yourself: "Does each individual new item in this service kick off a separate agent run?" If YES → polling trigger. If NO (the agent batches or summarises on a schedule) → schedule/heartbeat only, service is a tool.
+
+WRONG — do NOT do this:
+  "Every hour summarise the last hour of Slack messages" → behaviours: [schedule, polling(slack)]
+  "Every morning read my emails and send a digest" → behaviours: [heartbeat, polling(gmail)]
+  "Daily, check Google Sheets for new rows and email a report" → behaviours: [schedule, polling(sheets)]
+  "Every hour check competitor websites" → behaviours: [schedule, polling(anything)] ← no polling trigger for web searches
+
+CORRECT:
+  "Every hour summarise the last hour of Slack messages" → behaviours: [schedule] ← Slack is a tool (read + post)
+  "Every morning read my emails and send a digest" → behaviours: [heartbeat] ← Gmail is a tool
+  "Daily, check Google Sheets for new rows and email a report" → behaviours: [schedule] ← Sheets is a tool
+  "Reply to each new email as it arrives" → behaviours: [polling(gmail)] ← reacts to each individual email
+  "Alert me on each new Slack message AND send a daily digest" → behaviours: [polling(slack), heartbeat] ← both needed: one reacts per message, one runs daily
+
+RULE: If you have a schedule or heartbeat behaviour, do NOT also add a polling trigger for a service the agent merely reads from or posts to during that scheduled run. Only add a polling trigger when the agent must react to each individual new item from that service.
 
 ---
 OUTPUT FORMAT (strict JSON, no markdown):
@@ -284,8 +311,6 @@ RULES:
 AGENT CAPABILITIES (exhaustive — agents can ONLY use these tools; include in instructions when relevant):
 ${getToolsSpec()}
 
-CUSTOM TOOLS: When the user requests an integration we don't have (Microsoft Teams, scraping a specific site, a custom API like Shopify), describe the desired behaviour in the instructions. A separate tool generator will create the appropriate custom tools — you do NOT output customTools. Examples: "send alerts to Teams" → describe posting to Microsoft Teams via Incoming Webhook; "scrape competitor site" → describe what to extract; "call our Shopify API" → describe the API purpose. Keep instructions clear so the tool generator knows what to build.
-
 Match user phrasing by meaning: "reply to emails" → send_email_gmail with replyToThread; "monitor competitors" → schedule + web_search + read_url + send_notification/send_slack/send_email; "daily check" → schedule or heartbeat.`;
 }
 
@@ -296,7 +321,12 @@ Match user phrasing by meaning: "reply to emails" → send_email_gmail with repl
 const VALID_BEHAVIOUR_TYPES = new Set(['polling', 'webhook', 'schedule', 'heartbeat']);
 const VALID_TRIGGER_TYPES = new Set(TRIGGER_CATALOGUE.map((t) => t.triggerType));
 
-function validateAndNormalisePlan(raw: any): DeployAgentPlan {
+function validateAndNormalisePlan(
+  raw: any,
+  availableTriggers: TriggerDef[]
+): DeployAgentPlan {
+  const availableTriggerTypes = new Set(availableTriggers.map((t) => t.triggerType));
+
   // Name
   const name =
     typeof raw.name === 'string' && raw.name.trim()
@@ -321,11 +351,33 @@ function validateAndNormalisePlan(raw: any): DeployAgentPlan {
 
   // Behaviours
   const rawBehaviours: any[] = Array.isArray(raw.behaviours) ? raw.behaviours : [];
+
+  // Safety net: if there are both schedule/heartbeat AND polling triggers, remove any
+  // polling trigger that is just acting as a "data source" for the scheduled run rather
+  // than genuinely reacting to individual events. We detect this when the schedule/heartbeat
+  // description or the instructions contain "summarise", "digest", "summary", "batch",
+  // "compile", "aggregate", "last hour", "last day", "every X", "each hour", "each day" —
+  // signals that the service is being read in bulk, not reacted to per-event.
+  const hasScheduledBehaviour = rawBehaviours.some(
+    (b: any) => b.behaviourType === 'schedule' || b.behaviourType === 'heartbeat'
+  );
+  const BATCH_READ_SIGNALS = /\b(summari[sz]e|digest|summary|batch|compile|aggregate|last\s+hour|last\s+day|past\s+hour|past\s+day|every\s+hour|every\s+day|each\s+hour|each\s+day|hourly|daily\s+report|weekly\s+report)\b/i;
+  const instructionsText = typeof raw.instructions === 'string' ? raw.instructions : '';
+
   const behaviours: AgentBehaviourPlan[] = rawBehaviours
     .filter((b: any) => {
       if (!VALID_BEHAVIOUR_TYPES.has(b.behaviourType)) return false;
       if (b.behaviourType === 'polling') {
         if (!b.triggerType || !VALID_TRIGGER_TYPES.has(b.triggerType)) return false;
+        if (!availableTriggerTypes.has(b.triggerType)) return false;
+        // Remove polling triggers that are redundant when a schedule is already present
+        // and the agent is doing batch/summary work (service is a tool, not an event source).
+        if (hasScheduledBehaviour) {
+          const descriptionText = typeof b.description === 'string' ? b.description : '';
+          if (BATCH_READ_SIGNALS.test(instructionsText) || BATCH_READ_SIGNALS.test(descriptionText)) {
+            return false;
+          }
+        }
       }
       if (b.behaviourType === 'webhook') {
         // Webhook needs config.path; we allow through and default in map
