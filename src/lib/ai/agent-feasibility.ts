@@ -17,22 +17,50 @@ export type FeasibilityResult = {
   reason?: string;
 };
 
-// Services we explicitly do NOT support. Only reject when the request centrally requires one.
+/**
+ * Services we have NO support for — no trigger and no action tool.
+ * Reject whenever the request requires interacting with them (as trigger OR as action target).
+ *
+ * Rules per service:
+ *  - Specific names (Salesforce, HubSpot, Asana, Jira, WhatsApp): any mention implies needing them.
+ *  - "Teams" alone is too generic (could mean "my team"), so require "Microsoft Teams" / "MS Teams"
+ *    or "Teams" in an obvious action/channel context.
+ *  - "Zoom" alone is caught; very unlikely in an agent prompt to mean anything other than Zoom.
+ *  - "Linear" requires project-management context to avoid false positives on "linear workflow".
+ */
 const UNSUPPORTED_SERVICE_PATTERNS: { pattern: RegExp; label: string }[] = [
-  { pattern: /\bmicrosoft\s*teams\b|\bms\s*teams\b|\bteams\s*(agent|bot|integration)\b/i, label: 'Microsoft Teams' },
-  { pattern: /\bzoom\s*(agent|bot|meeting|integration)\b|\bzoom\s+integration/i, label: 'Zoom' },
-  { pattern: /\bwhatsapp\b.*\b(agent|bot|integration|message)\b/i, label: 'WhatsApp' },
-  { pattern: /\bjira\b.*\b(agent|bot|integration|board|issue)\b|\bagent\b.*\bjira\b/i, label: 'Jira' },
-  { pattern: /\blinear\b.*\b(agent|bot|integration)\b|\bagent\b.*\blinear\b/i, label: 'Linear' },
-  { pattern: /\bsalesforce\b.*\b(agent|bot|integration)\b|\bagent\b.*\bsalesforce\b/i, label: 'Salesforce' },
-  { pattern: /\bhubspot\b.*\b(agent|bot|integration)\b|\bagent\b.*\bhubspot\b/i, label: 'HubSpot' },
-  { pattern: /\basana\b.*\b(agent|bot|integration)\b|\bagent\b.*\basana\b/i, label: 'Asana' },
-  { pattern: /\bmonday\.com\b.*\b(agent|bot|integration)\b|\bagent\b.*\bmonday\.com\b/i, label: 'Monday.com' },
+  // Microsoft Teams — as trigger OR action (post/send/read Teams messages, Teams channels)
+  {
+    pattern:
+      /\bmicrosoft\s+teams\b|\bms\s+teams\b|\bteams\s+(?:channel|message|chat|workspace|meeting|notification|bot|integration)\b|\b(?:post|send|write|notify|message|read)\b.{0,40}\bteams\b/i,
+    label: 'Microsoft Teams',
+  },
+  // Zoom — meetings, calls, webinars (as trigger or action)
+  {
+    pattern: /\bzoom\s+(?:meeting|call|webinar|recording|link|integration|bot|agent)\b|\b(?:schedule|start|join|host|create)\b.{0,30}\bzoom\b/i,
+    label: 'Zoom',
+  },
+  // WhatsApp — any mention in an agent context
+  { pattern: /\bwhatsapp\b/i, label: 'WhatsApp' },
+  // Jira — any mention (issue tracker / project management tool)
+  { pattern: /\bjira\b/i, label: 'Jira' },
+  // Linear — only when used as an issue/project tracker (avoid false positives on "linear flow")
+  {
+    pattern: /\blinear\b.{0,40}\b(?:issue|ticket|task|project|board|workspace|team)\b|\b(?:issue|ticket|task)\b.{0,40}\blinear\b|\blinear\.app\b/i,
+    label: 'Linear',
+  },
+  // Salesforce — any mention
+  { pattern: /\bsalesforce\b/i, label: 'Salesforce' },
+  // HubSpot — any mention (in integration catalogue but we have no action tools for it)
+  { pattern: /\bhubspot\b/i, label: 'HubSpot' },
+  // Asana — any mention
+  { pattern: /\basana\b/i, label: 'Asana' },
+  // Monday.com — any mention
+  { pattern: /\bmonday\.com\b/i, label: 'Monday.com' },
 ];
 
-// Patterns we KNOW are feasible (system tools or builder-generated custom tools). Deterministic accept.
+// Patterns we KNOW are feasible with schedule + web_search + read_url + alerts. Deterministic accept.
 const ALWAYS_FEASIBLE_PATTERNS: RegExp[] = [
-  // System tools
   /\b(monitor|watch|track|follow)\b.*\b(competitor|competitors|competition)\b/i,
   /\b(competitor|competitors|competition)\b.*\b(monitor|watch|track|alert|launch|campaign|feature)\b/i,
   /\b(alert|notify)\b.*\b(when|if)\b.*\b(launch|campaign|feature|release)\b/i,
@@ -44,33 +72,26 @@ const ALWAYS_FEASIBLE_PATTERNS: RegExp[] = [
   /\b(send|post)\b.*\b(slack|discord|email|notification)\b/i,
   /\b(gmail|slack|discord|google\s*sheet|notion|airtable|trello|calendar|drive|github|stripe)\b/i,
   /\b(briefing|digest|summary)\b.*\b(daily|morning|weekly)\b/i,
-  // Custom-tool feasible (builder generates tools for these)
-  /\b(microsoft\s*teams|ms\s*teams|teams)\b.*\b(send|post|alert|notify|message)\b/i,
-  /\b(send|post|alert|notify)\b.*\b(microsoft\s*teams|ms\s*teams|teams)\b/i,
-  /\b(scrape|scraping)\b.*\b(site|website|url|page)\b/i,
-  /\b(webhook|incoming\s*webhook)\b/i,
-  /\b(shopify|custom\s*api|api\s*key)\b/i,
 ];
 
 /**
  * Programmatic check: return a definite result if we can decide without the LLM.
- * Check FEASIBLE first (including custom-tool patterns) so e.g. "send to Teams" is accepted.
  */
 function getProgrammaticResult(description: string): FeasibilityResult | null {
   const trimmed = description.trim();
   if (!trimmed) return { feasible: true };
 
-  // 1. Known FEASIBLE: system tools or custom-tool patterns (builder will generate tools)
-  for (const pattern of ALWAYS_FEASIBLE_PATTERNS) {
-    if (pattern.test(trimmed)) {
-      return { feasible: true };
-    }
-  }
-
-  // 2. Known INFEASIBLE: request centrally requires an unsupported service (no custom-tool path)
+  // 1. Known INFEASIBLE: request centrally requires an unsupported service
   for (const { pattern, label } of UNSUPPORTED_SERVICE_PATTERNS) {
     if (pattern.test(trimmed)) {
       return { feasible: false, reason: `We don't support ${label} yet.` };
+    }
+  }
+
+  // 2. Known FEASIBLE: matches patterns we can definitely fulfill
+  for (const pattern of ALWAYS_FEASIBLE_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return { feasible: true };
     }
   }
 
@@ -122,9 +143,14 @@ CRITICAL — HOW TO MAP REQUESTS TO CAPABILITIES:
 • "Reply to emails", "respond to emails" → FEASIBLE. new-email-received + send_email_gmail (replyToThread).
 • "Post to Slack/Discord", "send notification" → FEASIBLE. send_slack_message, send_discord_message, send_notification_to_user.
 
-CUSTOM TOOLS: We can generate custom tools for: Microsoft Teams (Incoming Webhook), scraping a site, webhooks, API-key APIs (Shopify, etc.). If the request can be fulfilled by a custom tool the builder will generate, mark feasible=true.
-
-REJECT (feasible=false) ONLY when the request CENTRALLY requires a service we truly cannot support: Zoom, WhatsApp, Jira, Linear, Salesforce, HubSpot, Asana, Monday.com. "Send to Teams" is FEASIBLE (custom webhook tool).
+REJECT (feasible=false) when the request requires a service we don't support — WHETHER AS A TRIGGER (event source) OR AS AN ACTION (posting, reading, writing, notifying). Unsupported services: Microsoft Teams, Zoom, WhatsApp, Jira, Linear, Salesforce, HubSpot, Asana, Monday.com.
+Examples of correctly rejected action-based requests:
+  • "post the email contents to Microsoft Teams" → INFEASIBLE (no Teams tool)
+  • "create a Jira ticket when I get an email" → INFEASIBLE (no Jira tool)
+  • "log a new Salesforce lead" → INFEASIBLE (no Salesforce tool)
+  • "send a WhatsApp message" → INFEASIBLE (no WhatsApp tool)
+  • "update HubSpot CRM" → INFEASIBLE (no HubSpot tool)
+If the request can be fulfilled by combining our triggers and tools above, it is FEASIBLE.
 
 WHEN UNCERTAIN: default to feasible=true. Only reject when you are CERTAIN we lack the required capability.
 
