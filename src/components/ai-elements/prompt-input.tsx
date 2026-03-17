@@ -1,7 +1,7 @@
 "use client";
 
-import { Plus, CornerDownLeft, Paperclip, X, ImageIcon, Loader2, Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Plus, CornerDownLeft, Paperclip, X, ImageIcon, Loader2, Mic, Square } from "lucide-react";
 import {
   Command,
   CommandEmpty,
