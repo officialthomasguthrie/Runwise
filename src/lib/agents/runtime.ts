@@ -13,8 +13,6 @@ import type {
 import { createAdminClient } from '@/lib/supabase-admin';
 import { getAgentMemory, formatMemoryForPrompt, touchMemories } from './memory';
 import { AGENT_TOOLS, executeAgentTool } from './tools';
-import { getAgentCustomTools, formatCustomToolsForOpenAI } from './custom-tools';
-import { executeCustomTool } from './custom-tool-executor';
 import type {
   Agent,
   AgentRunContext,
@@ -76,17 +74,12 @@ export async function runAgentLoop(context: AgentRunContext): Promise<AgentRunRe
     const maxSteps = agent.max_steps ?? 10;
     let stepCount = 0;
 
-    // Load custom tools (builder-generated) and merge with system tools
-    const customTools = await getAgentCustomTools(context.agentId);
-    const customToolsFormatted = formatCustomToolsForOpenAI(customTools);
-    const tools = [...AGENT_TOOLS, ...customToolsFormatted];
-
     // ── 6. Agentic loop ────────────────────────────────────────────────────
     while (stepCount < maxSteps) {
       const response = await openai.chat.completions.create({
         model: agent.model ?? 'gpt-4o',
         messages,
-        tools,
+        tools: AGENT_TOOLS,
         tool_choice: 'auto',
         temperature: 0.4,
       });
@@ -138,10 +131,7 @@ export async function runAgentLoop(context: AgentRunContext): Promise<AgentRunRe
 
         console.log(`[AgentRuntime] Agent ${agent.name} → ${toolName}`, params);
 
-        const isCustomTool = customTools.some((t) => t.name === toolName);
-        const result = isCustomTool
-          ? await executeCustomTool(toolName, params, context)
-          : await executeAgentTool(toolName, params, context);
+        const result = await executeAgentTool(toolName, params, context);
 
         actionsLog.push({
           tool: toolName,

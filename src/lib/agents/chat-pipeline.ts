@@ -67,8 +67,8 @@ export type ChatEvent =
   | { type: 'text_done' }
   /** Renders the integration check card */
   | { type: 'integration_check'; integrations: IntegrationCheckItem[] }
-  /** Renders the dynamic questionnaire card (pendingPlan included so client can send it back with answers) */
-  | { type: 'questionnaire'; questions: ClarificationQuestion[]; pendingPlan?: DeployAgentPlan }
+  /** Renders the dynamic questionnaire card */
+  | { type: 'questionnaire'; questions: ClarificationQuestion[] }
   /** Renders the plan preview card */
   | { type: 'plan'; plan: DeployAgentPlan }
   /** Renders the "Ready to build?" confirmation buttons */
@@ -482,18 +482,7 @@ export function detectRequiredIntegrations(plan: DeployAgentPlan): string[] {
     }
   }
 
-  // 2 — Custom tool requiredIntegrations (explicit, authoritative)
-  if (plan.customTools) {
-    for (const tool of plan.customTools) {
-      if (Array.isArray(tool.requiredIntegrations)) {
-        for (const svc of tool.requiredIntegrations) {
-          if (typeof svc === 'string' && svc) required.add(svc);
-        }
-      }
-    }
-  }
-
-  // 3 — Instruction keyword scanning (best-effort for action tools)
+  // 2 — Instruction keyword scanning (best-effort for action tools)
   const textToScan = [
     plan.instructions,
     plan.persona,

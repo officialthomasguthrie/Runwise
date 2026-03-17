@@ -314,7 +314,6 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
                 break;
               case "questionnaire":
                 setPipelinePhase("awaiting_questionnaire");
-                if (event.pendingPlan) setPendingPlan(event.pendingPlan as any);
                 appendMessage({
                   id: genId(),
                   role: "card",
@@ -480,12 +479,11 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
 
       sendMessage(formatted, {
         answers: allAnswers,
-        pendingPlan: pendingPlan ?? undefined,
         conversationOverride: conversationWithFormatted,
         skipAppend: true,
       });
     },
-    [messages, sendMessage, accumulatedQuestionnaireAnswers, pendingPlan]
+    [messages, sendMessage, accumulatedQuestionnaireAnswers]
   );
 
   const startBuild = useCallback(

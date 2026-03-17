@@ -143,30 +143,6 @@ export interface AgentBehaviourPlan {
   description: string;
 }
 
-/** Config key to ask the user during clarification (e.g. webhook URL, API key) */
-export interface CustomToolConfigKey {
-  key: string;
-  label: string;
-  description: string;
-}
-
-export interface CustomToolSpec {
-  name: string;
-  description: string;
-  code: string;
-  input_schema: Record<string, unknown>;
-  /** Keys this tool needs from user (webhook URL, non-OAuth API key) — drives clarification questions */
-  configKeys?: CustomToolConfigKey[];
-  /** Optional: defaults for config (webhook URL, API key) — user provides via questionnaire */
-  config_defaults?: Record<string, string>;
-  /**
-   * Known service IDs from INTEGRATION_CATALOGUE that this tool requires.
-   * When set, the completion card shows Connect buttons instead of asking for credentials.
-   * Examples: ['slack'], ['github'], ['twilio']
-   */
-  requiredIntegrations?: string[];
-}
-
 export interface DeployAgentPlan {
   name: string;
   persona: string;
@@ -178,8 +154,6 @@ export interface DeployAgentPlan {
   initialGoals?: string[];
   /** Rules/constraints for behaviour, extracted from user prompts and questionnaire */
   initialRules?: string[];
-  /** Builder-generated custom tools (Teams webhook, scrapers, etc.) */
-  customTools?: CustomToolSpec[];
 }
 
 // ============================================================================

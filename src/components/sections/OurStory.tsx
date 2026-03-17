@@ -1,8 +1,8 @@
 "use client"
 
-import { Lightbulb, Users, Zap } from "lucide-react";
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { Lightbulb, Users, Zap } from "lucide-react";
 
 import FadeContent from "@/components/ui/FadeContent"
 

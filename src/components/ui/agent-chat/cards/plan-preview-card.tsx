@@ -38,18 +38,8 @@ export function PlanPreviewCard({ plan, onBuild, onAdjust, isEditingAgent, onUpd
 
   if (hidden) return null;
 
-  const customToolNames = plan.customTools?.length
-    ? plan.customTools.map((t) => t.name).join(", ")
-    : null;
-
   return (
-    <div className="flex flex-col gap-2 mt-2">
-      {customToolNames && (
-        <p className="text-xs text-muted-foreground">
-          Custom tools: {customToolNames}
-        </p>
-      )}
-      <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex items-center gap-3 flex-wrap mt-2">
       <button
         type="button"
         onClick={handlePrimary}
@@ -72,7 +62,6 @@ export function PlanPreviewCard({ plan, onBuild, onAdjust, isEditingAgent, onUpd
       >
         Let me adjust something
       </button>
-      </div>
     </div>
   );
 }

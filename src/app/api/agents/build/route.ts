@@ -10,12 +10,12 @@ import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createAgentBehaviours } from '@/lib/agents/behaviour-manager';
 import { writeMemory } from '@/lib/agents/memory';
-import { createAgentCustomTools } from '@/lib/agents/custom-tools';
 import {
   createSSEStream,
   SSE_HEADERS,
   buildIntegrationCheckListForPolling,
   buildIntegrationCheckList,
+  deriveAgentCapabilities,
   type AgentBuildRequest,
 } from '@/lib/agents/chat-pipeline';
 import { streamCompletionSummary, generateShortDescription } from '@/lib/ai/agent-streaming';
@@ -23,12 +23,12 @@ import { getUserIntegrations } from '@/lib/integrations/service';
 import { getAgentAvatarUrl } from '@/lib/agents/avatar';
 
 const STAGES = [
-  'Intent analysed',
-  'Execution logic generated',
-  'Integrations validated',
-  'Memory seeded',
-  'Safeguards applied',
-  'Agent deployed',
+  'Analyzing capabilities',
+  'Generating execution logic',
+  'Validating integrations',
+  'Seeding memory',
+  'Applying safeguards',
+  'Deploying agent',
 ] as const;
 
 function sleep(ms: number): Promise<void> {
@@ -78,11 +78,27 @@ export async function POST(request: NextRequest) {
     (async () => {
       try {
         const admin = createAdminClient();
+        const buildStartMs = Date.now();
 
-        // 1. Intent analysed (immediate)
-        writer.buildStage(STAGES[0], 'done');
+        // 1. Analyzing capabilities — derive from plan
+        writer.buildStage(STAGES[0], 'running');
+        const capabilities = deriveAgentCapabilities({
+          instructions: plan.instructions,
+          persona: plan.persona,
+          behaviours: plan.behaviours.map((b) => ({
+            behaviour_type: b.behaviourType,
+            trigger_type: b.triggerType,
+            config: b.config,
+            description: b.description,
+          })),
+        });
+        const capDetail =
+          capabilities.length > 0
+            ? `${capabilities.length} ${capabilities.length === 1 ? 'capability' : 'capabilities'}: ${capabilities.map((c) => c.name).join(', ')}`
+            : 'Manual-only agent (no integrations)';
+        writer.buildStage(STAGES[0], 'done', capDetail);
 
-        // 2. Execution logic generated — insert agent row with status 'deploying'
+        // 2. Generating execution logic — insert agent row with status 'deploying'
         writer.buildStage(STAGES[1], 'running');
 
         const { data: agent, error: agentError } = await (admin as any)
@@ -107,19 +123,18 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        writer.buildStage(STAGES[1], 'done');
+        const instructionsWordCount = (plan.instructions ?? '').split(/\s+/).filter(Boolean).length;
+        writer.buildStage(STAGES[1], 'done', `Instructions generated (${instructionsWordCount} words)`);
 
-        // 3. Integrations validated — create behaviours + polling triggers
+        // 3. Validating integrations — create behaviours + polling triggers
         writer.buildStage(STAGES[2], 'running');
 
         await createAgentBehaviours(agent.id, user.id, plan.behaviours);
 
-        if (plan.customTools?.length && plan.customTools.length > 0) {
-          await createAgentCustomTools(agent.id, user.id, plan.customTools);
-        }
-        writer.buildStage(STAGES[2], 'done');
+        const behaviourCount = plan.behaviours?.length ?? 0;
+        writer.buildStage(STAGES[2], 'done', `${behaviourCount} ${behaviourCount === 1 ? 'behaviour' : 'behaviours'} created`);
 
-        // 4. Memory seeded
+        // 4. Seeding memory
         writer.buildStage(STAGES[3], 'running');
 
         for (const content of plan.initialMemories ?? []) {
@@ -132,14 +147,15 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        writer.buildStage(STAGES[3], 'done');
+        const memoryCount = (plan.initialMemories ?? []).filter((m) => typeof m === 'string' && m.trim()).length;
+        writer.buildStage(STAGES[3], 'done', memoryCount > 0 ? `${memoryCount} ${memoryCount === 1 ? 'memory' : 'memories'} added` : 'No memories to seed');
 
-        // 5. Safeguards applied — short delay for UX
+        // 5. Applying safeguards — short delay for UX
         writer.buildStage(STAGES[4], 'running');
         await sleep(400);
         writer.buildStage(STAGES[4], 'done');
 
-        // 6. Agent deployed — generate short tagline and set status (active or pending_integrations)
+        // 6. Deploying agent — generate short tagline and set status (active or pending_integrations)
         writer.buildStage(STAGES[5], 'running');
 
         const shortDescription = await generateShortDescription(plan, description.trim());
@@ -183,7 +199,8 @@ export async function POST(request: NextRequest) {
           .eq('id', agent.id)
           .eq('user_id', user.id);
 
-        writer.buildStage(STAGES[5], 'done');
+        const deployMs = Date.now() - buildStartMs;
+        writer.buildStage(STAGES[5], 'done', `Deployed in ${deployMs}ms`);
 
         // 7. Stream AI-generated summary, then complete
         await streamCompletionSummary(writer, plan, description.trim());
