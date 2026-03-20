@@ -234,8 +234,11 @@ export async function streamCompletionSummary(
   }
 
   const requiredServices = detectRequiredIntegrations(plan);
+  const extraServiceLabels: Record<string, string> = {
+    'platform-agent-email': 'Agent email (Runwise)',
+  };
   const uniqueTools = requiredServices
-    .map((id) => getIntegrationMeta(id)?.label)
+    .map((id) => getIntegrationMeta(id)?.label ?? extraServiceLabels[id])
     .filter(Boolean) as string[];
 
   const systemPrompt = `You are the Runwise agent builder. An agent was just built successfully.

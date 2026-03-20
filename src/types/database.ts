@@ -678,6 +678,75 @@ export interface Database {
           created_at?: string
         }
       }
+      agents: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          description: string | null
+          persona: string | null
+          instructions: string
+          status: 'active' | 'paused' | 'deploying' | 'error' | 'pending_integrations'
+          avatar_emoji: string
+          avatar_image: string | null
+          short_description: string | null
+          model: string
+          max_steps: number
+          goals_rules: Record<string, any>[] | null
+          last_webhook_sample: Record<string, any> | null
+          /** none | user_gmail | agent_resend | both */
+          email_sending_mode: 'none' | 'user_gmail' | 'agent_resend' | 'both'
+          resend_from_email: string | null
+          resend_from_name: string | null
+          resend_provisioned_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          description?: string | null
+          persona?: string | null
+          instructions?: string
+          status?: 'active' | 'paused' | 'deploying' | 'error' | 'pending_integrations'
+          avatar_emoji?: string
+          avatar_image?: string | null
+          short_description?: string | null
+          model?: string
+          max_steps?: number
+          goals_rules?: Record<string, any>[] | null
+          last_webhook_sample?: Record<string, any> | null
+          email_sending_mode?: 'none' | 'user_gmail' | 'agent_resend' | 'both'
+          resend_from_email?: string | null
+          resend_from_name?: string | null
+          resend_provisioned_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          description?: string | null
+          persona?: string | null
+          instructions?: string
+          status?: 'active' | 'paused' | 'deploying' | 'error' | 'pending_integrations'
+          avatar_emoji?: string
+          avatar_image?: string | null
+          short_description?: string | null
+          model?: string
+          max_steps?: number
+          goals_rules?: Record<string, any>[] | null
+          last_webhook_sample?: Record<string, any> | null
+          email_sending_mode?: 'none' | 'user_gmail' | 'agent_resend' | 'both'
+          resend_from_email?: string | null
+          resend_from_name?: string | null
+          resend_provisioned_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       agent_chats: {
         Row: {
           id: string
@@ -770,6 +839,7 @@ export type WorkflowTemplate = Database['public']['Tables']['workflow_templates'
 export type WorkflowShare = Database['public']['Tables']['workflow_shares']['Row']
 export type AIModel = Database['public']['Tables']['ai_models']['Row']
 export type UserAnalytics = Database['public']['Tables']['user_analytics']['Row']
+export type AgentRow = Database['public']['Tables']['agents']['Row']
 
 // =====================================================
 // Extended Types with Relations

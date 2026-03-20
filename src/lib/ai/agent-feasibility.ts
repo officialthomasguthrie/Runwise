@@ -140,7 +140,8 @@ CRITICAL — HOW TO MAP REQUESTS TO CAPABILITIES:
 • "Monitor competitors", "watch for launches", "track competitors", "alert when X launches" → FEASIBLE. Use schedule/heartbeat + web_search + read_url + send_notification_to_user (or send_slack/send_email). We have web search and URL reading.
 • "Web research", "search the web", "find information online" → FEASIBLE. web_search + read_url.
 • "Daily/hourly/scheduled" anything → FEASIBLE. schedule or heartbeat trigger.
-• "Reply to emails", "respond to emails" → FEASIBLE. new-email-received + send_email_gmail (replyToThread).
+• "Reply to emails", "respond to emails" → FEASIBLE. new-email-received + send_email_gmail (replyToThread), or outbound-only with send_email_resend if the user wants a dedicated agent address (no Gmail OAuth for that send path).
+• "Dedicated agent email", "send from an address for this agent (not my Gmail)" → FEASIBLE. send_email_resend + platform-provisioned address at deploy.
 • "Post to Slack/Discord", "send notification" → FEASIBLE. send_slack_message, send_discord_message, send_notification_to_user.
 
 REJECT (feasible=false) when the request requires a service we don't support — WHETHER AS A TRIGGER (event source) OR AS AN ACTION (posting, reading, writing, notifying). Unsupported services: Microsoft Teams, Zoom, WhatsApp, Jira, Linear, Salesforce, HubSpot, Asana, Monday.com.

@@ -11,6 +11,10 @@ import { createAgentBehaviours } from '@/lib/agents/behaviour-manager';
 import { writeMemory } from '@/lib/agents/memory';
 import { getUserIntegrations } from '@/lib/integrations/service';
 import type { DeployAgentRequest } from '@/lib/agents/types';
+import {
+  getAgentResendProvisionPatch,
+  resolvePlanEmailSendingMode,
+} from '@/lib/agents/resend-provision';
 
 // ── GET — list agents ────────────────────────────────────────────────────────
 
@@ -131,6 +135,8 @@ export async function POST(request: NextRequest) {
     if (body.name) plan.name = body.name;
     if (body.avatarEmoji) plan.avatarEmoji = body.avatarEmoji;
 
+    const planEmailMode = resolvePlanEmailSendingMode(plan);
+
     // ── 3. Create agent row ───────────────────────────────────────────────────
     const { data: agent, error: agentError } = await (admin as any)
       .from('agents')
@@ -144,6 +150,7 @@ export async function POST(request: NextRequest) {
         avatar_emoji: plan.avatarEmoji,
         model: 'gpt-4o',
         max_steps: 10,
+        email_sending_mode: planEmailMode,
       })
       .select()
       .single();
@@ -156,6 +163,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const resendPatch = getAgentResendProvisionPatch({
+      agentId: agent.id,
+      agentDisplayName: plan.name,
+      emailSendingMode: planEmailMode,
+      existingResendFromEmail: (agent as { resend_from_email?: string | null }).resend_from_email,
+    });
+
+    const { error: provisionError } = await (admin as any)
+      .from('agents')
+      .update({
+        updated_at: new Date().toISOString(),
+        ...resendPatch,
+      })
+      .eq('id', agent.id)
+      .eq('user_id', user.id);
+
+    if (provisionError) {
+      console.error('[POST /api/agents] Resend provision update failed:', provisionError);
+      return NextResponse.json(
+        { error: 'Failed to finalize agent', details: provisionError.message },
+        { status: 500 }
+      );
+    }
+
+    const { data: agentRow } = await (admin as any)
+      .from('agents')
+      .select('*')
+      .eq('id', agent.id)
+      .eq('user_id', user.id)
+      .single();
+
     // ── 4. Create behaviours (+ polling triggers) ─────────────────────────────
     await createAgentBehaviours(agent.id, user.id, plan.behaviours);
 
@@ -166,7 +204,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ agent, plan }, { status: 201 });
+    return NextResponse.json({ agent: agentRow ?? agent, plan }, { status: 201 });
   } catch (err: any) {
     console.error('[POST /api/agents]', err);
     return NextResponse.json(

@@ -59,6 +59,7 @@ export function IntegrationCheckCard({
           const next = { ...prev };
           let changed = false;
           for (const item of integrations) {
+            if (item.connectionMethod === "platform") continue;
             const nowConnected = isServiceConnected(item.service, services);
             if (prev[item.service] !== nowConnected) {
               next[item.service] = nowConnected;
@@ -133,7 +134,12 @@ export function IntegrationCheckCard({
               {connected ? (
                 <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400">
                   <Check className="h-3.5 w-3.5" />
-                  Connected
+                  {item.connectionMethod === "platform" ? "Included" : "Connected"}
+                </span>
+              ) : item.connectionMethod === "platform" ? (
+                <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400">
+                  <Check className="h-3.5 w-3.5" />
+                  Included
                 </span>
               ) : (
                 <ConnectButton
@@ -159,6 +165,9 @@ function ConnectButton({
   returnUrl?: string;
   onBeforeOAuthRedirect?: () => void;
 }) {
+  if (item.connectionMethod === "platform") {
+    return null;
+  }
   const handleClick = () => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     if (item.connectionMethod === "oauth") {

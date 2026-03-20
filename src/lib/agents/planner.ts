@@ -5,7 +5,7 @@
  */
 
 import OpenAI from 'openai';
-import type { DeployAgentPlan, AgentBehaviourPlan } from './types';
+import type { DeployAgentPlan, AgentBehaviourPlan, AgentEmailSendingMode } from './types';
 import { getToolsSpec } from './capabilities-spec';
 
 // ============================================================================
@@ -194,13 +194,15 @@ Your job: Return an UPDATED plan that incorporates the user's feedback. Use the 
 - behaviours: only include when user specifies or infers a trigger. Empty [] = manual-only agent.
 - webhook: config.path = URL-safe slug
 - schedule/heartbeat: scheduleCron = cron expression
+- Preserve emailSendingMode unless the user asks to change how email is sent (Gmail vs dedicated agent address).
 
 RULES:
 1. Only use trigger types from the available list for polling.
 2. Preserve parts of the plan the user did not ask to change.
 3. Apply the requested changes precisely.
 4. Do NOT add a polling trigger for a service the agent just reads from during a scheduled run.
-5. Return ONLY valid JSON, no markdown, no code fences.`;
+5. emailSendingMode: keep prior value if not discussed; align with send_email_gmail (user Gmail) vs send_email_resend (platform address) per user intent.
+6. Return ONLY valid JSON, no markdown, no code fences.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -291,7 +293,8 @@ OUTPUT FORMAT (strict JSON, no markdown):
   ],
   "initialRules": [
     "Behaviour constraints (e.g. 'Never forward emails without explicit user consent')"
-  ]
+  ],
+  "emailSendingMode": "none" | "user_gmail" | "agent_resend" | "both"
 }
 
 ---
@@ -306,12 +309,25 @@ RULES:
 8. Pick a real-sounding name. Avoid "Agent" or "Bot".
 9. config for polling: fill when you have specific values; otherwise {}.
 10. Do NOT add a default heartbeat when the user did not ask for a time-based trigger. Manual-only agents have empty behaviours.
+11. emailSendingMode (REQUIRED on every plan):
+    - "none" — no outbound email tools needed.
+    - "user_gmail" — outbound from the user's Gmail: use send_email_gmail; user must connect Google (Gmail). Mention in instructions.
+    - "agent_resend" — outbound from a dedicated Runwise-provided agent address: use send_email_resend only for sends; NO Gmail OAuth required for that send path. Still use "user_gmail" / connect Gmail if the agent must READ the inbox or use new-email-received.
+    - "both" — user may send from either mailbox; state in instructions when to use send_email_gmail vs send_email_resend.
+12. In "instructions", always include 1–2 sentences on outbound email: which tool (send_email_gmail vs send_email_resend) matches the user's choice, and that Gmail is only required for the Gmail path / inbox features.
+
+---
+OUTBOUND EMAIL (tools — pick emailSendingMode to match user intent):
+- send_email_gmail: sends from the user's connected Gmail. Requires Google Gmail OAuth.
+- send_email_resend: sends from this agent's platform-managed address. No Gmail OAuth for sending; requires emailSendingMode to include agent_resend and a provisioned address (handled at deploy).
+
+If the user wants mail from their own inbox → emailSendingMode: user_gmail (or both). If they want a dedicated agent/from address (not their personal Gmail) → agent_resend. Reading Gmail or per-email triggers still require google-gmail even when outbound uses agent_resend.
 
 ---
 AGENT CAPABILITIES (exhaustive — agents can ONLY use these tools; include in instructions when relevant):
 ${getToolsSpec()}
 
-Match user phrasing by meaning: "reply to emails" → send_email_gmail with replyToThread; "monitor competitors" → schedule + web_search + read_url + send_notification/send_slack/send_email; "daily check" → schedule or heartbeat.`;
+Match user phrasing by meaning: "reply from my Gmail" / inbox → send_email_gmail; "dedicated agent email" / "from the agent" / "not my personal email" → send_email_resend + emailSendingMode agent_resend or both; "monitor competitors" → schedule + web_search + read_url + send_notification/send_slack/email tools as appropriate; "daily check" → schedule or heartbeat.`;
 }
 
 // ============================================================================
@@ -320,6 +336,12 @@ Match user phrasing by meaning: "reply to emails" → send_email_gmail with repl
 
 const VALID_BEHAVIOUR_TYPES = new Set(['polling', 'webhook', 'schedule', 'heartbeat']);
 const VALID_TRIGGER_TYPES = new Set(TRIGGER_CATALOGUE.map((t) => t.triggerType));
+const VALID_EMAIL_SENDING_MODES = new Set<AgentEmailSendingMode>([
+  'none',
+  'user_gmail',
+  'agent_resend',
+  'both',
+]);
 
 function validateAndNormalisePlan(
   raw: any,
@@ -427,6 +449,12 @@ function validateAndNormalisePlan(
     .map((r: string) => r.trim())
     .slice(0, 8);
 
+  const rawMode = raw.emailSendingMode;
+  const emailSendingMode: AgentEmailSendingMode =
+    typeof rawMode === 'string' && VALID_EMAIL_SENDING_MODES.has(rawMode as AgentEmailSendingMode)
+      ? (rawMode as AgentEmailSendingMode)
+      : 'none';
+
   return {
     name,
     persona,
@@ -436,5 +464,6 @@ function validateAndNormalisePlan(
     initialMemories,
     initialGoals,
     initialRules,
+    emailSendingMode,
   };
 }

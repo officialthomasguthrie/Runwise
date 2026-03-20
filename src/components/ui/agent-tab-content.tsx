@@ -302,6 +302,19 @@ interface ActivityEvent {
 
 const ACTIVITY_PAGE_SIZE = 10;
 
+function formatRelativeTime(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const days = Math.floor(hr / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
 function getActivityIcon(type: ActivityType) {
   switch (type) {
     case "completed":
@@ -467,10 +480,12 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
   const [capabilities, setCapabilities] = useState<Array<{ slug: string; name: string }>>([]);
   const [knowledgeItems, setKnowledgeItems] = useState<Array<{ id: string; type: KnowledgeItemType; label: string }>>([]);
   const [goalsRules, setGoalsRules] = useState<Array<{ id: string; type: GoalsRulesItemType; label: string }>>([]);
-  const [activityItems] = useState<ActivityEvent[]>([]);
+  const [activityItems, setActivityItems] = useState<ActivityEvent[]>([]);
   const [activityPage, setActivityPage] = useState(1);
+  const [activityLoading, setActivityLoading] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<ActivityEvent | null>(null);
   const [activityDetailOpen, setActivityDetailOpen] = useState(false);
+  const [runSuccess, setRunSuccess] = useState(false);
   const [knowledgeModalOpen, setKnowledgeModalOpen] = useState(false);
   const [knowledgeForm, setKnowledgeForm] = useState<{
     type: KnowledgeItemType;
@@ -568,11 +583,59 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
     }
   };
 
+  const fetchActivity = async () => {
+    if (!agentId || agentId === "new") return;
+    setActivityLoading(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/activity?limit=50`);
+      if (!res.ok) return;
+      const json = await res.json();
+      const rows: any[] = json.activity ?? [];
+      const mapped: ActivityEvent[] = rows.map((row) => {
+        const actionsCount = Array.isArray(row.actions_taken) ? row.actions_taken.length : 0;
+        const statusMap: Record<string, ActivityType> = {
+          success: "completed",
+          error: "error",
+          skipped: "run",
+        };
+        const actType: ActivityType = statusMap[row.status] ?? "run";
+        const toolNames = Array.isArray(row.actions_taken)
+          ? row.actions_taken.map((a: any) => a.tool).filter(Boolean)
+          : [];
+        const summary =
+          row.error_message
+            ? row.error_message
+            : actionsCount > 0
+              ? `${actionsCount} action${actionsCount !== 1 ? "s" : ""}: ${toolNames.slice(0, 3).join(", ")}${toolNames.length > 3 ? "…" : ""}`
+              : row.status === "skipped"
+                ? "No action taken"
+                : "Completed";
+        return {
+          id: row.id,
+          type: actType,
+          title: row.trigger_summary ?? "Agent run",
+          time: formatRelativeTime(row.created_at),
+          summary,
+          executedAt: row.created_at,
+          status: row.status,
+          errorMessage: row.error_message ?? undefined,
+        };
+      });
+      setActivityItems(mapped);
+      setActivityPage(1);
+    } catch (e) {
+      console.error("Failed to fetch activity:", e);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
   const handleRunAgent = async () => {
     if (!agentId || agentId === "new") return;
     if (agent?.status !== "active") return;
     setRunLoading(true);
     setRunError(null);
+    setRunSuccess(false);
     try {
       const res = await fetch(`/api/agents/${agentId}/run`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
@@ -580,7 +643,16 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
         setRunError(data.error ?? "Failed to run agent");
         return;
       }
-      await refetchAgent();
+      setRunSuccess(true);
+      setTimeout(() => setRunSuccess(false), 5000);
+      // Poll for activity: Inngest runs async, so check periodically
+      const pollActivity = async (attempts: number, delayMs: number) => {
+        for (let i = 0; i < attempts; i++) {
+          await new Promise((r) => setTimeout(r, delayMs));
+          await fetchActivity();
+        }
+      };
+      pollActivity(4, 3000);
     } catch (e: unknown) {
       setRunError(e instanceof Error ? e.message : "Failed to run agent");
     } finally {
@@ -632,7 +704,7 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
     if (!agentId) return;
     let cancelled = false;
     setLoading(true);
-    refetchAgent().finally(() => {
+    Promise.all([refetchAgent(), fetchActivity()]).finally(() => {
       if (!cancelled) setLoading(false);
     });
     return () => {
@@ -1430,6 +1502,11 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
           )}
         </button>
       </div>
+      {runSuccess && (
+        <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400" role="status">
+          Agent run triggered — results will appear in the activity feed shortly.
+        </p>
+      )}
       {(runError || pauseError || activateError) && (
         <p className="mt-2 text-xs text-red-500 dark:text-red-400" role="alert">
           {runError ?? pauseError ?? activateError}
@@ -1491,10 +1568,12 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
                 <h3 className="font-semibold text-sm text-foreground">Activity Feed</h3>
                 <button
                   type="button"
-                  className="rounded p-1.5 text-muted-foreground"
+                  onClick={fetchActivity}
+                  disabled={activityLoading}
+                  className="rounded p-1.5 text-muted-foreground hover:text-foreground transition-colors"
                   aria-label="Reload activity"
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw className={cn("h-4 w-4", activityLoading && "animate-spin")} />
                 </button>
               </header>
               <div className="flex flex-col overflow-hidden">
@@ -1538,10 +1617,12 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
                           <p className="text-xs text-muted-foreground">No additional events found</p>
                           <button
                             type="button"
-                            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground"
+                            onClick={fetchActivity}
+                            disabled={activityLoading}
+                            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                             aria-label="Refresh events"
                           >
-                            <RefreshCw className="h-3.5 w-3.5" />
+                            <RefreshCw className={cn("h-3.5 w-3.5", activityLoading && "animate-spin")} />
                             Refresh events
                           </button>
                         </div>

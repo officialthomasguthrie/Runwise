@@ -10,7 +10,8 @@
  *  - detectRequiredIntegrations  — maps a DeployAgentPlan → required service IDs
  */
 
-import type { DeployAgentPlan, AgentBehaviourPlan } from './types';
+import type { DeployAgentPlan, AgentBehaviourPlan, AgentEmailSendingMode } from './types';
+import { emailSendingModeUsesAgentResend } from '@/lib/agents/resend-provision';
 import type { ClarificationQuestion, QuestionnaireAnswer } from '@/lib/ai/types';
 
 // Re-export shared types so UI imports a single source of truth
@@ -33,7 +34,7 @@ export interface BuildStage {
 // INTEGRATION CHECK ITEM
 // ============================================================================
 
-export type IntegrationConnectionMethod = 'oauth' | 'credential';
+export type IntegrationConnectionMethod = 'oauth' | 'credential' | 'platform';
 
 export interface IntegrationCheckItem {
   /** Internal service ID, e.g. 'google-gmail' */
@@ -405,7 +406,7 @@ const TRIGGER_TO_SERVICE: Record<string, string> = {
  * Catches action-based integrations (e.g. "send me a Slack message" → slack).
  */
 const INSTRUCTION_KEYWORD_TO_SERVICE: Array<{ pattern: RegExp; service: string }> = [
-  { pattern: /gmail|send.{0,20}email|reply.{0,20}email|read.{0,20}email/i, service: 'google-gmail' },
+  // google-gmail: see inferGmailIntegrationFromPlanText() — depends on emailSendingMode
   { pattern: /google.{0,10}sheet|spreadsheet/i,                             service: 'google-sheets' },
   { pattern: /google.{0,10}calendar|calendar.{0,10}event/i,                 service: 'google-calendar' },
   { pattern: /google.{0,10}drive|drive.{0,10}file/i,                        service: 'google-drive' },
@@ -437,6 +438,8 @@ const SERVICE_TO_CAPABILITY: Record<string, { slug: string; name: string }> = {
   'openai':          { slug: 'openai', name: 'OpenAI' },
   'twilio':          { slug: 'twilio', name: 'Twilio' },
   'stripe':          { slug: 'stripe', name: 'Stripe' },
+  /** Platform-provided outbound email (Resend); not an OAuth integration */
+  'platform-agent-email': { slug: 'resend', name: 'Agent email' },
 };
 
 /** Slug → service ID (reverse of SERVICE_TO_CAPABILITY) for connect flows */
@@ -471,6 +474,39 @@ export function getCapabilityIntegrationInfo(
  *
  * Returns a de-duplicated array, e.g. `['google-gmail', 'slack']`.
  */
+export function inferGmailIntegrationFromPlanText(
+  text: string,
+  emailSendingMode: AgentEmailSendingMode | undefined
+): boolean {
+  const mode = emailSendingMode ?? 'none';
+  const t = text || '';
+
+  if (/\bgmail\b/i.test(t)) return true;
+  if (
+    /read.{0,20}email|fetch.{0,20}mail|check.{0,20}(?:my\s+)?(?:e-?)?mails?|\binbox\b|new.{0,20}email.{0,20}(?:arriv|received)/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+
+  // Outbound-only via dedicated agent address — no Gmail OAuth for sending
+  if (mode === 'agent_resend') {
+    return false;
+  }
+
+  // user_gmail, both, none: treat generic "send/reply email" as needing Gmail until mode is explicit
+  if (
+    /send.{0,20}email|reply.{0,20}email|compose.{0,20}email|e-?mail\s+out|outbound.{0,12}e-?mail/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function detectRequiredIntegrations(plan: DeployAgentPlan): string[] {
   const required = new Set<string>();
 
@@ -491,10 +527,18 @@ export function detectRequiredIntegrations(plan: DeployAgentPlan): string[] {
     .filter(Boolean)
     .join(' ');
 
+  if (inferGmailIntegrationFromPlanText(textToScan, plan.emailSendingMode)) {
+    required.add('google-gmail');
+  }
+
   for (const { pattern, service } of INSTRUCTION_KEYWORD_TO_SERVICE) {
     if (pattern.test(textToScan)) {
       required.add(service);
     }
+  }
+
+  if (emailSendingModeUsesAgentResend(plan.emailSendingMode ?? 'none')) {
+    required.add('platform-agent-email');
   }
 
   return Array.from(required);
@@ -512,6 +556,7 @@ export function planFromBehaviours(
     persona: '',
     instructions: '',
     avatarEmoji: '🤖',
+    emailSendingMode: 'none',
     behaviours: behaviours.map((b) => ({
       behaviourType:
         b.behaviour_type === 'schedule' || b.behaviour_type === 'heartbeat'
@@ -530,7 +575,13 @@ export function planFromBehaviours(
  * Used when editing an existing agent — reconstructs the plan for regeneration.
  */
 export function agentToPlan(
-  agent: { name?: string; persona?: string | null; instructions?: string; avatar_emoji?: string | null },
+  agent: {
+    name?: string;
+    persona?: string | null;
+    instructions?: string;
+    avatar_emoji?: string | null;
+    email_sending_mode?: AgentEmailSendingMode | null;
+  },
   behaviours: Array<{ behaviour_type: string; trigger_type?: string | null; config?: Record<string, any>; description?: string }>
 ): DeployAgentPlan {
   const base = planFromBehaviours(behaviours);
@@ -540,6 +591,7 @@ export function agentToPlan(
     persona: agent.persona ?? '',
     instructions: agent.instructions ?? '',
     avatarEmoji: agent.avatar_emoji ?? '🤖',
+    emailSendingMode: agent.email_sending_mode ?? 'none',
   };
 }
 
@@ -607,6 +659,18 @@ export function buildIntegrationCheckList(
 
   return requiredServiceIds
     .map((serviceId) => {
+      if (serviceId === 'platform-agent-email') {
+        return {
+          service: 'platform-agent-email',
+          label: 'Agent email (Runwise)',
+          icon: '✉️',
+          required: true,
+          connected: true,
+          connectUrl: '',
+          connectionMethod: 'platform' as const,
+        } satisfies IntegrationCheckItem;
+      }
+
       const meta = getIntegrationMeta(serviceId);
       if (!meta) return null;
 
@@ -641,6 +705,7 @@ export function buildIntegrationCheckList(
 export interface AgentForCapabilities {
   instructions?: string | null;
   persona?: string | null;
+  email_sending_mode?: AgentEmailSendingMode | null;
   behaviours?: Array<{ behaviour_type?: string; trigger_type?: string; config?: Record<string, any>; description?: string }>;
 }
 
@@ -657,6 +722,7 @@ export function deriveAgentCapabilities(agent: AgentForCapabilities): Array<{ sl
     persona: agent.persona ?? '',
     instructions: agent.instructions ?? '',
     avatarEmoji: '🤖',
+    emailSendingMode: agent.email_sending_mode ?? 'none',
     behaviours: (agent.behaviours ?? []).map((b) => ({
       behaviourType: (b.behaviour_type === 'schedule' || b.behaviour_type === 'heartbeat' ? b.behaviour_type : 'polling') as 'polling' | 'schedule' | 'heartbeat',
       triggerType: b.trigger_type,

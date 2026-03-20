@@ -1,5 +1,8 @@
-import type { AgentTool, AgentRunContext } from './types';
+import type { AgentTool, AgentRunContext, AgentEmailSendingMode } from './types';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { writeMemory, getAgentMemory } from './memory';
+import { sendResendEmail } from '@/lib/email/resend';
+import { formatAgentResendFromHeader } from '@/lib/email/agent-address';
 import { getUserIntegration } from '@/lib/integrations/service';
 import { getGoogleAccessToken } from '@/lib/integrations/google';
 import { sendDiscordMessage } from '@/lib/integrations/discord';
@@ -34,6 +37,35 @@ export const AGENT_TOOLS: AgentTool[] = [
           threadId: {
             type: 'string',
             description: 'Gmail thread ID to reply into (only used when replyToThread is "yes")',
+          },
+        },
+        required: ['to', 'subject', 'body'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'send_email_resend',
+      description:
+        'Send an email from this agent\'s dedicated platform address (Resend). Use when the agent is configured for platform email — not the user\'s Gmail. Requires the agent to have a provisioned sender address.',
+      parameters: {
+        type: 'object',
+        properties: {
+          to: { type: 'string', description: 'Recipient email address' },
+          subject: { type: 'string', description: 'Email subject line' },
+          body: {
+            type: 'string',
+            description:
+              'Plain-text body, or HTML if you are not passing a separate html field (same as Gmail tool body)',
+          },
+          html: {
+            type: 'string',
+            description: 'Optional HTML body; when set, body is often used as the plain-text alternative',
+          },
+          replyTo: {
+            type: 'string',
+            description: 'Optional Reply-To address (single address)',
           },
         },
         required: ['to', 'subject', 'body'],
@@ -845,6 +877,8 @@ export async function executeAgentTool(
     switch (toolName) {
       case 'send_email_gmail':
         return await toolSendEmailGmail(toolParams, context);
+      case 'send_email_resend':
+        return await toolSendEmailResend(toolParams, context);
       case 'read_emails':
         return await toolReadEmails(toolParams, context);
       case 'send_slack_message':
@@ -932,6 +966,143 @@ export async function executeAgentTool(
 // ============================================================================
 // INDIVIDUAL TOOL IMPLEMENTATIONS
 // ============================================================================
+
+/** Soft rate limit for platform Resend sends (per agent, in-process). */
+const RESEND_RATE_WINDOW_MS = 60_000;
+const RESEND_MAX_PER_WINDOW = 30;
+const resendSendWindows = new Map<string, { windowStart: number; count: number }>();
+
+function consumeResendRateLimit(agentId: string): boolean {
+  const now = Date.now();
+  let entry = resendSendWindows.get(agentId);
+  if (!entry || now - entry.windowStart >= RESEND_RATE_WINDOW_MS) {
+    resendSendWindows.set(agentId, { windowStart: now, count: 1 });
+    return true;
+  }
+  if (entry.count >= RESEND_MAX_PER_WINDOW) {
+    console.warn(
+      `[send_email_resend] Rate limit: agent ${agentId} exceeded ${RESEND_MAX_PER_WINDOW} sends per ${RESEND_RATE_WINDOW_MS / 1000}s`
+    );
+    return false;
+  }
+  entry.count += 1;
+  return true;
+}
+
+function modeAllowsPlatformResend(mode: AgentEmailSendingMode | null | undefined): boolean {
+  return mode === 'agent_resend' || mode === 'both';
+}
+
+async function toolSendEmailResend(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const to = typeof params.to === 'string' ? params.to.trim() : '';
+  const subject = typeof params.subject === 'string' ? params.subject.trim() : '';
+  const body = typeof params.body === 'string' ? params.body : '';
+  const htmlOpt = typeof params.html === 'string' ? params.html.trim() : '';
+  const replyToRaw = params.replyTo;
+
+  if (!to || !subject || !String(body).trim()) {
+    return {
+      success: false,
+      error: 'send_email_resend requires non-empty to, subject, and body',
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data: row, error: loadError } = await (admin as any)
+    .from('agents')
+    .select(
+      'id, user_id, name, email_sending_mode, resend_from_email, resend_from_name'
+    )
+    .eq('id', context.agentId)
+    .eq('user_id', context.userId)
+    .single();
+
+  if (loadError || !row) {
+    return { success: false, error: 'Agent not found' };
+  }
+
+  if (!modeAllowsPlatformResend(row.email_sending_mode)) {
+    return {
+      success: false,
+      error:
+        'Agent not configured for platform email. Use send_email_gmail if the user connected Gmail, or enable a dedicated agent address in settings / deploy plan.',
+    };
+  }
+
+  const fromEmail = typeof row.resend_from_email === 'string' ? row.resend_from_email.trim() : '';
+  if (!fromEmail) {
+    return {
+      success: false,
+      error:
+        'Agent not configured for platform email (no sender address provisioned). Set RESEND_FROM_DOMAIN and redeploy or update the agent with agent Resend mode.',
+    };
+  }
+
+  // Never use model-supplied "from" — only stored identity
+  const displayName =
+    (typeof row.resend_from_name === 'string' && row.resend_from_name.trim()
+      ? row.resend_from_name.trim()
+      : typeof row.name === 'string' && row.name.trim()
+        ? row.name.trim()
+        : '') || '';
+  const from = displayName
+    ? formatAgentResendFromHeader(displayName, fromEmail)
+    : fromEmail;
+
+  if (!consumeResendRateLimit(context.agentId)) {
+    return {
+      success: false,
+      error: `Too many emails sent in a short window (max ${RESEND_MAX_PER_WINDOW} per minute per agent). Try again shortly.`,
+    };
+  }
+
+  let html: string | undefined;
+  let text: string | undefined;
+  if (htmlOpt) {
+    html = htmlOpt;
+    text = body.trim() || undefined;
+  } else {
+    text = body;
+  }
+
+  let replyTo: string | string[] | undefined;
+  if (typeof replyToRaw === 'string' && replyToRaw.trim()) {
+    replyTo = replyToRaw.trim();
+  } else if (Array.isArray(replyToRaw)) {
+    const addrs = replyToRaw.filter((x) => typeof x === 'string' && x.trim()).map((x: string) => x.trim());
+    if (addrs.length > 0) replyTo = addrs.length === 1 ? addrs[0] : addrs;
+  }
+
+  const sendResult = await sendResendEmail({
+    from,
+    to,
+    subject,
+    html,
+    text,
+    replyTo,
+  });
+
+  if (!sendResult.ok) {
+    const msg = sendResult.error.message;
+    console.warn(
+      `[send_email_resend] agent=${context.agentId} failed:`,
+      sendResult.error.code,
+      msg
+    );
+    return { success: false, error: msg };
+  }
+
+  return {
+    success: true,
+    data: {
+      messageId: sendResult.id,
+      provider: 'resend',
+    },
+  };
+}
 
 async function toolSendEmailGmail(
   params: Record<string, any>,

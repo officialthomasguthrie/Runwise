@@ -22,6 +22,7 @@ const INTEGRATION_LOGOS: Record<string, string> = {
   airtable: `https://cdn.brandfetch.io/iddsnRzkxS/theme/dark/symbol.svg?c=${BRANDFETCH_CLIENT}`,
   openai: `https://cdn.brandfetch.io/idR3duQxYl/theme/dark/symbol.svg?c=${BRANDFETCH_CLIENT}`,
   twilio: `https://cdn.brandfetch.io/idT7wVo_zL/theme/dark/symbol.svg?c=${BRANDFETCH_CLIENT}`,
+  "platform-agent-email": `https://cdn.simpleicons.org/resend`,
 };
 
 function getLogoUrl(service: string): string | null {
@@ -96,6 +97,7 @@ export function CompletionCard({
           const next = { ...prev };
           let changed = false;
           for (const item of integrations) {
+            if (item.connectionMethod === "platform") continue;
             const nowConnected = isServiceConnected(item.service, services);
             if (prev[item.service] !== nowConnected) {
               next[item.service] = nowConnected;
@@ -136,6 +138,7 @@ export function CompletionCard({
   };
 
   const handleConnect = (item: IntegrationCheckItem) => {
+    if (item.connectionMethod === "platform") return;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     if (item.connectionMethod === "oauth") {
       let url = item.connectUrl.startsWith("http") ? item.connectUrl : `${origin}${item.connectUrl}`;
@@ -212,7 +215,11 @@ export function CompletionCard({
                   <span className="text-sm text-black dark:text-white">
                     {item.label}
                   </span>
-                  {connected ? (
+                  {item.connectionMethod === "platform" ? (
+                    <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                      Included
+                    </span>
+                  ) : connected ? (
                     <button
                       type="button"
                       onClick={() => handleDisconnect(item.service)}

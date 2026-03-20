@@ -25,6 +25,7 @@ import {
 } from '@/lib/agents/chat-pipeline';
 import { getUserIntegrations } from '@/lib/integrations/service';
 import { createAdminClient } from '@/lib/supabase-admin';
+import type { AgentEmailSendingMode } from '@/lib/agents/types';
 
 /** Stream "Thinking..." — loading placeholder shown while AI is working */
 function streamThinking(writer: ReturnType<typeof createSSEStream>['writer']) {
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
             const admin = createAdminClient();
             const { data: agent, error: agentError } = await (admin as any)
               .from('agents')
-              .select('id, name, persona, instructions, avatar_emoji')
+              .select('id, name, persona, instructions, avatar_emoji, email_sending_mode')
               .eq('id', agentId)
               .eq('user_id', user.id)
               .single();
@@ -190,6 +191,54 @@ export async function POST(request: NextRequest) {
 
         // All clarification done — now generate the plan
         const plan = await planAgent(description, userIntegrationNames);
+
+        // Phase 6: map questionnaire answers → deterministic plan fields
+        // so the deploy planner doesn't need to "guess" which sender path to use.
+        if (answers && answers.length > 0) {
+          const extractAnswerText = (a: (typeof answers)[number]): string => {
+            const v = Array.isArray(a.answer) ? a.answer.join(', ') : a.answer;
+            return typeof v === 'string' ? v.trim() : String(v ?? '').trim();
+          };
+
+          const emailSenderChoice = answers.find(
+            (a) => a.questionId === 'email_sender_choice' || /email sender/i.test(a.question)
+          );
+          const emailSenderChoiceText = emailSenderChoice ? extractAnswerText(emailSenderChoice) : '';
+
+          const inferredEmailSendingMode: AgentEmailSendingMode | null =
+            /Gmail/i.test(emailSenderChoiceText)
+              ? 'user_gmail'
+              : /dedicated address|Runwise-provided/i.test(emailSenderChoiceText) || /agent address/i.test(emailSenderChoiceText)
+                ? 'agent_resend'
+                : null;
+
+          const agentFromNameAnswer = answers.find(
+            (a) => a.questionId === 'agent_resend_from_name' || /From header|agent address|display name/i.test(a.question)
+          );
+          const agentFromNameText = agentFromNameAnswer ? extractAnswerText(agentFromNameAnswer) : '';
+
+          if (inferredEmailSendingMode) {
+            (plan as any).emailSendingMode = inferredEmailSendingMode;
+
+            // Phase 3 currently provisions `resend_from_name` from `plan.name`,
+            // so when the user provides the agent From-header display name we
+            // map it onto plan.name for now.
+            if (inferredEmailSendingMode === 'agent_resend' && agentFromNameText) {
+              plan.name = agentFromNameText.replace(/[\r\n]+/g, ' ').trim().slice(0, 80) || plan.name;
+            }
+
+            // Ensure the runtime instructions tell the model which outbound tool to call.
+            const instructions = typeof plan.instructions === 'string' ? plan.instructions : '';
+            const emailHint =
+              inferredEmailSendingMode === 'user_gmail'
+                ? "Outbound email: use `send_email_gmail` for sending/replying from the user's connected Gmail (google-gmail). Gmail is required for the user mailbox path."
+                : "Outbound email: use `send_email_resend` for sending from the agent's dedicated platform address (Resend). Gmail OAuth is not required for this agent-address send path.";
+
+            const alreadyMentionsTool = /send_email_gmail|send_email_resend/.test(instructions);
+            plan.instructions = alreadyMentionsTool ? instructions : `${instructions}\n\n${emailHint}`;
+          }
+        }
+
         await streamPlanIntro(writer, plan, description);
         writer.card({ type: 'plan', plan });
         writer.close();

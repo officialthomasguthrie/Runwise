@@ -75,7 +75,7 @@ Round 2 will receive these answers and can then ask the specific follow-up as a 
 
 AVAILABLE AGENT CAPABILITIES:
 - Triggers: Gmail (new email), Slack (new message), Discord, Google Sheets (new row), GitHub (new issue), Google Drive (file upload), Google Forms (submission), Notion, Airtable, Trello
-- Actions: send email/Gmail, post to Slack/Discord, create Notion pages, update Airtable/Trello/Sheets, create calendar events, web search, read URLs, send SMS (Twilio), post tweets
+- Actions: send email/Gmail, send email via this agent's dedicated platform address (Resend), post to Slack/Discord, create Notion pages, update Airtable/Trello/Sheets, create calendar events, web search, read URLs, send SMS (Twilio), post tweets
 - Scheduling: Cron-based (daily, hourly, etc.) — no integration required
 - Memory: remember and recall facts across runs
 
@@ -84,6 +84,17 @@ AGENT-SPECIFIC ANALYSIS CHECKLIST:
 2. TIMING: If scheduled, how often? What time? Timezone?
 3. BEHAVIOUR: What exactly should the agent DO? Step-by-step.
 4. OUTPUT DESTINATION: Where does it send results? Which channel/email/page?
+8. EMAIL SENDER (outbound email only): If the agent will send or reply to emails, determine WHO it should send "From":
+   - Option A: user's mailbox (Gmail via google-gmail + send_email_gmail)
+   - Option B: dedicated address for this agent (Runwise-provided platform address via send_email_resend)
+   Round 1 (single_choice): when the user indicates email sending but it's unclear which sender to use, ask ONE question with:
+   - id exactly "email_sender_choice"
+   - options EXACTLY:
+     - "My Gmail (I’ll connect Google)"
+     - "A dedicated address for this agent (Runwise-provided)"
+   Round 2 follow-up (only if dedicated agent address was selected): ask ONE text question with:
+   - id exactly "agent_resend_from_name"
+   - question (no conditional wording): "What display name should recipients see for the agent's email From header? (Used as the agent name in Runwise.)"
 5. PERSONA & TONE: Formal or casual? Brief or detailed?
 6. FILTERING: Any conditions to ignore certain inputs?
 7. AMBIGUOUS INTEGRATIONS: Does "notify me" mean email, Slack, or something else?
@@ -213,6 +224,30 @@ export function buildEnrichedPrompt(
 ): string {
   if (answers.length === 0) return originalPrompt;
 
+  // Phase 6 hinting: if the questionnaire asked which email sender to use,
+  // explicitly surface it so the deploy planner can set emailSendingMode reliably.
+  const inferFirstAnswerText = (a?: QuestionnaireAnswer): string | null => {
+    if (!a) return null;
+    const t = Array.isArray(a.answer) ? a.answer.join(", ") : a.answer;
+    const s = typeof t === "string" ? t : String(t ?? "");
+    return s.trim() || null;
+  };
+
+  const emailSenderChoice = answers.find((a) => a.questionId === 'email_sender_choice' || /email sender/i.test(a.question));
+  const emailSenderChoiceText = inferFirstAnswerText(emailSenderChoice);
+
+  const agentFromNameAnswer = answers.find(
+    (a) => a.questionId === 'agent_resend_from_name' || /From header|display name|agent address/i.test(a.question)
+  );
+  const agentFromNameText = inferFirstAnswerText(agentFromNameAnswer);
+
+  const inferredEmailSendingMode =
+    emailSenderChoiceText && /Gmail/i.test(emailSenderChoiceText)
+      ? 'user_gmail'
+      : emailSenderChoiceText && /dedicated address|Runwise-provided|agent/i.test(emailSenderChoiceText)
+        ? 'agent_resend'
+        : null;
+
   const clarifications = answers
     .map((a) => {
       const answerText = Array.isArray(a.answer) ? a.answer.join(', ') : a.answer;
@@ -220,11 +255,20 @@ export function buildEnrichedPrompt(
     })
     .join('\n\n');
 
+  const phase6Hints: string[] = [];
+  if (inferredEmailSendingMode) {
+    phase6Hints.push(`emailSendingMode: ${inferredEmailSendingMode}`);
+  }
+  if (agentFromNameText) {
+    phase6Hints.push(`agentResendFromName: ${agentFromNameText}`);
+  }
+
   return `${originalPrompt}
 
 ---
 USER-CONFIRMED DETAILS (from questionnaire):
 ${clarifications}
+${phase6Hints.length ? `\n\nPHASE 6 HINTS:\n${phase6Hints.map((h) => `- ${h}`).join('\n')}` : ''}
 ---
 Use the above details exactly. Do not infer different values for anything the user has explicitly answered.`;
 }
