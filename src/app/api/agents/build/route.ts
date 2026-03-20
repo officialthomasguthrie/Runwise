@@ -21,6 +21,10 @@ import {
 import { streamCompletionSummary, generateShortDescription } from '@/lib/ai/agent-streaming';
 import { getUserIntegrations } from '@/lib/integrations/service';
 import { getAgentAvatarUrl } from '@/lib/agents/avatar';
+import {
+  getAgentResendProvisionPatch,
+  resolvePlanEmailSendingMode,
+} from '@/lib/agents/resend-provision';
 
 const STAGES = [
   'Analyzing capabilities',
@@ -101,6 +105,8 @@ export async function POST(request: NextRequest) {
         // 2. Generating execution logic — insert agent row with status 'deploying'
         writer.buildStage(STAGES[1], 'running');
 
+        const planEmailMode = resolvePlanEmailSendingMode(plan);
+
         const { data: agent, error: agentError } = await (admin as any)
           .from('agents')
           .insert({
@@ -113,6 +119,7 @@ export async function POST(request: NextRequest) {
             avatar_emoji: plan.avatarEmoji ?? '🤖',
             model: 'gpt-4o',
             max_steps: 10,
+            email_sending_mode: planEmailMode,
           })
           .select()
           .single();
@@ -187,6 +194,13 @@ export async function POST(request: NextRequest) {
         const hasDisconnected = pollingRequired.some((i) => !i.connected);
         const finalStatus = hasDisconnected ? 'pending_integrations' : 'active';
 
+        const resendPatch = getAgentResendProvisionPatch({
+          agentId: agent.id,
+          agentDisplayName: plan.name,
+          emailSendingMode: planEmailMode,
+          existingResendFromEmail: (agent as { resend_from_email?: string | null }).resend_from_email,
+        });
+
         await (admin as any)
           .from('agents')
           .update({
@@ -195,6 +209,7 @@ export async function POST(request: NextRequest) {
             short_description: shortDescription,
             avatar_image: avatarImage,
             goals_rules: goalsRules,
+            ...resendPatch,
           })
           .eq('id', agent.id)
           .eq('user_id', user.id);

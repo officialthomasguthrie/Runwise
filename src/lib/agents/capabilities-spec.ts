@@ -55,6 +55,11 @@ ${getTriggersSpec()}
 TOOLS (what the agent can DO — this is the EXHAUSTIVE list from our codebase):
 ${getToolsSpec()}
 
+OUTBOUND EMAIL — TWO TOOLS (planner must set emailSendingMode on the plan JSON):
+• send_email_gmail — sends from the user's Gmail. Requires Google Gmail OAuth (google-gmail). Use when the user wants mail from their own mailbox.
+• send_email_resend — sends from a Runwise-managed address for this agent. No Gmail OAuth for that send path; platform provisions the address at deploy. Use when the user wants a dedicated agent/from address.
+Reading Gmail, inbox triggers (new-email-received), or replying in Gmail threads still require google-gmail even if outbound marketing mail uses send_email_resend.
+
 There are no other triggers or tools. If the user's request can be fulfilled by combining triggers and tools from the above lists, it is feasible.
 `.trim();
 }

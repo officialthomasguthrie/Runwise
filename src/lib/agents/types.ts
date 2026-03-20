@@ -3,6 +3,9 @@
 // ============================================================================
 
 export type AgentStatus = 'active' | 'paused' | 'deploying' | 'error' | 'pending_integrations';
+
+/** Outbound email path(s): Gmail (user OAuth) vs platform Resend per-agent address — see agents table */
+export type AgentEmailSendingMode = 'none' | 'user_gmail' | 'agent_resend' | 'both';
 export type AgentMemoryType = 'fact' | 'preference' | 'contact' | 'event' | 'instruction';
 export type AgentActivityStatus = 'success' | 'error' | 'skipped';
 export type AgentBehaviourType = 'polling' | 'schedule' | 'webhook' | 'heartbeat';
@@ -21,6 +24,11 @@ export interface Agent {
   avatar_image?: string | null;
   model: string;
   max_steps: number;
+  /** Persisted on agents row after Phase 1 migration; defaults to none for legacy rows */
+  email_sending_mode?: AgentEmailSendingMode;
+  resend_from_email?: string | null;
+  resend_from_name?: string | null;
+  resend_provisioned_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -150,6 +158,8 @@ export interface DeployAgentPlan {
   avatarEmoji: string;
   behaviours: AgentBehaviourPlan[];
   initialMemories: string[];
+  /** Outbound email: Gmail vs platform Resend address (Phase 3+); omitted → none */
+  emailSendingMode?: AgentEmailSendingMode;
   /** Goals to work toward, extracted from user prompts and questionnaire */
   initialGoals?: string[];
   /** Rules/constraints for behaviour, extracted from user prompts and questionnaire */

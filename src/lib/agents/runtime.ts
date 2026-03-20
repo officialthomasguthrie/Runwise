@@ -215,6 +215,21 @@ export async function runAgentLoop(context: AgentRunContext): Promise<AgentRunRe
 // PROMPT BUILDERS
 // ============================================================================
 
+function outboundEmailRuntimeHint(agent: Agent): string {
+  const mode = agent.email_sending_mode ?? 'none';
+  if (mode === 'none') return '';
+  if (mode === 'user_gmail') {
+    return '\nOUTBOUND EMAIL: Use send_email_gmail for sending mail from the user\'s connected Gmail.';
+  }
+  if (mode === 'agent_resend') {
+    return '\nOUTBOUND EMAIL: Use send_email_resend for sending mail from this agent\'s dedicated platform address. Do not use send_email_gmail for routine outbound unless your instructions explicitly say to use the user\'s Gmail.';
+  }
+  if (mode === 'both') {
+    return '\nOUTBOUND EMAIL: You may use send_email_gmail (user Gmail) or send_email_resend (agent address) — follow your instructions for which applies in each case.';
+  }
+  return '';
+}
+
 function buildSystemPrompt(agent: Agent, formattedMemory: string): string {
   const now = new Date().toISOString();
 
@@ -225,7 +240,7 @@ ${agent.persona || 'Professional, helpful, and concise.'}
 
 YOUR INSTRUCTIONS:
 ${agent.instructions}
-
+${outboundEmailRuntimeHint(agent)}
 WHAT YOU KNOW (MEMORY):
 ${formattedMemory}
 

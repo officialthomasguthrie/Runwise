@@ -9,6 +9,10 @@ import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { deleteAgentBehaviours } from '@/lib/agents/behaviour-manager';
 import { deriveAgentCapabilities } from '@/lib/agents/chat-pipeline';
+import {
+  getAgentResendProvisionPatch,
+  parseAgentEmailSendingMode,
+} from '@/lib/agents/resend-provision';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -103,7 +107,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     // Only allow safe fields to be updated
     const allowed: Record<string, any> = {};
-    const PATCHABLE = ['name', 'persona', 'instructions', 'status', 'avatar_emoji', 'max_steps', 'goals_rules'] as const;
+    const PATCHABLE = [
+      'name',
+      'persona',
+      'instructions',
+      'status',
+      'avatar_emoji',
+      'max_steps',
+      'goals_rules',
+      'email_sending_mode',
+    ] as const;
     for (const field of PATCHABLE) {
       if (field in body) {
         if (field === 'goals_rules') {
@@ -116,6 +129,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
                 label: g.label.trim(),
               }));
           }
+        } else if (field === 'email_sending_mode') {
+          const parsed = parseAgentEmailSendingMode(body[field]);
+          if (!parsed) {
+            return NextResponse.json(
+              { error: 'Invalid email_sending_mode' },
+              { status: 400 }
+            );
+          }
+          allowed[field] = parsed;
         } else {
           allowed[field] = body[field];
         }
@@ -130,9 +152,37 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const admin = createAdminClient();
 
+    let updatePayload = allowed;
+    if ('email_sending_mode' in allowed) {
+      const { data: prior, error: priorError } = await (admin as any)
+        .from('agents')
+        .select('resend_from_email, name')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (priorError || !prior) {
+        return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+      }
+
+      const displayName =
+        typeof allowed.name === 'string' && allowed.name.trim()
+          ? allowed.name.trim()
+          : (prior.name as string) || 'Agent';
+
+      const resendPatch = getAgentResendProvisionPatch({
+        agentId: id,
+        agentDisplayName: displayName,
+        emailSendingMode: allowed.email_sending_mode,
+        existingResendFromEmail: prior.resend_from_email,
+      });
+
+      updatePayload = { ...allowed, ...resendPatch };
+    }
+
     const { data: agent, error: updateError } = await (admin as any)
       .from('agents')
-      .update(allowed)
+      .update(updatePayload)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()

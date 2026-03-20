@@ -16,6 +16,10 @@ import {
 import { buildIntegrationCheckListForPolling } from '@/lib/agents/chat-pipeline';
 import { getUserIntegrations } from '@/lib/integrations/service';
 import type { DeployAgentPlan } from '@/lib/agents/types';
+import {
+  getAgentResendProvisionPatch,
+  resolvePlanEmailSendingMode,
+} from '@/lib/agents/resend-provision';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -57,7 +61,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     // Verify ownership
     const { data: agent, error: lookupError } = await (admin as any)
       .from('agents')
-      .select('id, status')
+      .select('id, status, resend_from_email')
       .eq('id', agentId)
       .eq('user_id', user.id)
       .single();
@@ -83,6 +87,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
       })),
     ].filter((g) => g.label);
 
+    const planEmailMode = resolvePlanEmailSendingMode(plan);
+    const resendPatch = getAgentResendProvisionPatch({
+      agentId,
+      agentDisplayName: plan.name,
+      emailSendingMode: planEmailMode,
+      existingResendFromEmail: (agent as { resend_from_email?: string | null }).resend_from_email,
+    });
+
     const { error: updateError } = await (admin as any)
       .from('agents')
       .update({
@@ -92,6 +104,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         avatar_emoji: plan.avatarEmoji ?? '🤖',
         goals_rules: goalsRules,
         updated_at: new Date().toISOString(),
+        ...resendPatch,
       })
       .eq('id', agentId)
       .eq('user_id', user.id);
