@@ -2,13 +2,14 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BotMessageSquare, X } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
 import { cn } from "@/lib/utils";
 import { AgentChatBuilder, AgentPlaceholder, BuilderTabs, type BuilderTab } from "@/components/ui/agent-chat";
 import { AgentTabContent } from "@/components/ui/agent-tab-content";
+import { AgentWorkspaceChat } from "@/components/ui/agent-workspace-chat";
 
 function NewAgentPageContent() {
   const { user, loading } = useAuth();
@@ -17,6 +18,8 @@ function NewAgentPageContent() {
   const editAgentId = searchParams.get("agentId");
   const [agentId, setAgentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<BuilderTab>("builder");
+  const [agentChatSidebarOpen, setAgentChatSidebarOpen] = useState(false);
+  const [agentChatTitle, setAgentChatTitle] = useState("Agent");
 
   // When ?agentId= is present, load that agent and show agent tab (for editing triggers/config)
   useEffect(() => {
@@ -29,6 +32,14 @@ function NewAgentPageContent() {
   useEffect(() => {
     if (!loading && !user) router.push("/login");
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (activeTab !== "agent") setAgentChatSidebarOpen(false);
+  }, [activeTab]);
+
+  useEffect(() => {
+    setAgentChatTitle("Agent");
+  }, [agentId]);
 
   if (!user) return null;
 
@@ -114,11 +125,19 @@ function NewAgentPageContent() {
           )}
           aria-hidden={activeTab !== "agent"}
         >
-          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col pt-[9rem] px-4 sm:px-6 lg:px-8">
+          <div
+            className={cn(
+              "flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col pt-[9rem] px-4 sm:px-6 lg:px-8 transition-[margin-right] duration-300 ease-out",
+              activeTab === "agent" && agentChatSidebarOpen && "md:mr-[340px]"
+            )}
+          >
             {agentId ? (
               <AgentTabContent
                 agentId={agentId}
                 onDeleted={() => router.push("/agents")}
+                agentChatSidebarOpen={agentChatSidebarOpen}
+                onAgentChatSidebarOpenChange={setAgentChatSidebarOpen}
+                onAgentMeta={({ name }) => setAgentChatTitle(name)}
               />
             ) : (
               <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
@@ -127,6 +146,40 @@ function NewAgentPageContent() {
             )}
           </div>
         </div>
+
+        {/* Agent AI chat — full-height fixed sidebar below app header (covers builder/agent tab bar); main column scrolls independently */}
+        {activeTab === "agent" && agentId && agentChatSidebarOpen && (
+          <div
+            className={cn(
+              "fixed z-40 flex flex-col bg-background/98 backdrop-blur-md shadow-xl",
+              "border-stone-200/90 dark:border-white/10",
+              "top-16 bottom-0 left-0 right-0 w-full max-md:border-t",
+              "md:left-auto md:right-0 md:w-[340px] md:border-l md:border-t-0"
+            )}
+          >
+            <header className="flex h-11 flex-shrink-0 items-center justify-between gap-2 border-b border-stone-200/70 dark:border-white/10 px-3 bg-stone-50/90 dark:bg-stone-900/50">
+              <div className="flex min-w-0 items-center gap-2">
+                <BotMessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                <span className="truncate text-sm font-medium text-foreground">{agentChatTitle}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAgentChatSidebarOpen(false)}
+                className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-stone-200/70 hover:text-foreground dark:hover:bg-white/10"
+                aria-label="Close chat"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </header>
+            <AgentWorkspaceChat
+              agentId={agentId}
+              userId={user.id}
+              agentName={agentChatTitle}
+              className="min-h-0 flex-1"
+              compact
+            />
+          </div>
+        )}
       </div>
     </div>
   );

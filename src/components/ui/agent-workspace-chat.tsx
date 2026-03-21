@@ -18,6 +18,8 @@ interface AgentWorkspaceChatProps {
   userId: string | null;
   agentName?: string;
   className?: string;
+  /** Dense layout: keeps header + messages + input visible in a fixed-height sidebar */
+  compact?: boolean;
 }
 
 export function AgentWorkspaceChat({
@@ -25,6 +27,7 @@ export function AgentWorkspaceChat({
   userId,
   agentName,
   className,
+  compact = false,
 }: AgentWorkspaceChatProps) {
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -205,9 +208,14 @@ export function AgentWorkspaceChat({
 
   return (
     <div className={cn("flex flex-1 flex-col min-h-0", className)}>
-      <div className="flex-1 overflow-y-auto scrollbar-hide px-4 py-6 flex flex-col gap-4">
+      <div
+        className={cn(
+          "flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col",
+          compact ? "px-3 py-3 gap-3" : "px-4 py-6 gap-4"
+        )}
+      >
         {messages.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className={cn("text-muted-foreground", compact ? "text-xs leading-relaxed" : "text-sm")}>
             Chat with {agentName ?? "this agent"}. Ask questions, get help, or discuss what it does.
           </p>
         ) : (
@@ -228,11 +236,12 @@ export function AgentWorkspaceChat({
         )}
         <div ref={bottomRef} />
       </div>
-      <div className="flex-shrink-0 px-4 pb-6">
+      <div className={cn("flex-shrink-0", compact ? "px-3 pb-3 pt-0 border-t border-stone-200/50 dark:border-white/5" : "px-4 pb-6")}>
         <ChatInput
           placeholder={`Message ${agentName ?? "agent"}…`}
           onSend={sendMessage}
           isStreaming={isStreaming}
+          compact={compact}
         />
       </div>
     </div>
