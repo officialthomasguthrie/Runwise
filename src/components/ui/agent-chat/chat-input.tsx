@@ -27,6 +27,8 @@ interface ChatInputProps {
   fillValue?: string | null;
   onFillApplied?: () => void;
   autoFocus?: boolean;
+  /** Shorter input for sidebars / dense layouts */
+  compact?: boolean;
 }
 
 export function ChatInput({
@@ -40,6 +42,7 @@ export function ChatInput({
   fillValue,
   onFillApplied,
   autoFocus = false,
+  compact = false,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -97,7 +100,8 @@ export function ChatInput({
     <div className={cn("flex flex-col gap-1.5", className)}>
       <div
         className={cn(
-          "relative flex w-full items-end rounded-xl px-3 py-2 transition-opacity",
+          "relative flex w-full items-end transition-opacity",
+          compact ? "rounded-lg px-2.5 py-1.5" : "rounded-xl px-3 py-2",
           "border border-stone-200 bg-stone-100 dark:border-white/15 dark:bg-zinc-800/50 dark:backdrop-blur-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
           disabled && "opacity-60"
         )}
@@ -109,8 +113,13 @@ export function ChatInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        rows={4}
-        className="min-h-[80px] max-h-[192px] flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed"
+        rows={compact ? 2 : 4}
+        className={cn(
+          "flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed",
+          compact
+            ? "min-h-[44px] max-h-[120px] py-1.5"
+            : "min-h-[80px] max-h-[192px]"
+        )}
         aria-label="Message"
       />
       <button
@@ -120,7 +129,8 @@ export function ChatInput({
         aria-label="Send"
         title="Send Message"
         className={cn(
-          "absolute right-2 bottom-2 flex items-center justify-center w-7 h-7 rounded-full border transition-all",
+          "absolute flex items-center justify-center rounded-full border transition-all",
+          compact ? "right-1.5 bottom-1.5 w-6 h-6" : "right-2 bottom-2 w-7 h-7",
           "bg-[#bd28b3ba] border-[#ffffff1a]",
           !canSend
             ? "opacity-50 cursor-not-allowed"
