@@ -156,13 +156,13 @@ function NewAgentPageContent() {
           </div>
         </div>
 
-        {/* Agent AI chat — full-height fixed sidebar below app header (covers builder/agent tab bar); main column scrolls independently */}
+        {/* Agent AI chat — fills main column from below Builder/Agent tabs (top-32) to bottom; does not overlap tab bar */}
         {activeTab === "agent" && agentId && agentChatSidebarOpen && (
           <div
             className={cn(
-              "fixed z-40 flex flex-col bg-background/98 backdrop-blur-md shadow-xl",
+              "absolute z-30 flex flex-col bg-background/98 backdrop-blur-md shadow-xl",
               "border-stone-200/90 dark:border-white/10",
-              "top-16 bottom-0 left-0 right-0 w-full max-md:border-t",
+              "top-32 bottom-0 left-0 right-0 w-full max-md:border-t",
               "md:left-auto md:right-0 md:w-[340px] md:border-l md:border-t-0"
             )}
           >
