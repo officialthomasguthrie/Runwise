@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, BotMessageSquare, X } from "lucide-react";
+import { ArrowLeft, User, X } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { BlankHeader } from "@/components/ui/blank-header";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { AgentChatBuilder, AgentPlaceholder, BuilderTabs, type BuilderTab } from "@/components/ui/agent-chat";
 import { AgentTabContent } from "@/components/ui/agent-tab-content";
 import { AgentWorkspaceChat } from "@/components/ui/agent-workspace-chat";
+import { getAgentAvatarUrl } from "@/lib/agents/avatar";
 
 function NewAgentPageContent() {
   const { user, loading } = useAuth();
@@ -20,6 +21,7 @@ function NewAgentPageContent() {
   const [activeTab, setActiveTab] = useState<BuilderTab>("builder");
   const [agentChatSidebarOpen, setAgentChatSidebarOpen] = useState(false);
   const [agentChatTitle, setAgentChatTitle] = useState("Agent");
+  const [agentChatAvatarUrl, setAgentChatAvatarUrl] = useState<string | null>(null);
 
   // When ?agentId= is present, load that agent and show agent tab (for editing triggers/config)
   useEffect(() => {
@@ -39,9 +41,13 @@ function NewAgentPageContent() {
 
   useEffect(() => {
     setAgentChatTitle("Agent");
+    setAgentChatAvatarUrl(null);
   }, [agentId]);
 
   if (!user) return null;
+
+  const agentChatHeaderAvatarSrc =
+    agentId != null ? agentChatAvatarUrl ?? getAgentAvatarUrl(agentId) : "";
 
   return (
     <div className="flex h-screen w-screen bg-background">
@@ -137,7 +143,10 @@ function NewAgentPageContent() {
                 onDeleted={() => router.push("/agents")}
                 agentChatSidebarOpen={agentChatSidebarOpen}
                 onAgentChatSidebarOpenChange={setAgentChatSidebarOpen}
-                onAgentMeta={({ name }) => setAgentChatTitle(name)}
+                onAgentMeta={({ name, avatarUrl }) => {
+                  setAgentChatTitle(name);
+                  setAgentChatAvatarUrl(avatarUrl);
+                }}
               />
             ) : (
               <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
@@ -158,8 +167,21 @@ function NewAgentPageContent() {
             )}
           >
             <header className="flex h-11 flex-shrink-0 items-center justify-between gap-2 border-b border-stone-200/70 dark:border-white/10 px-3 bg-stone-50/90 dark:bg-stone-900/50">
-              <div className="flex min-w-0 items-center gap-2">
-                <BotMessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-stone-200/70 dark:border-white/10 bg-stone-200/50 dark:bg-white/5">
+                  <img
+                    src={agentChatHeaderAvatarSrc}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                      e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                    }}
+                  />
+                  <div className="hidden absolute inset-0 flex items-center justify-center text-muted-foreground">
+                    <User className="h-4 w-4" aria-hidden />
+                  </div>
+                </div>
                 <span className="truncate text-sm font-medium text-foreground">{agentChatTitle}</span>
               </div>
               <button
