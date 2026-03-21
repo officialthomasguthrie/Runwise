@@ -6,9 +6,11 @@
  */
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, User, Plus, MinusCircle, Brain, FileText, Link2, Target, ScrollText, CheckCircle2, MessageSquare, Play, AlertCircle, Send, Upload, X, Search, RefreshCw, Pause, ChevronRight, ChevronLeft, Clock, Timer, Pencil, PanelRightClose, Webhook, Copy, CopyCheck, FlaskConical } from "lucide-react";
+import { Loader2, User, Plus, MinusCircle, Brain, FileText, Link2, Target, ScrollText, CheckCircle2, MessageSquare, Play, AlertCircle, Send, Upload, X, Search, RefreshCw, Pause, ChevronRight, ChevronLeft, Clock, Timer, Pencil, PanelRightClose, Webhook, Copy, CopyCheck, FlaskConical, BotMessageSquare, PanelRightOpen } from "lucide-react";
 import { getCapabilityIntegrationInfo, getIntegrationMeta, planFromBehaviours, buildIntegrationCheckListForPolling } from "@/lib/agents/chat-pipeline";
 import type { Agent } from "@/lib/agents/types";
+import { useAuth } from "@/contexts/auth-context";
+import { AgentWorkspaceChat } from "@/components/ui/agent-workspace-chat";
 import {
   Dialog,
   DialogContent,
@@ -475,6 +477,8 @@ function EventDetailDialog({
 }
 
 export function AgentTabContent({ agentId }: AgentTabContentProps) {
+  const { user } = useAuth();
+  const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
   const [agent, setAgent] = useState<AgentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [capabilities, setCapabilities] = useState<Array<{ slug: string; name: string }>>([]);
@@ -1501,6 +1505,20 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
             <Pause className="h-5 w-5" />
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => setChatSidebarOpen((v) => !v)}
+          className={cn(
+            "flex-shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium backdrop-blur-xl border transition-colors",
+            chatSidebarOpen
+              ? "text-foreground bg-violet-500/15 dark:bg-violet-500/10 border-violet-400/30 dark:border-violet-400/20"
+              : "text-muted-foreground bg-white/50 dark:bg-white/5 border-stone-200/80 dark:border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)] hover:bg-white/60 dark:hover:bg-white/10 hover:text-foreground"
+          )}
+          aria-label={chatSidebarOpen ? "Close chat" : "Chat with agent"}
+        >
+          <BotMessageSquare className="h-4 w-4" />
+          Chat
+        </button>
       </div>
       {runSuccess && (
         <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400" role="status">
@@ -1558,9 +1576,12 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
         );
       })()}
 
-      {/* Two-column widget layout: left 2/3, right 1/3 */}
-      <div className="mt-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5">
+      {/* Two-column widget layout: left 2/3, right 1/3 — plus optional AI chat sidebar */}
+      <div className="mt-6 flex gap-5">
+        <div className={cn(
+          "flex-1 min-w-0 grid grid-cols-1 gap-5 transition-all duration-300",
+          chatSidebarOpen ? "lg:grid-cols-[3fr_1fr]" : "lg:grid-cols-[2fr_1fr]"
+        )}>
           {/* Left column — 2/3 */}
           <div className="flex flex-col gap-5 min-w-0">
             <div className="rounded-lg bg-stone-50 dark:bg-stone-800/50 flex flex-col overflow-hidden min-h-[200px]">
@@ -2102,6 +2123,42 @@ export function AgentTabContent({ agentId }: AgentTabContentProps) {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* AI Chat Sidebar */}
+        <div
+          className={cn(
+            "flex-shrink-0 flex flex-col rounded-xl border border-stone-200/80 dark:border-white/10 bg-background overflow-hidden transition-all duration-300 ease-out",
+            chatSidebarOpen
+              ? "w-[340px] opacity-100"
+              : "w-0 opacity-0 border-0 pointer-events-none"
+          )}
+          style={{ minHeight: chatSidebarOpen ? 480 : 0 }}
+        >
+          <header className="flex flex-shrink-0 items-center justify-between gap-2 h-12 px-4 border-b border-stone-200/60 dark:border-white/8 bg-stone-50/80 dark:bg-stone-800/40">
+            <div className="flex items-center gap-2 min-w-0">
+              <BotMessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <h3 className="text-sm font-medium text-foreground truncate">
+                {agent.name ?? "Agent"}
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChatSidebarOpen(false)}
+              className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-stone-200/60 dark:hover:bg-white/10 transition-colors"
+              aria-label="Close chat"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </header>
+          {chatSidebarOpen && (
+            <AgentWorkspaceChat
+              agentId={agentId}
+              userId={user?.id ?? null}
+              agentName={agent.name}
+              className="flex-1 min-h-0"
+            />
+          )}
         </div>
       </div>
 
