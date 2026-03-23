@@ -1,23 +1,34 @@
 /**
  * POST /api/agents/[id]/chat
  *
- * Streams a conversational AI response for the agent workspace chat.
- * Responds in context of the specific agent.
+ * Owner ↔ agent workspace chat: full agent context (persona, instructions, memory,
+ * recent activity, behaviours), tool calls to update memory / profile / instructions.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAgentBuilderAccess } from '@/lib/agents/plan-gate';
-import { streamAgentChatResponse } from '@/lib/ai/agent-chat-response';
-import { createSSEStream, SSE_HEADERS } from '@/lib/agents/chat-pipeline';
+import {
+  createSSEStream,
+  SSE_HEADERS,
+  deriveAgentCapabilities,
+  type AgentForCapabilities,
+} from '@/lib/agents/chat-pipeline';
+import { getAgentMemory } from '@/lib/agents/memory';
+import { formatCapabilitiesForWorkspace } from '@/lib/agents/workspace-chat-prompt';
+import { runAgentWorkspaceChat } from '@/lib/ai/agent-workspace-stream';
+import type { Agent, AgentActivity, AgentBehaviour } from '@/lib/agents/types';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -41,51 +52,72 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const admin = createAdminClient();
-    const { data: agent, error: agentError } = await (admin as any)
+
+    const { data: agentRow, error: agentError } = await (admin as any)
       .from('agents')
-      .select('id, name, instructions, persona')
+      .select('*')
       .eq('id', agentId)
       .eq('user_id', user.id)
       .single();
 
-    if (agentError || !agent) {
+    if (agentError || !agentRow) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
+
+    const agent = agentRow as Agent;
+
+    const [memories, behavioursRes, activityRes] = await Promise.all([
+      getAgentMemory(agentId, user.id, 60),
+      (admin as any)
+        .from('agent_behaviours')
+        .select('*')
+        .eq('agent_id', agentId)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true }),
+      (admin as any)
+        .from('agent_activity')
+        .select('*')
+        .eq('agent_id', agentId)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(25),
+    ]);
+
+    const behaviours = (behavioursRes.data ?? []) as AgentBehaviour[];
+    const activities = (activityRes.data ?? []) as AgentActivity[];
+
+    const caps = deriveAgentCapabilities({
+      instructions: agent.instructions,
+      persona: agent.persona,
+      behaviours: behaviours as AgentForCapabilities['behaviours'],
+    });
+    const capabilitiesBlock = formatCapabilitiesForWorkspace(caps);
 
     const { readable, writer } = createSSEStream();
 
     (async () => {
       try {
-        const agentContext = `Agent: ${agent.name}. Persona: ${agent.persona ?? 'N/A'}. Instructions: ${agent.instructions?.slice(0, 300) ?? 'N/A'}`;
-        const systemPrefix = `You are the Runwise assistant for this agent workspace. Context: ${agentContext}. The user is chatting about or with this agent. `;
-        const augmentedMessages = messages.map((m) => ({
-          ...m,
-          content: m.role === 'user' ? m.content : m.content,
-        }));
-
-        await streamAgentChatResponse(
-          {
-            ...writer,
-            text: writer.text.bind(writer),
-            textDone: writer.textDone.bind(writer),
-            close: writer.close.bind(writer),
-          },
-          augmentedMessages,
-          systemPrefix
-        );
-        writer.close();
-      } catch (err: any) {
+        await runAgentWorkspaceChat({
+          writer,
+          agent,
+          userId: user.id,
+          messages,
+          memories,
+          activities,
+          behaviours,
+          capabilitiesLines: capabilitiesBlock,
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
         console.error('[POST /api/agents/[id]/chat]', err);
-        writer.error(err?.message ?? 'Something went wrong');
+        writer.error(msg ?? 'Something went wrong');
       }
     })();
 
     return new Response(readable, { headers: SSE_HEADERS });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error('[POST /api/agents/[id]/chat]', err);
-    return NextResponse.json(
-      { error: err?.message ?? 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: msg ?? 'Internal server error' }, { status: 500 });
   }
 }

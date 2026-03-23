@@ -277,8 +277,8 @@ export interface AgentTabContentProps {
   /** AI chat sidebar (rendered by parent) — open state */
   agentChatSidebarOpen?: boolean;
   onAgentChatSidebarOpenChange?: (open: boolean) => void;
-  /** When agent profile loads, parent can show name + avatar in the chat sidebar header */
-  onAgentMeta?: (meta: { name: string; avatarUrl: string }) => void;
+  /** When agent profile loads, parent can show name + avatar + status in the chat sidebar header */
+  onAgentMeta?: (meta: { name: string; avatarUrl: string; status: string }) => void;
 }
 
 type KnowledgeItemType = "memory" | "document" | "url";
@@ -571,8 +571,9 @@ export function AgentTabContent({
     onAgentMeta?.({
       name: agent.name ?? "Agent",
       avatarUrl: agent.avatar_image ?? getAgentAvatarUrl(agent.id),
+      status: agent.status ?? "paused",
     });
-  }, [agent?.id, agent?.name, agent?.avatar_image, onAgentMeta]);
+  }, [agent?.id, agent?.name, agent?.avatar_image, agent?.status, onAgentMeta]);
 
   const refetchAgent = async () => {
     if (!agentId) return;

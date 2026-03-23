@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./components/Providers";
+import { GoogleAnalyticsRouteTracker } from "./components/GoogleAnalyticsRouteTracker";
 import { Analytics } from "@vercel/analytics/next";
 
 export const viewport: Viewport = {
@@ -106,6 +107,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Google Analytics (gtag.js) */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-CG1RZ7ESM1" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-CG1RZ7ESM1');
+            `,
+          }}
+        />
         <link rel="icon" href="/favicon.png" type="image/png" />
         <link rel="shortcut icon" href="/favicon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/favicon.png" />
@@ -121,6 +134,7 @@ export default function RootLayout({
         <Providers>
               {children}
         </Providers>
+        <GoogleAnalyticsRouteTracker />
         <Analytics />
       </body>
     </html>

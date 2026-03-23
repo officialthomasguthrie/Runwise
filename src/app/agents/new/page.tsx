@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, User, X } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
@@ -12,6 +12,37 @@ import { AgentTabContent } from "@/components/ui/agent-tab-content";
 import { AgentWorkspaceChat } from "@/components/ui/agent-workspace-chat";
 import { getAgentAvatarUrl } from "@/lib/agents/avatar";
 
+const SIDEBAR_STATUS_BADGE: Record<
+  string,
+  { bg: string; text: string; label: string }
+> = {
+  active: {
+    bg: "bg-emerald-500/15",
+    text: "text-emerald-600 dark:text-emerald-400",
+    label: "Active",
+  },
+  paused: {
+    bg: "bg-amber-500/15",
+    text: "text-amber-600 dark:text-amber-400",
+    label: "Paused",
+  },
+  deploying: {
+    bg: "bg-sky-500/15",
+    text: "text-sky-600 dark:text-sky-400",
+    label: "Deploying",
+  },
+  error: {
+    bg: "bg-rose-500/15",
+    text: "text-rose-600 dark:text-rose-400",
+    label: "Error",
+  },
+  pending_integrations: {
+    bg: "bg-violet-500/15",
+    text: "text-violet-600 dark:text-violet-400",
+    label: "Pending integrations",
+  },
+};
+
 function NewAgentPageContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -22,6 +53,8 @@ function NewAgentPageContent() {
   const [agentChatSidebarOpen, setAgentChatSidebarOpen] = useState(false);
   const [agentChatTitle, setAgentChatTitle] = useState("Agent");
   const [agentChatAvatarUrl, setAgentChatAvatarUrl] = useState<string | null>(null);
+  const [agentChatStatus, setAgentChatStatus] = useState<string | null>(null);
+  const [agentChatLastPreview, setAgentChatLastPreview] = useState<string | null>(null);
 
   // When ?agentId= is present, load that agent and show agent tab (for editing triggers/config)
   useEffect(() => {
@@ -42,12 +75,23 @@ function NewAgentPageContent() {
   useEffect(() => {
     setAgentChatTitle("Agent");
     setAgentChatAvatarUrl(null);
+    setAgentChatStatus(null);
+    setAgentChatLastPreview(null);
   }, [agentId]);
+
+  const handleAgentChatPreviewChange = useCallback((preview: string | null) => {
+    setAgentChatLastPreview(preview);
+  }, []);
 
   if (!user) return null;
 
   const agentChatHeaderAvatarSrc =
     agentId != null ? agentChatAvatarUrl ?? getAgentAvatarUrl(agentId) : "";
+
+  const sidebarStatus =
+    agentChatStatus != null
+      ? (SIDEBAR_STATUS_BADGE[agentChatStatus] ?? SIDEBAR_STATUS_BADGE.paused)
+      : null;
 
   return (
     <div className="flex h-screen w-screen bg-background">
@@ -143,9 +187,10 @@ function NewAgentPageContent() {
                 onDeleted={() => router.push("/agents")}
                 agentChatSidebarOpen={agentChatSidebarOpen}
                 onAgentChatSidebarOpenChange={setAgentChatSidebarOpen}
-                onAgentMeta={({ name, avatarUrl }) => {
+                onAgentMeta={({ name, avatarUrl, status }) => {
                   setAgentChatTitle(name);
                   setAgentChatAvatarUrl(avatarUrl);
+                  setAgentChatStatus(status);
                 }}
               />
             ) : (
@@ -156,19 +201,19 @@ function NewAgentPageContent() {
           </div>
         </div>
 
-        {/* Agent AI chat — fills main column from below Builder/Agent tabs (top-32) to bottom; does not overlap tab bar */}
+        {/* Agent AI chat — from below app header (top-16), overlays Builder/Agent tab bar */}
         {activeTab === "agent" && agentId && agentChatSidebarOpen && (
           <div
             className={cn(
-              "absolute z-30 flex flex-col bg-background/98 backdrop-blur-md shadow-xl",
-              "border-stone-200/90 dark:border-white/10",
-              "top-32 bottom-0 left-0 right-0 w-full max-md:border-t",
+              "absolute z-30 flex flex-col bg-background dark:bg-[#191817] shadow-xl",
+              "border-stone-200 dark:border-white/10",
+              "top-16 bottom-0 left-0 right-0 w-full max-md:border-t",
               "md:left-auto md:right-0 md:w-[340px] md:border-l md:border-t-0"
             )}
           >
-            <header className="flex h-11 flex-shrink-0 items-center justify-between gap-2 border-b border-stone-200/70 dark:border-white/10 px-3 bg-stone-50/90 dark:bg-stone-900/50">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-stone-200/70 dark:border-white/10 bg-stone-200/50 dark:bg-white/5">
+            <header className="flex flex-shrink-0 items-start justify-between gap-2 py-2 pl-3 pr-2 bg-stone-100 dark:bg-stone-700/40">
+              <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full border border-stone-200/80 dark:border-stone-600/50 bg-white dark:bg-stone-900/80">
                   <img
                     src={agentChatHeaderAvatarSrc}
                     alt=""
@@ -182,12 +227,35 @@ function NewAgentPageContent() {
                     <User className="h-4 w-4" aria-hidden />
                   </div>
                 </div>
-                <span className="truncate text-sm font-medium text-foreground">{agentChatTitle}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {agentChatTitle}
+                    </span>
+                    {sidebarStatus && (
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-[10px] font-medium leading-none",
+                          sidebarStatus.bg,
+                          sidebarStatus.text
+                        )}
+                      >
+                        {sidebarStatus.label}
+                      </span>
+                    )}
+                  </div>
+                  <p
+                    className="mt-0.5 truncate text-[11px] leading-snug text-muted-foreground"
+                    title={agentChatLastPreview ?? undefined}
+                  >
+                    {agentChatLastPreview ?? "No messages yet"}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setAgentChatSidebarOpen(false)}
-                className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-stone-200/70 hover:text-foreground dark:hover:bg-white/10"
+                className="flex-shrink-0 rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
                 aria-label="Close chat"
               >
                 <X className="h-4 w-4" />
@@ -199,6 +267,7 @@ function NewAgentPageContent() {
               agentName={agentChatTitle}
               className="min-h-0 flex-1"
               compact
+              onConversationPreviewChange={handleAgentChatPreviewChange}
             />
           </div>
         )}

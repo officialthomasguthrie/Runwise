@@ -13,6 +13,15 @@ function genId() {
   return crypto.randomUUID?.() ?? `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function conversationPreviewFromMessages(messages: { content: string }[]): string | null {
+  if (messages.length === 0) return null;
+  const last = messages[messages.length - 1];
+  const singleLine = last.content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+  if (!singleLine) return null;
+  const max = 72;
+  return singleLine.length > max ? `${singleLine.slice(0, max)}…` : singleLine;
+}
+
 interface AgentWorkspaceChatProps {
   agentId: string;
   userId: string | null;
@@ -20,6 +29,8 @@ interface AgentWorkspaceChatProps {
   className?: string;
   /** Dense layout: keeps header + messages + input visible in a fixed-height sidebar */
   compact?: boolean;
+  /** Latest message one-liner for a compact header (e.g. sidebar) */
+  onConversationPreviewChange?: (preview: string | null) => void;
 }
 
 export function AgentWorkspaceChat({
@@ -28,6 +39,7 @@ export function AgentWorkspaceChat({
   agentName,
   className,
   compact = false,
+  onConversationPreviewChange,
 }: AgentWorkspaceChatProps) {
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -48,6 +60,11 @@ export function AgentWorkspaceChat({
       setIsLoading(false);
     });
   }, [agentId, userId]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    onConversationPreviewChange?.(conversationPreviewFromMessages(messages));
+  }, [messages, isLoading, onConversationPreviewChange]);
 
   // Debounced save whenever messages change
   useEffect(() => {
@@ -236,7 +253,7 @@ export function AgentWorkspaceChat({
         )}
         <div ref={bottomRef} />
       </div>
-      <div className={cn("flex-shrink-0", compact ? "px-3 pb-3 pt-0 border-t border-stone-200/50 dark:border-white/5" : "px-4 pb-6")}>
+      <div className={cn("flex-shrink-0", compact ? "px-3 pb-3 pt-0" : "px-4 pb-6")}>
         <ChatInput
           placeholder={`Message ${agentName ?? "agent"}…`}
           onSend={sendMessage}

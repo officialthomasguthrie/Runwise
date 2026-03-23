@@ -24,6 +24,8 @@ export interface Agent {
   avatar_image?: string | null;
   model: string;
   max_steps: number;
+  /** Goals & rules JSON from agent builder / tab editor */
+  goals_rules?: unknown;
   /** Persisted on agents row after Phase 1 migration; defaults to none for legacy rows */
   email_sending_mode?: AgentEmailSendingMode;
   resend_from_email?: string | null;
