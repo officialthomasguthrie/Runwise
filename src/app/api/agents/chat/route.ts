@@ -22,23 +22,24 @@ import {
   SSE_HEADERS,
   type AgentChatRequest,
   agentToPlan,
+  extractEmailSendingModeFromQuestionnaireHints,
 } from '@/lib/agents/chat-pipeline';
 import { getUserIntegrations } from '@/lib/integrations/service';
 import { createAdminClient } from '@/lib/supabase-admin';
 import type { AgentEmailSendingMode } from '@/lib/agents/types';
 
-/** Stream "Thinking..." — loading placeholder shown while AI is working */
+/** Push "Thinking..." immediately as one chunk (not streamed) */
 function streamThinking(writer: ReturnType<typeof createSSEStream>['writer']) {
-  for (const char of 'Thinking...') {
-    writer.text(char);
-  }
+  writer.text('Thinking...');
 }
 
-/** Stream text in word-sized chunks with small delays so it appears typed, matching other AI replies */
+/** Stream text in small token-like chunks so fallback/errors match normal AI streaming */
 async function streamTextChunked(writer: ReturnType<typeof createSSEStream>['writer'], text: string) {
-  const words = text.split(/(\s+)/); // preserve spaces
-  const delayMs = 25;
-  for (const chunk of words) {
+  // Give the "Thinking..." loader a brief visible window before reply starts.
+  await new Promise((r) => setTimeout(r, 160));
+  const chunks = text.match(/.{1,8}(\s+|$)|\S+\s*/g) ?? [text];
+  const delayMs = 16;
+  for (const chunk of chunks) {
     if (chunk) {
       writer.text(chunk);
       await new Promise((r) => setTimeout(r, delayMs));
@@ -160,6 +161,19 @@ export async function POST(request: NextRequest) {
             )
           : latestUserContent;
 
+        // Fast-fail on impossible capabilities right after a questionnaire submission.
+        // This prevents continuing into more rounds (or plan generation) when an answer
+        // explicitly requests unsupported integrations/actions.
+        if (answers && answers.length > 0) {
+          const answeredFeasibility = await checkAgentFeasibility(description, userIntegrationNames);
+          if (!answeredFeasibility.feasible && answeredFeasibility.reason) {
+            await streamTextChunked(writer, answeredFeasibility.reason);
+            writer.textDone();
+            writer.close();
+            return;
+          }
+        }
+
         // Agent intent detection — respond conversationally if user is just chatting/asking
         const intent = await analyzeAgentIntent(messages);
         if (!intent.wantsAgent) {
@@ -167,16 +181,7 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        // Feasibility check — if we can't build it, explain why and stop (no questionnaire, no plan)
-        const feasibility = await checkAgentFeasibility(description, userIntegrationNames);
-        if (!feasibility.feasible && feasibility.reason) {
-          await streamTextChunked(writer, feasibility.reason);
-          writer.textDone();
-          writer.close();
-          return;
-        }
-
-        // Clarification check BEFORE generating the plan — no point planning if more info needed.
+        // Clarification check BEFORE feasibility so vague requests get refined first.
         // Pass accumulated answers so round 2+ can ask context-dependent follow-up questions
         // (e.g. after user picks "Slack", round 2 asks "which channel?" as a plain question).
         const analysis = await analyzeClarificationNeeds(description, messages, answers ?? undefined);
@@ -189,8 +194,22 @@ export async function POST(request: NextRequest) {
           return;
         }
 
+        // Feasibility check after clarification; now we have richer requirements context.
+        const feasibility = await checkAgentFeasibility(description, userIntegrationNames);
+        if (!feasibility.feasible && feasibility.reason) {
+          await streamTextChunked(writer, feasibility.reason);
+          writer.textDone();
+          writer.close();
+          return;
+        }
+
         // All clarification done — now generate the plan
         const plan = await planAgent(description, userIntegrationNames);
+
+        const modeFromEnrichedPrompt = extractEmailSendingModeFromQuestionnaireHints(description);
+        if (modeFromEnrichedPrompt) {
+          plan.emailSendingMode = modeFromEnrichedPrompt;
+        }
 
         // Phase 6: map questionnaire answers → deterministic plan fields
         // so the deploy planner doesn't need to "guess" which sender path to use.
@@ -208,7 +227,9 @@ export async function POST(request: NextRequest) {
           const inferredEmailSendingMode: AgentEmailSendingMode | null =
             /Gmail/i.test(emailSenderChoiceText)
               ? 'user_gmail'
-              : /dedicated address|Runwise-provided/i.test(emailSenderChoiceText) || /agent address/i.test(emailSenderChoiceText)
+              : /dedicated address|Runwise-provided|Runwise|Resend|platform-agent-email|agent email|agent address|platform-managed/i.test(
+                  emailSenderChoiceText
+                )
                 ? 'agent_resend'
                 : null;
 
@@ -234,8 +255,18 @@ export async function POST(request: NextRequest) {
                 ? "Outbound email: use `send_email_gmail` for sending/replying from the user's connected Gmail (google-gmail). Gmail is required for the user mailbox path."
                 : "Outbound email: use `send_email_resend` for sending from the agent's dedicated platform address (Resend). Gmail OAuth is not required for this agent-address send path.";
 
-            const alreadyMentionsTool = /send_email_gmail|send_email_resend/.test(instructions);
-            plan.instructions = alreadyMentionsTool ? instructions : `${instructions}\n\n${emailHint}`;
+            // If the user chose agent Resend, prevent any conflicting instruction text
+            // from steering the model back to `send_email_gmail`.
+            let sanitizedInstructions = instructions;
+            if (inferredEmailSendingMode === 'agent_resend') {
+              sanitizedInstructions = sanitizedInstructions.replace(/\bsend_email_gmail\b/g, 'send_email_resend');
+            } else if (inferredEmailSendingMode === 'user_gmail') {
+              sanitizedInstructions = sanitizedInstructions.replace(/\bsend_email_resend\b/g, 'send_email_gmail');
+            }
+
+            // Always append the correct, explicit hint at the end so the runtime hint
+            // and this hint agree.
+            plan.instructions = `${sanitizedInstructions}\n\n${emailHint}`;
           }
         }
 

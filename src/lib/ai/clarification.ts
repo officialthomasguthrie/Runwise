@@ -62,63 +62,93 @@ Examples:
   - If they said "daily" with no time → ask what time of day
   - If they said "Google Sheets" → ask which spreadsheet and sheet tab
 Do NOT ask broad questions again. Only ask what the previous answers specifically unlocked.
+Examples for this round:
+  - If Slack is a trigger source but round 1 never asked which channel to WATCH → ask that now (monitor/source channel).
+  - If the user already said outputs are only Slack and/or Google Sheets (or "you decide" between those) → do NOT ask "email, Slack, or another method" or suggest Gmail.
 If nothing further is needed, set needsClarification to false.
 `.trim()
     : `
-This is ROUND 1. Focus on essential, non-conditional questions only.
-IMPORTANT: If you would ask "what Slack channel if they chose Slack" — do NOT ask it yet.
-First ask "How would you like to be notified?" and defer the channel/address question to round 2.
-Round 2 will receive these answers and can then ask the specific follow-up as a direct question.
+This is ROUND 1. Ask only what is missing—no redundant or broader questions.
+
+OUTPUT / NOTIFICATIONS — RESPECT WHAT THE USER ALREADY SAID:
+• If they already constrained where results go (e.g. "notify in Slack OR log to Google Sheets", "Slack or Sheet—you decide", "only Slack") do NOT ask a generic "How should we notify you—email, Slack, or something else?" and do NOT offer email/Gmail/Discord/etc. unless they mentioned those.
+• If they said the agent or you should pick defaults / choose what's best / they're in a hurry → treat the choice between their stated options as a planner decision. Ask only for facts the system cannot infer (channel names, sheet IDs, filters)—not "pick Slack vs email" when they already ruled email out.
+
+EXECUTION / "HOW WILL I HEAR ABOUT RUNS?" — DO NOT DEFAULT TO ASKING:
+• Runwise shows agent activity in the in-app AI agent chat. Do NOT ask "how should you be notified when the agent runs?" (Gmail, Slack, etc.) as a generic checklist question.
+• ONLY ask about outbound notification to another platform when the user clearly wants it (e.g. notify me, alert me, email me, DM me, send to #channel, ping me) OR the described workflow inherently requires delivering something to them externally (e.g. "post a summary to #sales", "email the customer").
+• If they never mention being notified or receiving alerts, and results can live inside the agent’s normal work (e.g. updates records, sends replies as part of the task) without a separate "tell the owner" step → skip notification-channel questions entirely.
+
+SLACK — SOURCE vs DESTINATION (both can be required):
+• SOURCE (trigger): which channel the agent watches for new messages (new-message-in-slack). If they use Slack as an input/source and did not name the channel, you MUST ask which channel to monitor—this is separate from where to post updates.
+• DESTINATION (action): which channel to post alerts/summaries. If they might post somewhere other than the source channel, ask for the destination channel (or ask both in round 1 as two plain questions: one for "watch", one for "post to").
+• Never only ask the destination channel when the trigger is Slack and the source channel is still unknown.
+
+CONDITIONAL DEFERRAL: If a question depends on another answer ("if you chose Slack…"), put it in round 2. But do not defer the monitor-channel question when Slack is clearly the trigger source—ask it as soon as the question stands alone.
 `.trim();
 
   const systemPrompt = `You are an expert agent requirements analyst for Runwise, an AI agent platform. Your job is to analyze a user's agent request and determine if you need more information before building it.
 
 AVAILABLE AGENT CAPABILITIES:
-- Triggers: Gmail (new email), Slack (new message), Discord, Google Sheets (new row), GitHub (new issue), Google Drive (file upload), Google Forms (submission), Notion, Airtable, Trello
+- Triggers: Gmail (new email), Slack (new message), Discord, Google Sheets (new row), GitHub (new issue), Google Drive (file upload), Google Forms (submission), Google Calendar (new event), Notion, Airtable, Trello
 - Actions: send email/Gmail, send email via this agent's dedicated platform address (Resend), post to Slack/Discord, create Notion pages, update Airtable/Trello/Sheets, create calendar events, web search, read URLs, send SMS (Twilio), post tweets
 - Scheduling: Cron-based (daily, hourly, etc.) — no integration required
+- Webhook: HTTP POST endpoint — no integration required
 - Memory: remember and recall facts across runs
 
-AGENT-SPECIFIC ANALYSIS CHECKLIST:
-1. TRIGGER: What starts the agent? Which specific source?
-2. TIMING: If scheduled, how often? What time? Timezone?
-3. BEHAVIOUR: What exactly should the agent DO? Step-by-step.
-4. OUTPUT DESTINATION: Where does it send results? Which channel/email/page?
-8. EMAIL SENDER (outbound email only): If the agent will send or reply to emails, determine WHO it should send "From":
-   - Option A: user's mailbox (Gmail via google-gmail + send_email_gmail)
-   - Option B: dedicated address for this agent (Runwise-provided platform address via send_email_resend)
-   Round 1 (single_choice): when the user indicates email sending but it's unclear which sender to use, ask ONE question with:
-   - id exactly "email_sender_choice"
-   - options EXACTLY:
-     - "My Gmail (I’ll connect Google)"
-     - "A dedicated address for this agent (Runwise-provided)"
-   Round 2 follow-up (only if dedicated agent address was selected): ask ONE text question with:
-   - id exactly "agent_resend_from_name"
-   - question (no conditional wording): "What display name should recipients see for the agent's email From header? (Used as the agent name in Runwise.)"
-5. PERSONA & TONE: Formal or casual? Brief or detailed?
-6. FILTERING: Any conditions to ignore certain inputs?
-7. AMBIGUOUS INTEGRATIONS: Does "notify me" mean email, Slack, or something else?
+BEFORE YOU CAN BUILD AN AGENT, THESE FOUR THINGS MUST BE KNOWN (stated OR inferable):
+1. OBJECTIVE — What is the agent's purpose / what problem does it solve?
+2. INTEGRATIONS — What third-party tools / services / capabilities does it need?
+3. TRIGGER — What should cause the agent to run? (event, schedule, webhook, manual, etc.)
+4. WORKFLOW — What steps should the agent perform end-to-end?
+
+CRITICAL INFERENCE RULE — READ CAREFULLY:
+• For EACH of the four items above, FIRST attempt to infer it from the user's prompt.
+• A user who says "When I get a new email from *@acme.com, summarize it and post to #sales in Slack" has ALREADY told you: objective (summarize + notify), integrations (Gmail, Slack), trigger (new email), and workflow (read email → summarize → post to Slack). Do NOT ask them to restate any of that.
+• Only ask a clarifying question when the information is genuinely ambiguous or missing — NOT just because the user didn't use a specific keyword like "objective" or "outcome".
+• "Objective" and "outcome" are the same concept. NEVER ask about both.
+• If you can reasonably infer something, TREAT IT AS KNOWN. Do not ask for confirmation of things the prompt already implies.
+
+ADDITIONAL DETAIL CHECKLIST (ask ONLY when relevant AND unclear):
+- TIMING: If scheduled, how often? What time? Timezone?
+- OUTPUT DESTINATION: Where does the agent send or write outputs that the user explicitly asked for? Do not add a separate "how should we notify you about executions?" unless they want external notifications or the workflow requires it (see EXECUTION rule above). If the user already listed only certain outputs (e.g. Slack OR Google Sheet) and/or asked the agent to choose between them, do not ask again with unrelated options (e.g. email).
+- MULTI-SOURCE TRIGGERS: If the agent watches more than one place (e.g. Gmail + Slack), confirm each source that needs a concrete resource (Slack channel to watch, Gmail labels/filters if needed)—do not collect only the output side.
+- EMAIL SENDER (outbound email only): If the agent will send or reply to emails, determine WHO it should send "From":
+  - Option A: user's mailbox (Gmail via google-gmail + send_email_gmail)
+  - Option B: dedicated address for this agent (Runwise-provided platform address via send_email_resend)
+  Round 1 (single_choice): when the user indicates email sending but it's unclear which sender to use, ask ONE question with:
+  - id exactly "email_sender_choice"
+  - options EXACTLY:
+    - "My Gmail (I'll connect Google)"
+    - "A dedicated address for this agent (Runwise-provided)"
+  Round 2 follow-up (only if dedicated agent address was selected): ask ONE text question with:
+  - id exactly "agent_resend_from_name"
+  - question (no conditional wording): "What display name should recipients see for the agent's email From header? (Used as the agent name in Runwise.)"
+- PERSONA & TONE: Only if tone matters for the workflow (e.g. customer-facing emails)
+- FILTERING: Any conditions to ignore certain inputs?
+- AMBIGUOUS INTEGRATIONS: Only when the user did not already specify delivery channels/tools. If they already said Slack and/or Sheets (or a closed list), do not re-open the question to email or other tools.
 
 ${previousAnswersSection}
 
-RULES:
-- Ask questions that MATERIALLY prevent wrong agent behaviour
-- Keep questions simple, friendly, and non-technical
-- Ask only what is truly needed — could be 1, 2, or 3 questions. No padding.
-- Prefer single_choice when there are clear limited options (2–5 options)
+QUESTION QUALITY RULES:
+- NEVER use canned / boilerplate / template question text. Write every question freshly in your own words, specific to this particular agent request.
+- NEVER ask a question whose answer is already stated or clearly implied in the user's prompt.
+- NEVER ask two questions that confirm the same thing (e.g. "objective" AND "outcome/result" — these are the same concept).
+- Ask ONLY questions that MATERIALLY prevent wrong agent behaviour. If a detail is nice-to-have but the agent can still work sensibly with a reasonable default, skip the question.
+- As a guideline, total clarifications across all rounds are usually 2–8, but zero is correct when the prompt already covers everything.
+- Prefer single_choice when there are clear limited options (2–5 options).
 - CRITICAL — NO CONDITIONAL QUESTIONS IN A SINGLE ROUND: Each question MUST stand on its own. NEVER write "If you chose X..." or "If Slack..." in a single questionnaire. Questions that depend on another answer must go in the NEXT round.
-- Use text for freeform answers (emails, channel names, URLs)
-- Never ask about API keys or credentials
-- If "notify me" / "alert me" / "send me" — always ask HOW (email, Slack, etc.) before asking WHERE (address, channel) — these are separate rounds
-- If timing is vague ("regularly", "often") — ask for specifics
-- Max 5 questions per round in round 1; max 3 in follow-up rounds
+- Use text for freeform answers (emails, channel names, URLs).
+- Never ask about API keys or credentials.
+- User-facing notifications: If the user did NOT ask to be notified / alerted / messaged about runs, do not ask how they want those notifications delivered. If they DID ask to be reached but didn’t name a channel—then you may ask HOW/WHERE in line with their intent (still no unrelated options). If they already named specific tools/channels (or a closed set like "Slack or Sheet only"), skip broad HOW questions; ask only missing WHERE details (e.g. channel name, spreadsheet).
+- If timing is vague ("regularly", "often") — ask for specifics.
 
 CONFIDENCE LEVELS:
-- 0.95–1.0: All details crystal clear — no questions needed
-- 0.75–0.95: 1–3 details could cause wrong behaviour
+- 0.95–1.0: All four essentials (objective, integrations, trigger, workflow) are known or inferable — no questions needed
+- 0.75–0.95: Essentials are covered but 1–3 operational details could cause wrong behaviour
 - 0.5–0.75: Several important details missing
 - 0.25–0.5: Vague, significant clarification needed
-- 0.0–0.25: Very vague
+- 0.0–0.25: Very vague, almost no actionable detail
 
 OUTPUT FORMAT (JSON only, no markdown):
 {
@@ -128,7 +158,7 @@ OUTPUT FORMAT (JSON only, no markdown):
   "questions": [
     {
       "id": "q1",
-      "question": "Friendly, simple question text",
+      "question": "Friendly, simple question text written in your own words",
       "type": "single_choice" | "multiple_choice" | "text",
       "options": ["Option A", "Option B"],
       "placeholder": "e.g. john@example.com"
@@ -190,8 +220,7 @@ Return ONLY valid JSON, no markdown, no code fences.`;
         typeof q.question === 'string' &&
         ['single_choice', 'multiple_choice', 'text'].includes(q.type)
       )
-      .filter((q) => !hasConditionalPhrasing(q.question))
-      .slice(0, isFollowUpRound ? 3 : 5); // tighter cap on follow-up rounds
+      .filter((q) => !hasConditionalPhrasing(q.question));
 
     if (parsed.confidence >= 0.95) {
       parsed.needsClarification = false;
@@ -244,7 +273,10 @@ export function buildEnrichedPrompt(
   const inferredEmailSendingMode =
     emailSenderChoiceText && /Gmail/i.test(emailSenderChoiceText)
       ? 'user_gmail'
-      : emailSenderChoiceText && /dedicated address|Runwise-provided|agent/i.test(emailSenderChoiceText)
+      : emailSenderChoiceText &&
+          /dedicated address|Runwise-provided|Runwise|Resend|platform|platform-agent-email|agent email|agent address/i.test(
+            emailSenderChoiceText
+          )
         ? 'agent_resend'
         : null;
 

@@ -11,7 +11,11 @@ import type {
   BuildStageStatus,
   IntegrationCheckItem,
 } from "@/lib/agents/chat-pipeline";
-import { loadAgentBuilderChatById, saveAgentBuilderChat } from "@/lib/agents/chat-persistence";
+import {
+  loadAgentBuilderChatByAgentId,
+  loadAgentBuilderChatById,
+  saveAgentBuilderChat,
+} from "@/lib/agents/chat-persistence";
 import { cn } from "@/lib/utils";
 import type { DeployAgentPlan } from "@/lib/agents/types";
 import type { QuestionnaireAnswer } from "@/lib/ai/types";
@@ -64,6 +68,28 @@ interface AgentChatBuilderProps {
 const SAVE_DEBOUNCE_MS = 1500;
 
 const CHAT_URL_PARAM = "chat";
+const AGENT_ID_URL_PARAM = "agentId";
+
+/** agentId query value for an existing agent (not the literal "new"). */
+function isPersistedAgentBuilderAgentId(agentId: string | null): agentId is string {
+  if (!agentId || agentId === "new") return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agentId);
+}
+
+function mergeAgentsNewSearch(
+  router: { replace: (href: string, opts?: { scroll?: boolean }) => void },
+  current: URLSearchParams,
+  updates: Record<string, string | null | undefined>
+) {
+  const next = new URLSearchParams(current.toString());
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === undefined) continue;
+    if (value === null || value === "") next.delete(key);
+    else next.set(key, value);
+  }
+  const q = next.toString();
+  router.replace(q ? `/agents/new?${q}` : "/agents/new", { scroll: false });
+}
 
 export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOffset }: AgentChatBuilderProps) {
   const searchParams = useSearchParams();
@@ -79,83 +105,121 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
   const [isLoadingChat, setIsLoadingChat] = useState(true);
   const messagesRef = useRef<ChatMessage[]>([]);
   messagesRef.current = messages;
-  const hasInitializedRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Restore conversation: OAuth return (sessionStorage) > Supabase > empty
+  // Restore conversation: OAuth return (sessionStorage) > Supabase (chat id or agent id) > empty
   useEffect(() => {
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
+    let cancelled = false;
 
-    const resume = searchParams.get("resume") === "1";
-    if (resume && typeof window !== "undefined") {
-      try {
-        const stored = sessionStorage.getItem(AGENT_CHAT_STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored) as ChatMessage[];
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setMessages(parsed);
-            setPipelinePhase("awaiting_integrations");
-            sessionStorage.removeItem(AGENT_CHAT_STORAGE_KEY);
-            const storedChatId = sessionStorage.getItem(AGENT_CHAT_ID_STORAGE_KEY);
-            if (storedChatId) {
-              setChatId(storedChatId);
-              sessionStorage.removeItem(AGENT_CHAT_ID_STORAGE_KEY);
-              router.replace(`/agents/new?${CHAT_URL_PARAM}=${storedChatId}`, { scroll: false });
+    const run = async () => {
+      const resume = searchParams.get("resume") === "1";
+      if (resume && typeof window !== "undefined") {
+        try {
+          const stored = sessionStorage.getItem(AGENT_CHAT_STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored) as ChatMessage[];
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              if (cancelled) return;
+              setMessages(parsed);
+              setPipelinePhase("awaiting_integrations");
+              sessionStorage.removeItem(AGENT_CHAT_STORAGE_KEY);
+              const storedChatId = sessionStorage.getItem(AGENT_CHAT_ID_STORAGE_KEY);
+              if (storedChatId) {
+                setChatId(storedChatId);
+                sessionStorage.removeItem(AGENT_CHAT_ID_STORAGE_KEY);
+                mergeAgentsNewSearch(router, searchParams, {
+                  [CHAT_URL_PARAM]: storedChatId,
+                  resume: null,
+                });
+              } else {
+                mergeAgentsNewSearch(router, searchParams, { resume: null });
+              }
+              const storedAgentId = sessionStorage.getItem(AGENT_ID_STORAGE_KEY);
+              if (storedAgentId) {
+                setAgentId(storedAgentId);
+                sessionStorage.removeItem(AGENT_ID_STORAGE_KEY);
+                onComplete?.(storedAgentId);
+              }
+              setIsLoadingChat(false);
+              return;
             }
-            const storedAgentId = sessionStorage.getItem(AGENT_ID_STORAGE_KEY);
-            if (storedAgentId) {
-              setAgentId(storedAgentId);
-              sessionStorage.removeItem(AGENT_ID_STORAGE_KEY);
-              onComplete?.(storedAgentId);
-            }
-            setIsLoadingChat(false);
-            return;
           }
+        } catch {
+          /* ignore */
         }
-      } catch {
-        /* ignore */
       }
-    }
 
-    if (!userId) {
-      setMessages([]);
-      setIsLoadingChat(false);
-      return;
-    }
-
-    const urlChatId = searchParams.get(CHAT_URL_PARAM);
-    if (!urlChatId) {
-      setMessages([]);
-      setIsLoadingChat(false);
-      return;
-    }
-
-    loadAgentBuilderChatById(userId, urlChatId).then((chat) => {
-      const hasRestorableState =
-        chat &&
-        (chat.data.messages.length > 0 ||
-          chat.data.pipelinePhase !== "initial" ||
-          !!chat.data.pendingPlan ||
-          (chat.data.accumulatedQuestionnaireAnswers?.length ?? 0) > 0 ||
-          !!chat.data.agentId);
-      if (hasRestorableState && chat) {
-        setMessages(chat.data.messages ?? []);
-        setPipelinePhase(chat.data.pipelinePhase ?? "initial");
-        setPendingPlan(chat.data.pendingPlan ?? null);
-        setAccumulatedQuestionnaireAnswers(chat.data.accumulatedQuestionnaireAnswers ?? []);
-        if (chat.data.agentId) {
-          setAgentId(chat.data.agentId);
-          onComplete?.(chat.data.agentId);
+      if (!userId) {
+        if (!cancelled) {
+          setMessages([]);
+          setIsLoadingChat(false);
         }
-        setChatId(chat.id);
-      } else {
+        return;
+      }
+
+      const urlChatId = searchParams.get(CHAT_URL_PARAM);
+      const urlAgentId = searchParams.get(AGENT_ID_URL_PARAM);
+
+      if (urlChatId) {
+        const chat = await loadAgentBuilderChatById(userId, urlChatId);
+        if (cancelled) return;
+        if (!chat) {
+          setMessages([]);
+          setChatId(null);
+          mergeAgentsNewSearch(router, searchParams, { [CHAT_URL_PARAM]: null });
+        } else {
+          setMessages(chat.data.messages ?? []);
+          setPipelinePhase(chat.data.pipelinePhase ?? "initial");
+          setPendingPlan(chat.data.pendingPlan ?? null);
+          setAccumulatedQuestionnaireAnswers(chat.data.accumulatedQuestionnaireAnswers ?? []);
+          if (chat.data.agentId) {
+            setAgentId(chat.data.agentId);
+            onComplete?.(chat.data.agentId);
+          }
+          setChatId(chat.id);
+        }
+        setIsLoadingChat(false);
+        return;
+      }
+
+      if (isPersistedAgentBuilderAgentId(urlAgentId)) {
+        const chat = await loadAgentBuilderChatByAgentId(userId, urlAgentId);
+        if (cancelled) return;
+        if (chat) {
+          setMessages(chat.data.messages ?? []);
+          setPipelinePhase(chat.data.pipelinePhase ?? "initial");
+          setPendingPlan(chat.data.pendingPlan ?? null);
+          setAccumulatedQuestionnaireAnswers(chat.data.accumulatedQuestionnaireAnswers ?? []);
+          if (chat.data.agentId) {
+            setAgentId(chat.data.agentId);
+            onComplete?.(chat.data.agentId);
+          }
+          setChatId(chat.id);
+          mergeAgentsNewSearch(router, searchParams, {
+            [CHAT_URL_PARAM]: chat.id,
+            [AGENT_ID_URL_PARAM]: chat.data.agentId ?? urlAgentId,
+          });
+        } else {
+          setMessages([]);
+          setAgentId(urlAgentId);
+          onComplete?.(urlAgentId);
+          setChatId(null);
+        }
+        setIsLoadingChat(false);
+        return;
+      }
+
+      if (!cancelled) {
         setMessages([]);
-        router.replace("/agents/new", { scroll: false });
+        setIsLoadingChat(false);
       }
-      setIsLoadingChat(false);
-    });
-  }, [searchParams, userId]);
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, userId, onComplete, router]);
 
   // Debounced save to Supabase (only when we have content to preserve)
   const hasContentToSave = messages.length > 0 || pipelinePhase !== "initial" || !!pendingPlan || accumulatedQuestionnaireAnswers.length > 0 || !!agentId;
@@ -172,7 +236,7 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
       }, chatId).then(({ id, error }) => {
         if (!error && id && !chatId) {
           setChatId(id);
-          router.replace(`/agents/new?${CHAT_URL_PARAM}=${id}`, { scroll: false });
+          mergeAgentsNewSearch(router, searchParams, { [CHAT_URL_PARAM]: id });
         }
       });
       saveTimeoutRef.current = null;
@@ -180,7 +244,19 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [userId, messages, pipelinePhase, pendingPlan, accumulatedQuestionnaireAnswers, agentId, chatId, isLoadingChat, hasContentToSave]);
+  }, [
+    userId,
+    messages,
+    pipelinePhase,
+    pendingPlan,
+    accumulatedQuestionnaireAnswers,
+    agentId,
+    chatId,
+    isLoadingChat,
+    hasContentToSave,
+    router,
+    searchParams,
+  ]);
 
   const saveMessagesBeforeOAuth = useCallback(() => {
     try {
@@ -574,7 +650,7 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
                     }, chatId).then(({ id, error }) => {
                       if (!error && id && !chatId) {
                         setChatId(id);
-                        router.replace(`/agents/new?${CHAT_URL_PARAM}=${id}`, { scroll: false });
+                        mergeAgentsNewSearch(router, searchParams, { [CHAT_URL_PARAM]: id });
                       }
                     });
                   }
@@ -606,7 +682,7 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
         setIsStreaming(false);
       }
     },
-    [updateBuildProgress, onComplete, userId, chatId, router, appendMessage]
+    [updateBuildProgress, onComplete, userId, chatId, router, searchParams, appendMessage]
   );
 
   const startAdjust = useCallback(

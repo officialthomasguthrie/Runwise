@@ -17,6 +17,179 @@ export type FeasibilityResult = {
   reason?: string;
 };
 
+const SUPPORTED_SERVICE_ALIASES = new Set([
+  'gmail',
+  'google gmail',
+  'google mail',
+  'google sheets',
+  'google sheet',
+  'sheets',
+  'sheet',
+  'google drive',
+  'drive',
+  'google forms',
+  'google form',
+  'forms',
+  'form',
+  'google calendar',
+  'calendar',
+  'slack',
+  'discord',
+  'github',
+  'git hub',
+  'notion',
+  'airtable',
+  'trello',
+  'twitter',
+  'tweet',
+  'x',
+  'openai',
+  'gpt',
+  'twilio',
+  'stripe',
+  'resend',
+  'runwise',
+  'webhook',
+  'web search',
+  'web',
+]);
+
+const NON_SERVICE_PHRASES = new Set([
+  'manual run',
+  'on demand',
+  'time schedule',
+  'schedule trigger',
+  'polling trigger',
+  'webhook trigger',
+  'the web',
+  'website',
+  'url',
+  'email',
+  'emails',
+  'notification',
+  'notifications',
+  'message',
+  'messages',
+  'my team',
+  'my teams',
+  'your team',
+  'their team',
+  'a team',
+  'the team',
+  'the above',
+  'the above details',
+  'above details',
+  'user confirmed',
+  'confirmed details',
+]);
+
+/** Questionnaire boilerplate that must not be scanned for "unknown integrations" */
+const BOILERPLATE_SECOND_TOKEN = new Set([
+  'above',
+  'below',
+  'following',
+  'same',
+  'details',
+  'information',
+  'answers',
+  'response',
+  'responses',
+]);
+
+/**
+ * Only scan user-authored text for heuristic "unknown service" detection.
+ * Full enriched prompts contain lines like "Use the above details exactly" which
+ * falsely match integrate|use patterns and produced "We don't support The Above Details yet."
+ */
+function extractTextForServiceHeuristic(description: string): string {
+  let s = description.trim();
+  s = s.replace(/\n---\nUse the above details exactly\.[\s\S]*$/i, '').trim();
+
+  const sep = '\n---\nUSER-CONFIRMED DETAILS (from questionnaire):';
+  const i = s.indexOf(sep);
+  if (i === -1) return s;
+
+  const head = s.slice(0, i).trim();
+  const rest = s.slice(i + sep.length);
+  const phaseIdx = rest.indexOf('\n\nPHASE 6 HINTS:');
+  const qaOnly = phaseIdx === -1 ? rest : rest.slice(0, phaseIdx);
+  const answers = qaOnly
+    .split('\n')
+    .filter((line) => /^A:\s*/i.test(line))
+    .map((line) => line.replace(/^A:\s*/i, '').trim())
+    .join('\n');
+
+  return [head, answers].filter(Boolean).join('\n\n');
+}
+
+function normalizeServicePhrase(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^\w.+\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function prettifyServiceLabel(s: string): string {
+  return s
+    .split(/\s+/)
+    .map((p) => (p.length <= 3 ? p.toUpperCase() : p[0].toUpperCase() + p.slice(1)))
+    .join(' ');
+}
+
+/**
+ * Detect named third-party services in action/integration contexts.
+ * If the service isn't in our supported allowlist, we hard-reject.
+ */
+function detectUnknownNamedService(description: string): string | null {
+  const t = description;
+  const contextPatterns: RegExp[] = [
+    /\b(?:post|send|publish|create|update|sync|integrate|connect|push|notify|message)\b.{0,25}\b(?:on|in|to|into|via|using|through|with)\s+([a-z][a-z0-9.+-]*(?:\s+[a-z0-9.+-]+){0,2})/gi,
+    /\b(?:on|in|to|into|via|using|through|with)\s+([a-z][a-z0-9.+-]*(?:\s+[a-z0-9.+-]+){0,2})\b.{0,25}\b(?:post|send|publish|create|update|sync|integrate|connect|push|notify|message)\b/gi,
+    /\b(?:integrate|connect|use)\s+([a-z][a-z0-9.+-]*(?:\s+[a-z0-9.+-]+){0,2})\b/gi,
+  ];
+
+  const candidates: string[] = [];
+  for (const pattern of contextPatterns) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(t)) !== null) {
+      if (match[1]) candidates.push(match[1]);
+    }
+  }
+
+  for (const raw of candidates) {
+    const phrase = normalizeServicePhrase(raw);
+    if (!phrase || phrase.length < 2 || NON_SERVICE_PHRASES.has(phrase)) continue;
+    if (SUPPORTED_SERVICE_ALIASES.has(phrase)) continue;
+
+    const tokens = phrase.split(/\s+/);
+    if (tokens.length >= 2 && BOILERPLATE_SECOND_TOKEN.has(tokens[1])) {
+      continue;
+    }
+
+    // If phrase starts with a supported service token (e.g. "google sheets row")
+    // treat as supported.
+    const startsWithSupported = Array.from(SUPPORTED_SERVICE_ALIASES).some(
+      (svc) => phrase === svc || phrase.startsWith(`${svc} `)
+    );
+    if (startsWithSupported) continue;
+
+    // Generic channel words are not third-party platforms.
+    if (/^(channel|channels|inbox|mailbox|sms|text|file|files|page|pages)$/.test(phrase)) {
+      continue;
+    }
+
+    // Skip pronoun-led fragments that are not product names (e.g. "the spreadsheet")
+    if (/^(the|a|an|my|your|our|their|this|these|those)\s+/.test(phrase)) {
+      continue;
+    }
+
+    return prettifyServiceLabel(phrase);
+  }
+
+  return null;
+}
+
 /**
  * Services we have NO support for — no trigger and no action tool.
  * Reject whenever the request requires interacting with them (as trigger OR as action target).
@@ -29,6 +202,16 @@ export type FeasibilityResult = {
  *  - "Linear" requires project-management context to avoid false positives on "linear workflow".
  */
 const UNSUPPORTED_SERVICE_PATTERNS: { pattern: RegExp; label: string }[] = [
+  // TikTok — unsupported for posting/reading/triggers
+  { pattern: /\btiktok\b/i, label: 'TikTok' },
+  // Instagram — unsupported
+  { pattern: /\binstagram\b|\binsta\b/i, label: 'Instagram' },
+  // Facebook / Meta pages — unsupported
+  { pattern: /\bfacebook\b|\bmeta\s+(?:page|pages|ads?)\b/i, label: 'Facebook' },
+  // LinkedIn — unsupported
+  { pattern: /\blinkedin\b/i, label: 'LinkedIn' },
+  // YouTube — unsupported
+  { pattern: /\byoutube\b/i, label: 'YouTube' },
   // Microsoft Teams — as trigger OR action (post/send/read Teams messages, Teams channels)
   {
     pattern:
@@ -88,11 +271,18 @@ function getProgrammaticResult(description: string): FeasibilityResult | null {
     }
   }
 
-  // 2. Known FEASIBLE: matches patterns we can definitely fulfill
+  // 2. Known FEASIBLE: matches patterns we can definitely fulfill (full spec, incl. questionnaire)
   for (const pattern of ALWAYS_FEASIBLE_PATTERNS) {
     if (pattern.test(trimmed)) {
       return { feasible: true };
     }
+  }
+
+  // 3. Deterministic unknown-service guard — only user prompt + answer lines (not boilerplate)
+  const scanText = extractTextForServiceHeuristic(trimmed);
+  const unknownService = detectUnknownNamedService(scanText);
+  if (unknownService) {
+    return { feasible: false, reason: `We don't support ${unknownService} yet.` };
   }
 
   return null;
@@ -108,6 +298,17 @@ function matchesFeasiblePatterns(description: string): boolean {
     if (pattern.test(trimmed)) return true;
   }
   return false;
+}
+
+/**
+ * If the model says "too vague / unclear / missing details", that should route
+ * to clarification questions rather than hard rejection.
+ */
+function isUnderspecifiedRejectReason(reason: string | undefined): boolean {
+  if (!reason) return false;
+  return /\b(vague|unclear|underspecified|not enough (?:detail|details|information)|missing details?|does not specify|without specific details?)\b/i.test(
+    reason
+  );
 }
 
 /**
@@ -153,9 +354,14 @@ Examples of correctly rejected action-based requests:
   • "update HubSpot CRM" → INFEASIBLE (no HubSpot tool)
 If the request can be fulfilled by combining our triggers and tools above, it is FEASIBLE.
 
+EXPLICIT NAMED-SERVICE RULE:
+If the user explicitly requires a named third-party service/platform that is NOT listed in the TRIGGERS or TOOLS sections above, set "feasible": false and name that service in "reason".
+Examples of unsupported when required: TikTok, Instagram, LinkedIn, Facebook Pages, YouTube, Zoho, etc.
+If the user only mentions supported items (Gmail, Slack, Discord, Sheets, web_search, schedule, webhook, etc.) or generic goals you can satisfy with supported tools, set "feasible": true.
+
 WHEN UNCERTAIN: default to feasible=true. Only reject when you are CERTAIN we lack the required capability.
 
-OUTPUT: JSON only. {"feasible": boolean, "reason": "..." when false}
+OUTPUT: JSON only. {"feasible": boolean, "reason": "..." when feasible is false}
 Return ONLY valid JSON.`;
 
   try {
@@ -178,6 +384,12 @@ Return ONLY valid JSON.`;
 
     // 3. Sanity override: if LLM rejected but request matches feasible patterns, allow anyway
     if (!feasible && matchesFeasiblePatterns(userDescription)) {
+      feasible = true;
+      reason = undefined;
+    }
+
+    // 4. Never hard-reject vague/underspecified requests; clarification should handle these.
+    if (!feasible && isUnderspecifiedRejectReason(reason)) {
       feasible = true;
       reason = undefined;
     }

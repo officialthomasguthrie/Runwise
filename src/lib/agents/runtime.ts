@@ -222,7 +222,7 @@ function outboundEmailRuntimeHint(agent: Agent): string {
     return '\nOUTBOUND EMAIL: Use send_email_gmail for sending mail from the user\'s connected Gmail.';
   }
   if (mode === 'agent_resend') {
-    return '\nOUTBOUND EMAIL: Use send_email_resend for sending mail from this agent\'s dedicated platform address. Do not use send_email_gmail for routine outbound unless your instructions explicitly say to use the user\'s Gmail.';
+    return '\nOUTBOUND EMAIL: Use send_email_resend only for sending mail from this agent\'s dedicated platform address. Do not call send_email_gmail — this agent is not configured for the user\'s Gmail OAuth path.';
   }
   if (mode === 'both') {
     return '\nOUTBOUND EMAIL: You may use send_email_gmail (user Gmail) or send_email_resend (agent address) — follow your instructions for which applies in each case.';

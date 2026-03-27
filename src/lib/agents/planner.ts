@@ -6,12 +6,11 @@
 
 import OpenAI from 'openai';
 import type { DeployAgentPlan, AgentBehaviourPlan, AgentEmailSendingMode } from './types';
-import { getToolsSpec } from './capabilities-spec';
+import { getToolsSpec, getTriggersSpec } from './capabilities-spec';
 
 // ============================================================================
 // TRIGGER CATALOGUE
-// Each entry describes a trigger the planner can assign to a behaviour.
-// Only triggers whose required integration is in userIntegrations[] will be used.
+// Each entry describes a polling trigger the planner can assign to a behaviour.
 // ============================================================================
 
 interface TriggerDef {
@@ -100,25 +99,25 @@ export async function planAgent(
 ): Promise<DeployAgentPlan> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  // Build the list of available triggers (filtered to connected integrations)
-  const availableTriggers = TRIGGER_CATALOGUE.filter((t) =>
+  const isIntegrationConnected = (requiredIntegration: string): boolean =>
     userIntegrations.some(
       (ui) =>
-        ui === t.requiredIntegration ||
-        // also accept generic 'google' matching any google-* service
-        (t.requiredIntegration.startsWith('google-') && ui === 'google') ||
-        (ui.startsWith('google-') && t.requiredIntegration === 'google')
-    )
-  );
+        ui === requiredIntegration ||
+        // Also accept generic 'google' matching any google-* service.
+        (requiredIntegration.startsWith('google-') && ui === 'google') ||
+        (ui.startsWith('google-') && requiredIntegration === 'google')
+    );
 
-  const availableTriggersText =
-    availableTriggers.length > 0
-      ? availableTriggers
-          .map((t) => `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}`)
-          .join('\n')
-      : '- None (no integrations connected — use webhook, schedule, or heartbeat only)';
+  // Always expose the full polling trigger catalogue to the model.
+  // Connection status only indicates whether deploy needs the user to connect.
+  const pollingTriggersText = TRIGGER_CATALOGUE
+    .map((t) => {
+      const connected = isIntegrationConnected(t.requiredIntegration);
+      return `- ${t.triggerType} (requires: ${t.requiredIntegration}, connected: ${connected ? 'yes' : 'no'}) — ${t.label}`;
+    })
+    .join('\n');
 
-  const systemPrompt = buildSystemPrompt(availableTriggersText);
+  const systemPrompt = buildSystemPrompt(pollingTriggersText);
   const userMessage = `USER'S AGENT DESCRIPTION:\n"${description}"`;
 
   const response = await openai.chat.completions.create({
@@ -140,7 +139,7 @@ export async function planAgent(
     throw new Error('Planner returned invalid JSON');
   }
 
-  return validateAndNormalisePlan(parsed, availableTriggers);
+  return validateAndNormalisePlan(parsed);
 }
 
 /**
@@ -155,21 +154,20 @@ export async function regenerateAgentPlan(
 ): Promise<DeployAgentPlan> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const availableTriggers = TRIGGER_CATALOGUE.filter((t) =>
+  const isIntegrationConnected = (requiredIntegration: string): boolean =>
     userIntegrations.some(
       (ui) =>
-        ui === t.requiredIntegration ||
-        (t.requiredIntegration.startsWith('google-') && ui === 'google') ||
-        (ui.startsWith('google-') && t.requiredIntegration === 'google')
-    )
-  );
+        ui === requiredIntegration ||
+        (requiredIntegration.startsWith('google-') && ui === 'google') ||
+        (ui.startsWith('google-') && requiredIntegration === 'google')
+    );
 
-  const availableTriggersText =
-    availableTriggers.length > 0
-      ? availableTriggers
-          .map((t) => `- ${t.triggerType} (requires: ${t.requiredIntegration}) — ${t.label}`)
-          .join('\n')
-      : '- None (no integrations connected — use webhook, schedule, or heartbeat only)';
+  const pollingTriggersText = TRIGGER_CATALOGUE
+    .map((t) => {
+      const connected = isIntegrationConnected(t.requiredIntegration);
+      return `- ${t.triggerType} (requires: ${t.requiredIntegration}, connected: ${connected ? 'yes' : 'no'}) — ${t.label}`;
+    })
+    .join('\n');
 
   const systemPrompt = `You are an expert AI agent designer. The user had this plan and wants to change it.
 
@@ -182,10 +180,14 @@ THEY WANT TO CHANGE:
 Return an updated plan that incorporates their requested changes.
 
 ---
-POLLING TRIGGERS (only use if user has integration):
-${availableTriggersText}
+POLLING TRIGGERS (EXHAUSTIVE — all polling types supported by Runwise):
+${pollingTriggersText}
 
-BUILT-IN TRIGGERS (no integration, ALWAYS available): webhook (config.path required), schedule (scheduleCron required for "daily", "hourly", "every morning", etc.), heartbeat (scheduleCron required). schedule/heartbeat are ALWAYS supported for time-based agents.
+BUILT-IN TRIGGERS (always available): webhook (config.path required), schedule (scheduleCron required for "daily", "hourly", "every morning", etc.), heartbeat (scheduleCron required). schedule/heartbeat are ALWAYS supported for time-based agents.
+
+IMPORTANT:
+- If a polling trigger clearly matches user intent (e.g. Google Forms submission -> new-form-submission), use that polling trigger even when connected:no. Missing integrations are handled after planning.
+- Use webhook ONLY for generic HTTP webhook requests/URLs from external systems. Do NOT use webhook as a substitute for first-class polling triggers like Gmail/Slack/Forms/Sheets.
 
 TRIGGER vs TOOL DISTINCTION: A polling trigger means the agent reacts to EACH individual new event. If the agent runs on a schedule and reads/writes to a service during that run, the service is a TOOL — do NOT add a polling trigger for it. Example: "every hour summarise Slack" → schedule only, NOT schedule + polling(slack).
 
@@ -197,7 +199,7 @@ Your job: Return an UPDATED plan that incorporates the user's feedback. Use the 
 - Preserve emailSendingMode unless the user asks to change how email is sent (Gmail vs dedicated agent address).
 
 RULES:
-1. Only use trigger types from the available list for polling.
+1. Only use trigger types from the polling trigger list above.
 2. Preserve parts of the plan the user did not ask to change.
 3. Apply the requested changes precisely.
 4. Do NOT add a polling trigger for a service the agent just reads from during a scheduled run.
@@ -222,7 +224,7 @@ RULES:
     throw new Error('Planner returned invalid JSON');
   }
 
-  return validateAndNormalisePlan(parsed, availableTriggers);
+  return validateAndNormalisePlan(parsed);
 }
 
 // ============================================================================
@@ -236,16 +238,18 @@ Your job is to produce a complete, structured deployment plan for that agent.
 ---
 TRIGGERS — ADD ONLY WHEN USER SPECIFIES OR YOU CAN CLEARLY INFER:
 
-POLLING TRIGGERS (require connected integration — only use if user mentions the source):
+POLLING TRIGGERS (EXHAUSTIVE — all polling types supported by Runwise):
 ${availableTriggersText}
 
 BUILT-IN TRIGGERS (NO integration required — ALWAYS available, use for time-based agents):
 - schedule: Run on a cron schedule. REQUIRED for: "daily", "hourly", "every morning", "every day at 9am", "time-based", "scheduled", "every hour", "weekly", "at 8am". scheduleCron REQUIRED. Examples: "0 9 * * *" (9am daily), "0 * * * *" (hourly), "0 8 * * 1-5" (8am Mon-Fri).
 - heartbeat: Same as schedule, proactive check-in. Use for "daily briefing", "check in every day", "run every morning". scheduleCron REQUIRED.
-- webhook: Run when HTTP POST hits a webhook URL. Use for "webhook", "when someone hits my URL", "when a form submits". config MUST include "path" (URL-safe slug).
+- webhook: Run when HTTP POST hits a webhook URL. Use for "webhook", "when someone hits my URL", "when my backend posts JSON to this endpoint". config MUST include "path" (URL-safe slug).
 
 CRITICAL: schedule and heartbeat are ALWAYS supported. If user says "time-based", "scheduled", "daily", "hourly", "every morning", etc. → use behaviourType "schedule" or "heartbeat" with appropriate scheduleCron. Do NOT say we don't support time schedules.
 CRITICAL: Only add triggers when user EXPLICITLY specifies one or you can strongly infer. If user does NOT mention how/when to run → behaviours: [] (manual-only agent).
+CRITICAL: If the user describes an event source that maps to a first-class polling trigger, use that polling trigger (e.g. "Google Form submission" -> new-form-submission, "new row in Google Sheet" -> new-row-in-google-sheet, "new Slack message" -> new-message-in-slack). Do NOT replace these with webhook.
+CRITICAL: Connection state never changes trigger semantics. If connected:no for a required integration, still choose the correct trigger; the app will request connection after plan generation.
 
 CRITICAL — TRIGGER vs TOOL DISTINCTION:
 A polling trigger means the agent wakes up and runs ONCE PER NEW EVENT (one email, one Slack message, one Sheet row).
@@ -327,6 +331,9 @@ If the user wants mail from their own inbox → emailSendingMode: user_gmail (or
 AGENT CAPABILITIES (exhaustive — agents can ONLY use these tools; include in instructions when relevant):
 ${getToolsSpec()}
 
+EXHAUSTIVE TRIGGER REFERENCE (for semantic matching):
+${getTriggersSpec()}
+
 Match user phrasing by meaning: "reply from my Gmail" / inbox → send_email_gmail; "dedicated agent email" / "from the agent" / "not my personal email" → send_email_resend + emailSendingMode agent_resend or both; "monitor competitors" → schedule + web_search + read_url + send_notification/send_slack/email tools as appropriate; "daily check" → schedule or heartbeat.`;
 }
 
@@ -344,11 +351,8 @@ const VALID_EMAIL_SENDING_MODES = new Set<AgentEmailSendingMode>([
 ]);
 
 function validateAndNormalisePlan(
-  raw: any,
-  availableTriggers: TriggerDef[]
+  raw: any
 ): DeployAgentPlan {
-  const availableTriggerTypes = new Set(availableTriggers.map((t) => t.triggerType));
-
   // Name
   const name =
     typeof raw.name === 'string' && raw.name.trim()
@@ -391,7 +395,6 @@ function validateAndNormalisePlan(
       if (!VALID_BEHAVIOUR_TYPES.has(b.behaviourType)) return false;
       if (b.behaviourType === 'polling') {
         if (!b.triggerType || !VALID_TRIGGER_TYPES.has(b.triggerType)) return false;
-        if (!availableTriggerTypes.has(b.triggerType)) return false;
         // Remove polling triggers that are redundant when a schedule is already present
         // and the agent is doing batch/summary work (service is a tool, not an event source).
         if (hasScheduledBehaviour) {

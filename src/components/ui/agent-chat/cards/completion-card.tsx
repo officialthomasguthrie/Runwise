@@ -74,11 +74,15 @@ export function CompletionCard({
   const [disconnectingService, setDisconnectingService] = useState<string | null>(null);
   const integrations = requiredIntegrations ?? [];
 
-  const allConnected = integrations.length === 0 || integrations.every((i) => connectedMap[i.service]);
-
-  // Show all integrations the agent uses (connected and disconnected)
-  const displayedIntegrations = integrations;
-  const showIntegrationSection = integrations.length > 0;
+  // Hide platform-provided agent email from the post-build integrations list.
+  // It is automatically included by Runwise and does not need user action here.
+  const displayedIntegrations = integrations.filter(
+    (item) => item.service !== "platform-agent-email"
+  );
+  const allConnected =
+    displayedIntegrations.length === 0 ||
+    displayedIntegrations.every((i) => connectedMap[i.service] ?? i.connected);
+  const showIntegrationSection = displayedIntegrations.length > 0;
 
   // Poll /api/integrations/status and listen for credential popup success
   useEffect(() => {
@@ -187,9 +191,7 @@ export function CompletionCard({
       {showIntegrationSection && (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-black dark:text-white leading-relaxed">
-            {allConnected
-              ? "Integrations this agent uses:"
-              : "Connect these integrations to continue:"}
+            This agent uses these integrations:
           </p>
           <div className="flex flex-col gap-2">
             {displayedIntegrations.map((item) => {

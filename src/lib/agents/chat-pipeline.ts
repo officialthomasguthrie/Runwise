@@ -481,6 +481,13 @@ export function inferGmailIntegrationFromPlanText(
   const mode = emailSendingMode ?? 'none';
   const t = text || '';
 
+  // Platform / Resend-only outbound: never infer Gmail from loose text.
+  // "gmail" often appears in negations ("do not use Gmail") or comparisons; that must NOT
+  // require google-gmail. Real Gmail needs still come from new-email-received (trigger scan).
+  if (mode === 'agent_resend') {
+    return /\bsend_email_gmail\b|\bread_emails\b|\bnew-email-received\b|(?:^|[\s,])google-gmail\b/i.test(t);
+  }
+
   if (/\bgmail\b/i.test(t)) return true;
   if (
     /read.{0,20}email|fetch.{0,20}mail|check.{0,20}(?:my\s+)?(?:e-?)?mails?|\binbox\b|new.{0,20}email.{0,20}(?:arriv|received)/i.test(
@@ -488,11 +495,6 @@ export function inferGmailIntegrationFromPlanText(
     )
   ) {
     return true;
-  }
-
-  // Outbound-only via dedicated agent address — no Gmail OAuth for sending
-  if (mode === 'agent_resend') {
-    return false;
   }
 
   // user_gmail, both, none: treat generic "send/reply email" as needing Gmail until mode is explicit
@@ -505,6 +507,15 @@ export function inferGmailIntegrationFromPlanText(
   }
 
   return false;
+}
+
+/** Parse emailSendingMode from questionnaire PHASE 6 hints in enriched prompt / instructions. */
+export function extractEmailSendingModeFromQuestionnaireHints(text: string): AgentEmailSendingMode | undefined {
+  const m = text.match(/emailSendingMode:\s*(user_gmail|agent_resend|both|none)\b/i);
+  if (!m) return undefined;
+  const v = m[1].toLowerCase() as AgentEmailSendingMode;
+  if (v === 'user_gmail' || v === 'agent_resend' || v === 'both' || v === 'none') return v;
+  return undefined;
 }
 
 export function detectRequiredIntegrations(plan: DeployAgentPlan): string[] {
@@ -527,7 +538,12 @@ export function detectRequiredIntegrations(plan: DeployAgentPlan): string[] {
     .filter(Boolean)
     .join(' ');
 
-  if (inferGmailIntegrationFromPlanText(textToScan, plan.emailSendingMode)) {
+  // Prefer explicit mode from embedded questionnaire hints when the plan JSON omitted it or said "none".
+  const hintMode = extractEmailSendingModeFromQuestionnaireHints(textToScan);
+  const effectiveEmailMode: AgentEmailSendingMode =
+    hintMode ?? plan.emailSendingMode ?? 'none';
+
+  if (inferGmailIntegrationFromPlanText(textToScan, effectiveEmailMode)) {
     required.add('google-gmail');
   }
 
@@ -537,7 +553,7 @@ export function detectRequiredIntegrations(plan: DeployAgentPlan): string[] {
     }
   }
 
-  if (emailSendingModeUsesAgentResend(plan.emailSendingMode ?? 'none')) {
+  if (emailSendingModeUsesAgentResend(effectiveEmailMode)) {
     required.add('platform-agent-email');
   }
 

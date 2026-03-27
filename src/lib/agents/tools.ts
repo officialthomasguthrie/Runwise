@@ -1110,6 +1110,22 @@ async function toolSendEmailGmail(
 ): Promise<ToolResult> {
   const { to, subject, body, replyToThread, threadId } = params;
 
+  const admin = createAdminClient();
+  const { data: agentRow, error: modeLoadError } = await (admin as any)
+    .from('agents')
+    .select('email_sending_mode')
+    .eq('id', context.agentId)
+    .eq('user_id', context.userId)
+    .single();
+
+  if (!modeLoadError && agentRow?.email_sending_mode === 'agent_resend') {
+    return {
+      success: false,
+      error:
+        'This agent is configured for Runwise platform email only. Use send_email_resend instead of send_email_gmail.',
+    };
+  }
+
   const accessToken = await getGoogleAccessToken(context.userId, 'google-gmail');
 
   const lines: string[] = [

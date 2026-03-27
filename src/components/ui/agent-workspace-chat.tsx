@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { Bot } from "lucide-react";
 import { UserBubble } from "./agent-chat/bubbles/user-bubble";
 import { AssistantBubble } from "./agent-chat/bubbles/assistant-bubble";
 import { ChatInput } from "./agent-chat/chat-input";
@@ -232,9 +233,28 @@ export function AgentWorkspaceChat({
         )}
       >
         {messages.length === 0 ? (
-          <p className={cn("text-muted-foreground", compact ? "text-xs leading-relaxed" : "text-sm")}>
-            Chat with {agentName ?? "this agent"}. Ask questions, get help, or discuss what it does.
-          </p>
+          <div
+            className={cn(
+              "flex flex-1 items-center justify-center",
+              "flex-col text-center",
+              compact ? "gap-2 px-2" : "gap-3 px-2"
+            )}
+          >
+            <div
+              className={cn(
+                "flex items-center justify-center",
+                "h-10 w-10 rounded-full",
+                "bg-stone-200/40 dark:bg-white/[0.06]",
+                "border border-stone-300/50 dark:border-white/[0.08]"
+              )}
+              aria-hidden
+            >
+              <Bot className="h-5 w-5 text-stone-600 dark:text-stone-300" />
+            </div>
+            <p className={cn("text-muted-foreground", compact ? "text-xs leading-relaxed" : "text-sm")}>
+              Chat with {agentName ?? "this agent"}. Ask questions, get help, or discuss what it does.
+            </p>
+          </div>
         ) : (
           messages.map((msg) =>
             msg.role === "user" ? (

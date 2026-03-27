@@ -85,6 +85,53 @@ export async function loadAgentBuilderChatById(
 }
 
 /**
+ * Load the most recent agent builder chat for this user + agent (editing flow).
+ * Used when the URL has agentId but no chat id (e.g. returning from agents list).
+ */
+export async function loadAgentBuilderChatByAgentId(
+  userId: string,
+  agentId: string
+): Promise<{ id: string; data: AgentBuilderChatData } | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("agent_builder_chats")
+    .select("id, messages, pipeline_phase, pending_plan, accumulated_questionnaire_answers, agent_id")
+    .eq("user_id", userId)
+    .eq("agent_id", agentId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (error.message?.includes("relation") && error.message?.includes("does not exist")) {
+      return null;
+    }
+    console.error("[agent-chat-persistence] load by agent_id error:", error);
+    return null;
+  }
+
+  if (!data) return null;
+
+  const row = data as AgentBuilderChatSelect;
+  const messages = (row.messages as ChatMessage[]) ?? [];
+  const pipelinePhase = (row.pipeline_phase as PipelinePhase) ?? "initial";
+  const pendingPlan = (row.pending_plan as DeployAgentPlan | null) ?? null;
+  const accumulatedQuestionnaireAnswers =
+    (row.accumulated_questionnaire_answers as QuestionnaireAnswer[]) ?? [];
+
+  return {
+    id: row.id,
+    data: {
+      messages,
+      pipelinePhase,
+      pendingPlan,
+      accumulatedQuestionnaireAnswers,
+      agentId: row.agent_id ?? null,
+    },
+  };
+}
+
+/**
  * Load the most recent agent builder chat for the user.
  * Returns null if none exists or user not authenticated.
  */
