@@ -1,5 +1,5 @@
-import { Header } from "../components/Header";
-import { Footer } from "../components/Footer";
+import { FloatingHeader } from "@/components/landing/layout/floating-header";
+import { LegalDocumentFooter } from "@/components/landing/layout/legal-document-footer";
 
 export const metadata = {
   title: "Terms and Conditions | Runwise",
@@ -8,34 +8,34 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <main className="landing-page min-h-screen">
-      <Header />
-      
+    <main className="landing-page min-h-screen bg-[#f5f3ef] text-black">
+      <FloatingHeader />
+
       <section className="pt-[140px] px-6 md:px-10 pb-20 relative">
         <div className="max-w-[900px] w-full mx-auto">
           {/* Title */}
           <div className="mb-12">
-            <h1 className="text-[35px] md:text-[48px] font-medium -tracking-[.02em] leading-[1.1em] text-white mb-4">
+            <h1 className="text-[35px] md:text-[48px] font-medium -tracking-[.02em] leading-[1.1em] text-black mb-4">
               Terms and Conditions
             </h1>
-            <p className="text-[#ffffffb3] text-base md:text-lg font-normal leading-[1.5em]">
+            <p className="text-black text-base md:text-lg font-normal leading-[1.5em]">
               Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
 
           {/* Introduction */}
           <div className="mb-8">
-            <p className="text-[#ffffffcc] text-base leading-[1.6em]">
+            <p className="text-black text-base leading-[1.6em]">
               These Terms and Conditions ("Terms") govern your access to and use of <strong>Runwise</strong> ("Runwise", "we", "us", or "our"), including our website, application, APIs, and related services (collectively, the "Service"). By accessing or using Runwise, you agree to be bound by these Terms. If you do not agree, do not use the Service.
             </p>
           </div>
 
           {/* Terms Content */}
-          <div className="space-y-10 text-[#ffffffcc]">
+          <div className="space-y-10 text-black">
             
             {/* Section 1 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">1. Eligibility and Age Requirement</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">1. Eligibility and Age Requirement</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 You must be at least <strong>18 years old</strong> (or have the legal authority to enter into binding contracts in your jurisdiction) to use Runwise. By using the Service, you represent and warrant that you meet this age requirement and have the legal capacity and authority to enter into these Terms.
               </p>
@@ -46,7 +46,7 @@ export default function TermsPage() {
 
             {/* Section 2 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">2. Account Registration</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">2. Account Registration</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 To access certain features of Runwise, you may be required to create an account. When creating an account, you agree to:
               </p>
@@ -64,7 +64,7 @@ export default function TermsPage() {
 
             {/* Section 3 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">3. Description of the Service and User Responsibility</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">3. Description of the Service and User Responsibility</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 Runwise provides tools that convert plain English prompts into automated workflows, integrations, and processes using artificial intelligence. Our Service includes, but is not limited to:
               </p>
@@ -99,7 +99,7 @@ export default function TermsPage() {
 
             {/* Section 4 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">4. Acceptable Use and Prohibited Activities</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">4. Acceptable Use and Prohibited Activities</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 You agree <strong>not</strong> to use Runwise to:
               </p>
@@ -126,7 +126,7 @@ export default function TermsPage() {
 
             {/* Section 5 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">5. AI Outputs and Responsibility</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">5. AI Outputs and Responsibility</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 Runwise uses AI systems that generate content and automation logic. These systems are trained on large datasets and may produce outputs that are inaccurate, incomplete, or inappropriate for your specific use case.
               </p>
@@ -150,7 +150,7 @@ export default function TermsPage() {
 
             {/* Section 6 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">6. Integrations and Third-Party Services</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">6. Integrations and Third-Party Services</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 Runwise may connect with third-party platforms, services, APIs, and SaaS tools (collectively, "Third-Party Services") to enable workflow functionality. These integrations are provided for your convenience and are subject to the following terms:
               </p>
@@ -169,10 +169,10 @@ export default function TermsPage() {
 
             {/* Section 7 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">7. Intellectual Property</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">7. Intellectual Property</h2>
               
               <div className="mb-4">
-                <h3 className="text-xl font-medium text-white mb-3">Our Intellectual Property</h3>
+                <h3 className="text-xl font-medium text-black mb-3">Our Intellectual Property</h3>
                 <p className="text-base leading-[1.6em] mb-3">
                   All rights, title, and interest in and to the Service, including but not limited to software, AI models, algorithms, user interfaces, branding, logos, trademarks, documentation, and all other intellectual property rights, belong to Runwise or its licensors. The Service is protected by copyright, trademark, patent, trade secret, and other intellectual property laws.
                 </p>
@@ -182,7 +182,7 @@ export default function TermsPage() {
               </div>
 
               <div>
-                <h3 className="text-xl font-medium text-white mb-3">Your Content</h3>
+                <h3 className="text-xl font-medium text-black mb-3">Your Content</h3>
                 <p className="text-base leading-[1.6em] mb-3">
                   You retain ownership of prompts, configurations, data, workflows, and any other content you submit to or create using the Service ("Your Content"). By using Runwise, you grant us a limited, non-exclusive, royalty-free, worldwide license to:
                 </p>
@@ -199,7 +199,7 @@ export default function TermsPage() {
 
             {/* Section 8 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">8. Payments and Subscriptions</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">8. Payments and Subscriptions</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 Certain features of Runwise may require payment. If you choose to subscribe to a paid plan, the following terms apply:
               </p>
@@ -219,7 +219,7 @@ export default function TermsPage() {
 
             {/* Section 9 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">9. Suspension and Termination</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">9. Suspension and Termination</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 You may stop using Runwise at any time by canceling your subscription (if applicable) and deleting your account. Upon termination:
               </p>
@@ -251,7 +251,7 @@ export default function TermsPage() {
 
             {/* Section 10 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">10. Disclaimers</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">10. Disclaimers</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 The Service is provided <strong>"AS IS"</strong> and <strong>"AS AVAILABLE"</strong> without warranties of any kind, either express or implied. To the fullest extent permitted by law, Runwise disclaims all warranties, including but not limited to:
               </p>
@@ -270,7 +270,7 @@ export default function TermsPage() {
 
             {/* Section 11 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">11. Limitation of Liability</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">11. Limitation of Liability</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 To the maximum extent permitted by applicable law:
               </p>
@@ -287,7 +287,7 @@ export default function TermsPage() {
 
             {/* Section 12 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">12. Indemnification</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">12. Indemnification</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 You agree to <strong>indemnify, defend, and hold harmless</strong> Runwise, its affiliates, officers, directors, employees, agents, and licensors from and against any and all claims, damages, losses, liabilities, costs, and expenses (including reasonable attorneys' fees) arising out of or related to:
               </p>
@@ -306,7 +306,7 @@ export default function TermsPage() {
 
             {/* Section 13 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">13. Data Security and User Responsibility</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">13. Data Security and User Responsibility</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 While Runwise implements reasonable security measures to protect your data, you acknowledge and agree that:
               </p>
@@ -325,7 +325,7 @@ export default function TermsPage() {
 
             {/* Section 14 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">14. Privacy</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">14. Privacy</h2>
               <p className="text-base leading-[1.6em]">
                 Your use of Runwise is also governed by our <strong>Privacy Policy</strong>, which explains how we collect, use, store, protect, and share your data. By using the Service, you consent to the collection and use of your information as described in our Privacy Policy. Please review our Privacy Policy carefully, as it contains important information about your rights and our practices regarding your personal data.
               </p>
@@ -333,7 +333,7 @@ export default function TermsPage() {
 
             {/* Section 15 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">15. Changes to These Terms</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">15. Changes to These Terms</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 We reserve the right to update these Terms from time to time at our sole discretion to reflect changes in our Service, legal requirements, or business practices. We may modify these Terms at any time, with or without notice.
               </p>
@@ -352,12 +352,19 @@ export default function TermsPage() {
 
             {/* Section 16 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">16. Governing Law and Dispute Resolution</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">16. Governing Law and Dispute Resolution</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 These Terms are governed by and construed in accordance with the laws of <strong>New Zealand</strong>, without regard to conflict of law principles. Any disputes, claims, or controversies arising out of or related to these Terms or the Service shall be subject to the <strong>exclusive jurisdiction</strong> of the courts of New Zealand, or, at Runwise's sole discretion, through binding arbitration conducted in New Zealand in accordance with New Zealand arbitration laws.
               </p>
               <p className="text-base leading-[1.6em] mb-3">
-                Before filing a claim, you agree to first contact us at <a href="mailto:hello@runwiseai.app" className="text-[#bd28b3] hover:underline">hello@runwiseai.app</a> to attempt to resolve the dispute informally. If we cannot resolve the dispute within 60 days, either party may proceed with formal legal action in accordance with this section.
+                Before filing a claim, you agree to first contact us at{" "}
+                <a
+                  href="mailto:hello@runwiseai.app"
+                  className="text-black underline underline-offset-2 transition hover:opacity-80"
+                >
+                  hello@runwiseai.app
+                </a>{" "}
+                to attempt to resolve the dispute informally. If we cannot resolve the dispute within 60 days, either party may proceed with formal legal action in accordance with this section.
               </p>
               <p className="text-base leading-[1.6em]">
                 You agree that any dispute resolution proceedings will be conducted only on an individual basis and not in a class, consolidated, or representative action. If any provision of this section is found to be unenforceable, the remaining provisions will remain in full effect.
@@ -366,7 +373,7 @@ export default function TermsPage() {
 
             {/* Section 17 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">17. General Provisions</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">17. General Provisions</h2>
               <div className="space-y-3">
                 <p className="text-base leading-[1.6em]">
                   <strong>Entire Agreement:</strong> These Terms, together with our Privacy Policy and any additional agreements you enter into with us, constitute the entire agreement between you and Runwise regarding the Service and supersede all prior agreements and understandings.
@@ -388,26 +395,38 @@ export default function TermsPage() {
 
             {/* Section 18 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">18. Contact Information</h2>
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">18. Contact Information</h2>
               <p className="text-base leading-[1.6em] mb-3">
                 For questions, concerns, or legal notices regarding these Terms, please contact us at:
               </p>
-              <div className="bg-[#ffffff08] border border-[#ffffff1a] rounded-lg p-6 backdrop-blur-sm">
+              <div className="rounded-lg border border-black/10 bg-white/60 p-6 backdrop-blur-sm">
                 <p className="text-base leading-[1.6em] mb-2">
-                  <strong className="text-white">Runwise</strong>
+                  <strong className="text-black">Runwise</strong>
                 </p>
                 <p className="text-base leading-[1.6em] mb-2">
-                  Email: <a href="mailto:hello@runwiseai.app" className="text-[#bd28b3] hover:underline">hello@runwiseai.app</a>
+                  Email:{" "}
+                  <a
+                    href="mailto:hello@runwiseai.app"
+                    className="text-black underline underline-offset-2 transition hover:opacity-80"
+                  >
+                    hello@runwiseai.app
+                  </a>
                 </p>
                 <p className="text-base leading-[1.6em]">
-                  Phone: <a href="tel:+640223591512" className="text-[#bd28b3] hover:underline">+64 022 359 1512</a>
+                  Phone:{" "}
+                  <a
+                    href="tel:+640223591512"
+                    className="text-black underline underline-offset-2 transition hover:opacity-80"
+                  >
+                    +64 022 359 1512
+                  </a>
                 </p>
               </div>
             </section>
 
             {/* Acceptance */}
-            <section className="pt-8 border-t border-[#ffffff1a]">
-              <p className="text-base leading-[1.6em] text-[#ffffffcc]">
+            <section className="pt-8 border-t border-black/10">
+              <p className="text-base leading-[1.6em] text-black">
                 By using Runwise, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions. If you do not agree to these Terms, you must not use the Service.
               </p>
             </section>
@@ -416,7 +435,7 @@ export default function TermsPage() {
         </div>
       </section>
 
-      <Footer />
+      <LegalDocumentFooter />
     </main>
   );
 }

@@ -6,36 +6,39 @@
 
 @import "@xyflow/react/dist/style.css";
 
-/* React Flow Handle Styles */
-.react-flow__handle {
+/*
+ * React Flow — workflow builder only (see `runwise-workflow-builder` on ReactFlow in react-flow-editor).
+ * Landing `WorkflowMiniPreview` is excluded so handles/edges match the standalone Landing Page (xyflow defaults + component styles).
+ */
+.runwise-workflow-builder .react-flow__handle {
   width: 12px !important;
   height: 12px !important;
   border: 2px solid hsl(var(--background)) !important;
   background: #ec4899 !important; /* pink-500 */
 }
 
-.dark .react-flow__handle {
+.dark .runwise-workflow-builder .react-flow__handle {
   background: #ec4899 !important; /* pink-500 */
 }
 
-.react-flow__handle-top {
+.runwise-workflow-builder .react-flow__handle-top {
   top: -6px !important;
 }
 
-.react-flow__handle-bottom {
+.runwise-workflow-builder .react-flow__handle-bottom {
   bottom: -6px !important;
 }
 
-.react-flow__handle-left {
+.runwise-workflow-builder .react-flow__handle-left {
   left: -6px !important;
 }
 
-.react-flow__handle-right {
+.runwise-workflow-builder .react-flow__handle-right {
   right: -6px !important;
 }
 
 /* React Flow Connection Line Styles - Animated Dashed Pattern */
-.react-flow__connectionline {
+.runwise-workflow-builder .react-flow__connectionline {
   stroke-dasharray: 8 4 !important;
   animation: dash-animation 0.5s linear infinite !important;
 }
@@ -50,26 +53,26 @@
 }
 
 /* React Flow Edge Styles */
-.react-flow__edge-path {
+.runwise-workflow-builder .react-flow__edge-path {
   stroke: rgb(120 113 108) !important; /* stone-400 */
   stroke-width: 2px !important;
 }
 
-  .dark .react-flow__edge-path {
-    stroke: rgba(255, 255, 255, 0.4) !important;
-  }
-  
-  .react-flow__edge.selected .react-flow__edge-path {
-    stroke: rgb(120 113 108) !important; /* stone-400 */
-    stroke-width: 3px !important;
-  }
-  
-  .dark .react-flow__edge.selected .react-flow__edge-path {
-    stroke: rgba(255, 255, 255, 0.6) !important;
-  }
+.dark .runwise-workflow-builder .react-flow__edge-path {
+  stroke: rgba(255, 255, 255, 0.4) !important;
+}
+
+.runwise-workflow-builder .react-flow__edge.selected .react-flow__edge-path {
+  stroke: rgb(120 113 108) !important; /* stone-400 */
+  stroke-width: 3px !important;
+}
+
+.dark .runwise-workflow-builder .react-flow__edge.selected .react-flow__edge-path {
+  stroke: rgba(255, 255, 255, 0.6) !important;
+}
 
 /* React Flow Controls (Zoom Bar) Styles */
-.react-flow__controls {
+.runwise-workflow-builder .react-flow__controls {
   position: absolute !important;
   left: 8px !important;
   bottom: 8px !important;
@@ -83,16 +86,16 @@
 }
 
 @media (min-width: 768px) {
-  .react-flow__controls {
+  .runwise-workflow-builder .react-flow__controls {
     flex-direction: row !important;
   }
 }
 
-.dark .react-flow__controls {
+.dark .runwise-workflow-builder .react-flow__controls {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
-.react-flow__controls-button {
+.runwise-workflow-builder .react-flow__controls-button {
   background: hsl(var(--card)) !important;
   border-right: 1px solid rgb(231 229 228) !important; /* stone-200 */
   border-bottom: 1px solid rgb(231 229 228) !important; /* stone-200 */
@@ -112,50 +115,50 @@
 }
 
 @media (min-width: 768px) {
-  .react-flow__controls-button {
+  .runwise-workflow-builder .react-flow__controls-button {
     border-bottom: none !important;
   }
 }
 
-.dark .react-flow__controls-button {
+.dark .runwise-workflow-builder .react-flow__controls-button {
   border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 @media (min-width: 768px) {
-  .dark .react-flow__controls-button {
+  .dark .runwise-workflow-builder .react-flow__controls-button {
     border-bottom: none !important;
   }
 }
 
-.react-flow__controls-button svg {
+.runwise-workflow-builder .react-flow__controls-button svg {
   width: 14px !important;
   height: 14px !important;
   flex-shrink: 0 !important;
 }
 
-.react-flow__controls-button:last-child {
+.runwise-workflow-builder .react-flow__controls-button:last-child {
   border-right: none !important;
   border-bottom: none !important;
 }
 
 @media (min-width: 768px) {
-  .react-flow__controls-button:last-child {
+  .runwise-workflow-builder .react-flow__controls-button:last-child {
     border-bottom: none !important;
   }
 }
 
-.react-flow__controls-button:hover {
+.runwise-workflow-builder .react-flow__controls-button:hover {
   background: rgba(255, 255, 255, 0.2) !important; /* white/20 */
   color: hsl(var(--foreground)) !important;
 }
 
-.dark .react-flow__controls-button:hover {
+.dark .runwise-workflow-builder .react-flow__controls-button:hover {
   background: rgba(24, 24, 27, 0.2) !important; /* zinc-900/20 */
 }
 
 /* React Flow MiniMap Styles */
-.react-flow__minimap {
+.runwise-workflow-builder .react-flow__minimap {
   position: absolute !important;
   right: 8px !important;
   bottom: 8px !important;
@@ -165,31 +168,31 @@
 }
 
 @media (min-width: 768px) {
-  .react-flow__minimap {
+  .runwise-workflow-builder .react-flow__minimap {
     display: block !important;
   }
 }
 
-.dark .react-flow__minimap {
+.dark .runwise-workflow-builder .react-flow__minimap {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
-.react-flow__minimap-mask {
+.runwise-workflow-builder .react-flow__minimap-mask {
   fill: hsl(var(--background) / 0.2) !important;
 }
 
-.react-flow__minimap-node {
+.runwise-workflow-builder .react-flow__minimap-node {
   fill: rgb(231 229 228) !important; /* stone-200 */
   stroke: rgb(214 211 209) !important; /* stone-300 */
 }
 
 /* Darker minimap nodes in dark mode */
-.dark .react-flow__minimap-node {
+.dark .runwise-workflow-builder .react-flow__minimap-node {
   fill: rgb(63 63 70) !important; /* zinc-700 */
   stroke: rgba(255, 255, 255, 0.1) !important;
 }
 
-.react-flow__minimap-pane {
+.runwise-workflow-builder .react-flow__minimap-pane {
   background: hsl(var(--background)) !important;
 }
 
@@ -346,10 +349,10 @@ body {
   overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
-/* Allow user interaction on React Flow canvas */
-.react-flow,
-.react-flow__pane,
-.react-flow__viewport {
+/* Allow user interaction on workflow builder canvas only */
+.runwise-workflow-builder.react-flow,
+.runwise-workflow-builder .react-flow__pane,
+.runwise-workflow-builder .react-flow__viewport {
   user-select: auto !important;
   -webkit-user-select: auto !important;
   -moz-user-select: auto !important;
@@ -357,7 +360,7 @@ body {
   cursor: grab !important;
 }
 
-.react-flow__pane:active {
+.runwise-workflow-builder .react-flow__pane:active {
   cursor: grabbing !important;
 }
 
@@ -527,14 +530,6 @@ html {
   }
 }
 
-@keyframes testimonialIn {
-  to {
-    opacity: 1;
-    filter: blur(0px);
-    transform: translateY(0px) scale(1);
-  }
-}
-
 .animate-element {
   opacity: 0;
   filter: blur(10px);
@@ -547,13 +542,6 @@ html {
   filter: blur(10px);
   transform: translateX(30px);
   animation: slideRightIn 0.8s ease-out forwards;
-}
-
-.animate-testimonial {
-  opacity: 0;
-  filter: blur(10px);
-  transform: translateY(20px) scale(0.95);
-  animation: testimonialIn 0.6s ease-out forwards;
 }
 
 /* Agent chat message list: subtle slide-in */
@@ -712,9 +700,9 @@ html {
 /* Default app font: Geist for logged-in pages (excluding landing, auth, privacy, terms) */
 html,
 body,
-html *:not(main.landing-page *):not(.landing-page *):not(.auth-page *),
-body *:not(main.landing-page *):not(.landing-page *):not(.auth-page *) {
-  font-family: "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+html *:not(main.landing-page *):not(.auth-page *),
+body *:not(main.landing-page *):not(.auth-page *) {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   font-display: swap;
 }
 
@@ -727,123 +715,69 @@ body:has(.auth-page) * {
   font-display: swap !important;
 }
 
+/* Auth pages: same creamy off-white as landing */
+html:has(.auth-page),
+body:has(.auth-page) {
+  background-color: #f5f3ef !important;
+}
+
+html.dark:has(.auth-page),
+html.dark:has(.auth-page) body {
+  background-color: #f5f3ef !important;
+}
+
 /* ============================================
-   LANDING PAGE SPECIFIC STYLES - SCOPED ONLY TO LANDING PAGE
+   Landing home (/) — typography matches standalone Landing Page (styles/globals.css)
    ============================================ */
 
-/* Landing page background and font overrides */
 html:has(main.landing-page),
 body:has(main.landing-page) {
-  background-color: black !important;
+  background-color: #f5f3ef !important;
 }
 
-main.landing-page {
-  background-color: black !important;
-  color: white !important;
-  font-family: "Outfit", sans-serif !important;
-  min-height: 100vh;
+html.dark:has(main.landing-page),
+html.dark:has(main.landing-page) body {
+  background-color: #f5f3ef !important;
 }
 
-/* Landing page font overrides - MUST come after global Roboto rules and have equal/higher specificity */
-html:has(main.landing-page),
-html:has(main.landing-page) *,
-body:has(main.landing-page),
-body:has(main.landing-page) *,
-html:has(main.landing-page) div,
-html:has(main.landing-page) div *,
-html:has(main.landing-page) div div,
-html:has(main.landing-page) div div *,
-html:has(main.landing-page) span,
-html:has(main.landing-page) span *,
-html:has(main.landing-page) h1,
-html:has(main.landing-page) h1 *,
-html:has(main.landing-page) h2,
-html:has(main.landing-page) h2 *,
-html:has(main.landing-page) h3,
-html:has(main.landing-page) h3 *,
-html:has(main.landing-page) h4,
-html:has(main.landing-page) h4 *,
-html:has(main.landing-page) h5,
-html:has(main.landing-page) h5 *,
-html:has(main.landing-page) h6,
-html:has(main.landing-page) h6 *,
-html:has(main.landing-page) p,
-html:has(main.landing-page) p *,
-html:has(main.landing-page) a,
-html:has(main.landing-page) a *,
-html:has(main.landing-page) button,
-html:has(main.landing-page) button *,
-html:has(main.landing-page) input,
-html:has(main.landing-page) input *,
-html:has(main.landing-page) textarea,
-html:has(main.landing-page) textarea *,
-html:has(main.landing-page) select,
-html:has(main.landing-page) select *,
-html:has(main.landing-page) label,
-html:has(main.landing-page) label *,
-html:has(main.landing-page) li,
-html:has(main.landing-page) li *,
-html:has(main.landing-page) ul,
-html:has(main.landing-page) ul *,
-html:has(main.landing-page) ol,
-html:has(main.landing-page) ol *,
-html:has(main.landing-page) table,
-html:has(main.landing-page) table *,
-html:has(main.landing-page) tr,
-html:has(main.landing-page) tr *,
-html:has(main.landing-page) td,
-html:has(main.landing-page) td *,
-html:has(main.landing-page) th,
-html:has(main.landing-page) th *,
-html:has(main.landing-page) .font-geist,
-html:has(main.landing-page) .font-geist *,
-html:has(main.landing-page) [class*="font-"],
-html:has(main.landing-page) [class*="font-"] *,
-main.landing-page,
-main.landing-page *,
-main.landing-page * * {
-  font-family: "Outfit", sans-serif !important;
-  font-display: swap !important;
+/* Same as Landing Page body {} */
+html:has(main.landing-page) body {
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  color: #171717;
 }
 
-/* Override the wildcard rule for landing page with higher specificity */
-html:has(main.landing-page) *:not([class*="mono"]):not([class*="code"]),
-html:has(main.landing-page) *:not([class*="mono"]):not([class*="code"]) *,
-body:has(main.landing-page) *:not([class*="mono"]):not([class*="code"]),
-body:has(main.landing-page) *:not([class*="mono"]):not([class*="code"]) * {
-  font-family: "Outfit", sans-serif !important;
+/* Same as Landing Page .landing-page + .font-playfair */
+.landing-page,
+.landing-page *:not(.font-playfair) {
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif !important;
 }
 
-/* Landing page button styles - only apply to landing page */
-main.landing-page .start-building-btn {
-  box-shadow: rgba(0, 0, 0, 0.15) 0px 0.706592px 0.706592px -0.625px,
-    rgba(0, 0, 0, 0.14) 0px 1.80656px 1.80656px -1.25px,
-    rgba(0, 0, 0, 0.14) 0px 3.62176px 3.62176px -1.875px,
-    rgba(0, 0, 0, 0.13) 0px 6.8656px 6.8656px -2.5px,
-    rgba(0, 0, 0, 0.1) 0px 13.6468px 13.6468px -3.125px,
-    rgba(0, 0, 0, 0.05) 0px 30px 30px -3.75px;
+.font-playfair {
+  font-family: var(--font-playfair), "Playfair Display", serif !important;
 }
 
-/* Landing page marquee styles */
-main.landing-page .marque-slider {
-  opacity: 1;
-  mask-image: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0) 0%,
-    rgb(0, 0, 0) 25%,
-    rgb(0, 0, 0) 75%,
-    rgba(0, 0, 0, 0) 100%
-  );
+/* Hero background (matches CTA section) */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  background: linear-gradient(145deg, #ffffff 0%, #f2f8ff 30%, #f7f0ff 62%, #fff6e6 100%);
 }
 
-main.landing-page .brand-marquee-fade {
-  mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    black 25%,
-    black 75%,
-    transparent 100%
-  );
+.hero-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 55% at 18% 22%, rgba(99, 102, 241, 0.2) 0%, transparent 68%),
+    radial-gradient(ellipse 60% 50% at 82% 18%, rgba(236, 72, 153, 0.16) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 55% at 52% 78%, rgba(34, 197, 94, 0.12) 0%, transparent 72%);
+}
+
+.brand-marquee-fade {
+  mask-image: linear-gradient(to right, transparent 0%, black 25%, black 75%, transparent 100%);
   -webkit-mask-image: linear-gradient(
     to right,
     transparent 0%,
@@ -853,13 +787,8 @@ main.landing-page .brand-marquee-fade {
   );
 }
 
-main.landing-page .marque-slider-content {
-  animation: marquee 30s linear infinite;
-  will-change: transform;
-}
-
-/* Landing page specific animations */
-@keyframes spin-slow-2 {
+/* Integration orbit */
+@keyframes integration-orbit-spin {
   from {
     transform: rotate(0deg);
   }
@@ -868,62 +797,140 @@ main.landing-page .marque-slider-content {
   }
 }
 
-main.landing-page .animate-spin-slow-2 {
-  animation: spin-slow-2 4s linear infinite;
+.integration-orbit-spin {
+  animation: integration-orbit-spin 42s linear infinite;
 }
 
-@keyframes progress {
+.integration-orbit-counter {
+  animation: integration-orbit-spin 42s linear infinite reverse;
+}
+
+.integration-orbit-outer-spin {
+  animation: integration-orbit-spin 60s linear infinite reverse;
+}
+
+.integration-orbit-outer-counter {
+  animation: integration-orbit-spin 60s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .integration-orbit-spin,
+  .integration-orbit-counter,
+  .integration-orbit-outer-spin,
+  .integration-orbit-outer-counter {
+    animation: none;
+  }
+}
+
+/* Automate conveyor */
+@keyframes conveyor-belt-bg-scroll {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 10px 0;
+  }
+}
+
+.conveyor-belt-dashes {
+  width: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(26, 26, 26, 0.32) 0,
+    rgba(26, 26, 26, 0.32) 4px,
+    transparent 4px,
+    transparent 10px
+  );
+  background-repeat: repeat-x;
+}
+
+.conveyor-visual-root .conveyor-belt-dashes--in,
+.conveyor-visual-root .conveyor-belt-dashes--out {
+  animation: conveyor-belt-bg-scroll var(--conveyor-belt-duration, 167ms) linear infinite;
+}
+
+.conveyor-edge-fade {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 6%,
+    black 94%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 6%,
+    black 94%,
+    transparent 100%
+  );
+}
+
+@keyframes conveyor-strip-scroll {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0%);
+  }
+}
+
+.conveyor-task-strip {
+  animation: conveyor-strip-scroll var(--conveyor-strip-duration, 30s) linear infinite;
+}
+
+@keyframes conveyor-agent-scroll {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0%);
+  }
+}
+
+.conveyor-agent-strip {
+  animation: conveyor-agent-scroll var(--conveyor-agent-duration, 30s) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conveyor-visual-root .conveyor-belt-dashes--in,
+  .conveyor-visual-root .conveyor-belt-dashes--out {
+    animation: none;
+  }
+
+  .conveyor-task-strip,
+  .conveyor-agent-strip {
+    animation: none;
+  }
+}
+
+/* Explain agent chat */
+@keyframes chat-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-chat-in {
+  animation: chat-message-in 0.3s ease-out forwards;
+}
+
+@keyframes chat-shimmer {
   0% {
-    transform: translateX(-100%);
+    background-position: -200% 0;
   }
   100% {
-    transform: translateX(333%);
+    background-position: 200% 0;
   }
 }
 
-main.landing-page .animate-progress {
-  animation: progress 5s ease-in-out infinite;
-}
-
-@media screen and (max-width: 1200px) {
-  main.landing-page .data-insights-box:first-child,
-  main.landing-page .data-insights-box:last-child {
-    display: none;
-  }
-}
-
-/* ============================================
-   LANDING PAGE FONT-WEIGHT OVERRIDES - HIGHEST PRIORITY
-   These must come at the very end to override everything
-   ============================================ */
-
-@layer utilities {
-  /* Ensure Tailwind font-weight utilities work on landing page */
-  /* Using @layer utilities ensures these work with Tailwind's system */
-  html:has(main.landing-page) main.landing-page .font-light,
-  html:has(main.landing-page) main.landing-page * .font-light {
-    font-weight: 300 !important;
-  }
-
-  html:has(main.landing-page) main.landing-page .font-normal,
-  html:has(main.landing-page) main.landing-page * .font-normal {
-    font-weight: 400 !important;
-  }
-
-  html:has(main.landing-page) main.landing-page .font-medium,
-  html:has(main.landing-page) main.landing-page * .font-medium {
-    font-weight: 500 !important;
-  }
-
-  html:has(main.landing-page) main.landing-page .font-semibold,
-  html:has(main.landing-page) main.landing-page * .font-semibold {
-    font-weight: 600 !important;
-  }
-
-  html:has(main.landing-page) main.landing-page .font-bold,
-  html:has(main.landing-page) main.landing-page * .font-bold {
-    font-weight: 700 !important;
-  }
+.workflow-mini-preview .react-flow__attribution {
+  display: none !important;
 }
 
 /* ============================================
@@ -1015,111 +1022,4 @@ input:-webkit-autofill:active {
 
 .mention-token-x:hover {
   opacity: 0.9;
-}
-
-/* ============================================================
-   LANDING PAGE – LIGHT MODE
-   Overrides the dark defaults when `.dark` is NOT on <html>.
-   Purple/gradient elements are explicitly preserved.
-   ============================================================ */
-
-/* Page + body background */
-html:not(.dark):has(main.landing-page),
-html:not(.dark):has(main.landing-page) body {
-  background-color: #f5f3ef !important;
-}
-
-html:not(.dark) main.landing-page {
-  background-color: #f5f3ef !important;
-  color: #1a1a1a !important;
-}
-
-/* ── Section / footer backgrounds ───────────────────────── */
-html:not(.dark) main.landing-page section,
-html:not(.dark) main.landing-page footer {
-  background-color: transparent !important;
-}
-
-/* ── Explicit background overrides ──────────────────────── */
-html:not(.dark) main.landing-page .bg-black {
-  background-color: #f5f3ef !important;
-}
-html:not(.dark) main.landing-page .bg-black\/50 {
-  background-color: rgba(245,243,239,0.6) !important;
-}
-html:not(.dark) main.landing-page .bg-\[\#0d0d0d\] {
-  background-color: #e8e5de !important;
-}
-html:not(.dark) main.landing-page .bg-\[\#ffffff0f\] {
-  background-color: rgba(0,0,0,0.05) !important;
-}
-html:not(.dark) main.landing-page .bg-\[\#ffffff14\] {
-  background-color: rgba(0,0,0,0.07) !important;
-}
-html:not(.dark) main.landing-page .bg-\[\#ffffff08\] {
-  background-color: rgba(0,0,0,0.03) !important;
-}
-
-/* ── Border overrides ────────────────────────────────────── */
-html:not(.dark) main.landing-page .border-\[\#ffffff1a\] {
-  border-color: rgba(0,0,0,0.1) !important;
-}
-html:not(.dark) main.landing-page .border-\[\#ffffff30\] {
-  border-color: rgba(0,0,0,0.18) !important;
-}
-
-/* ── Text colour overrides ───────────────────────────────── */
-html:not(.dark) main.landing-page .text-white {
-  color: #1a1a1a !important;
-}
-html:not(.dark) main.landing-page .hover\:text-white:hover {
-  color: #000000 !important;
-}
-html:not(.dark) main.landing-page .text-\[\#ffffffb3\],
-html:not(.dark) main.landing-page .text-\[\#ffffffB3\] {
-  color: rgba(0,0,0,0.5) !important;
-}
-html:not(.dark) main.landing-page .text-\[\#ffffffcc\] {
-  color: rgba(0,0,0,0.6) !important;
-}
-html:not(.dark) main.landing-page .text-\[\#ffffff80\] {
-  color: rgba(0,0,0,0.38) !important;
-}
-html:not(.dark) main.landing-page .text-\[\#fffc\] {
-  color: rgba(0,0,0,0.55) !important;
-}
-
-/* ── Component-specific icon overrides ──────────────────────── */
-
-/* Footer social icons (x, instagram, discord) → gray */
-html:not(.dark) main.landing-page footer img[src*="/assets/icons/"] {
-  filter: brightness(0) opacity(0.45);
-}
-
-/* FAQ dropdown arrow → dark */
-html:not(.dark) main.landing-page img[src*="down-arrow"] {
-  filter: brightness(0) opacity(0.7);
-}
-
-/* Pricing plan header icons (inside bg-[#ffffff14] boxes) → dark gray */
-html:not(.dark) main.landing-page .bg-\[\#ffffff14\] img {
-  filter: brightness(0) opacity(0.55);
-}
-
-/* Benefits section icons (inside bg-white/20 boxes) → dark gray */
-html:not(.dark) main.landing-page .bg-white\/20 img {
-  filter: brightness(0) opacity(0.55);
-}
-
-/* ── Restore white text/bg inside purple / gradient elements ─ */
-html:not(.dark) main.landing-page .bg-\[\#bd28b3ba\],
-html:not(.dark) main.landing-page .bg-\[\#bd28b3ba\] *,
-html:not(.dark) main.landing-page .bg-\[\#bd28b3ba\] span,
-html:not(.dark) main.landing-page .bg-\[\#bd28b3ba\] p {
-  color: white !important;
-}
-/* The "Start Building" CTA uses a gradient class */
-html:not(.dark) main.landing-page .start-building-btn,
-html:not(.dark) main.landing-page .start-building-btn * {
-  color: white !important;
 }

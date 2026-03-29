@@ -28,7 +28,7 @@ export const Header: React.FC = () => {
   useEffect(() => {
     const handleScroll = () => {
       // Header shrink
-      setIsScrolled(window.scrollY > 1000);
+      setIsScrolled(window.scrollY > 320);
 
       // Sections you want to track
       const sections = [

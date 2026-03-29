@@ -85,7 +85,7 @@ function ResetPasswordContent() {
 
   if (tokenValid === false) {
     return (
-      <div className="auth-page min-h-screen w-full bg-background text-foreground flex items-center justify-center p-3" suppressHydrationWarning={true}>
+      <div className="auth-page min-h-screen w-full bg-[#f5f3ef] text-foreground flex items-center justify-center p-3" suppressHydrationWarning={true}>
         <div className="w-full max-w-xs space-y-4">
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
             <p className="text-sm text-red-400 mb-4">{error}</p>
@@ -105,7 +105,7 @@ function ResetPasswordContent() {
   }
 
   return (
-    <div className="auth-page min-h-screen w-full bg-background text-foreground" suppressHydrationWarning={true}>
+    <div className="auth-page min-h-screen w-full bg-[#f5f3ef] text-foreground" suppressHydrationWarning={true}>
       {/* Go Back Button */}
       <button
         onClick={handleGoBack}
@@ -226,7 +226,7 @@ function ResetPasswordContent() {
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen w-full bg-background text-foreground flex items-center justify-center">
+      <div className="auth-page min-h-screen w-full bg-[#f5f3ef] text-foreground flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-400 mx-auto mb-4"></div>
           <p className="text-muted-foreground text-sm">Loading...</p>

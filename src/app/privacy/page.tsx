@@ -1,5 +1,5 @@
-import { Header } from "../components/Header";
-import { Footer } from "../components/Footer";
+import { FloatingHeader } from "@/components/landing/layout/floating-header";
+import { LegalDocumentFooter } from "@/components/landing/layout/legal-document-footer";
 
 export const metadata = {
   title: "Privacy Policy | Runwise",
@@ -14,30 +14,30 @@ export default function PrivacyPage() {
   });
 
   return (
-    <main className="landing-page min-h-screen">
-      <Header />
+    <main className="landing-page min-h-screen bg-[#f5f3ef] text-black">
+      <FloatingHeader />
 
       <section className="pt-[140px] px-6 md:px-10 pb-20 relative">
         <div className="max-w-[900px] w-full mx-auto">
           {/* Title */}
           <div className="mb-12">
-            <h1 className="text-[35px] md:text-[48px] font-medium -tracking-[.02em] leading-[1.1em] text-white mb-4">
+            <h1 className="text-[35px] md:text-[48px] font-medium -tracking-[.02em] leading-[1.1em] text-black mb-4">
               Privacy Policy
             </h1>
-            <p className="text-[#ffffffb3] text-base md:text-lg font-normal leading-[1.5em]">
+            <p className="text-black text-base md:text-lg font-normal leading-[1.5em]">
               Last updated: {lastUpdated}
             </p>
           </div>
 
           {/* Introduction */}
           <div className="mb-8">
-            <p className="text-[#ffffffcc] text-base leading-[1.6em] mb-4">
+            <p className="text-black text-base leading-[1.6em] mb-4">
               This Privacy Policy explains how <strong>Runwise</strong> ("Runwise",
               "we", "us", or "our") collects, uses, discloses, and protects your
               information when you use our website, application, APIs, and related
               services (collectively, the "Service").
             </p>
-            <p className="text-[#ffffffcc] text-base leading-[1.6em]">
+            <p className="text-black text-base leading-[1.6em]">
               By using Runwise, you agree to the practices described in this
               Privacy Policy. If you do not agree with this Policy, you should not
               use the Service.
@@ -45,16 +45,16 @@ export default function PrivacyPage() {
           </div>
 
           {/* Privacy Content */}
-          <div className="space-y-10 text-[#ffffffcc]">
+          <div className="space-y-10 text-black">
             {/* Section 1 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 1. Information We Collect
               </h2>
 
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-xl font-medium text-white mb-2">
+                  <h3 className="text-xl font-medium text-black mb-2">
                     1.1 Information You Provide
                   </h3>
                   <p className="text-base leading-[1.6em] mb-3">
@@ -91,7 +91,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-medium text-white mb-2">
+                  <h3 className="text-xl font-medium text-black mb-2">
                     1.2 Information Collected Automatically
                   </h3>
                   <p className="text-base leading-[1.6em] mb-3">
@@ -123,7 +123,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-medium text-white mb-2">
+                  <h3 className="text-xl font-medium text-black mb-2">
                     1.3 Third-Party Integrations
                   </h3>
                   <p className="text-base leading-[1.6em] mb-3">
@@ -156,7 +156,7 @@ export default function PrivacyPage() {
 
             {/* Section 2 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 2. How We Use Your Information
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
@@ -204,7 +204,7 @@ export default function PrivacyPage() {
 
             {/* Section 3 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 3. AI Processing and Data Use
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
@@ -243,7 +243,7 @@ export default function PrivacyPage() {
 
             {/* Section 4 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 4. Cookies and Tracking Technologies
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
@@ -270,7 +270,7 @@ export default function PrivacyPage() {
 
             {/* Section 5 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 5. Data Sharing and Disclosure
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
@@ -279,7 +279,7 @@ export default function PrivacyPage() {
 
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-xl font-medium text-white mb-2">
+                  <h3 className="text-xl font-medium text-black mb-2">
                     5.1 Service Providers
                   </h3>
                   <p className="text-base leading-[1.6em] mb-3">
@@ -301,7 +301,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-medium text-white mb-2">
+                  <h3 className="text-xl font-medium text-black mb-2">
                     5.2 Legal Requirements
                   </h3>
                   <p className="text-base leading-[1.6em]">
@@ -317,7 +317,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-medium text-white mb-2">
+                  <h3 className="text-xl font-medium text-black mb-2">
                     5.3 Business Transfers
                   </h3>
                   <p className="text-base leading-[1.6em]">
@@ -338,7 +338,7 @@ export default function PrivacyPage() {
 
             {/* Section 6 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 6. Data Retention
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
@@ -367,7 +367,7 @@ export default function PrivacyPage() {
 
             {/* Section 7 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 7. Data Security
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
@@ -393,7 +393,7 @@ export default function PrivacyPage() {
 
             {/* Section 8 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 8. Your Rights
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
@@ -429,7 +429,7 @@ export default function PrivacyPage() {
 
             {/* Section 9 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 9. Children’s Privacy
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
@@ -447,7 +447,7 @@ export default function PrivacyPage() {
 
             {/* Section 10 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 10. International Data Transfers
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
@@ -467,7 +467,7 @@ export default function PrivacyPage() {
 
             {/* Section 11 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 11. Changes to This Privacy Policy
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
@@ -489,22 +489,22 @@ export default function PrivacyPage() {
 
             {/* Section 12 */}
             <section>
-              <h2 className="text-2xl md:text-3xl font-medium text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-medium text-black mb-4">
                 12. Contact Us
               </h2>
               <p className="text-base leading-[1.6em] mb-3">
                 If you have questions, concerns, or requests regarding this
                 Privacy Policy or our data practices, please contact us at:
               </p>
-              <div className="bg-[#ffffff08] border border-[#ffffff1a] rounded-lg p-6 backdrop-blur-sm">
+              <div className="rounded-lg border border-black/10 bg-white/60 p-6 backdrop-blur-sm">
                 <p className="text-base leading-[1.6em] mb-2">
-                  <strong className="text-white">Runwise</strong>
+                  <strong className="text-black">Runwise</strong>
                 </p>
                 <p className="text-base leading-[1.6em] mb-2">
                   Email:{" "}
                   <a
                     href="mailto:hello@runwiseai.app"
-                    className="text-[#bd28b3] hover:underline"
+                    className="text-black underline underline-offset-2 transition hover:opacity-80"
                   >
                     hello@runwiseai.app
                   </a>
@@ -513,7 +513,7 @@ export default function PrivacyPage() {
                   Phone:{" "}
                   <a
                     href="tel:+640223591512"
-                    className="text-[#bd28b3] hover:underline"
+                    className="text-black underline underline-offset-2 transition hover:opacity-80"
                   >
                     +64 022 359 1512
                   </a>
@@ -522,8 +522,8 @@ export default function PrivacyPage() {
             </section>
 
             {/* Acceptance */}
-            <section className="pt-8 border-t border-[#ffffff1a]">
-              <p className="text-base leading-[1.6em] text-[#ffffffcc]">
+            <section className="pt-8 border-t border-black/10">
+              <p className="text-base leading-[1.6em] text-black">
                 By using Runwise, you acknowledge that you have read, understood,
                 and agree to this Privacy Policy.
               </p>
@@ -532,7 +532,7 @@ export default function PrivacyPage() {
         </div>
       </section>
 
-      <Footer />
+      <LegalDocumentFooter />
     </main>
   );
 }

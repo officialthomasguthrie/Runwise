@@ -5,20 +5,10 @@ import { ForgotPasswordModal } from './forgot-password-modal';
 // --- HELPER COMPONENTS (ICONS) ---
 
 
-// --- TYPE DEFINITIONS ---
-
-export interface Testimonial {
-  avatarSrc: string;
-  name: string;
-  handle: string;
-  text: string;
-}
-
 interface SignInPageProps {
   title?: React.ReactNode;
   description?: React.ReactNode;
   heroImageSrc?: string;
-  testimonials?: Testimonial[];
   onSignIn?: (event: React.FormEvent<HTMLFormElement>) => void;
   onGoogleSignIn?: () => void;
   onMicrosoftSignIn?: () => void;
@@ -47,24 +37,12 @@ const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-const TestimonialCard = ({ testimonial, delay }: { testimonial: Testimonial, delay: string }) => (
-  <div className={`animate-testimonial ${delay} flex items-start gap-3 rounded-3xl bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl p-5 w-64`} suppressHydrationWarning={true}>
-    <img src={testimonial.avatarSrc} className="h-10 w-10 object-cover rounded-2xl" alt="avatar" />
-    <div className="text-sm leading-snug" suppressHydrationWarning={true}>
-      <p className="flex items-center gap-1 font-medium">{testimonial.name}</p>
-      <p className="text-muted-foreground">{testimonial.handle}</p>
-      <p className="mt-1 text-foreground/80">{testimonial.text}</p>
-    </div>
-  </div>
-);
-
 // --- MAIN COMPONENT ---
 
 export const SignInPage: React.FC<SignInPageProps> = ({
   title = <span className="font-light text-foreground tracking-tighter">Welcome</span>,
   description = "Access your account and continue your journey with us",
   heroImageSrc,
-  testimonials = [],
   onSignIn,
   onGoogleSignIn,
   onMicrosoftSignIn,
@@ -76,7 +54,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   const [isForgotPasswordModalOpen, setIsForgotPasswordModalOpen] = useState(false);
 
   return (
-    <div className="h-[100dvh] flex flex-col md:flex-row font-geist w-[100dvw] relative bg-background text-foreground" suppressHydrationWarning={true}>
+    <div className="h-[100dvh] flex flex-col md:flex-row font-geist w-[100dvw] relative bg-[#f5f3ef] text-foreground" suppressHydrationWarning={true}>
       {/* Go Back Button */}
       {onGoBack && (
         <button
@@ -133,16 +111,16 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
             <div className="animate-element animate-delay-700 relative flex items-center justify-center py-2" suppressHydrationWarning={true}>
               <span className="w-full border-t border-[#ffffff1a]"></span>
-              <span className="px-2 text-xs text-muted-foreground bg-background absolute">Or continue with</span>
+              <span className="px-2 text-xs text-muted-foreground bg-[#f5f3ef] absolute">Or continue with</span>
             </div>
 
             <div className="animate-element animate-delay-1000 space-y-1" suppressHydrationWarning={true}>
-              <button onClick={onGoogleSignIn} className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-background">
+              <button onClick={onGoogleSignIn} className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-[#ebe9e5]">
                 <img src="https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/symbol.svg?c=1dxbfHSJFAPEGdCLU4o5B" alt="Google" className="h-5 w-5" />
                 <span className="text-xs">Continue with Google</span>
               </button>
               
-              <button onClick={onMicrosoftSignIn} className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-background">
+              <button onClick={onMicrosoftSignIn} className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-[#ebe9e5]">
                 <img src="https://cdn.brandfetch.io/idchmboHEZ/theme/dark/symbol.svg?c=1dxbfHSJFAPEGdCLU4o5B" alt="Microsoft" className="h-5 w-5" />
                 <span className="text-xs">Continue with Microsoft</span>
               </button>
@@ -165,17 +143,10 @@ export const SignInPage: React.FC<SignInPageProps> = ({
         </div>
       </section>
 
-      {/* Right column: hero image + testimonials */}
+      {/* Right column: hero image */}
       {heroImageSrc && (
         <section className="hidden md:block flex-1 relative p-4" suppressHydrationWarning={true}>
           <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl bg-cover bg-center" style={{ backgroundImage: `url(${heroImageSrc})` }} suppressHydrationWarning={true}></div>
-          {testimonials.length > 0 && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 px-8 w-full justify-center" suppressHydrationWarning={true}>
-              <TestimonialCard testimonial={testimonials[0]} delay="animate-delay-1000" />
-              {testimonials[1] && <div className="hidden xl:flex" suppressHydrationWarning={true}><TestimonialCard testimonial={testimonials[1]} delay="animate-delay-1200" /></div>}
-              {testimonials[2] && <div className="hidden 2xl:flex" suppressHydrationWarning={true}><TestimonialCard testimonial={testimonials[2]} delay="animate-delay-1400" /></div>}
-            </div>
-          )}
         </section>
       )}
 

@@ -14,7 +14,7 @@ const theme = createTheme({
 
 export function AuthLoadingPage() {
   return (
-    <div className="min-h-screen w-full bg-background flex items-center justify-center">
+    <div className="auth-page min-h-screen w-full bg-[#f5f3ef] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <ThemeProvider theme={theme}>
           <CircularProgress 
