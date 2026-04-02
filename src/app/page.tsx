@@ -46,7 +46,7 @@ export default function Home() {
     "@type": "Organization",
     name: "Runwise",
     url: "https://runwiseai.app",
-    logo: "https://runwiseai.app/favicon-48.png",
+    logo: "https://runwiseai.app/favicon.png",
     description: "Runwise - AI-powered workflow builder platform",
     sameAs: [] as string[],
     contactPoint: {

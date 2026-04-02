@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "icons:generate": "node scripts/generate-favicon-padded.mjs"
+    "lint": "eslint"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
