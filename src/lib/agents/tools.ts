@@ -853,6 +853,25 @@ export const AGENT_TOOLS: AgentTool[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'add_rule',
+      description: 'Add a new operational rule or goal to your configuration. Rules persist across runs and guide your future behaviour. Use this to codify patterns, preferences, or constraints you discover.',
+      parameters: {
+        type: 'object',
+        properties: {
+          label: { type: 'string', description: 'The rule or goal text (be specific and actionable)' },
+          type: {
+            type: 'string',
+            description: 'Whether this is a goal (something to achieve) or a rule (a constraint to follow)',
+            enum: ['goal', 'rule'],
+          },
+        },
+        required: ['label', 'type'],
+      },
+    },
+  },
 ];
 
 // ============================================================================
@@ -955,6 +974,8 @@ export async function executeAgentTool(
         return await toolSendNotificationToUser(toolParams, context);
       case 'do_nothing':
         return { success: true, data: { reason: toolParams.reason || 'No action needed' } };
+      case 'add_rule':
+        return await toolAddRule(toolParams, context);
       default:
         return { success: false, error: `Unknown tool: ${toolName}` };
     }
@@ -2588,14 +2609,19 @@ async function toolRecall(
 
   const allMemories = await getAgentMemory(context.agentId, context.userId, 100);
 
-  // Simple relevance filter: case-insensitive substring match on content
-  const queryLower = query.toLowerCase();
-  const relevant = allMemories.filter((m) =>
-    m.content.toLowerCase().includes(queryLower)
-  );
+  if (allMemories.length === 0) {
+    return { success: true, data: { memories: [], count: 0 } };
+  }
 
-  // Fall back to top-10 by importance if no matches found
-  const results = relevant.length > 0 ? relevant.slice(0, 10) : allMemories.slice(0, 10);
+  let results = await semanticRecall(query, allMemories);
+
+  if (!results) {
+    const queryLower = query.toLowerCase();
+    const relevant = allMemories.filter((m) =>
+      m.content.toLowerCase().includes(queryLower)
+    );
+    results = relevant.length > 0 ? relevant.slice(0, 10) : allMemories.slice(0, 10);
+  }
 
   return {
     success: true,
@@ -2608,6 +2634,129 @@ async function toolRecall(
       count: results.length,
     },
   };
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0;
+  let magA = 0;
+  let magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(magA) * Math.sqrt(magB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+async function semanticRecall(
+  query: string,
+  memories: import('./types').AgentMemory[]
+): Promise<import('./types').AgentMemory[] | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const inputs = [query, ...memories.map((m) => m.content)];
+
+    const res = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'text-embedding-3-small',
+        input: inputs,
+      }),
+    });
+
+    if (!res.ok) {
+      console.warn('[recall] Embedding API error, falling back to substring match');
+      return null;
+    }
+
+    const json = (await res.json()) as {
+      data: Array<{ embedding: number[]; index: number }>;
+    };
+
+    const sorted = json.data.sort((a, b) => a.index - b.index);
+    const queryEmbedding = sorted[0].embedding;
+    const memoryEmbeddings = sorted.slice(1);
+
+    const scored = memories.map((m, i) => ({
+      memory: m,
+      score: cosineSimilarity(queryEmbedding, memoryEmbeddings[i].embedding),
+    }));
+
+    scored.sort((a, b) => b.score - a.score);
+
+    const SIMILARITY_THRESHOLD = 0.25;
+    const topResults = scored
+      .filter((s) => s.score >= SIMILARITY_THRESHOLD)
+      .slice(0, 10);
+
+    return topResults.length > 0
+      ? topResults.map((s) => s.memory)
+      : scored.slice(0, 5).map((s) => s.memory);
+  } catch (err) {
+    console.warn('[recall] Semantic search failed, falling back to substring match:', err);
+    return null;
+  }
+}
+
+async function toolAddRule(
+  params: Record<string, any>,
+  context: AgentRunContext
+): Promise<ToolResult> {
+  const { label, type = 'rule' } = params;
+
+  if (!label || typeof label !== 'string' || !label.trim()) {
+    return { success: false, error: 'add_rule requires a non-empty label' };
+  }
+
+  const ruleType = type === 'goal' ? 'goal' : 'rule';
+  const supabase = createAdminClient();
+
+  const { data: agent, error: fetchErr } = await (supabase as any)
+    .from('agents')
+    .select('goals_rules')
+    .eq('id', context.agentId)
+    .eq('user_id', context.userId)
+    .single();
+
+  if (fetchErr || !agent) {
+    return { success: false, error: 'Failed to load agent for rule update' };
+  }
+
+  const existing: any[] = Array.isArray(agent.goals_rules) ? agent.goals_rules : [];
+
+  const isDuplicate = existing.some(
+    (g: any) => g.label?.toLowerCase().trim() === label.toLowerCase().trim()
+  );
+  if (isDuplicate) {
+    return { success: true, data: { skipped: true, reason: 'Rule already exists' } };
+  }
+
+  const newRule = {
+    id: `gr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    type: ruleType,
+    label: label.trim(),
+  };
+
+  const updated = [...existing, newRule];
+
+  const { error: updateErr } = await (supabase as any)
+    .from('agents')
+    .update({ goals_rules: updated, updated_at: new Date().toISOString() })
+    .eq('id', context.agentId)
+    .eq('user_id', context.userId);
+
+  if (updateErr) {
+    return { success: false, error: `Failed to save rule: ${updateErr.message}` };
+  }
+
+  return { success: true, data: { ruleId: newRule.id, type: ruleType, label: newRule.label } };
 }
 
 async function toolSendNotificationToUser(

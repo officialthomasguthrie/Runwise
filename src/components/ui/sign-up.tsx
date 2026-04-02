@@ -16,7 +16,7 @@ interface SignUpPageProps {
 // --- SUB-COMPONENTS ---
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-gray-300 dark:border-[#ffffff1a] bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
+  <div className="rounded-2xl border border-[#e9e4dd] bg-white/80 backdrop-blur-sm transition-colors focus-within:border-[#e0cfd8]/90 focus-within:bg-pink-50/90" suppressHydrationWarning={true}>
     {children}
   </div>
 );
@@ -24,7 +24,7 @@ const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
 // --- MAIN COMPONENT ---
 
 export const SignUpPage: React.FC<SignUpPageProps> = ({
-  title = <span className="font-light text-foreground tracking-tighter">Get Started</span>,
+  title = <span className="font-light text-stone-900 tracking-tighter">Get Started</span>,
   description = "Create your account and start building AI workflows",
   heroImageSrc,
   onSignUp,
@@ -37,12 +37,12 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   return (
-    <div className="h-[100dvh] flex flex-col md:flex-row font-geist w-[100dvw] relative bg-[#f5f3ef] text-foreground" suppressHydrationWarning={true}>
+    <div className="h-[100dvh] flex flex-col md:flex-row font-geist w-[100dvw] relative bg-[#f5f3ef] text-stone-900" suppressHydrationWarning={true}>
       {/* Go Back Button */}
       {onGoBack && (
         <button
           onClick={onGoBack}
-          className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground rounded-lg backdrop-blur-sm"
+          className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 text-xs text-stone-600 hover:text-stone-900 rounded-lg backdrop-blur-sm"
         >
           <ArrowLeft className="w-3 h-3" />
           Go Back
@@ -54,50 +54,50 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
         <div className="w-full max-w-xs" suppressHydrationWarning={true}>
           <div className="flex flex-col gap-2" suppressHydrationWarning={true}>
             <h1 className="animate-element animate-delay-100 text-xl md:text-2xl leading-tight">{title}</h1>
-            <p className="animate-element animate-delay-200 text-xs text-muted-foreground">{description}</p>
+            <p className="animate-element animate-delay-200 text-xs text-stone-600">{description}</p>
 
             <form className="space-y-2" onSubmit={onSignUp} suppressHydrationWarning={true}>
               <div className="animate-element animate-delay-300 grid grid-cols-2 gap-2" suppressHydrationWarning={true}>
                 <div suppressHydrationWarning={true}>
-                  <label className="text-xs font-medium text-muted-foreground">First Name</label>
+                  <label className="text-xs font-medium text-stone-700">First Name</label>
                   <GlassInputWrapper>
-                    <input name="firstName" type="text" placeholder="John" autoComplete="off" className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" required />
+                    <input name="firstName" type="text" placeholder="John" autoComplete="off" className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-stone-900 placeholder:text-stone-500" required />
                   </GlassInputWrapper>
                 </div>
                 <div suppressHydrationWarning={true}>
-                  <label className="text-xs font-medium text-muted-foreground">Last Name</label>
+                  <label className="text-xs font-medium text-stone-700">Last Name</label>
                   <GlassInputWrapper>
-                    <input name="lastName" type="text" placeholder="Doe" autoComplete="off" className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" required />
+                    <input name="lastName" type="text" placeholder="Doe" autoComplete="off" className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-stone-900 placeholder:text-stone-500" required />
                   </GlassInputWrapper>
                 </div>
               </div>
 
               <div className="animate-element animate-delay-400" suppressHydrationWarning={true}>
-                <label className="text-xs font-medium text-muted-foreground">Email Address</label>
+                <label className="text-xs font-medium text-stone-700">Email Address</label>
                 <GlassInputWrapper>
-                  <input name="email" type="email" placeholder="Enter your email address" autoComplete="off" className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" required />
+                  <input name="email" type="email" placeholder="Enter your email address" autoComplete="off" className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-stone-900 placeholder:text-stone-500" required />
                 </GlassInputWrapper>
               </div>
 
               <div className="animate-element animate-delay-500" suppressHydrationWarning={true}>
-                <label className="text-xs font-medium text-muted-foreground">Password</label>
+                <label className="text-xs font-medium text-stone-700">Password</label>
                 <GlassInputWrapper>
                   <div className="relative" suppressHydrationWarning={true}>
-                    <input name="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" autoComplete="new-password" className="w-full bg-transparent text-xs p-1.5 pr-7 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" required />
+                    <input name="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" autoComplete="new-password" className="w-full bg-transparent text-xs p-1.5 pr-7 rounded-lg focus:outline-none text-stone-900 placeholder:text-stone-500" required />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-1.5 flex items-center">
-                      {showPassword ? <EyeOff className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />}
+                      {showPassword ? <EyeOff className="w-3 h-3 text-stone-500 hover:text-stone-800 transition-colors" /> : <Eye className="w-3 h-3 text-stone-500 hover:text-stone-800 transition-colors" />}
                     </button>
                   </div>
                 </GlassInputWrapper>
               </div>
 
               <div className="animate-element animate-delay-600" suppressHydrationWarning={true}>
-                <label className="text-xs font-medium text-muted-foreground">Confirm Password</label>
+                <label className="text-xs font-medium text-stone-700">Confirm Password</label>
                 <GlassInputWrapper>
                   <div className="relative" suppressHydrationWarning={true}>
-                    <input name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} placeholder="Confirm your password" autoComplete="new-password" className="w-full bg-transparent text-xs p-1.5 pr-7 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground" required />
+                    <input name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} placeholder="Confirm your password" autoComplete="new-password" className="w-full bg-transparent text-xs p-1.5 pr-7 rounded-lg focus:outline-none text-stone-900 placeholder:text-stone-500" required />
                     <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-1.5 flex items-center">
-                      {showConfirmPassword ? <EyeOff className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-3 h-3 text-muted-foreground hover:text-foreground transition-colors" />}
+                      {showConfirmPassword ? <EyeOff className="w-3 h-3 text-stone-500 hover:text-stone-800 transition-colors" /> : <Eye className="w-3 h-3 text-stone-500 hover:text-stone-800 transition-colors" />}
                     </button>
                   </div>
                 </GlassInputWrapper>
@@ -105,12 +105,12 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
 
               <div className="animate-element animate-delay-700 flex items-center gap-1 text-xs" suppressHydrationWarning={true}>
                 <label className="flex items-center gap-1 cursor-pointer">
-                  <input type="checkbox" name="agreeTerms" className="custom-checkbox border-gray-300 dark:border-[#ffffff1a]" required />
-                  <span className="text-foreground/90">I agree to the <a href="/terms" className="text-pink-400 hover:underline">Terms</a> and <a href="/privacy" className="text-pink-400 hover:underline">Privacy</a></span>
+                  <input type="checkbox" name="agreeTerms" className="custom-checkbox border-[#dcd6cc]" required />
+                  <span className="text-stone-800">I agree to the <a href="/terms" className="text-pink-600 hover:underline">Terms</a> and <a href="/privacy" className="text-pink-600 hover:underline">Privacy</a></span>
                 </label>
               </div>
 
-              <button type="submit" className="animate-element animate-delay-800 w-full rounded-lg border border-[#ffffff1a] bg-[#bd28b3ba] py-1.5 cursor-pointer flex items-center justify-center">
+              <button type="submit" className="animate-element animate-delay-800 w-full rounded-lg border border-white/35 bg-[#bd28b3ba] py-1.5 cursor-pointer flex items-center justify-center">
                 <div className="flex items-center justify-center gap-[5px]">
                   <span className="text-xs text-white">Create Account</span>
                   <img src="/assets/icons/arrow-top.svg" className="w-4 h-4" alt="arrow-top" />
@@ -119,23 +119,23 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
             </form>
 
             <div className="animate-element animate-delay-700 relative flex items-center justify-center py-2" suppressHydrationWarning={true}>
-              <span className="w-full border-t border-[#ffffff1a]"></span>
-              <span className="px-2 text-xs text-muted-foreground bg-[#f5f3ef] absolute">Or continue with</span>
+              <span className="w-full border-t border-[#e9e4dd]"></span>
+              <span className="px-2 text-xs text-stone-600 bg-[#f5f3ef] absolute">Or continue with</span>
             </div>
 
             <div className="animate-element animate-delay-1000 space-y-1" suppressHydrationWarning={true}>
-              <button onClick={onGoogleSignUp} className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-[#ebe9e5]">
+              <button onClick={onGoogleSignUp} className="w-full flex items-center justify-center gap-2 border border-[#e9e4dd] rounded-lg py-1.5 hover:bg-stone-100 transition-colors text-stone-900 bg-white">
                 <img src="https://cdn.brandfetch.io/id6O2oGzv-/theme/dark/symbol.svg?c=1dxbfHSJFAPEGdCLU4o5B" alt="Google" className="h-5 w-5" />
                 <span className="text-xs">Continue with Google</span>
               </button>
               
-              <button onClick={onMicrosoftSignUp} className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-[#ffffff1a] rounded-lg py-1.5 hover:bg-white/40 dark:hover:bg-zinc-900/40 transition-colors text-foreground bg-[#ebe9e5]">
+              <button onClick={onMicrosoftSignUp} className="w-full flex items-center justify-center gap-2 border border-[#e9e4dd] rounded-lg py-1.5 hover:bg-stone-100 transition-colors text-stone-900 bg-white">
                 <img src="https://cdn.brandfetch.io/idchmboHEZ/theme/dark/symbol.svg?c=1dxbfHSJFAPEGdCLU4o5B" alt="Microsoft" className="h-5 w-5" />
                 <span className="text-xs">Continue with Microsoft</span>
               </button>
             </div>
 
-            <p className="animate-element animate-delay-1100 text-center text-xs text-muted-foreground">
+            <p className="animate-element animate-delay-1100 text-center text-xs text-stone-600">
               Already have an account?{" "}
               <a
                 href="#"
@@ -143,7 +143,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
                   e.preventDefault();
                   onSignIn?.();
                 }}
-                className="text-pink-400 hover:underline transition-colors"
+                className="text-pink-600 hover:underline transition-colors"
               >
                 Sign In
               </a>

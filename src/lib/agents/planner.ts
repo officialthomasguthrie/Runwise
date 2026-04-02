@@ -7,6 +7,7 @@
 import OpenAI from 'openai';
 import type { DeployAgentPlan, AgentBehaviourPlan, AgentEmailSendingMode } from './types';
 import { getToolsSpec, getTriggersSpec } from './capabilities-spec';
+import { mergeScheduleConfigForPersist } from './schedule-cron-ui';
 
 // ============================================================================
 // TRIGGER CATALOGUE
@@ -242,8 +243,8 @@ POLLING TRIGGERS (EXHAUSTIVE — all polling types supported by Runwise):
 ${availableTriggersText}
 
 BUILT-IN TRIGGERS (NO integration required — ALWAYS available, use for time-based agents):
-- schedule: Run on a cron schedule. REQUIRED for: "daily", "hourly", "every morning", "every day at 9am", "time-based", "scheduled", "every hour", "weekly", "at 8am". scheduleCron REQUIRED. Examples: "0 9 * * *" (9am daily), "0 * * * *" (hourly), "0 8 * * 1-5" (8am Mon-Fri).
-- heartbeat: Same as schedule, proactive check-in. Use for "daily briefing", "check in every day", "run every morning". scheduleCron REQUIRED.
+- schedule: Run on a cron schedule. REQUIRED for: "daily", "hourly", "every morning", "every day at 9am", "time-based", "scheduled", "every hour", "weekly", "at 8am", and ANY interval the user asks for (including sub-hourly). scheduleCron REQUIRED (5 fields: minute hour day month weekday). Examples: "0 9 * * *" (9am daily), "0 * * * *" (every hour at :00), "0 8 * * 1-5" (8am Mon–Fri), "*/5 * * * *" (every 5 minutes), "*/10 * * * *" (every 10 minutes), "*/15 * * * *" (every 15 minutes), "*/30 * * * *" (every 30 minutes), "0 */2 * * *" (every 2 hours at :00), "0 */6 * * *" (every 6 hours). If the user asks for an interval that does NOT match simple "every hour", "once daily at X", or "weekly on day D at X", you MUST still output a valid scheduleCron — use the closest standard cron (often "custom" intervals use */N in the minute or hour field).
+- heartbeat: Same as schedule, proactive check-in. Use for "daily briefing", "check in every day", "run every morning". scheduleCron REQUIRED (same cron rules as schedule).
 - webhook: Run when HTTP POST hits a webhook URL. Use for "webhook", "when someone hits my URL", "when my backend posts JSON to this endpoint". config MUST include "path" (URL-safe slug).
 
 CRITICAL: schedule and heartbeat are ALWAYS supported. If user says "time-based", "scheduled", "daily", "hourly", "every morning", etc. → use behaviourType "schedule" or "heartbeat" with appropriate scheduleCron. Do NOT say we don't support time schedules.
@@ -306,7 +307,7 @@ RULES:
 1. behaviours: ONLY add when user specifies a trigger or you can clearly infer one. If none → behaviours: [].
 2. Polling: Only use trigger types from the polling list.
 3. Webhook: behaviourType "webhook", config.path = URL-safe slug (e.g. "signup", "order-webhook"). No triggerType.
-4. Schedule/heartbeat: scheduleCron REQUIRED. "daily at 9am" → "0 9 * * *", "hourly" → "0 * * * *", "9am Mon-Fri" → "0 9 * * 1-5".
+4. Schedule/heartbeat: scheduleCron REQUIRED. "daily at 9am" → "0 9 * * *", "hourly" → "0 * * * *", "9am Mon-Fri" → "0 9 * * 1-5", "every 5 minutes" → "*/5 * * * *", "every 15 minutes" → "*/15 * * * *". For any other interval, output accurate 5-field cron; the app will treat non-preset schedules as custom cron automatically.
 5. "instructions" should be thorough — at least 3-5 sentences.
 6. "initialMemories" MUST extract ALL specific knowledge from the user's prompts.
 7. "initialGoals" and "initialRules" from prompts.
@@ -423,11 +424,18 @@ function validateAndNormalisePlan(
             : 'webhook';
         config.path = safePath;
       }
+      const scheduleCron =
+        typeof b.scheduleCron === 'string' ? b.scheduleCron : undefined;
+      const mergedConfig =
+        b.behaviourType === 'schedule' || b.behaviourType === 'heartbeat'
+          ? mergeScheduleConfigForPersist(scheduleCron ?? null, config)
+          : config;
+
       return {
         behaviourType: b.behaviourType,
         triggerType: b.behaviourType === 'polling' ? (b.triggerType ?? undefined) : undefined,
-        scheduleCron: typeof b.scheduleCron === 'string' ? b.scheduleCron : undefined,
-        config,
+        scheduleCron,
+        config: mergedConfig,
         description:
           typeof b.description === 'string' ? b.description.trim() : b.behaviourType,
       };

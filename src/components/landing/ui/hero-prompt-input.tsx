@@ -77,7 +77,12 @@ export function HeroPromptInput({ className }: { className?: string }) {
   const canSend = !!message.trim();
 
   return (
-    <div className={cn("relative", className)}>
+    <div
+      className={cn(
+        "relative mx-auto w-[92%] max-w-2xl sm:mx-0 sm:w-full",
+        className,
+      )}
+    >
       <div
         className={cn(
           "relative rounded-[20px] border border-white/60 bg-white/40 backdrop-blur-xl backdrop-saturate-150 transition-all duration-300",
@@ -89,7 +94,7 @@ export function HeroPromptInput({ className }: { className?: string }) {
       >
         <div className="relative p-3 pb-2.5 sm:p-4 sm:pb-3">
           <div
-            className="relative mb-8 sm:mb-10"
+            className="relative mb-9 sm:mb-10"
             style={{
               WebkitMaskImage: "linear-gradient(to bottom, black 72%, transparent 96%)",
               maskImage: "linear-gradient(to bottom, black 72%, transparent 96%)",
@@ -102,9 +107,8 @@ export function HeroPromptInput({ className }: { className?: string }) {
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               rows={1}
-              className="w-full resize-none border-0 bg-transparent px-0 py-0 text-[13.5px] leading-relaxed text-[#1a1a1a]/85 outline-none focus:ring-0 focus:outline-none sm:text-[14.5px]"
+              className="h-[68px] w-full resize-none border-0 bg-transparent px-0 py-0 text-[13.5px] leading-relaxed text-[#1a1a1a]/85 outline-none focus:ring-0 focus:outline-none sm:h-14 sm:text-[14.5px]"
               style={{
-                height: "56px",
                 scrollbarWidth: "none",
                 msOverflowStyle: "none",
               }}

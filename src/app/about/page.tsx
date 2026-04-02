@@ -27,10 +27,10 @@ export default function AboutPage() {
             </div>
             <h1
               id="about-hero-heading"
-              className="text-center text-[24px] leading-[1.15em] font-medium -tracking-[.02em] sm:text-[32px] md:text-[40px] lg:text-[48px] lg:leading-[1.1em]"
+              className="w-full min-w-0 max-w-full px-1 text-center text-[22px] leading-[1.2em] font-medium -tracking-[.02em] sm:px-2 sm:text-[28px] md:text-[36px] lg:text-[44px] lg:leading-[1.1em] xl:text-[48px] xl:whitespace-nowrap"
             >
               Automation that speaks your{" "}
-              <span className="font-playfair font-normal italic whitespace-nowrap">language</span>
+              <span className="font-playfair block font-normal italic xl:inline">language</span>
             </h1>
             <p className="w-full max-w-[min(100%,800px)] text-[13px] leading-[1.5em] font-normal text-[#1a1a1a]/55 sm:text-sm md:text-base">
               Runwise is building the generative workflow layer for teams who want to move fast—without

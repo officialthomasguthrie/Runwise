@@ -11,6 +11,7 @@
  */
 
 import type { DeployAgentPlan, AgentBehaviourPlan, AgentEmailSendingMode } from './types';
+import { mergeScheduleConfigForPersist } from './schedule-cron-ui';
 import { emailSendingModeUsesAgentResend } from '@/lib/agents/resend-provision';
 import type { ClarificationQuestion, QuestionnaireAnswer } from '@/lib/ai/types';
 
@@ -565,7 +566,13 @@ export function detectRequiredIntegrations(plan: DeployAgentPlan): string[] {
  * Used by activate and pause routes when we only have the agent (not the original plan).
  */
 export function planFromBehaviours(
-  behaviours: Array<{ behaviour_type: string; trigger_type?: string | null; config?: Record<string, any>; description?: string }>
+  behaviours: Array<{
+    behaviour_type: string;
+    trigger_type?: string | null;
+    config?: Record<string, any>;
+    description?: string;
+    schedule_cron?: string | null;
+  }>
 ): DeployAgentPlan {
   return {
     name: '',
@@ -573,15 +580,24 @@ export function planFromBehaviours(
     instructions: '',
     avatarEmoji: '🤖',
     emailSendingMode: 'none',
-    behaviours: behaviours.map((b) => ({
-      behaviourType:
-        b.behaviour_type === 'schedule' || b.behaviour_type === 'heartbeat'
-          ? (b.behaviour_type as 'schedule' | 'heartbeat')
-          : 'polling',
-      triggerType: b.trigger_type ?? undefined,
-      config: b.config ?? {},
-      description: (b as any).description ?? '',
-    })),
+    behaviours: behaviours.map((b) => {
+      const isTime = b.behaviour_type === 'schedule' || b.behaviour_type === 'heartbeat';
+      const scheduleCron =
+        typeof (b as { schedule_cron?: string | null }).schedule_cron === 'string'
+          ? (b as { schedule_cron?: string }).schedule_cron
+          : undefined;
+      const rawConfig = b.config && typeof b.config === 'object' ? { ...b.config } : {};
+      const config = isTime ? mergeScheduleConfigForPersist(scheduleCron ?? null, rawConfig) : rawConfig;
+
+      return {
+        behaviourType:
+          isTime ? (b.behaviour_type as 'schedule' | 'heartbeat') : 'polling',
+        triggerType: b.trigger_type ?? undefined,
+        scheduleCron: isTime ? scheduleCron : undefined,
+        config,
+        description: (b as { description?: string }).description ?? '',
+      };
+    }),
     initialMemories: [],
   };
 }

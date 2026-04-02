@@ -199,35 +199,37 @@ function OrbitRing({
 
 export function ConnectToolsOrbit() {
   return (
-    <div
-      className="pointer-events-none relative mx-auto shrink-0 select-none"
-      style={{ width: OUTER_SIZE_PX, height: OUTER_SIZE_PX }}
-    >
-      {/* Outer ring — spins reverse, slower */}
-      <OrbitRing
-        variant="outer"
-        size={OUTER_SIZE_PX}
-        radius={OUTER_RADIUS}
-        brands={OUTER_BRANDS}
-      />
-
-      {/* Inner ring */}
-      <OrbitRing
-        variant="inner"
-        size={INNER_SIZE_PX}
-        radius={INNER_RADIUS}
-        brands={INNER_BRANDS}
-      />
-
-      {/* Center Runwise icon */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-        <Image
-          src="/runwise-icon.png"
-          alt="Runwise"
-          width={36}
-          height={36}
-          className="h-9 w-9 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
+    <div className="pointer-events-none relative mx-auto flex h-[271px] w-[271px] shrink-0 select-none items-center justify-center md:h-[330px] md:w-[330px]">
+      <div
+        className="relative max-md:origin-center max-md:scale-[0.82] md:scale-100"
+        style={{ width: OUTER_SIZE_PX, height: OUTER_SIZE_PX }}
+      >
+        {/* Outer ring — spins reverse, slower */}
+        <OrbitRing
+          variant="outer"
+          size={OUTER_SIZE_PX}
+          radius={OUTER_RADIUS}
+          brands={OUTER_BRANDS}
         />
+
+        {/* Inner ring */}
+        <OrbitRing
+          variant="inner"
+          size={INNER_SIZE_PX}
+          radius={INNER_RADIUS}
+          brands={INNER_BRANDS}
+        />
+
+        {/* Center Runwise icon */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
+          <Image
+            src="/runwise-icon.png"
+            alt="Runwise"
+            width={36}
+            height={36}
+            className="h-9 w-9 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
+          />
+        </div>
       </div>
     </div>
   );

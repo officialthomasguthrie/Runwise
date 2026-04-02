@@ -39,7 +39,7 @@ export function FeaturesBentoGrid() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:mt-5 md:grid-cols-12 md:gap-5">
-        <div className="relative flex min-h-[280px] flex-col items-start overflow-hidden rounded-[22px] border border-white/60 bg-white/35 p-5 shadow-[0_4px_30px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.65)] ring-1 ring-black/[0.04] backdrop-blur-2xl backdrop-saturate-150 sm:min-h-[300px] sm:p-6 md:col-span-5 md:min-h-[320px] md:p-7">
+        <div className="relative flex min-h-[300px] flex-col items-start overflow-hidden rounded-[22px] border border-white/60 bg-white/35 p-5 shadow-[0_4px_30px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.65)] ring-1 ring-black/[0.04] backdrop-blur-2xl backdrop-saturate-150 sm:min-h-[308px] sm:p-6 md:col-span-5 md:min-h-[320px] md:p-7">
           <h3 className="relative z-10 text-left font-sans text-sm font-medium leading-snug tracking-tight text-[#1a1a1a] sm:text-base">
             From Prompt to Execution
           </h3>
@@ -52,9 +52,12 @@ export function FeaturesBentoGrid() {
             width={1024}
             height={578}
             unoptimized
-            className="pointer-events-none absolute bottom-0 right-0 z-0 h-auto w-[min(132%,28rem)] max-w-none rounded-tl-lg border border-white/70 shadow-[0_16px_48px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.05] sm:rounded-tl-xl sm:w-[min(128%,32rem)]"
-            style={{ transform: "translate(22%, 20%)" }}
-            sizes="(max-width: 768px) 100vw, 640px"
+            className="pointer-events-none absolute bottom-0 right-0 z-0 h-auto max-w-none origin-bottom-right rounded-tl-lg border border-white/70 shadow-[0_16px_48px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.05] sm:rounded-tl-xl
+              w-[min(118%,22.5rem)] translate-x-[20%] translate-y-[8%]
+              min-[400px]:w-[min(122%,24rem)] min-[400px]:translate-x-[22%] min-[400px]:translate-y-[10%]
+              sm:w-[min(118%,28rem)] sm:translate-x-[25%] sm:translate-y-[14%]
+              md:w-[min(128%,32rem)] md:translate-x-[28%] md:translate-y-[20%]"
+            sizes="(max-width: 640px) 420px, (max-width: 768px) 520px, 640px"
           />
         </div>
         <div className="flex min-h-[312px] flex-col items-stretch rounded-[22px] border border-white/60 bg-white/35 p-5 shadow-[0_4px_30px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.65)] ring-1 ring-black/[0.04] backdrop-blur-2xl backdrop-saturate-150 sm:p-6 md:col-span-3 md:min-h-[368px] md:p-7">

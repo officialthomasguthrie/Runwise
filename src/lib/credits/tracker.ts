@@ -196,7 +196,7 @@ export async function deductCredits(
 export async function resetMonthlyCredits(userId: string): Promise<boolean> {
   const adminSupabase = createAdminClient();
   
-  // Get user's subscription tier
+  // Get user's subscription tierç
   const { data: user, error: fetchError } = await (adminSupabase
     .from('users') as any)
     .select('subscription_tier')

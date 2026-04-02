@@ -27,7 +27,7 @@ const BRAND_LOGOS = {
 
 /** Compact node shell — tinted liquid glass (reads off cream bento; avoids flat white CTAs) */
 const miniBase = cn(
-  "w-[132px] select-none rounded-[10px] text-[#1a1a1a]",
+  "flex min-h-[118px] w-[132px] flex-col select-none rounded-[10px] text-[#1a1a1a]",
   "border border-white/50",
   "bg-[linear-gradient(165deg,rgba(236,239,252,0.82)_0%,rgba(226,231,247,0.62)_48%,rgba(216,222,242,0.55)_100%)]",
   "backdrop-blur-xl backdrop-saturate-150",
@@ -36,7 +36,7 @@ const miniBase = cn(
 );
 
 const handleCls =
-  "!h-2 !w-2 !border-2 !border-white !shadow-sm !bg-indigo-500";
+  "!z-10 !h-2 !w-2 !border-2 !border-white !shadow-sm !bg-indigo-500";
 
 const EDGE_STYLE = { stroke: "#6366f1", strokeWidth: 1.5 };
 
@@ -53,7 +53,7 @@ function MiniNodeHeader({
   logoImgClassName: string;
 }) {
   return (
-    <header className="flex items-center gap-1.5 border-b border-indigo-950/[0.08] px-2 py-1.5">
+    <header className="flex min-h-[26px] items-center gap-1.5 border-b border-indigo-950/[0.08] px-2 py-1.5">
       <Image
         src={logoSrc}
         alt={logoAlt}
@@ -70,7 +70,7 @@ function MiniNodeHeader({
 
 function MiniNodeBody({ heading, description }: { heading: string; description: string }) {
   return (
-    <div className="px-2 py-1.5">
+    <div className="flex-1 px-2 py-1.5">
       <p className="text-[9px] font-bold leading-snug">{heading}</p>
       <p className="mt-0.5 line-clamp-2 text-[8px] leading-snug text-stone-600">{description}</p>
     </div>
@@ -168,7 +168,7 @@ const initialNodes: Node[] = [
   {
     id: "a1",
     type: "miniAction",
-    position: { x: 176, y: 2 },
+    position: { x: 176, y: 10 },
     data: {},
     draggable: false,
   },

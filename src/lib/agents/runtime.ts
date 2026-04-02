@@ -230,8 +230,26 @@ function outboundEmailRuntimeHint(agent: Agent): string {
   return '';
 }
 
+function formatGoalsRules(goalsRules: unknown): string {
+  if (!Array.isArray(goalsRules) || goalsRules.length === 0) return '';
+
+  const goals = goalsRules.filter((g: any) => g.type === 'goal').map((g: any) => g.label);
+  const rules = goalsRules.filter((g: any) => g.type === 'rule').map((g: any) => g.label);
+
+  const parts: string[] = [];
+  if (goals.length > 0) {
+    parts.push(`GOALS:\n${goals.map((g: string) => `  - ${g}`).join('\n')}`);
+  }
+  if (rules.length > 0) {
+    parts.push(`RULES:\n${rules.map((r: string) => `  - ${r}`).join('\n')}`);
+  }
+  return parts.length > 0 ? '\n' + parts.join('\n\n') + '\n' : '';
+}
+
 function buildSystemPrompt(agent: Agent, formattedMemory: string): string {
   const now = new Date().toISOString();
+
+  const goalsRulesBlock = formatGoalsRules(agent.goals_rules);
 
   return `You are ${agent.name}, a personal AI assistant.
 
@@ -241,16 +259,31 @@ ${agent.persona || 'Professional, helpful, and concise.'}
 YOUR INSTRUCTIONS:
 ${agent.instructions}
 ${outboundEmailRuntimeHint(agent)}
+${goalsRulesBlock}
 WHAT YOU KNOW (MEMORY):
 ${formattedMemory}
 
 CURRENT DATE/TIME: ${now}
 
-You have access to tools to take actions. Use them to fulfil your instructions.
-When you are done, call do_nothing if no action was needed, or simply stop responding.
-Never take more than ${agent.max_steps ?? 10} actions in a single run.
-Always check your memory before taking action — you may already know what to do.
-Be decisive. Do not ask clarifying questions; make sensible decisions based on your instructions.`;
+IMPORTANT GUIDELINES:
+- Use the tools available to you to fulfil your instructions.
+- ALWAYS save important results, findings, and summaries to memory using the "remember" tool. If your task produces useful output (search results, summaries, data, decisions), save the key takeaways so you can reference them in future runs.
+- Even if not explicitly asked, proactively remember things that would be useful later — patterns you notice, important facts, contacts, preferences, or outcomes of your actions.
+- Use the "add_rule" tool to add operational rules you discover during execution (e.g. "always check calendar before scheduling", "user prefers bullet points").
+- Memory is shown above. Use "recall" if and only if:
+  - The task depends on past interactions/history/saved memory
+  - You need specific information not present in the current prompt
+  - The user references something earlier (e.g. "as I said before", "my project", "that agent")
+  - The task requires detailed/domain-specific knowledge that may exist in memory
+  - You are unsure and additional context would significantly improve accuracy
+- Do NOT use "recall" if:
+  - The answer can be generated from the current prompt alone
+  - The task is simple/general and doesn’t require extra context
+  - You already have sufficient information
+- When using "recall": be specific and avoid retrieving excessive/irrelevant information.
+- When you are done, call do_nothing if no action was needed, or simply stop responding.
+- Never take more than ${agent.max_steps ?? 10} actions in a single run.
+- Be decisive. Do not ask clarifying questions; make sensible decisions based on your instructions.`;
 }
 
 function buildTriggerMessage(context: AgentRunContext): string {

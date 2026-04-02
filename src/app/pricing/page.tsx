@@ -27,10 +27,10 @@ export default function PricingPage() {
 
           <h1
             id="pricing-hero-heading"
-            className="mt-4 text-center text-[24px] leading-[1.15em] font-medium -tracking-[.02em] sm:text-[32px] md:text-[40px] lg:text-[48px] lg:leading-[1.1em]"
+            className="mt-4 w-full min-w-0 max-w-full px-1 text-center text-[22px] leading-[1.2em] font-medium -tracking-[.02em] sm:px-2 sm:text-[28px] md:text-[36px] lg:text-[44px] lg:leading-[1.1em] xl:text-[48px] xl:whitespace-nowrap"
           >
             Simple Pricing for{" "}
-            <span className="font-playfair font-normal italic whitespace-nowrap">Every</span> Stage
+            <span className="font-playfair block font-normal italic xl:inline">Every Stage</span>
           </h1>
           <p className="mx-auto mt-3 w-full max-w-[min(100%,800px)] text-center text-[13px] leading-[1.5em] font-normal text-[#1a1a1a]/55 sm:mt-4 sm:text-sm md:text-base">
             Pick the plan that matches your team—credits, executions, and the AI workflow builder

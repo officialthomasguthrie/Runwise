@@ -6,14 +6,21 @@ export function LegalDocumentFooter() {
   return (
     <>
       <footer className="mt-2 w-full bg-[#f5f3ef]">
-        <div className="mx-auto w-full max-w-6xl px-6 py-14 sm:px-10">
+        <div className="mx-auto w-full max-w-6xl px-3 py-14 sm:px-10">
           <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between md:gap-12">
             <div className="md:max-w-md md:flex-1">
               <Link href="/" className="inline-flex items-center">
                 <Image
+                  src="/runwise-icon.png"
+                  alt="Runwise"
+                  className="h-12 w-12 object-contain md:hidden"
+                  width={48}
+                  height={48}
+                />
+                <Image
                   src="/runwise-logo-light.png"
-                  alt="runwise logo"
-                  className="h-[48px] w-auto object-contain"
+                  alt="Runwise"
+                  className="hidden h-[48px] w-auto object-contain md:block"
                   width={171}
                   height={48}
                 />
@@ -131,7 +138,7 @@ export function LegalDocumentFooter() {
       </footer>
 
       <div className="w-full bg-[#f5f3ef]">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-5 sm:px-10">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-5 sm:px-10">
           <p className="text-xs text-black">© {new Date().getFullYear()} Runwise. All rights reserved.</p>
           <p className="text-right text-xs text-black">
             <Link href="/privacy" className="text-black underline underline-offset-2 transition hover:opacity-80">

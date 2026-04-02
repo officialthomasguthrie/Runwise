@@ -21,6 +21,9 @@
 # production
 /build
 
+# Full-bleed favicon master (optional local file for npm run icons:generate — not required for builds)
+public/favicon.source-fullbleed.png
+
 # misc
 .DS_Store
 *.pem

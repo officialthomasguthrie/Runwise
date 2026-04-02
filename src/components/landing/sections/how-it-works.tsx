@@ -45,7 +45,10 @@ export function HowItWorksSteps() {
   return (
     <div className="mx-auto mt-8 w-full max-w-6xl md:mt-10">
       <div className="grid min-w-0 grid-cols-1 items-stretch gap-10 lg:grid-cols-2 lg:gap-14">
-        <nav aria-label="How it works steps" className="flex flex-col gap-3 sm:gap-4">
+        <nav
+          aria-label="How it works steps"
+          className="order-2 flex flex-col gap-3 sm:gap-4 lg:order-none"
+        >
           {STEPS.map((step, index) => {
             const selected = index === active;
             const stepNumber = index + 1;
@@ -95,13 +98,13 @@ export function HowItWorksSteps() {
           })}
         </nav>
 
-        <div className="relative h-[420px] w-full min-w-0 overflow-visible sm:h-[460px] lg:h-auto lg:min-h-0">
+        <div className="relative order-1 h-[420px] w-full min-w-0 overflow-visible sm:h-[460px] lg:order-none lg:h-auto lg:min-h-0">
           <div
             key={current.title}
             className={cn(
               "relative h-full rounded-[28px] ring-1 ring-black/[0.04] lg:absolute lg:inset-0 sm:rounded-[32px]",
               /* Step 4: box-shadows must not clip — overflow-y:auto on the task list forces overflow-x to clip unless ancestors are visible. */
-              active === 3 ? "overflow-visible" : "overflow-hidden",
+              active === 1 || active === 3 ? "overflow-visible" : "overflow-hidden",
             )}
             style={{ background: current.gradient }}
           >

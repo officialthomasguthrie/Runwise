@@ -11,7 +11,7 @@ interface ForgotPasswordModalProps {
 }
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-[#ffffff1a] bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-pink-400/70 focus-within:bg-pink-500/10" suppressHydrationWarning={true}>
+  <div className="rounded-2xl border border-stone-300 bg-white/80 backdrop-blur-sm transition-colors focus-within:border-pink-400 focus-within:bg-pink-50/90" suppressHydrationWarning={true}>
     {children}
   </div>
 );
@@ -89,13 +89,13 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
       suppressHydrationWarning={true}
     >
       <div
-        className="relative w-full max-w-xs bg-background border border-[#ffffff1a] rounded-2xl p-6 shadow-xl"
+        className="relative w-full max-w-xs bg-[#faf9f7] border border-stone-300 rounded-2xl p-6 shadow-xl text-stone-900"
         onClick={(e) => e.stopPropagation()}
         suppressHydrationWarning={true}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+          className="absolute top-4 right-4 text-stone-500 hover:text-stone-900 transition-colors"
           aria-label="Close"
         >
           <X className="w-4 h-4" />
@@ -103,34 +103,34 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
 
         <div className="space-y-4">
           <div>
-            <h2 className="text-xl font-semibold leading-tight mb-1">Reset Password</h2>
-            <p className="text-xs text-muted-foreground">
+            <h2 className="text-xl font-semibold leading-tight mb-1 text-stone-900">Reset Password</h2>
+            <p className="text-xs text-stone-600">
               Enter your email address and we'll send you a link to reset your password.
             </p>
           </div>
 
           {success ? (
             <div className="space-y-3">
-              <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
-                <p className="text-xs text-green-400">
+              <div className="rounded-lg border border-green-600/25 bg-green-50 p-3">
+                <p className="text-xs text-green-800">
                   Password reset email sent! Please check your inbox and follow the instructions.
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground text-center">
+              <p className="text-xs text-stone-600 text-center">
                 This window will close automatically...
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Email Address</label>
+                <label className="text-xs font-medium text-stone-700">Email Address</label>
                 <GlassInputWrapper>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email address"
-                    className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-foreground placeholder:text-muted-foreground"
+                    className="w-full bg-transparent text-xs p-1.5 rounded-lg focus:outline-none text-stone-900 placeholder:text-stone-500"
                     disabled={loading}
                     autoFocus
                   />
@@ -138,8 +138,8 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
               </div>
 
               {error && (
-                <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-2">
-                  <p className="text-xs text-red-400">{error}</p>
+                <div className="rounded-lg border border-red-300 bg-red-50 p-2">
+                  <p className="text-xs text-red-700">{error}</p>
                 </div>
               )}
 
@@ -147,7 +147,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 rounded-lg border border-[#ffffff1a] bg-transparent py-1.5 text-xs text-foreground hover:bg-foreground/5 transition-colors"
+                  className="flex-1 rounded-lg border border-stone-300 bg-white py-1.5 text-xs text-stone-800 hover:bg-stone-100 transition-colors"
                   disabled={loading}
                 >
                   Cancel
@@ -155,7 +155,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 rounded-lg border border-[#ffffff1a] bg-[#bd28b3ba] py-1.5 text-xs text-white cursor-pointer flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 rounded-lg border border-pink-700/30 bg-[#bd28b3ba] py-1.5 text-xs text-white cursor-pointer flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">

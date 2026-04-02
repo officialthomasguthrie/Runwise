@@ -9,6 +9,7 @@
 
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createPollingTrigger } from '@/lib/workflows/polling-triggers';
+import { mergeScheduleConfigForPersist } from './schedule-cron-ui';
 import type { AgentBehaviourPlan, AgentBehaviour } from './types';
 
 // ============================================================================
@@ -37,6 +38,13 @@ export async function createAgentBehaviours(
         ? (plan as any).description.trim()
         : null;
 
+    const rawConfig =
+      plan.config && typeof plan.config === 'object' ? { ...plan.config } : {};
+    const persistedConfig =
+      plan.behaviourType === 'schedule' || plan.behaviourType === 'heartbeat'
+        ? mergeScheduleConfigForPersist(plan.scheduleCron ?? null, rawConfig)
+        : rawConfig;
+
     const { data: row, error } = await (supabase as any)
       .from('agent_behaviours')
       .insert({
@@ -45,7 +53,7 @@ export async function createAgentBehaviours(
         behaviour_type: plan.behaviourType,
         trigger_type: plan.triggerType ?? null,
         schedule_cron: plan.scheduleCron ?? null,
-        config: plan.config ?? {},
+        config: persistedConfig,
         description,
         enabled: true,
       })

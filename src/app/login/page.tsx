@@ -126,9 +126,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="auth-page min-h-screen w-full bg-[#f5f3ef] text-foreground" suppressHydrationWarning={true}>
+    <div className="auth-page min-h-screen w-full bg-[#f5f3ef] text-stone-900" suppressHydrationWarning={true}>
       <SignInPage
-        title={<span className="font-light text-foreground tracking-tighter">Welcome back</span>}
+        title={<span className="font-light text-stone-900 tracking-tighter">Welcome back</span>}
         description="Sign in to your account to continue building AI workflows"
         heroImageSrc="https://images.unsplash.com/photo-1642615835477-d303d7dc9ee9?w=2160&q=80"
         onSignIn={handleSignIn}

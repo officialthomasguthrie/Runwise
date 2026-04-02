@@ -47,18 +47,18 @@ export default function LandingHome() {
             className="relative flex w-full flex-col items-center pt-20 pb-14 sm:pt-24 sm:pb-16 md:pt-28 md:pb-20 lg:min-h-[min(76svh,820px)]"
           >
             <div className="hero-bg" aria-hidden="true" />
-            <div className="relative z-10 flex w-full max-w-[800px] flex-col items-center gap-4 px-4 pt-6 sm:gap-5 sm:px-6 sm:pt-8 md:pt-10 md:gap-6 lg:flex-1 lg:justify-center lg:pt-12">
+            <div className="relative z-10 flex w-full min-w-0 max-w-[800px] flex-col items-center gap-4 px-4 pt-6 sm:gap-5 sm:px-6 sm:pt-8 md:pt-10 md:gap-6 lg:flex-1 lg:justify-center lg:pt-12">
               <div className="flex h-[28px] w-fit items-center rounded-full border border-white/60 bg-white/30 px-3 shadow-[0_2px_12px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.5)] ring-1 ring-black/[0.03] backdrop-blur-xl sm:h-[30px] sm:px-3.5">
                 <span className="text-[11px] font-medium tracking-wide text-[#1a1a1a]/70 sm:text-xs">
                   Introducing Runwise
                 </span>
               </div>
 
-              <h1 className="text-center text-[26px] leading-[1.15em] font-normal -tracking-[.02em] sm:text-[34px] md:text-[44px] lg:text-[52px] lg:leading-[1.1em]">
-                <span className="font-medium lg:block lg:whitespace-nowrap">
+              <h1 className="w-full min-w-0 max-w-full px-1 text-center text-[22px] leading-[1.2em] font-normal -tracking-[.02em] sm:px-2 sm:text-[28px] md:text-[38px] lg:text-[46px] lg:leading-[1.1em] xl:text-[52px]">
+                <span className="font-medium xl:block xl:whitespace-nowrap">
                   Turn natural language prompts into{" "}
                 </span>
-                <span className="font-playfair font-normal italic lg:block lg:whitespace-nowrap">
+                <span className="font-playfair block font-normal italic xl:inline xl:whitespace-nowrap">
                   functional automations
                 </span>
               </h1>
@@ -68,7 +68,7 @@ export default function LandingHome() {
                 non-technical teams
               </p>
 
-              <HeroPromptInput className="mt-1 w-full max-w-2xl" />
+              <HeroPromptInput className="mt-1" />
 
               <div className="mt-3 w-full sm:mt-4">
                 <IntegrationsMarquee />
@@ -88,9 +88,9 @@ export default function LandingHome() {
               </span>
             </div>
 
-            <h2 className="mt-4 text-center text-[24px] leading-[1.15em] font-medium -tracking-[.02em] whitespace-nowrap sm:text-[32px] md:text-[40px] lg:text-[48px] lg:leading-[1.1em]">
+            <h2 className="mt-4 w-full min-w-0 max-w-full px-1 text-center text-[22px] leading-[1.2em] font-medium -tracking-[.02em] sm:px-2 sm:text-[28px] md:text-[36px] lg:text-[44px] lg:leading-[1.1em] xl:text-[48px] xl:whitespace-nowrap">
               Everything You Need to Build{" "}
-              <span className="font-playfair font-normal italic whitespace-nowrap">
+              <span className="font-playfair block font-normal italic xl:inline">
                 Smarter AI Workflows
               </span>
             </h2>
@@ -114,9 +114,9 @@ export default function LandingHome() {
               </span>
             </div>
 
-            <h2 className="mt-4 text-center text-[24px] leading-[1.15em] font-medium -tracking-[.02em] whitespace-nowrap sm:text-[32px] md:text-[40px] lg:text-[48px] lg:leading-[1.1em]">
+            <h2 className="mt-4 w-full min-w-0 max-w-full px-1 text-center text-[22px] leading-[1.2em] font-medium -tracking-[.02em] sm:px-2 sm:text-[28px] md:text-[36px] lg:text-[44px] lg:leading-[1.1em] xl:text-[48px] xl:whitespace-nowrap">
               From Idea to Automation in{" "}
-              <span className="font-playfair font-normal italic whitespace-nowrap">Minutes</span>
+              <span className="font-playfair block font-normal italic xl:inline">Minutes</span>
             </h2>
             <p className={sectionSubhead}>
               Describe the outcome, connect your stack, review the setup, and launch—without filing tickets
@@ -133,9 +133,9 @@ export default function LandingHome() {
               </span>
             </div>
 
-            <h2 className="mt-4 text-center text-[24px] leading-[1.15em] font-medium -tracking-[.02em] whitespace-nowrap sm:text-[32px] md:text-[40px] lg:text-[48px] lg:leading-[1.1em]">
+            <h2 className="mt-4 w-full min-w-0 max-w-full px-1 text-center text-[22px] leading-[1.2em] font-medium -tracking-[.02em] sm:px-2 sm:text-[28px] md:text-[36px] lg:text-[44px] lg:leading-[1.1em] xl:text-[48px] xl:whitespace-nowrap">
               Your Work,{" "}
-              <span className="font-playfair font-normal italic whitespace-nowrap">Supercharged</span>
+              <span className="font-playfair block font-normal italic xl:inline">Supercharged</span>
             </h2>
             <p className={sectionSubhead}>
               Less manual work, faster launches, and automations that stay aligned with how your team
@@ -207,9 +207,9 @@ export default function LandingHome() {
               </span>
             </div>
 
-            <h2 className="mt-4 text-center text-[24px] leading-[1.15em] font-medium -tracking-[.02em] whitespace-nowrap sm:text-[32px] md:text-[40px] lg:text-[48px] lg:leading-[1.1em]">
+            <h2 className="mt-4 w-full min-w-0 max-w-full px-1 text-center text-[22px] leading-[1.2em] font-medium -tracking-[.02em] sm:px-2 sm:text-[28px] md:text-[36px] lg:text-[44px] lg:leading-[1.1em] xl:text-[48px] xl:whitespace-nowrap">
               Simple Pricing for{" "}
-              <span className="font-playfair font-normal italic whitespace-nowrap">Every</span> Stage
+              <span className="font-playfair block font-normal italic xl:inline">Every Stage</span>
             </h2>
             <p className={sectionSubhead}>
               Pick the plan that matches your team—credits, executions, and the AI workflow builder
@@ -228,24 +228,26 @@ export default function LandingHome() {
               </span>
             </div>
 
-            <h2 className="mt-4 text-center text-[24px] leading-[1.15em] font-medium -tracking-[.02em] whitespace-nowrap sm:text-[32px] md:text-[40px] lg:text-[48px] lg:leading-[1.1em]">
-              Got Questions? We&apos;ve Got{" "}
-              <span className="font-playfair font-normal italic whitespace-nowrap">Answers</span>
+            <h2 className="mt-4 w-full min-w-0 max-w-full px-1 text-center text-[22px] leading-[1.2em] font-medium -tracking-[.02em] sm:px-2 sm:text-[28px] md:text-[36px] lg:text-[44px] lg:leading-[1.1em] xl:text-[48px] xl:whitespace-nowrap">
+              <span className="block xl:inline">Got Questions? We&apos;ve Got </span>
+              <span className="font-playfair block font-normal italic xl:inline">Answers</span>
             </h2>
 
             <FaqAccordion />
           </section>
 
           <section id="cta" className="w-full pt-16 pb-4 md:pb-6">
-            <div className="mx-auto w-full max-w-6xl px-6 sm:px-10">
-              <div className="relative h-[400px] w-full overflow-hidden rounded-[24px] bg-[linear-gradient(145deg,#ffffff_0%,#f2f8ff_30%,#f7f0ff_62%,#fff6e6_100%)] sm:h-[430px] sm:rounded-[28px] md:h-[480px]">
+            {/* Mobile: near full-bleed (match FAQ ~px-4 feel but card fills width). sm+: centered max width. */}
+            <div className="w-full px-5 sm:mx-auto sm:max-w-6xl sm:px-10">
+              <div className="relative h-[400px] w-full min-w-0 overflow-hidden rounded-[22px] bg-[linear-gradient(145deg,#ffffff_0%,#f2f8ff_30%,#f7f0ff_62%,#fff6e6_100%)] sm:h-[430px] sm:rounded-[28px] md:h-[480px]">
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_18%_22%,rgba(99,102,241,0.20)_0%,transparent_68%),radial-gradient(ellipse_60%_50%_at_82%_18%,rgba(236,72,153,0.16)_0%,transparent_70%),radial-gradient(ellipse_60%_55%_at_52%_78%,rgba(34,197,94,0.12)_0%,transparent_72%)]" />
 
-                <div className="relative z-10 flex h-full w-full items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
-                  <div className="w-full max-w-3xl">
-                    <h2 className="text-center text-[28px] leading-[1.1em] font-medium -tracking-[.02em] text-black sm:text-[36px] md:text-[42px]">
+                {/* flex-col + items-stretch: avoid items-center shrinking the inner column to intrinsic width (looked ~60% wide on phones). */}
+                <div className="relative z-10 flex h-full w-full min-w-0 flex-col items-stretch justify-center px-3 py-6 sm:px-6 sm:py-8">
+                  <div className="w-full min-w-0 max-w-none sm:mx-auto sm:max-w-3xl">
+                    <h2 className="w-full min-w-0 max-w-full px-1 text-center text-[22px] leading-[1.2em] font-medium -tracking-[.02em] text-black sm:px-2 sm:text-[30px] md:text-[36px] lg:text-[40px]">
                       Ready to automate your{" "}
-                      <span className="font-playfair font-normal italic">first workflow?</span>
+                      <span className="font-playfair block font-normal italic sm:inline">first workflow?</span>
                     </h2>
                     <p className="mx-auto mt-3 w-full max-w-[min(100%,800px)] text-center text-[13px] leading-[1.5em] font-normal text-black/60 sm:mt-4 sm:text-sm md:text-base">
                       Go from prompt to a running workflow in minutes—connect your tools and iterate with
@@ -259,14 +261,21 @@ export default function LandingHome() {
           </section>
 
           <footer className="mt-2 w-full bg-[#f5f3ef]">
-            <div className="mx-auto w-full max-w-6xl px-6 py-14 sm:px-10">
+            <div className="mx-auto w-full max-w-6xl px-3 py-14 sm:px-10">
               <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between md:gap-12">
                 <div className="md:max-w-md md:flex-1">
                   <Link href="/" className="inline-flex items-center">
                     <Image
+                      src="/runwise-icon.png"
+                      alt="Runwise"
+                      className="h-12 w-12 object-contain md:hidden"
+                      width={48}
+                      height={48}
+                    />
+                    <Image
                       src="/runwise-logo-light.png"
-                      alt="runwise logo"
-                      className="h-[48px] w-auto object-contain"
+                      alt="Runwise"
+                      className="hidden h-[48px] w-auto object-contain md:block"
                       width={171}
                       height={48}
                     />
@@ -379,7 +388,7 @@ export default function LandingHome() {
           </footer>
 
           <div className="w-full bg-[#f5f3ef]">
-            <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-5 sm:px-10">
+            <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-5 sm:px-10">
               <p className="text-xs text-black/55">
                 © {new Date().getFullYear()} Runwise. All rights reserved.
               </p>

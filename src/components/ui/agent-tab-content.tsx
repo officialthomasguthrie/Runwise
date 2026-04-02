@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { getAgentAvatarUrl } from "@/lib/agents/avatar";
+import { parseCronToScheduleUi, getScheduleTriggerDisplayLabel } from "@/lib/agents/schedule-cron-ui";
 
 const BRANDFETCH_CLIENT = "1dxbfHSJFAPEGdCLU4o5B";
 const BRANDFETCH_LOGOS: Record<string, string> = {
@@ -666,14 +667,15 @@ export function AgentTabContent({
       }
       setRunSuccess(true);
       setTimeout(() => setRunSuccess(false), 5000);
-      // Poll for activity: Inngest runs async, so check periodically
-      const pollActivity = async (attempts: number, delayMs: number) => {
+      // Poll for activity + refetch agent data (memories, rules): Inngest runs async
+      const pollAfterRun = async (attempts: number, delayMs: number) => {
         for (let i = 0; i < attempts; i++) {
           await new Promise((r) => setTimeout(r, delayMs));
           await fetchActivity();
         }
+        await refetchAgent();
       };
-      pollActivity(4, 3000);
+      pollAfterRun(4, 3000);
     } catch (e: unknown) {
       setRunError(e instanceof Error ? e.message : "Failed to run agent");
     } finally {
@@ -1072,7 +1074,13 @@ export function AgentTabContent({
     };
   };
 
-  const handleEditTrigger = (b: { id: string; behaviour_type: string; trigger_type?: string | null; config?: Record<string, any> }) => {
+  const handleEditTrigger = (b: {
+    id: string;
+    behaviour_type: string;
+    trigger_type?: string | null;
+    config?: Record<string, any>;
+    schedule_cron?: string | null;
+  }) => {
     let trigger = AVAILABLE_TRIGGERS.find((t) => {
       if (b.behaviour_type === "webhook") return t.id === "webhook";
       if (b.behaviour_type === "schedule" || b.behaviour_type === "heartbeat") return t.id === "schedule";
@@ -1084,10 +1092,17 @@ export function AgentTabContent({
     if (trigger.id === "webhook") {
       setWebhookPath(cfg.path ?? "");
     } else if (trigger.id === "schedule") {
-      setScheduleFrequency(cfg.frequency ?? "hourly");
-      setScheduleTime(cfg.time ?? "09:00");
-      setScheduleDay(cfg.day ?? "monday");
-      setScheduleCron(cfg.customCron ?? "");
+      const cronFromRow =
+        typeof b.schedule_cron === "string" && b.schedule_cron.trim()
+          ? b.schedule_cron.trim()
+          : typeof cfg.customCron === "string" && cfg.customCron.trim()
+            ? cfg.customCron.trim()
+            : "";
+      const ui = parseCronToScheduleUi(cronFromRow || undefined);
+      setScheduleFrequency(ui.frequency);
+      setScheduleTime(ui.scheduleTime);
+      setScheduleDay(ui.scheduleDay);
+      setScheduleCron(ui.scheduleCron || (typeof cfg.customCron === "string" ? cfg.customCron : ""));
     } else {
       const slug = trigger.icon.type === "logo" ? trigger.icon.slug : "";
       if (slug === "googleforms") setIntegrationFormId(cfg.formId ?? "");
@@ -1869,13 +1884,24 @@ export function AgentTabContent({
               </header>
               <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1.5">
                 {(agent?.behaviours?.length ?? 0) > 0 ? (
-                  (agent!.behaviours as Array<{ id: string; behaviour_type: string; trigger_type?: string | null; description?: string; config?: Record<string, any> }>).map((b) => {
+                  (agent!.behaviours as Array<{
+                    id: string;
+                    behaviour_type: string;
+                    trigger_type?: string | null;
+                    description?: string;
+                    config?: Record<string, any>;
+                    schedule_cron?: string | null;
+                  }>).map((b) => {
                     const label =
                       b.description?.trim() ||
                       (b.behaviour_type === "webhook"
                         ? `Webhook: /${b.config?.path || "..."}`
-                        : b.behaviour_type === "schedule"
-                          ? `Schedule: ${b.config?.frequency || "cron"}`
+                        : b.behaviour_type === "schedule" || b.behaviour_type === "heartbeat"
+                          ? getScheduleTriggerDisplayLabel({
+                              description: b.description,
+                              schedule_cron: b.schedule_cron,
+                              config: b.config,
+                            })
                           : b.trigger_type
                             ? `${b.trigger_type.replace(/-/g, " ")}`
                             : b.behaviour_type);
@@ -1897,7 +1923,7 @@ export function AgentTabContent({
                     const FallbackIcon =
                       b.behaviour_type === "webhook"
                         ? Webhook
-                        : b.behaviour_type === "schedule"
+                        : b.behaviour_type === "schedule" || b.behaviour_type === "heartbeat"
                           ? Timer
                           : Target;
 
@@ -2653,7 +2679,7 @@ export function AgentTabContent({
                       <div className="space-y-2">
                         <Label className="text-xs">Cron expression</Label>
                         <Input
-                          placeholder="e.g. 0 9 * * 1-5"
+                          placeholder="e.g. */5 * * * * (every 5 min) or 0 9 * * 1-5"
                           value={scheduleCron}
                           onChange={(e) => setScheduleCron(e.target.value)}
                           className="h-10 rounded-lg border-stone-200 dark:border-stone-600 !bg-white/50 dark:!bg-white/5 backdrop-blur-xl font-mono text-sm"

@@ -139,15 +139,22 @@ export function FloatingHeader() {
             <div className="flex items-center justify-between gap-4">
               <Link
                 href="/"
-                className={`h-[31px] w-[31px] shrink-0 transition-all duration-500 ease-in-out md:h-[31px] md:w-[110px] md:max-w-[110px] md:min-w-[110px] ${
-                  isScrolled ? "" : "md:ml-6"
+                className={`inline-flex shrink-0 items-center transition-all duration-500 ease-in-out max-md:ml-3 ${
+                  isScrolled ? "md:ml-0" : "md:ml-6"
                 }`}
                 onClick={handleLogoClick}
               >
                 <Image
+                  src="/runwise-icon.png"
+                  alt="Runwise"
+                  className="h-[26px] w-[26px] shrink-0 object-contain md:hidden"
+                  width={26}
+                  height={26}
+                />
+                <Image
                   src="/runwise-logo-light.png"
-                  alt="runwise logo"
-                  className="h-full w-full shrink-0 object-contain"
+                  alt="Runwise"
+                  className="hidden h-[31px] w-[110px] max-w-[110px] min-w-[110px] shrink-0 object-contain md:block"
                   width={110}
                   height={31}
                 />
@@ -231,7 +238,7 @@ export function FloatingHeader() {
 
               <button
                 onClick={() => setIsMenuOpen((prev) => !prev)}
-                className="relative z-50 flex h-6 w-6 cursor-pointer items-center justify-center md:hidden"
+                className="relative z-50 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center max-md:mr-3 md:hidden"
                 aria-label={isMenuOpen ? "Close menu" : "Open menu"}
               >
                 <div className="relative h-5 w-5">
@@ -258,73 +265,82 @@ export function FloatingHeader() {
       </header>
 
       <div
-        className={`fixed right-0 left-0 z-50 border-t border-black/10 bg-[#f5f3ef]/95 backdrop-blur-xl transition-all duration-500 ease-in-out md:hidden ${
+        className={`fixed right-0 left-0 z-50 transition-all duration-500 ease-in-out md:hidden ${
           isMenuOpen
             ? "visible top-[64px] translate-y-0 opacity-100"
             : "pointer-events-none invisible top-[64px] -translate-y-full opacity-0"
         }`}
       >
-        <div className="flex min-h-fit flex-col px-5 pt-6 pb-4">
-          <nav className="mb-4 flex flex-col gap-2">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                href={link.href}
-                className={`relative rounded px-2 py-[5px] text-sm leading-[1.2em] font-normal text-[#333] ${
-                  isNavLinkActive(link.href) ? "text-[#111]" : ""
-                }`}
-                onClick={(event) => {
-                  handleNavClick(event, link.href);
-                  setIsMenuOpen(false);
-                }}
-              >
-                {link.name}
-              </Link>
-            ))}
-          </nav>
+        {/* Inset + liquid glass to match header pill / bento (not flat opaque sheet) */}
+        <div className="px-5 pb-4 pt-1">
+          <div
+            className="rounded-b-[22px] border border-white/60 border-t-white/35 bg-[linear-gradient(180deg,rgba(255,255,255,0.52)_0%,rgba(255,255,255,0.28)_48%,rgba(245,243,239,0.22)_100%)] shadow-[0_12px_40px_rgba(51,65,120,0.08),inset_0_1px_0_rgba(255,255,255,0.75),inset_0_-1px_0_rgba(0,0,0,0.03)] ring-1 ring-black/[0.04] backdrop-blur-2xl backdrop-saturate-150"
+          >
+            <div className="flex min-h-fit flex-col px-4 pt-5 pb-4">
+              <nav className="mb-1 flex flex-col gap-0.5">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    href={link.href}
+                    className={`relative rounded-xl px-3 py-2.5 text-sm leading-[1.2em] font-normal transition-colors ${
+                      isNavLinkActive(link.href)
+                        ? "bg-white/45 text-[#111] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-white/50"
+                        : "text-[#333] hover:bg-white/35 active:bg-white/45"
+                    }`}
+                    onClick={(event) => {
+                      handleNavClick(event, link.href);
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    {link.name}
+                  </Link>
+                ))}
+              </nav>
 
-          <div className="flex flex-col gap-2">
-            {!authLoading && !user && (
-              <button
-                onClick={() => {
-                  router.push("/login");
-                  setIsMenuOpen(false);
-                }}
-                className="flex w-full cursor-pointer items-center justify-center rounded-lg border border-black/15 bg-white/35 px-4 py-2.5 text-[#151515]"
-              >
-                <span className="text-sm leading-[1.2em] font-normal">Login</span>
-              </button>
-            )}
-            {!authLoading && (
-              <button
-                onClick={() => {
-                  if (user) {
-                    router.push("/dashboard");
-                  } else {
-                    const pricingSection = document.getElementById("pricing");
-                    if (pricingSection) {
-                      const headerOffset = 80;
-                      const elementPosition = pricingSection.getBoundingClientRect().top;
-                      const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-                    }
-                  }
-                  setIsMenuOpen(false);
-                }}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#ffffff1a] bg-[#bd28b3ba] px-4 py-2.5"
-              >
-                <span className="text-sm leading-[1.2em] font-normal text-white">
-                  {user ? "Dashboard" : "Start Building"}
-                </span>
-                <Image
-                  src="/assets/icons/arrow-top.svg"
-                  alt="arrow-top"
-                  className="h-4 w-4"
-                  width={16}
-                  height={16}
-                />
-              </button>
-            )}
+              <div className="mt-4 flex flex-col gap-2 border-t border-white/45 pt-4">
+                {!authLoading && !user && (
+                  <button
+                    onClick={() => {
+                      router.push("/login");
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex w-full cursor-pointer items-center justify-center rounded-xl border border-white/70 bg-white/40 px-4 py-2.5 text-[#151515] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-black/[0.04] backdrop-blur-md transition-colors hover:bg-white/55 active:bg-white/65"
+                  >
+                    <span className="text-sm leading-[1.2em] font-normal">Login</span>
+                  </button>
+                )}
+                {!authLoading && (
+                  <button
+                    onClick={() => {
+                      if (user) {
+                        router.push("/dashboard");
+                      } else {
+                        const pricingSection = document.getElementById("pricing");
+                        if (pricingSection) {
+                          const headerOffset = 80;
+                          const elementPosition = pricingSection.getBoundingClientRect().top;
+                          const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                          window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+                        }
+                      }
+                      setIsMenuOpen(false);
+                    }}
+                    className="relative isolate flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-xl border border-white/25 bg-[linear-gradient(165deg,rgba(189,40,179,0.88)_0%,rgba(140,30,132,0.92)_45%,rgba(110,24,108,0.95)_100%)] px-4 py-2.5 shadow-[0_6px_24px_rgba(120,30,110,0.35),inset_0_1px_0_rgba(255,255,255,0.28)] ring-1 ring-white/20 backdrop-blur-md transition-[filter] hover:brightness-105 active:brightness-95"
+                  >
+                    <span className="relative z-[1] text-sm leading-[1.2em] font-normal text-white">
+                      {user ? "Dashboard" : "Start Building"}
+                    </span>
+                    <Image
+                      src="/assets/icons/arrow-top.svg"
+                      alt="arrow-top"
+                      className="relative z-[1] h-4 w-4"
+                      width={16}
+                      height={16}
+                    />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

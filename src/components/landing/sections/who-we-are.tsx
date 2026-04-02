@@ -72,15 +72,15 @@ export function WhoWeAre() {
     <section
       id="about"
       ref={sectionRef}
-      className="flex flex-col items-center justify-center px-6 pt-[50px] sm:px-10"
+      className="flex flex-col items-center justify-center px-4 pt-[50px] sm:px-6 md:px-10"
     >
-      <div className="relative overflow-hidden">
-        <div className="mx-auto w-full max-w-[800px]">
-          <h3 className="text-center text-[24px] leading-[1.4em] font-medium -tracking-[.02em] sm:text-[32px] md:text-[40px]">
+      <div className="relative min-w-0 max-w-full overflow-hidden">
+        <div className="mx-auto w-full min-w-0 max-w-[800px] px-1 sm:px-2">
+          <h3 className="break-words text-center text-[20px] leading-[1.45em] font-medium -tracking-[.02em] sm:text-[28px] md:text-[34px] lg:text-[40px]">
             {words.map((word, index) => (
               <span
                 key={index}
-                className="mr-[0.3em] inline-block transition-all duration-300 ease-out"
+                className="mr-[0.3em] inline-block max-w-full break-words transition-all duration-300 ease-out"
                 style={getWordStyle(index)}
               >
                 {word}
