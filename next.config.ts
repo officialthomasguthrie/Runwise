@@ -22,6 +22,18 @@ const nextConfig: NextConfig = {
     ],
   },
   webpack: (config, { isServer, webpack }) => {
+    // @solana/web3.js → bigint-buffer: use pure-JS build everywhere. The default
+    // `dist/node.js` tries native N-API bindings (missing in browser + many serverless
+    // images) and logs: "bigint: Failed to load bindings, pure JS will be used".
+    const bigintBufferBrowser = join(
+      process.cwd(),
+      "node_modules/bigint-buffer/dist/browser.js",
+    );
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "bigint-buffer": bigintBufferBrowser,
+    };
+
     // Handle Node.js modules that should only be available on the server
     if (!isServer) {
       config.resolve.fallback = {
