@@ -129,6 +129,24 @@ export async function runAgentLoop(context: AgentRunContext): Promise<AgentRunRe
 
         const params = safeParseArgs(toolCall.function.arguments);
 
+        // Deduplicate remember calls within this run before they hit the DB.
+        // The LLM can batch-call remember many times in one turn with the same content.
+        if (toolName === 'remember') {
+          const normalised = (params.content ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+          const alreadyWritten = memoriesCreated.some(
+            (c) => c.trim().replace(/\s+/g, ' ').toLowerCase() === normalised
+          );
+          if (alreadyWritten) {
+            console.log(`[AgentRuntime] Skipping duplicate remember call: "${params.content?.slice(0, 80)}"`);
+            messages.push({
+              role: 'tool',
+              tool_call_id: (rawToolCall as any).id,
+              content: JSON.stringify({ skipped: true, reason: 'Already remembered this content in the current run' }),
+            });
+            continue;
+          }
+        }
+
         console.log(`[AgentRuntime] Agent ${agent.name} → ${toolName}`, params);
 
         const result = await executeAgentTool(toolName, params, context);
@@ -141,7 +159,7 @@ export async function runAgentLoop(context: AgentRunContext): Promise<AgentRunRe
         });
 
         // Track memories written by the remember tool
-        if (toolName === 'remember' && result.success && result.data?.memoryId) {
+        if (toolName === 'remember' && result.success && result.data?.content) {
           memoriesCreated.push(result.data.content);
         }
 
@@ -267,8 +285,9 @@ CURRENT DATE/TIME: ${now}
 
 IMPORTANT GUIDELINES:
 - Use the tools available to you to fulfil your instructions.
-- ALWAYS save important results, findings, and summaries to memory using the "remember" tool. If your task produces useful output (search results, summaries, data, decisions), save the key takeaways so you can reference them in future runs.
-- Even if not explicitly asked, proactively remember things that would be useful later — patterns you notice, important facts, contacts, preferences, or outcomes of your actions.
+- Use "remember" only for genuinely new information that will be useful in a future run. If the information is already shown in WHAT YOU KNOW (MEMORY) above, do NOT remember it again.
+- Call "remember" at most 1–2 times per run. Consolidate related facts into a single memory entry instead of making multiple separate calls.
+- Never save the same fact, time, or result you have already saved in a previous run unless it has materially changed.
 - Use the "add_rule" tool to add operational rules you discover during execution (e.g. "always check calendar before scheduling", "user prefers bullet points").
 - Memory is shown above. Use "recall" if and only if:
   - The task depends on past interactions/history/saved memory

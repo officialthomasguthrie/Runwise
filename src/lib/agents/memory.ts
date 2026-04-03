@@ -30,6 +30,8 @@ export async function getAgentMemory(
 
 /**
  * Write a new memory entry for an agent.
+ * Deduplicates by exact content match (case-insensitive, whitespace-normalised)
+ * so retries and repeated tool calls don't create duplicate rows.
  */
 export async function writeMemory(
   agentId: string,
@@ -41,12 +43,27 @@ export async function writeMemory(
 ): Promise<AgentMemory> {
   const supabase = createAdminClient();
 
+  const normalised = content.trim().replace(/\s+/g, ' ');
+
+  // Return existing memory if the same content was already saved for this agent.
+  const { data: existing } = await (supabase as any)
+    .from('agent_memory')
+    .select('*')
+    .eq('agent_id', agentId)
+    .eq('user_id', userId)
+    .ilike('content', normalised)
+    .maybeSingle();
+
+  if (existing) {
+    return existing as AgentMemory;
+  }
+
   const { data, error } = await (supabase as any)
     .from('agent_memory')
     .insert({
       agent_id: agentId,
       user_id: userId,
-      content,
+      content: normalised,
       memory_type: memoryType,
       importance,
       source,
