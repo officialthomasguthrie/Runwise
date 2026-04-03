@@ -11,6 +11,7 @@ import {
   buildOwnershipMessage,
 } from '@/lib/token-gating/verify-signature';
 import { walletConnectRateLimit } from '@/lib/rate-limiter';
+import { getRunwiseTokenBalance } from '@/lib/solana/token-balance';
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
@@ -81,7 +82,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7. Upsert — resetting last_claim_at so accrual starts fresh for this wallet
+    // 7. Live $RUNWISE balance (legacy Token + Token-2022 ATA) for status UI
+    const rawBalance = await getRunwiseTokenBalance(walletAddress);
+
+    // 8. Upsert — resetting last_claim_at so accrual starts fresh for this wallet
     const nowIso = new Date(now).toISOString();
     const { error: upsertError } = await (admin
       .from('wallet_connections') as any)
@@ -94,6 +98,9 @@ export async function POST(request: NextRequest) {
           last_claim_at: null,
           is_active: true,
           updated_at: nowIso,
+          token_balance: Number(rawBalance),
+          balance_last_checked: nowIso,
+          last_verified_at: nowIso,
         },
         { onConflict: 'user_id' },
       );
@@ -103,7 +110,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save wallet connection' }, { status: 500 });
     }
 
-    // 8. Success
+    // 9. Success
     return NextResponse.json({ success: true, walletAddress });
   } catch (error: any) {
     console.error('[wallet/connect] unexpected error:', error);

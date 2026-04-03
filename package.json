@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "debug:runwise-balance": "npx tsx scripts/debug-runwise-balance.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
