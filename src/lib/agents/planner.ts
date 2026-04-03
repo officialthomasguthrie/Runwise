@@ -5,6 +5,7 @@
  */
 
 import OpenAI from 'openai';
+import type { OpenAIUsageSink } from '@/lib/ai/openai-usage';
 import type { DeployAgentPlan, AgentBehaviourPlan, AgentEmailSendingMode } from './types';
 import { getToolsSpec, getTriggersSpec } from './capabilities-spec';
 import { mergeScheduleConfigForPersist } from './schedule-cron-ui';
@@ -96,7 +97,8 @@ const TRIGGER_CATALOGUE: TriggerDef[] = [
 
 export async function planAgent(
   description: string,
-  userIntegrations: string[]
+  userIntegrations: string[],
+  usageSink?: OpenAIUsageSink
 ): Promise<DeployAgentPlan> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -131,6 +133,8 @@ export async function planAgent(
     ],
   });
 
+  usageSink?.addFromChatCompletion(response);
+
   const rawJson = response.choices[0]?.message?.content ?? '{}';
 
   let parsed: any;
@@ -151,7 +155,8 @@ export async function planAgent(
 export async function regenerateAgentPlan(
   previousPlan: DeployAgentPlan,
   userFeedback: string,
-  userIntegrations: string[]
+  userIntegrations: string[],
+  usageSink?: OpenAIUsageSink
 ): Promise<DeployAgentPlan> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -216,6 +221,8 @@ RULES:
       { role: 'user', content: `Update the plan based on: "${userFeedback}"` },
     ],
   });
+
+  usageSink?.addFromChatCompletion(response);
 
   const rawJson = response.choices[0]?.message?.content ?? '{}';
   let parsed: any;

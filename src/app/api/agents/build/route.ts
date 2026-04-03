@@ -25,6 +25,15 @@ import {
   getAgentResendProvisionPatch,
   resolvePlanEmailSendingMode,
 } from '@/lib/agents/resend-provision';
+import { checkCreditsAvailable } from '@/lib/credits/tracker';
+import { getGenerationCreditCap } from '@/lib/credits/calculator';
+import {
+  blockIfFreeTierNeedsCredits,
+  loadChatCreditGateState,
+  shouldApplyChatCredits,
+} from '@/lib/credits/chat-credit-gate';
+import { finalizeTokenMeteredCredits } from '@/lib/credits/agent-builder-credits';
+import { createOpenAIUsageSink } from '@/lib/ai/openai-usage';
 
 const STAGES = [
   'Analyzing capabilities',
@@ -77,9 +86,47 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const creditState = await loadChatCreditGateState(user.id);
+    const freeGateBlock = await blockIfFreeTierNeedsCredits(user.id, creditState);
+    if (freeGateBlock) {
+      return freeGateBlock;
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return new Response(JSON.stringify({ error: 'AI service is not configured.' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const shouldChargeCredits = shouldApplyChatCredits(creditState);
+    if (shouldChargeCredits) {
+      const reserve = getGenerationCreditCap();
+      const creditCheck = await checkCreditsAvailable(user.id, reserve);
+      if (!creditCheck.available) {
+        return new Response(
+          JSON.stringify({
+            error: creditCheck.message || 'Insufficient credits',
+            credits: { required: reserve, available: creditCheck.balance },
+          }),
+          { status: 402, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const { readable, writer } = createSSEStream();
 
     (async () => {
+      const usageSink = createOpenAIUsageSink();
+      const meterDeploy = () =>
+        finalizeTokenMeteredCredits({
+          userId: user.id,
+          shouldCharge: shouldChargeCredits,
+          totals: usageSink.getTotals(),
+          reason: 'agent_build_deploy',
+          metadata: { descriptionPreview: description.trim().slice(0, 120) },
+        });
+
       try {
         const admin = createAdminClient();
         const buildStartMs = Date.now();
@@ -165,7 +212,7 @@ export async function POST(request: NextRequest) {
         // 6. Deploying agent — generate short tagline and set status (active or pending_integrations)
         writer.buildStage(STAGES[5], 'running');
 
-        const shortDescription = await generateShortDescription(plan, description.trim());
+        const shortDescription = await generateShortDescription(plan, description.trim(), usageSink);
 
         // Assign profile image (same randomized style as agent tab) and persist
         const avatarImage = getAgentAvatarUrl(agent.id);
@@ -218,11 +265,17 @@ export async function POST(request: NextRequest) {
         writer.buildStage(STAGES[5], 'done', `Deployed in ${deployMs}ms`);
 
         // 7. Stream AI-generated summary, then complete
-        await streamCompletionSummary(writer, plan, description.trim());
+        await streamCompletionSummary(writer, plan, description.trim(), usageSink);
 
+        await meterDeploy();
         writer.complete(agent.id, '', requiredIntegrations.length > 0 ? requiredIntegrations : undefined);
       } catch (err: any) {
         console.error('[POST /api/agents/build]', err);
+        try {
+          await meterDeploy();
+        } catch {
+          /* ignore metering errors */
+        }
         writer.error(err?.message ?? 'Something went wrong');
       }
     })();

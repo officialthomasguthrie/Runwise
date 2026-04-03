@@ -7,6 +7,7 @@
  */
 
 import OpenAI from 'openai';
+import type { OpenAIUsageSink } from '@/lib/ai/openai-usage';
 import type { ClarificationAnalysis, ClarificationQuestion, QuestionnaireAnswer } from './types';
 
 const CONDITIONAL_PATTERNS = [
@@ -37,7 +38,8 @@ function hasConditionalPhrasing(text: string): boolean {
 export async function analyzeClarificationNeeds(
   userPrompt: string,
   conversationHistory?: Array<{ role: string; content: string }>,
-  previousAnswers?: QuestionnaireAnswer[]
+  previousAnswers?: QuestionnaireAnswer[],
+  usageSink?: OpenAIUsageSink
 ): Promise<ClarificationAnalysis> {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY is not set');
@@ -196,6 +198,8 @@ Return ONLY valid JSON, no markdown, no code fences.`;
       max_tokens: 2000,
       response_format: { type: 'json_object' },
     });
+
+    usageSink?.addFromChatCompletion(completion);
 
     const responseContent = completion.choices[0]?.message?.content || '{}';
     const parsed = JSON.parse(responseContent) as ClarificationAnalysis;

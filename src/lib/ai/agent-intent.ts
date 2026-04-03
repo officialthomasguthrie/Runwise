@@ -5,6 +5,7 @@
  */
 
 import OpenAI from 'openai';
+import type { OpenAIUsageSink } from '@/lib/ai/openai-usage';
 
 export type AgentIntentResult = {
   wantsAgent: boolean;
@@ -18,7 +19,8 @@ export type AgentIntentResult = {
  * or otherwise not requesting agent creation.
  */
 export async function analyzeAgentIntent(
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  usageSink?: OpenAIUsageSink
 ): Promise<AgentIntentResult> {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY is not set');
@@ -72,6 +74,8 @@ Return ONLY valid JSON, no markdown, no code fences.`;
       max_tokens: 150,
       response_format: { type: 'json_object' },
     });
+
+    usageSink?.addFromChatCompletion(completion);
 
     const responseContent = completion.choices[0]?.message?.content || '{}';
     const parsed = JSON.parse(responseContent) as { wantsAgent?: boolean; reason?: string };

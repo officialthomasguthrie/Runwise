@@ -11,6 +11,7 @@
 
 import OpenAI from 'openai';
 import { getCapabilitySpecForAI } from '@/lib/agents/capabilities-spec';
+import type { OpenAIUsageSink } from '@/lib/ai/openai-usage';
 
 export type FeasibilityResult = {
   feasible: boolean;
@@ -318,7 +319,8 @@ function isUnderspecifiedRejectReason(reason: string | undefined): boolean {
  */
 export async function checkAgentFeasibility(
   userDescription: string,
-  userIntegrationNames: string[]
+  userIntegrationNames: string[],
+  usageSink?: OpenAIUsageSink
 ): Promise<FeasibilityResult> {
   // 1. Programmatic check first — deterministic, 100% reliable
   const programmatic = getProgrammaticResult(userDescription);
@@ -375,6 +377,8 @@ Return ONLY valid JSON.`;
       max_tokens: 200,
       response_format: { type: 'json_object' },
     });
+
+    usageSink?.addFromChatCompletion(completion);
 
     const content = completion.choices[0]?.message?.content ?? '{}';
     const parsed = JSON.parse(content) as { feasible?: boolean; reason?: string };

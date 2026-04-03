@@ -70,11 +70,16 @@ export async function loadIntegrationTokensForExecution(
   userId: string
 ): Promise<Record<string, IntegrationTokenResult | null>> {
   // Pre-load common integrations (OAuth-based).
-  // For Google, try 'google' first then fall back to service-specific names,
-  // since users may have connected via google-gmail, google-sheets, etc.
-  const googleBase = await getIntegrationTokenForExecution(userId, 'google')
-    || await getIntegrationTokenForExecution(userId, 'google-gmail')
-    || await getIntegrationTokenForExecution(userId, 'google-sheets');
+  // For Google, prefer google-gmail BEFORE generic 'google'. Otherwise a user who
+  // connected Sheets (or an older narrow-scope 'google' row) gets that token first
+  // and Gmail nodes fail with ACCESS_TOKEN_SCOPE_INSUFFICIENT / ListMessages 403.
+  const googleBase =
+    (await getIntegrationTokenForExecution(userId, 'google-gmail'))
+    || (await getIntegrationTokenForExecution(userId, 'google'))
+    || (await getIntegrationTokenForExecution(userId, 'google-calendar'))
+    || (await getIntegrationTokenForExecution(userId, 'google-drive'))
+    || (await getIntegrationTokenForExecution(userId, 'google-forms'))
+    || (await getIntegrationTokenForExecution(userId, 'google-sheets'));
 
   const [slack, github, discord, twitter, paypal] = await Promise.all([
     getIntegrationTokenForExecution(userId, 'slack'),

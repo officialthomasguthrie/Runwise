@@ -1,6 +1,6 @@
 "use client";
 
-import { User, BarChart3, Lock, CreditCard, Plug, Bell, Download } from "lucide-react";
+import { User, BarChart3, Lock, CreditCard, Plug, Bell, Download, Coins } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,10 +16,12 @@ import { IntegrationsSettings } from "@/components/ui/integrations-settings";
 import { AuthenticationSettings } from "@/components/ui/authentication-settings";
 import { NotificationsSettings } from "@/components/ui/notifications-settings";
 import { ExportSettings } from "@/components/ui/export-settings";
+import { TokenHolderSettings } from "@/components/ui/token-holder-settings";
 
 const tabs = [
   { id: "profile", label: "Profile", icon: User },
   { id: "usage", label: "Usage", icon: BarChart3 },
+  { id: "token", label: "Token", icon: Coins },
   { id: "authentication", label: "Authentication", icon: Lock },
   { id: "billing", label: "Billing", icon: CreditCard },
   { id: "integrations", label: "Integrations", icon: Plug },
@@ -105,6 +107,9 @@ function SettingsPageContent() {
                     </Tabs.Panel>
                     <Tabs.Panel id="usage">
                       <UsageSettings />
+                    </Tabs.Panel>
+                    <Tabs.Panel id="token">
+                      <TokenHolderSettings />
                     </Tabs.Panel>
                     <Tabs.Panel id="authentication">
                       <AuthenticationSettings />

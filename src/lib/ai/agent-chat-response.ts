@@ -5,6 +5,7 @@
  */
 
 import OpenAI from 'openai';
+import type { OpenAIUsageSink } from '@/lib/ai/openai-usage';
 
 export type AgentChatWriter = {
   text: (delta: string) => void;
@@ -20,7 +21,8 @@ export type AgentChatWriter = {
 export async function streamAgentChatResponse(
   writer: AgentChatWriter,
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-  systemPrefix?: string
+  systemPrefix?: string,
+  usageSink?: OpenAIUsageSink
 ): Promise<void> {
   if (!process.env.OPENAI_API_KEY) {
     writer.text('I’m having trouble connecting right now. Please try again in a moment.');
@@ -70,9 +72,11 @@ Tone and format:
       temperature: 0.7,
       max_tokens: 500,
       stream: true,
+      stream_options: { include_usage: true },
     });
 
     for await (const chunk of stream) {
+      usageSink?.addFromStreamChunk(chunk);
       const delta = chunk.choices[0]?.delta?.content;
       if (delta) {
         writer.text(delta);

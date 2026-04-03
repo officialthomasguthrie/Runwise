@@ -9,6 +9,7 @@ import { hasScheduledTrigger, getScheduleConfig } from "@/lib/workflows/schedule
 import { scheduleNextWorkflowRun } from "@/lib/workflows/schedule-scheduler";
 import { logInngestExecutionStart, logInngestExecutionComplete } from "@/lib/inngest/monitoring";
 import { CronExpressionParser } from "cron-parser";
+import { deductCredits } from "@/lib/credits/tracker";
 
 // ============================================================================
 // TEST FUNCTIONS
@@ -365,6 +366,36 @@ export const workflowExecutor = inngest.createFunction(
       });
     });
 
+    // Step 5: Deduct execution credits (post-execution, dynamic cost based on nodes run)
+    await step.run("deduct-execution-credits", async () => {
+      const EXECUTION_BASE = parseInt(process.env.EXECUTION_BASE_CREDIT_COST ?? '3');
+      const EXECUTION_PER_NODE = parseInt(process.env.EXECUTION_CREDIT_PER_NODE ?? '1');
+      const EXECUTION_CAP = parseInt(process.env.EXECUTION_CREDIT_CAP ?? '25');
+
+      const nodesExecuted = executionResult.nodeResults?.length ?? 0;
+      const cost = Math.min(EXECUTION_BASE + (nodesExecuted * EXECUTION_PER_NODE), EXECUTION_CAP);
+
+      // Always deduct — applies to free-tier token holders and paid users alike.
+      // The pre-check in the HTTP route is the primary guard; if the balance is
+      // somehow exhausted between the pre-check and now, we log and move on.
+      const deduction = await deductCredits(
+        userId,
+        cost,
+        'workflow_execution',
+        { workflowId, executionId: executionResult.executionId, nodesExecuted }
+      );
+
+      if (!deduction.success) {
+        // Log but do not throw — execution already completed, we can't undo it.
+        console.warn(
+          `[Credits] Failed to deduct ${cost} credits for execution ${workflowId}:`,
+          deduction.error
+        );
+      }
+
+      return { cost, nodesExecuted, newBalance: deduction.newBalance };
+    });
+
     // Log execution completion (only for successful executions)
     if (executionLogId) {
       try {
@@ -414,6 +445,21 @@ export const agentRun = inngest.createFunction(
   async ({ event, step, runId }) => {
     const { agentId, userId, behaviourId, triggerType, triggerData } = event.data;
 
+    const AGENT_MIN = parseInt(process.env.AGENT_RUN_MIN_CREDITS ?? '5');
+    const AGENT_CAP = parseInt(process.env.AGENT_RUN_CREDIT_CAP ?? '80');
+
+    // Pre-run credit check — fail fast before consuming any OpenAI budget
+    await step.run("check-agent-credits", async () => {
+      const { checkCreditsAvailable } = await import('@/lib/credits/tracker');
+      const check = await checkCreditsAvailable(userId, AGENT_MIN);
+      if (!check.available) {
+        throw new Error(
+          `Insufficient credits to run agent. Need at least ${AGENT_MIN} credits, have ${check.balance}.`
+        );
+      }
+      return { creditsAvailable: check.balance };
+    });
+
     const result = await step.run("run-agent-loop", async () => {
       const { runAgentLoop } = await import("@/lib/agents/runtime");
       return runAgentLoop({
@@ -434,6 +480,31 @@ export const agentRun = inngest.createFunction(
       // Surface error to Inngest so it shows as failed in the dashboard
       throw new Error(result.error ?? "Agent run failed");
     }
+
+    // Post-run credit deduction — charge based on actual tokens consumed
+    await step.run("deduct-agent-credits", async () => {
+      const { deductCredits } = await import('@/lib/credits/tracker');
+      const { estimateAgentRunCredits } = await import('@/lib/credits/calculator');
+
+      const rawCost = estimateAgentRunCredits(result.tokensUsed ?? 0);
+      const cost = Math.max(1, Math.min(rawCost, AGENT_CAP));
+
+      const deduction = await deductCredits(
+        userId,
+        cost,
+        'agent_run',
+        { agentId, tokensUsed: result.tokensUsed, actionsCount: result.actionsCount }
+      );
+
+      if (!deduction.success) {
+        console.warn(
+          `[Credits] Failed to deduct ${cost} agent run credits for user ${userId}:`,
+          deduction.error
+        );
+      }
+
+      return { cost, tokensUsed: result.tokensUsed, newBalance: deduction.newBalance };
+    });
 
     console.log(
       `[AgentRun] Agent ${agentId} succeeded: ` +

@@ -5,6 +5,7 @@
  */
 
 import OpenAI from 'openai';
+import type { OpenAIUsageSink } from '@/lib/ai/openai-usage';
 import type { DeployAgentPlan } from '@/lib/agents/types';
 import type { IntegrationCheckItem } from '@/lib/agents/chat-pipeline';
 import { detectRequiredIntegrations, getIntegrationMeta } from '@/lib/agents/chat-pipeline';
@@ -23,7 +24,8 @@ async function streamCompletion(
   writer: AgentStreamWriter,
   systemPrompt: string,
   userContent: string,
-  fallback: string
+  fallback: string,
+  usageSink?: OpenAIUsageSink
 ): Promise<void> {
   const openai = getOpenAI();
   if (!openai) {
@@ -42,9 +44,11 @@ async function streamCompletion(
       temperature: 0.6,
       max_tokens: 200,
       stream: true,
+      stream_options: { include_usage: true },
     });
 
     for await (const chunk of stream) {
+      usageSink?.addFromStreamChunk(chunk);
       const delta = chunk.choices[0]?.delta?.content;
       if (delta) {
         writer.text(delta);
@@ -63,7 +67,8 @@ async function streamCompletion(
  */
 export async function streamIntegrationIntro(
   writer: AgentStreamWriter,
-  integrations: IntegrationCheckItem[]
+  integrations: IntegrationCheckItem[],
+  usageSink?: OpenAIUsageSink
 ): Promise<void> {
   const names = integrations.map((i) => i.label).join(', ');
   await streamCompletion(
@@ -73,7 +78,8 @@ Generate a single friendly sentence (1-2 clauses) telling them they need to conn
 Do NOT list the integrations — the UI shows them. Just a brief intro like "You'll need to connect these first" or similar.
 Output ONLY the sentence, no quotes, no preamble.`,
     `Missing integrations: ${names}`,
-    "You'll need to connect these first:"
+    "You'll need to connect these first:",
+    usageSink
   );
 }
 
@@ -85,7 +91,8 @@ Output ONLY the sentence, no quotes, no preamble.`,
 export async function streamClarificationIntro(
   writer: AgentStreamWriter,
   summary: string,
-  isFollowUp = false
+  isFollowUp = false,
+  usageSink?: OpenAIUsageSink
 ): Promise<void> {
   const systemPrompt = isFollowUp
     ? `You are the Runwise agent builder. You've already asked the user an initial set of questions and now have a small follow-up set.
@@ -103,7 +110,8 @@ Use the summary context to tailor the tone if helpful. Output ONLY the sentence,
     writer,
     systemPrompt,
     summary || 'User wants to build an agent.',
-    isFollowUp ? 'Just a couple more things to confirm.' : 'A few quick questions.'
+    isFollowUp ? 'Just a couple more things to confirm.' : 'A few quick questions.',
+    usageSink
   );
 }
 
@@ -114,7 +122,8 @@ Use the summary context to tailor the tone if helpful. Output ONLY the sentence,
 export async function streamPlanIntro(
   writer: AgentStreamWriter,
   plan: DeployAgentPlan,
-  userDescription: string
+  userDescription: string,
+  usageSink?: OpenAIUsageSink
 ): Promise<void> {
   const behavioursSummary =
     plan.behaviours.length > 0
@@ -160,9 +169,11 @@ Output ONLY these 3 parts. Use plain text, no markdown, no bullets, no icons. Wr
       temperature: 0.6,
       max_tokens: 500,
       stream: true,
+      stream_options: { include_usage: true },
     });
 
     for await (const chunk of stream) {
+      usageSink?.addFromStreamChunk(chunk);
       const delta = chunk.choices[0]?.delta?.content;
       if (delta) {
         writer.text(delta);
@@ -182,7 +193,8 @@ Output ONLY these 3 parts. Use plain text, no markdown, no bullets, no icons. Wr
  */
 export async function generateShortDescription(
   plan: DeployAgentPlan,
-  userDescription: string
+  userDescription: string,
+  usageSink?: OpenAIUsageSink
 ): Promise<string> {
   const openai = getOpenAI();
   if (!openai) {
@@ -193,7 +205,7 @@ export async function generateShortDescription(
   const userContent = `User's request: ${userDescription}\n\nAgent: ${plan.name}. Behaviours: ${plan.behaviours.map((b) => b.description).join('; ')}`;
 
   try {
-    const { choices } = await openai.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
@@ -207,7 +219,8 @@ Output ONLY the tagline. No quotes. Max 50 chars. Be concise and specific.`,
       temperature: 0.4,
       max_tokens: 60,
     });
-    const text = (choices[0]?.message?.content ?? '').trim().slice(0, 60);
+    usageSink?.addFromChatCompletion(completion);
+    const text = (completion.choices[0]?.message?.content ?? '').trim().slice(0, 60);
     return text || plan.name;
   } catch (e) {
     console.error('[Agent Streaming] Short description error:', e);
@@ -223,7 +236,8 @@ Output ONLY the tagline. No quotes. Max 50 chars. Be concise and specific.`,
 export async function streamCompletionSummary(
   writer: AgentStreamWriter,
   plan: DeployAgentPlan,
-  userDescription: string
+  userDescription: string,
+  usageSink?: OpenAIUsageSink
 ): Promise<void> {
   const openai = getOpenAI();
   if (!openai) {
@@ -268,9 +282,11 @@ Agent plan:
       temperature: 0.5,
       max_tokens: 500,
       stream: true,
+      stream_options: { include_usage: true },
     });
 
     for await (const chunk of stream) {
+      usageSink?.addFromStreamChunk(chunk);
       const delta = chunk.choices[0]?.delta?.content;
       if (delta) {
         writer.text(delta);
@@ -289,7 +305,10 @@ Agent plan:
  * Stream a varied "what would you like to change?" response when user clicks "Let me adjust something".
  * Different every time — no plan regeneration yet, just prompting for feedback.
  */
-export async function streamAdjustPrompt(writer: AgentStreamWriter): Promise<void> {
+export async function streamAdjustPrompt(
+  writer: AgentStreamWriter,
+  usageSink?: OpenAIUsageSink
+): Promise<void> {
   await streamCompletion(
     writer,
     `You are the Runwise agent builder. The user clicked "Let me adjust something" on their agent plan.
@@ -297,6 +316,7 @@ Generate a single short, friendly sentence (5-15 words) that invites them to sha
 Vary the phrasing every time. Examples: "Of course. What would you like to change?", "Sure thing — what should we tweak?", "Happy to adjust. What's on your mind?", "No problem. Tell me what you'd like different."
 Be natural and concise. Output ONLY the sentence, no quotes, no preamble.`,
     'User wants to adjust the plan',
-    'Of course. What would you like to change?'
+    'Of course. What would you like to change?',
+    usageSink
   );
 }

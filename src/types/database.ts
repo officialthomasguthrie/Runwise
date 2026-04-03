@@ -81,6 +81,88 @@ export interface Database {
           updated_at?: string
         }
       }
+      token_credit_claims: {
+        Row: {
+          id: string
+          user_id: string
+          wallet_address: string
+          credits_granted: number
+          tokens_held_at_claim: number
+          credits_per_day_at_claim: number
+          accrual_start_at: string
+          accrual_hours: number
+          claimed_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          wallet_address: string
+          credits_granted: number
+          tokens_held_at_claim: number
+          credits_per_day_at_claim: number
+          accrual_start_at: string
+          accrual_hours: number
+          claimed_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          wallet_address?: string
+          credits_granted?: number
+          tokens_held_at_claim?: number
+          credits_per_day_at_claim?: number
+          accrual_start_at?: string
+          accrual_hours?: number
+          claimed_at?: string
+          created_at?: string
+        }
+      }
+      wallet_connections: {
+        Row: {
+          id: string
+          user_id: string
+          wallet_address: string
+          chain: string
+          connected_at: string
+          last_verified_at: string | null
+          last_claim_at: string | null
+          token_balance: number
+          balance_last_checked: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          wallet_address: string
+          chain?: string
+          connected_at?: string
+          last_verified_at?: string | null
+          last_claim_at?: string | null
+          token_balance?: number
+          balance_last_checked?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          wallet_address?: string
+          chain?: string
+          connected_at?: string
+          last_verified_at?: string | null
+          last_claim_at?: string | null
+          token_balance?: number
+          balance_last_checked?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
       workflows: {
         Row: {
           id: string
@@ -840,6 +922,8 @@ export type WorkflowShare = Database['public']['Tables']['workflow_shares']['Row
 export type AIModel = Database['public']['Tables']['ai_models']['Row']
 export type UserAnalytics = Database['public']['Tables']['user_analytics']['Row']
 export type AgentRow = Database['public']['Tables']['agents']['Row']
+export type WalletConnection = Database['public']['Tables']['wallet_connections']['Row']
+export type TokenCreditClaim = Database['public']['Tables']['token_credit_claims']['Row']
 
 // =====================================================
 // Extended Types with Relations

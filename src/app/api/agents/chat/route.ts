@@ -27,6 +27,15 @@ import {
 import { getUserIntegrations } from '@/lib/integrations/service';
 import { createAdminClient } from '@/lib/supabase-admin';
 import type { AgentEmailSendingMode } from '@/lib/agents/types';
+import { checkCreditsAvailable } from '@/lib/credits/tracker';
+import { getGenerationCreditCap } from '@/lib/credits/calculator';
+import {
+  blockIfFreeTierNeedsCredits,
+  loadChatCreditGateState,
+  shouldApplyChatCredits,
+} from '@/lib/credits/chat-credit-gate';
+import { finalizeTokenMeteredCredits } from '@/lib/credits/agent-builder-credits';
+import { createOpenAIUsageSink } from '@/lib/ai/openai-usage';
 
 /** Push "Thinking..." immediately as one chunk (not streamed) */
 function streamThinking(writer: ReturnType<typeof createSSEStream>['writer']) {
@@ -88,10 +97,48 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const creditState = await loadChatCreditGateState(user.id);
+    const freeGateBlock = await blockIfFreeTierNeedsCredits(user.id, creditState);
+    if (freeGateBlock) {
+      return freeGateBlock;
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return new Response(JSON.stringify({ error: 'AI service is not configured.' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const shouldChargeCredits = shouldApplyChatCredits(creditState);
+    if (shouldChargeCredits) {
+      const reserve = getGenerationCreditCap();
+      const creditCheck = await checkCreditsAvailable(user.id, reserve);
+      if (!creditCheck.available) {
+        return new Response(
+          JSON.stringify({
+            error: creditCheck.message || 'Insufficient credits',
+            credits: { required: reserve, available: creditCheck.balance },
+          }),
+          { status: 402, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const { readable, writer } = createSSEStream();
 
     // Run pipeline asynchronously — stream will be consumed by the client
     (async () => {
+      const usageSink = createOpenAIUsageSink();
+      const meterTurn = () =>
+        finalizeTokenMeteredCredits({
+          userId: user.id,
+          shouldCharge: shouldChargeCredits,
+          totals: usageSink.getTotals(),
+          reason: 'agent_builder_chat',
+          metadata: { promptPreview: latestUserContent.slice(0, 120) },
+        });
+
       try {
         const integrations = await getUserIntegrations(user.id);
         const userIntegrationNames = integrations
@@ -106,7 +153,7 @@ export async function POST(request: NextRequest) {
 
         // When editing an existing agent, fetch it and build plan for regeneration
         if (!effectivePendingPlan && agentId) {
-          const intent = await analyzeAgentIntent(messages);
+          const intent = await analyzeAgentIntent(messages, usageSink);
           if (intent.wantsAgent) {
             const admin = createAdminClient();
             const { data: agent, error: agentError } = await (admin as any)
@@ -130,21 +177,28 @@ export async function POST(request: NextRequest) {
 
         if (effectivePendingPlan) {
           const adjustmentDescription = `User wants to change their agent plan: "${latestUserContent}"`;
-          const feasibility = await checkAgentFeasibility(adjustmentDescription, userIntegrationNames);
+          const feasibility = await checkAgentFeasibility(
+            adjustmentDescription,
+            userIntegrationNames,
+            usageSink
+          );
           if (!feasibility.feasible && feasibility.reason) {
             await streamTextChunked(writer, feasibility.reason);
             writer.textDone();
+            await meterTurn();
             writer.close();
             return;
           }
           const plan = await regenerateAgentPlan(
             effectivePendingPlan,
             latestUserContent,
-            userIntegrationNames
+            userIntegrationNames,
+            usageSink
           );
           const adjustmentContext = `User asked to adjust: ${latestUserContent}`;
-          await streamPlanIntro(writer, plan, adjustmentContext);
+          await streamPlanIntro(writer, plan, adjustmentContext, usageSink);
           writer.card({ type: 'plan', plan });
+          await meterTurn();
           writer.close();
           return;
         }
@@ -165,46 +219,59 @@ export async function POST(request: NextRequest) {
         // This prevents continuing into more rounds (or plan generation) when an answer
         // explicitly requests unsupported integrations/actions.
         if (answers && answers.length > 0) {
-          const answeredFeasibility = await checkAgentFeasibility(description, userIntegrationNames);
+          const answeredFeasibility = await checkAgentFeasibility(
+            description,
+            userIntegrationNames,
+            usageSink
+          );
           if (!answeredFeasibility.feasible && answeredFeasibility.reason) {
             await streamTextChunked(writer, answeredFeasibility.reason);
             writer.textDone();
+            await meterTurn();
             writer.close();
             return;
           }
         }
 
         // Agent intent detection — respond conversationally if user is just chatting/asking
-        const intent = await analyzeAgentIntent(messages);
+        const intent = await analyzeAgentIntent(messages, usageSink);
         if (!intent.wantsAgent) {
-          await streamAgentChatResponse(writer, messages);
+          await streamAgentChatResponse(writer, messages, undefined, usageSink);
+          await meterTurn();
           return;
         }
 
         // Clarification check BEFORE feasibility so vague requests get refined first.
         // Pass accumulated answers so round 2+ can ask context-dependent follow-up questions
         // (e.g. after user picks "Slack", round 2 asks "which channel?" as a plain question).
-        const analysis = await analyzeClarificationNeeds(description, messages, answers ?? undefined);
+        const analysis = await analyzeClarificationNeeds(
+          description,
+          messages,
+          answers ?? undefined,
+          usageSink
+        );
 
         if (analysis.needsClarification && analysis.questions.length > 0) {
           const isFollowUp = !!(answers && answers.length > 0);
-          await streamClarificationIntro(writer, analysis.summary || '', isFollowUp);
+          await streamClarificationIntro(writer, analysis.summary || '', isFollowUp, usageSink);
           writer.card({ type: 'questionnaire', questions: analysis.questions });
+          await meterTurn();
           writer.close();
           return;
         }
 
         // Feasibility check after clarification; now we have richer requirements context.
-        const feasibility = await checkAgentFeasibility(description, userIntegrationNames);
+        const feasibility = await checkAgentFeasibility(description, userIntegrationNames, usageSink);
         if (!feasibility.feasible && feasibility.reason) {
           await streamTextChunked(writer, feasibility.reason);
           writer.textDone();
+          await meterTurn();
           writer.close();
           return;
         }
 
         // All clarification done — now generate the plan
-        const plan = await planAgent(description, userIntegrationNames);
+        const plan = await planAgent(description, userIntegrationNames, usageSink);
 
         const modeFromEnrichedPrompt = extractEmailSendingModeFromQuestionnaireHints(description);
         if (modeFromEnrichedPrompt) {
@@ -270,11 +337,17 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        await streamPlanIntro(writer, plan, description);
+        await streamPlanIntro(writer, plan, description, usageSink);
         writer.card({ type: 'plan', plan });
+        await meterTurn();
         writer.close();
       } catch (err: any) {
         console.error('[POST /api/agents/chat]', err);
+        try {
+          await meterTurn();
+        } catch {
+          /* metering must not mask the original error */
+        }
         writer.error(err?.message ?? 'Something went wrong');
       }
     })();

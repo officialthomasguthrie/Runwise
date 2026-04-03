@@ -128,7 +128,9 @@ export function ExecutionErrorDisplay({ error, className = '', showIcon = true }
                 <span className={`font-medium ${config.textColor} opacity-80 block mb-1`}>
                   Raw Error:
                 </span>
-                <pre className={`p-2 rounded bg-black/5 dark:bg-white/5 overflow-x-auto ${config.textColor} text-xs font-mono`}>
+                <pre
+                  className={`max-h-60 overflow-y-auto overflow-x-auto whitespace-pre-wrap break-words rounded bg-black/5 p-2 text-xs font-mono dark:bg-white/5 ${config.textColor}`}
+                >
                   {rawErrorString}
                 </pre>
               </div>

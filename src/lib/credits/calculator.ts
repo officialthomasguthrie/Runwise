@@ -87,6 +87,12 @@ export const AGENT_RUN_MIN_CREDITS = 5;
 /**
  * Get monthly credit allocation based on subscription tier
  */
+/** Cap for a single generation-style operation (workflow, agent builder turn, deploy summary). */
+export function getGenerationCreditCap(): number {
+  const raw = parseInt(process.env.GENERATION_CREDIT_CAP ?? '20', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 20;
+}
+
 export function getMonthlyCreditAllocation(tier: string): number {
   const t = tier?.toLowerCase() ?? '';
   switch (t) {

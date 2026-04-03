@@ -91,15 +91,32 @@ export async function POST(request: NextRequest) {
           }
           
           if (hasUsedFreeAction) {
-            console.log('[Chat API] Free user has generated a workflow - blocking further messages');
-            // Free user has generated a workflow, block further AI chat messages
-            return new Response(
-              JSON.stringify({
-                error: 'You have reached your free limit. Upgrade to continue chatting.',
-                requiresSubscription: true,
-              }),
-              { status: 402, headers: { 'Content-Type': 'application/json' } }
-            );
+            console.log('[Chat API] Free user has generated a workflow - checking token-holder credits');
+            // Check if token-holder credits override the free gate
+            let creditsBalance = 0;
+            try {
+              const { data: creditsRow } = await (adminSupabase as any)
+                .from('users')
+                .select('credits_balance')
+                .eq('id', user.id)
+                .single();
+              creditsBalance = (creditsRow as any)?.credits_balance ?? 0;
+            } catch (creditsErr) {
+              console.error('[Chat API] Error checking credits_balance:', creditsErr);
+            }
+
+            if (creditsBalance <= 0) {
+              console.log('[Chat API] No credits available - blocking further messages');
+              return new Response(
+                JSON.stringify({
+                  error: 'You have reached your free limit. Upgrade to continue chatting.',
+                  requiresSubscription: true,
+                }),
+                { status: 402, headers: { 'Content-Type': 'application/json' } }
+              );
+            }
+
+            console.log(`[Chat API] Token-holder credits (${creditsBalance}) override free gate — allowing chat`);
           }
           console.log('[Chat API] Free user can chat (no workflow generated yet) - allowing unlimited messages');
           // Free user hasn't generated a workflow yet, allow unlimited chat messages

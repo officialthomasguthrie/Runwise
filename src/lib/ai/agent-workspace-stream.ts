@@ -3,6 +3,7 @@
  */
 
 import OpenAI from 'openai';
+import type { OpenAIUsageSink } from '@/lib/ai/openai-usage';
 import type {
   ChatCompletionMessageParam,
   ChatCompletionAssistantMessageParam,
@@ -50,6 +51,7 @@ export async function runAgentWorkspaceChat(params: {
   activities: AgentActivity[];
   behaviours: AgentBehaviour[];
   capabilitiesLines: string;
+  usageSink?: OpenAIUsageSink;
 }): Promise<void> {
   const {
     writer,
@@ -60,6 +62,7 @@ export async function runAgentWorkspaceChat(params: {
     activities,
     behaviours,
     capabilitiesLines,
+    usageSink,
   } = params;
 
   if (!process.env.OPENAI_API_KEY) {
@@ -105,6 +108,8 @@ export async function runAgentWorkspaceChat(params: {
         temperature: 0.45,
         max_tokens: 4096,
       });
+
+      usageSink?.addFromChatCompletion(completion);
 
       const choice = completion.choices[0]?.message;
       if (!choice) {

@@ -63,13 +63,32 @@ export async function POST(request: NextRequest) {
           hasUsedFreeAction = (userRow as any)?.has_used_free_action === true;
           
           if (hasUsedFreeAction) {
-            // Free user has already generated a workflow, block further workflow generation
-            return new Response(
-              JSON.stringify({
-                error: 'You have reached your free limit. You can generate one workflow for free. Upgrade to continue.',
-                requiresSubscription: true,
-              }),
-              { status: 402, headers: { 'Content-Type': 'application/json' } }
+            // Check if the user has token-holder credits that override the free gate.
+            const creditsCheckClient = createAdminClient();
+            const { data: creditsRow } = await (creditsCheckClient as any)
+              .from('users')
+              .select('credits_balance')
+              .eq('id', user.id)
+              .single();
+
+            const creditsBalance: number = (creditsRow as any)?.credits_balance ?? 0;
+
+            if (creditsBalance <= 0) {
+              // No credits — enforce the free-action gate
+              return new Response(
+                JSON.stringify({
+                  error: 'You have reached your free limit. You can generate one workflow for free. Upgrade to continue.',
+                  requiresSubscription: true,
+                }),
+                { status: 402, headers: { 'Content-Type': 'application/json' } }
+              );
+            }
+
+            // credits_balance > 0: token-holder credits override the free gate.
+            // Existing credit deduction logic below will charge for this generation.
+            console.log(
+              `[generate-workflow] Free user ${user.id} bypassing free gate via token credits ` +
+              `(balance=${creditsBalance})`
             );
           }
           // Free user hasn't generated a workflow yet, allow generation (will be marked after successful generation)
@@ -267,6 +286,12 @@ export async function POST(request: NextRequest) {
                   ) || false;
                   creditsUsed = estimateWorkflowGenerationCredits(nodeCount, hasCustomNodes);
                 }
+
+                // Safety cap: prevent a single large prompt from draining balance in one shot
+                creditsUsed = Math.min(
+                  creditsUsed,
+                  parseInt(process.env.GENERATION_CREDIT_CAP ?? '20')
+                );
 
                 // Deduct credits after successful generation
                 const deduction = await deductCredits(

@@ -19,6 +19,15 @@ import { getAgentMemory } from '@/lib/agents/memory';
 import { formatCapabilitiesForWorkspace } from '@/lib/agents/workspace-chat-prompt';
 import { runAgentWorkspaceChat } from '@/lib/ai/agent-workspace-stream';
 import type { Agent, AgentActivity, AgentBehaviour } from '@/lib/agents/types';
+import { checkCreditsAvailable } from '@/lib/credits/tracker';
+import { getGenerationCreditCap } from '@/lib/credits/calculator';
+import {
+  blockIfFreeTierNeedsCredits,
+  loadChatCreditGateState,
+  shouldApplyChatCredits,
+} from '@/lib/credits/chat-credit-gate';
+import { finalizeTokenMeteredCredits } from '@/lib/credits/agent-builder-credits';
+import { createOpenAIUsageSink } from '@/lib/ai/openai-usage';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -36,6 +45,29 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const gate = await requireAgentBuilderAccess(user.id);
     if (gate) return gate;
+
+    const creditState = await loadChatCreditGateState(user.id);
+    const freeGateBlock = await blockIfFreeTierNeedsCredits(user.id, creditState);
+    if (freeGateBlock) return freeGateBlock;
+
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'AI service is not configured.' }, { status: 500 });
+    }
+
+    const shouldChargeCredits = shouldApplyChatCredits(creditState);
+    if (shouldChargeCredits) {
+      const reserve = getGenerationCreditCap();
+      const creditCheck = await checkCreditsAvailable(user.id, reserve);
+      if (!creditCheck.available) {
+        return NextResponse.json(
+          {
+            error: creditCheck.message || 'Insufficient credits',
+            credits: { required: reserve, available: creditCheck.balance },
+          },
+          { status: 402 }
+        );
+      }
+    }
 
     const { id: agentId } = await context.params;
 
@@ -96,6 +128,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { readable, writer } = createSSEStream();
 
     (async () => {
+      const usageSink = createOpenAIUsageSink();
       try {
         await runAgentWorkspaceChat({
           writer,
@@ -106,10 +139,29 @@ export async function POST(request: NextRequest, context: RouteContext) {
           activities,
           behaviours,
           capabilitiesLines: capabilitiesBlock,
+          usageSink,
+        });
+        await finalizeTokenMeteredCredits({
+          userId: user.id,
+          shouldCharge: shouldChargeCredits,
+          totals: usageSink.getTotals(),
+          reason: 'agent_workspace_chat',
+          metadata: { agentId },
         });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('[POST /api/agents/[id]/chat]', err);
+        try {
+          await finalizeTokenMeteredCredits({
+            userId: user.id,
+            shouldCharge: shouldChargeCredits,
+            totals: usageSink.getTotals(),
+            reason: 'agent_workspace_chat',
+            metadata: { agentId },
+          });
+        } catch {
+          /* ignore metering errors */
+        }
         writer.error(msg ?? 'Something went wrong');
       }
     })();

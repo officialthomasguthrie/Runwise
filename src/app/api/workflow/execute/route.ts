@@ -37,31 +37,51 @@ export async function POST(request: NextRequest) {
         : ((userRow as any)?.subscription_tier || 'free');
 
       if (subscriptionTier === 'free') {
-        // Check if free user has generated a workflow (they can only generate one)
-        const { count, error: countError } = await supabase
-          .from('workflows')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('ai_generated', true);
-        
-        if (!countError && count && count >= 1) {
-          // Free user has generated a workflow, block execution
+        // Check if free user has token-holder credits to bypass the subscription gate.
+        // Any positive balance (even below the worst-case cap) allows through —
+        // the actual cost is calculated post-execution in Inngest.
+        const EXECUTION_CREDIT_CAP = parseInt(process.env.EXECUTION_CREDIT_CAP ?? '25');
+        const adminForCredits = createAdminClient();
+        const { data: creditsRow } = await (adminForCredits as any)
+          .from('users')
+          .select('credits_balance')
+          .eq('id', user.id)
+          .single();
+
+        const creditsBalance: number = (creditsRow as any)?.credits_balance ?? 0;
+
+        if (creditsBalance <= 0) {
+          // No credits — enforce subscription gate as before
+          const { count, error: countError } = await supabase
+            .from('workflows')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('ai_generated', true);
+
+          if (!countError && count && count >= 1) {
+            return NextResponse.json(
+              {
+                error: 'You have reached your free limit. Upgrade to continue.',
+                requiresSubscription: true,
+              },
+              { status: 402 }
+            );
+          }
+
           return NextResponse.json(
             {
-              error: 'You have reached your free limit. Upgrade to continue.',
+              error: 'Subscription required to execute workflows',
               requiresSubscription: true,
             },
             { status: 402 }
           );
         }
-        
-        // Free user hasn't generated a workflow yet, but still block execution
-        return NextResponse.json(
-          {
-            error: 'Subscription required to execute workflows',
-            requiresSubscription: true,
-          },
-          { status: 402 }
+
+        // credits_balance > 0: token-holder credits allow execution.
+        // Log for observability — worst-case reserve check is informational only here.
+        console.log(
+          `[workflow/execute] Free user ${user.id} bypassing gate via token credits ` +
+          `(balance=${creditsBalance}, cap=${EXECUTION_CREDIT_CAP})`
         );
       }
     } catch (subError) {
@@ -138,6 +158,8 @@ export async function POST(request: NextRequest) {
         triggerType: (body as any).isTest ? 'test' : 'manual',
       },
     });
+
+    // Credit deduction happens post-execution in Inngest workflowExecutor — see src/inngest/functions.ts
 
     // Return event ID for tracking
     // The actual execution happens asynchronously in Inngest

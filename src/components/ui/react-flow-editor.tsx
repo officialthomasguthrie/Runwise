@@ -38,7 +38,6 @@ import { CheckCircle, XCircle, ChevronDown, ChevronUp, Settings, AlertCircle, Pl
 import type { LucideProps } from 'lucide-react';
 import { ExecutionErrorDisplay } from './execution-error-display';
 import { normalizeError } from '@/lib/workflow-execution/error-normalization';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 const HorizontalWorkflowIcon = ({ className, ...props }: LucideProps) => (
   <svg
@@ -130,7 +129,7 @@ export const ReactFlowEditor = ({
   onAskNodeInfo,
   onRegisterAddNodeCallback,
 }: ReactFlowEditorProps = {}) => {
-  const { user, subscriptionTier } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
@@ -154,8 +153,6 @@ export const ReactFlowEditor = ({
   // When a webhook-trigger node gets a non-empty path we auto-save so the URL
   // is immediately active in the database without the user clicking Save.
   const webhookAutoSavePendingRef = useRef(false);
-  const isFreePlan = !subscriptionTier || subscriptionTier === 'free';
-  
   // Keep nodesRef in sync with nodes state
   useEffect(() => {
     nodesRef.current = nodes;
@@ -888,7 +885,9 @@ export const ReactFlowEditor = ({
   // Poll for execution status
   const pollExecutionStatus = useCallback(async (executionId: string) => {
     try {
-      const response = await fetch(`/api/workflow/execution/${executionId}`);
+      const response = await fetch(`/api/workflow/execution/${executionId}`, {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -932,12 +931,6 @@ export const ReactFlowEditor = ({
       return;
     }
 
-    if (isFreePlan) {
-      // Execution is gated for free plans; handled on the dashboard/AI side
-      alert('You need a paid plan to execute workflows. Please upgrade in Settings → Billing.');
-      return;
-    }
-
     // Validate configuration first
     const validation = validateWorkflowConfiguration();
     console.log('✅ Validation result:', validation);
@@ -965,6 +958,7 @@ export const ReactFlowEditor = ({
     try {
       const response = await fetch('/api/workflow/execute', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -1017,15 +1011,20 @@ export const ReactFlowEditor = ({
         const findExecution = async (): Promise<string | null> => {
           try {
             // Get most recent execution for this workflow
-            const response = await fetch(`/api/workflows/${encodeURIComponent(currentWorkflowId || 'temp-workflow')}/executions`);
+            const response = await fetch(
+              `/api/workflows/${encodeURIComponent(currentWorkflowId || 'temp-workflow')}/executions`,
+              { credentials: 'include' }
+            );
             if (response.ok) {
               const executions = await response.json();
               if (executions && executions.length > 0) {
                 const latestExecution = executions[0];
-                // Make sure it's recent (within last 30 seconds)
-                const executionTime = new Date(latestExecution.created_at || latestExecution.started_at).getTime();
+                // Accept runs started recently (Inngest can take a few seconds to insert the row)
+                const executionTime = new Date(
+                  latestExecution.created_at || latestExecution.started_at
+                ).getTime();
                 const now = Date.now();
-                if (now - executionTime < 30000) {
+                if (now - executionTime < 120000) {
                   return latestExecution.id;
                 }
               }
@@ -1040,7 +1039,7 @@ export const ReactFlowEditor = ({
         const startPolling = async () => {
           let executionId: string | null = null;
           let attempts = 0;
-          const maxAttempts = 10; // Try for 10 seconds
+          const maxAttempts = 45; // Up to ~45s — cold Inngest / slow DB can need longer than 10s
           
           while (!executionId && attempts < maxAttempts) {
             executionId = await findExecution();
@@ -1388,11 +1387,11 @@ export const ReactFlowEditor = ({
 
 
 
-      {/* Execution Results Panel */}
+      {/* Execution Results Panel — max height + flex so logs/errors scroll inside the card */}
       {executionResult && (
-        <div className="absolute bottom-4 left-4 right-4 z-10 bg-gradient-to-br from-stone-100 to-stone-200/60 dark:from-zinc-900/90 dark:to-zinc-900/60 backdrop-blur-xl border border-stone-200 dark:border-white/10 rounded-lg shadow-xl">
+        <div className="absolute bottom-4 left-4 right-4 z-10 flex max-h-[min(70vh,36rem)] flex-col overflow-hidden rounded-lg border border-stone-200 bg-gradient-to-br from-stone-100 to-stone-200/60 shadow-xl backdrop-blur-xl dark:border-white/10 dark:from-zinc-900/90 dark:to-zinc-900/60">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-stone-200 dark:border-white/10">
+          <div className="flex flex-shrink-0 items-center justify-between border-b border-stone-200 p-4 dark:border-white/10">
             <div className="flex items-center gap-3">
               {executionResult.status === 'success' ? (
                 <CheckCircle className="h-5 w-5 text-green-600" />
@@ -1401,10 +1400,12 @@ export const ReactFlowEditor = ({
               )}
               <div>
                 <h3 className="font-semibold">
-                  {(executionResult as any)?.message 
-                    ? 'Scheduled Execution Enabled' 
-                    : executionResult.status === 'success' 
-                    ? 'Execution Successful' 
+                  {executionResult.executionId === 'scheduled'
+                    ? 'Scheduled Execution Enabled'
+                    : (executionResult as any)?.message
+                    ? 'Scheduled Execution Enabled'
+                    : executionResult.status === 'success'
+                    ? 'Execution Successful'
                     : executionResult.summary?.failedAtNode
                     ? `Execution stopped at "${executionResult.summary.failedAtNode}"`
                     : 'Execution Failed'}
@@ -1418,8 +1419,13 @@ export const ReactFlowEditor = ({
                     </>
                   ) : executionResult.nodeResults && executionResult.nodeResults.length > 0 ? (
                     <>Duration: {executionResult.duration}ms | {executionResult.nodeResults.length} nodes processed</>
+                  ) : executionResult.executionId === 'scheduled' ? (
+                    <>Scheduled workflow will run automatically.</>
                   ) : (
-                    <>Scheduled workflow will run automatically</>
+                    <>
+                      {(executionResult as any).error ||
+                        'Run was queued but the editor could not load results yet. Wait a few seconds and try Test again, or check the Inngest dashboard and workflow execution history.'}
+                    </>
                   )}
                 </p>
               </div>
@@ -1447,10 +1453,10 @@ export const ReactFlowEditor = ({
             </div>
           </div>
 
-          {/* Logs */}
+          {/* Logs — min-h-0 + overflow-y-auto so long errors / raw stacks scroll (ScrollArea+max-h alone often breaks) */}
           {showLogs && executionResult.nodeResults && executionResult.nodeResults.length > 0 && (
-            <ScrollArea className="max-h-64">
-              <div className="p-4 space-y-2">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="space-y-2 p-4">
               {executionResult.nodeResults.map((nodeResult, index) => {
                 // Only show error for failed nodes, and prefer normalized error
                 const displayError = nodeResult.normalizedError || 
@@ -1503,7 +1509,7 @@ export const ReactFlowEditor = ({
                 </div>
               )}
               </div>
-            </ScrollArea>
+            </div>
           )}
         </div>
       )}
