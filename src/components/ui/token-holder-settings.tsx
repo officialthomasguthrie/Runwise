@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletConnectionError } from '@solana/wallet-adapter-base';
+import { PhantomWalletName } from '@solana/wallet-adapter-phantom';
 import { useAuth } from '@/contexts/auth-context';
 import {
   AlertCircle,
@@ -43,6 +46,22 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+function formatWalletError(err: unknown): string {
+  if (err instanceof WalletConnectionError) {
+    const cause = (err as WalletConnectionError & { error?: { code?: number; message?: string } }).error;
+    const code = cause?.code;
+    if (code === 4001) return 'Connection was cancelled in Phantom.';
+    if (code === -32603) {
+      return 'Phantom reported an internal error. Try again, update Phantom, or disable other Solana wallet extensions for this site.';
+    }
+    if (err.message && err.message !== 'Unexpected error') return err.message;
+    if (cause?.message && cause.message !== 'Unexpected error') return cause.message;
+    return 'Could not connect to Phantom. Try again or refresh the page.';
+  }
+  if (err instanceof Error) return err.message;
+  return 'Could not connect wallet.';
+}
+
 // Shared card class, matching usage-settings.tsx exactly
 const CARD =
   'rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]';
@@ -54,10 +73,65 @@ export function TokenHolderSettings() {
   const {
     publicKey,
     connect,
+    select,
     disconnect: walletDisconnect,
     signMessage,
     connected: walletConnected,
   } = useWallet();
+
+  // Refs avoid stale closures: after flushSync(select), we must call the latest connect()
+  // from context (the one that closes over the newly selected wallet).
+  const connectRef = useRef(connect);
+  const selectRef = useRef(select);
+  const disconnectRef = useRef(walletDisconnect);
+  connectRef.current = connect;
+  selectRef.current = select;
+  disconnectRef.current = walletDisconnect;
+
+  const pause = useCallback((ms: number) => new Promise<void>((r) => setTimeout(r, ms)), []);
+
+  /**
+   * Closing the Phantom popup without approving can leave the Wallet Standard bridge stuck;
+   * disconnect + clear selection + re-select forces a clean session before connect().
+   */
+  const hardResetPhantomSelection = useCallback(async () => {
+    try {
+      await disconnectRef.current();
+    } catch {
+      /* already disconnected or nothing to tear down */
+    }
+    flushSync(() => {
+      selectRef.current(null);
+    });
+    await pause(60);
+    flushSync(() => {
+      selectRef.current(PhantomWalletName);
+    });
+    await pause(120);
+  }, [pause]);
+
+  /** `connect()` throws WalletNotSelectedError until a wallet is selected. */
+  const selectPhantomAndConnect = useCallback(async () => {
+    // Always reset before opening Phantom. Dismissing the popup leaves many setups in a bad
+    // state; the *next* button press is a new call (catch retries do not run), so this must
+    // happen up front, not only after an error.
+    await hardResetPhantomSelection();
+    await pause(120);
+
+    const runConnect = () => connectRef.current();
+
+    try {
+      await runConnect();
+    } catch (first) {
+      if (!(first instanceof WalletConnectionError)) throw first;
+      const code = (first as WalletConnectionError & { error?: { code?: number } }).error?.code;
+      if (code === 4001) throw first;
+
+      await hardResetPhantomSelection();
+      await pause(250);
+      await runConnect();
+    }
+  }, [hardResetPhantomSelection, pause]);
 
   // Keep a ref to publicKey so async callbacks can read the latest value after
   // a connect() call without being stuck on a stale closure.
@@ -140,12 +214,12 @@ export function TokenHolderSettings() {
     // the connect() Promise resolves and React has re-rendered.
     setActionLoading(true);
     try {
-      await connect();
-      // Small yield so React can flush the state update before we read the ref.
+      await selectPhantomAndConnect();
+      // Small yield so publicKey ref updates after the adapter connects.
       await new Promise<void>((r) => setTimeout(r, 150));
       await doSignAndConnect();
-    } catch (err: any) {
-      setActionError(err.message || 'Failed to connect wallet');
+    } catch (err: unknown) {
+      setActionError(formatWalletError(err));
       setActionLoading(false);
     }
   };
@@ -158,8 +232,10 @@ export function TokenHolderSettings() {
     setClaimSuccess(null);
     setActionLoading(true);
     try {
-      if (!walletConnected) await connect();
-      await new Promise<void>((r) => setTimeout(r, 150));
+      if (!walletConnected) {
+        await selectPhantomAndConnect();
+        await new Promise<void>((r) => setTimeout(r, 150));
+      }
       if (!signMessage) throw new Error('Wallet does not support message signing');
 
       const timestamp = Date.now();
@@ -180,8 +256,8 @@ export function TokenHolderSettings() {
       setClaimSuccess(data.creditsGranted);
       await fetchStatus();
       setTimeout(() => setClaimSuccess(null), 4000);
-    } catch (err: any) {
-      setActionError(err.message || 'Failed to claim credits');
+    } catch (err: unknown) {
+      setActionError(formatWalletError(err));
     } finally {
       setActionLoading(false);
     }
