@@ -4,7 +4,8 @@
  * Agent tab content for /agents/new builder page.
  * Profile picture, short description. Rest is blank for future widgets.
  */
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { createClient } from "@/lib/supabase-client";
 import { createPortal } from "react-dom";
 import { Loader2, User, Plus, MinusCircle, Brain, FileText, Link2, Target, ScrollText, CheckCircle2, MessageSquare, Play, AlertCircle, Send, Upload, X, Search, RefreshCw, Pause, ChevronRight, ChevronLeft, Clock, Timer, Pencil, PanelRightClose, Webhook, Copy, CopyCheck, FlaskConical, BotMessageSquare } from "lucide-react";
 import { getCapabilityIntegrationInfo, getIntegrationMeta, planFromBehaviours, buildIntegrationCheckListForPolling } from "@/lib/agents/chat-pipeline";
@@ -576,7 +577,7 @@ export function AgentTabContent({
     });
   }, [agent?.id, agent?.name, agent?.avatar_image, agent?.status, onAgentMeta]);
 
-  const refetchAgent = async () => {
+  const refetchAgent = useCallback(async () => {
     if (!agentId) return;
     try {
       const res = await fetch(`/api/agents/${agentId}`);
@@ -603,7 +604,7 @@ export function AgentTabContent({
     } catch (e) {
       console.error("Failed to load agent:", e);
     }
-  };
+  }, [agentId]);
 
   const fetchActivity = async () => {
     if (!agentId || agentId === "new") return;
@@ -667,15 +668,7 @@ export function AgentTabContent({
       }
       setRunSuccess(true);
       setTimeout(() => setRunSuccess(false), 5000);
-      // Poll for activity + refetch agent data (memories, rules): Inngest runs async
-      const pollAfterRun = async (attempts: number, delayMs: number) => {
-        for (let i = 0; i < attempts; i++) {
-          await new Promise((r) => setTimeout(r, delayMs));
-          await fetchActivity();
-        }
-        await refetchAgent();
-      };
-      pollAfterRun(4, 3000);
+      // Realtime subscriptions handle live updates; no polling needed.
     } catch (e: unknown) {
       setRunError(e instanceof Error ? e.message : "Failed to run agent");
     } finally {
@@ -733,7 +726,92 @@ export function AgentTabContent({
     return () => {
       cancelled = true;
     };
-  }, [agentId]);
+  }, [agentId, refetchAgent]);
+
+  // Supabase Realtime: push updates to activity, memories, and agent status without polling.
+  // IMPORTANT: Realtime must be enabled in Supabase dashboard for tables:
+  //   agent_activity, agent_memory, agents  (Table Editor → table → Realtime toggle)
+  useEffect(() => {
+    if (!agentId || agentId === "new") return;
+
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel(`agent-realtime-${agentId}`)
+      // New activity row inserted (agent ran, errored, etc.)
+      .on(
+        "postgres_changes" as any,
+        { event: "INSERT", schema: "public", table: "agent_activity", filter: `agent_id=eq.${agentId}` },
+        (payload: any) => {
+          const row = payload.new;
+          const actionsCount = Array.isArray(row.actions_taken) ? row.actions_taken.length : 0;
+          const statusMap: Record<string, ActivityType> = {
+            success: "completed",
+            error: "error",
+            skipped: "run",
+          };
+          const actType: ActivityType = statusMap[row.status] ?? "run";
+          const toolNames = Array.isArray(row.actions_taken)
+            ? row.actions_taken.map((a: any) => a.tool).filter(Boolean)
+            : [];
+          const summary = row.error_message
+            ? row.error_message
+            : actionsCount > 0
+              ? `${actionsCount} action${actionsCount !== 1 ? "s" : ""}: ${toolNames.slice(0, 3).join(", ")}${toolNames.length > 3 ? "…" : ""}`
+              : row.status === "skipped"
+                ? "No action taken"
+                : "Completed";
+          const newEvent: ActivityEvent = {
+            id: row.id,
+            type: actType,
+            title: row.trigger_summary ?? "Agent run",
+            time: formatRelativeTime(row.created_at),
+            summary,
+            executedAt: row.created_at,
+            status: row.status,
+            errorMessage: row.error_message ?? undefined,
+          };
+          setActivityItems((prev) => {
+            if (prev.some((e) => e.id === newEvent.id)) return prev;
+            return [newEvent, ...prev];
+          });
+        }
+      )
+      // New memory written by the agent or user
+      .on(
+        "postgres_changes" as any,
+        { event: "INSERT", schema: "public", table: "agent_memory", filter: `agent_id=eq.${agentId}` },
+        (payload: any) => {
+          const row = payload.new;
+          setKnowledgeItems((prev) => {
+            if (prev.some((k) => k.id === row.id)) return prev;
+            return [...prev, { id: row.id, type: "memory" as const, label: row.content }];
+          });
+        }
+      )
+      // Memory deleted
+      .on(
+        "postgres_changes" as any,
+        { event: "DELETE", schema: "public", table: "agent_memory", filter: `agent_id=eq.${agentId}` },
+        (payload: any) => {
+          const row = payload.old;
+          setKnowledgeItems((prev) => prev.filter((k) => k.id !== row.id));
+        }
+      )
+      // Agent row updated (status change, goals_rules updated by the agent, etc.)
+      .on(
+        "postgres_changes" as any,
+        { event: "UPDATE", schema: "public", table: "agents", filter: `id=eq.${agentId}` },
+        () => {
+          refetchAgent();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [agentId, refetchAgent]);
 
   // Reset trigger config when sidebar closes
   useEffect(() => {
