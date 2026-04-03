@@ -128,7 +128,7 @@ export function ProfileSettings() {
           .from('profiles')
           .select('*')
           .eq('id', currentUser.id)
-          .single();
+          .maybeSingle();
 
         // Handle profile data safely
         const profileData = profile as any || {};

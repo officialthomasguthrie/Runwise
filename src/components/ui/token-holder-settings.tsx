@@ -7,6 +7,11 @@ import { WalletConnectionError } from '@solana/wallet-adapter-base';
 import { PhantomWalletName } from '@solana/wallet-adapter-phantom';
 import { useAuth } from '@/contexts/auth-context';
 import {
+  getPhantomInjectedProvider,
+  normalizePhantomSignMessageResult,
+  phantomPublicKeyToBase58,
+} from '@/lib/solana/phantom-injected';
+import {
   AlertCircle,
   Wallet,
   Zap,
@@ -47,12 +52,17 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 function formatWalletError(err: unknown): string {
+  const raw = err as { code?: number; message?: string };
+  if (raw?.code === 4001) return 'Connection was cancelled in Phantom.';
+  if (raw?.code === -32603) {
+    return 'Phantom hit an internal error. Update Phantom, turn off other Solana wallet extensions for this site, then try again.';
+  }
   if (err instanceof WalletConnectionError) {
     const cause = (err as WalletConnectionError & { error?: { code?: number; message?: string } }).error;
     const code = cause?.code;
     if (code === 4001) return 'Connection was cancelled in Phantom.';
     if (code === -32603) {
-      return 'Phantom reported an internal error. Try again, update Phantom, or disable other Solana wallet extensions for this site.';
+      return 'Phantom hit an internal error. Update Phantom, turn off other Solana wallet extensions for this site, then try again.';
     }
     if (err.message && err.message !== 'Unexpected error') return err.message;
     if (cause?.message && cause.message !== 'Unexpected error') return cause.message;
@@ -209,13 +219,43 @@ export function TokenHolderSettings() {
       await doSignAndConnect();
       return;
     }
-    // Adapter not yet connected: connect first, then sign once publicKey is
-    // available. The publicKeyRef effect will have the updated value by the time
-    // the connect() Promise resolves and React has re-rendered.
+
+    const injected = getPhantomInjectedProvider();
+    if (injected) {
+      setActionLoading(true);
+      setActionError(null);
+      try {
+        if (!injected.isConnected) {
+          await injected.connect();
+        }
+        const walletAddress = phantomPublicKeyToBase58(injected.publicKey);
+        const timestamp = Date.now();
+        const message = `Connect wallet to Runwise account ${user.id} at timestamp ${timestamp}. This request will expire in 5 minutes.`;
+        const msgBytes = new TextEncoder().encode(message);
+        const signed = await injected.signMessage(msgBytes);
+        const sigBytes = normalizePhantomSignMessageResult(signed);
+        const signature = bytesToBase64(sigBytes);
+
+        const res = await fetch('/api/wallet/connect', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress, signature, message, timestamp }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to connect wallet');
+        await fetchStatus();
+      } catch (err: unknown) {
+        setActionError(formatWalletError(err));
+      } finally {
+        setActionLoading(false);
+      }
+      return;
+    }
+
     setActionLoading(true);
     try {
       await selectPhantomAndConnect();
-      // Small yield so publicKey ref updates after the adapter connects.
       await new Promise<void>((r) => setTimeout(r, 150));
       await doSignAndConnect();
     } catch (err: unknown) {
@@ -232,18 +272,36 @@ export function TokenHolderSettings() {
     setClaimSuccess(null);
     setActionLoading(true);
     try {
-      if (!walletConnected) {
-        await selectPhantomAndConnect();
-        await new Promise<void>((r) => setTimeout(r, 150));
-      }
-      if (!signMessage) throw new Error('Wallet does not support message signing');
-
+      const linked = status.walletAddress;
       const timestamp = Date.now();
-      const message = `Claim Runwise credits for account ${user.id} wallet ${status.walletAddress} at timestamp ${timestamp}. This claim will expire in 5 minutes.`;
+      const message = `Claim Runwise credits for account ${user.id} wallet ${linked} at timestamp ${timestamp}. This claim will expire in 5 minutes.`;
       const msgBytes = new TextEncoder().encode(message);
-      const sigBytes = await signMessage(msgBytes);
-      const signature = bytesToBase64(sigBytes);
 
+      let sigBytes: Uint8Array;
+      const injected = getPhantomInjectedProvider();
+
+      if (injected) {
+        if (!injected.isConnected) {
+          await injected.connect();
+        }
+        const active = phantomPublicKeyToBase58(injected.publicKey);
+        if (active !== linked) {
+          throw new Error(
+            `Switch Phantom to your linked wallet (${truncateAddress(linked)}). Currently: ${truncateAddress(active)}.`
+          );
+        }
+        const signed = await injected.signMessage(msgBytes);
+        sigBytes = normalizePhantomSignMessageResult(signed);
+      } else {
+        if (!walletConnected) {
+          await selectPhantomAndConnect();
+          await pause(150);
+        }
+        if (!signMessage) throw new Error('Wallet does not support message signing');
+        sigBytes = await signMessage(msgBytes);
+      }
+
+      const signature = bytesToBase64(sigBytes);
       const res = await fetch('/api/wallet/claim-credits', {
         method: 'POST',
         credentials: 'include',
@@ -251,11 +309,9 @@ export function TokenHolderSettings() {
         body: JSON.stringify({ signature, timestamp }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Claim failed');
-
-      setClaimSuccess(data.creditsGranted);
+      if (!res.ok) throw new Error(data.error || 'Failed to claim credits');
+      setClaimSuccess(typeof data.creditsGranted === 'number' ? data.creditsGranted : 0);
       await fetchStatus();
-      setTimeout(() => setClaimSuccess(null), 4000);
     } catch (err: unknown) {
       setActionError(formatWalletError(err));
     } finally {
