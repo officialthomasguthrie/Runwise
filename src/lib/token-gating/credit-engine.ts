@@ -1,5 +1,6 @@
 /**
- * Linear token → daily credits accrual (single source of truth, no tiers).
+ * Token → daily credits: rate from holdings, hard daily cap from env.
+ * Claims use a UTC calendar-day allowance (not linear time accrual).
  */
 
 import { TOKEN_DECIMALS } from '@/lib/solana/token-balance';
@@ -15,7 +16,6 @@ export function getCreditConfig() {
     tokenToCreditRatio: parseEnvInt('TOKEN_TO_CREDIT_RATIO', '120000'),
     dailyCreditCap: parseEnvInt('DAILY_CREDIT_CAP', '200'),
     minTokenThreshold: parseEnvInt('MIN_TOKEN_THRESHOLD', '1000000'),
-    maxAccrualDays: parseEnvInt('MAX_ACCRUAL_DAYS', '3'),
   };
 }
 
@@ -32,59 +32,26 @@ export function getCreditsPerDay(rawBalance: bigint): number {
   return Math.min(Math.max(0, credits), dailyCreditCap);
 }
 
-export function getMaxUnclaimed(creditsPerDay: number): number {
-  const { maxAccrualDays } = getCreditConfig();
-  return creditsPerDay * maxAccrualDays;
+/** Start (inclusive) and end (exclusive) of the UTC calendar day containing `now`, as ISO strings. */
+export function getUtcDayBoundsIso(now: Date): { startIso: string; endIso: string } {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const d = now.getUTCDate();
+  const start = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
 }
 
-export function calculateAccruedCredits(
-  rawBalance: bigint,
-  accrualStartAt: Date,
-  now: Date,
-): {
-  /** Whole credits claimable (floored). */
-  accrued: number;
-  /** Continuous credits accrued for UI progress (same cap as accrued, not floored). */
-  accruedPrecise: number;
-  creditsPerDay: number;
-  hoursElapsed: number;
-  daysElapsed: number;
-  cappedAt: string | null;
-} {
-  const { maxAccrualDays } = getCreditConfig();
-  const creditsPerDay = getCreditsPerDay(rawBalance);
+/** ISO timestamp when the current UTC day ends (next midnight UTC). */
+export function getNextUtcMidnightIso(now: Date): string {
+  return getUtcDayBoundsIso(now).endIso;
+}
 
-  const ms = now.getTime() - accrualStartAt.getTime();
-  const hoursElapsed = Math.max(0, ms / 3600000);
-  const daysElapsed = hoursElapsed / 24;
-
-  if (creditsPerDay === 0) {
-    return {
-      accrued: 0,
-      accruedPrecise: 0,
-      creditsPerDay: 0,
-      hoursElapsed,
-      daysElapsed,
-      cappedAt: null,
-    };
-  }
-
-  const effectiveDays = Math.min(daysElapsed, maxAccrualDays);
-  const rawAccrued = creditsPerDay * effectiveDays;
-  const maxCap = getMaxUnclaimed(creditsPerDay);
-  const accruedPrecise = Math.min(rawAccrued, maxCap);
-  const accrued = Math.min(Math.floor(rawAccrued), maxCap);
-
-  const cappedAt = daysElapsed >= maxAccrualDays ? 'max_accrual_days' : null;
-
-  return {
-    accrued,
-    accruedPrecise,
-    creditsPerDay,
-    hoursElapsed,
-    daysElapsed,
-    cappedAt,
-  };
+/** Whole credits still claimable today given today's running total. */
+export function getClaimableToday(creditsPerDay: number, alreadyClaimedToday: number): number {
+  if (creditsPerDay <= 0) return 0;
+  return Math.max(0, creditsPerDay - Math.max(0, alreadyClaimedToday));
 }
 
 export function getMinimumTokenThresholdRaw(): bigint {

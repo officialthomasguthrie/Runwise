@@ -29,12 +29,9 @@ interface WalletStatus {
   tokenBalanceDisplay?: string;
   eligible?: boolean;
   creditsPerDay?: number;
-  maxUnclaimed?: number;
-  accruedCredits?: number;
-  /** Continuous accrual for progress UI (API may omit on old deploys). */
-  accruedCreditsPrecise?: number;
-  accrualStartAt?: string;
-  cappedAt?: string | null;
+  creditsClaimedToday?: number;
+  claimableCredits?: number;
+  dailyLimitResetsAt?: string;
   lastClaimAt?: string | null;
   balanceLastChecked?: string | null;
 }
@@ -530,20 +527,19 @@ export function TokenHolderSettings() {
 
   // ── STATE 4 & 5: Eligible ───────────────────────────────────────────────────
 
-  const accruedCredits = status.accruedCredits ?? 0;
-  const accruedPrecise =
-    status.accruedCreditsPrecise ?? status.accruedCredits ?? 0;
+  const claimableCredits = status.claimableCredits ?? 0;
+  const creditsClaimedToday = status.creditsClaimedToday ?? 0;
   const creditsPerDay = status.creditsPerDay ?? 0;
-  const maxUnclaimed = status.maxUnclaimed ?? 0;
-  const accrualStart = status.accrualStartAt ? new Date(status.accrualStartAt) : null;
-  const formattedStart = accrualStart
-    ? accrualStart.toLocaleDateString('en-US', {
-        month: 'long',
+  const resetsLabel = status.dailyLimitResetsAt
+    ? new Date(status.dailyLimitResetsAt).toLocaleString(undefined, {
+        weekday: 'short',
+        month: 'short',
         day: 'numeric',
-        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short',
       })
-    : '—';
-  const hoursUntilMeaningful = creditsPerDay > 0 ? Math.ceil((1 / creditsPerDay) * 24) : 0;
+    : null;
 
   const EarningHeader = (
     <div className={`${CARD} p-6 space-y-4`}>
@@ -570,19 +566,10 @@ export function TokenHolderSettings() {
 
   // ── STATE 4: Has credits to claim ───────────────────────────────────────────
 
-  if (accruedCredits > 0) {
+  if (claimableCredits > 0) {
     return (
       <div className="space-y-6">
         {EarningHeader}
-
-        {status.cappedAt === 'max_accrual_days' && (
-          <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-600 dark:text-yellow-500 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>
-              You've hit the 3-day cap. Claim now to avoid losing accrual time.
-            </span>
-          </div>
-        )}
 
         <div className={`${CARD} p-6 space-y-4`}>
           <div className="flex items-center gap-2">
@@ -598,12 +585,13 @@ export function TokenHolderSettings() {
           )}
 
           <div className="text-center py-2">
-            <p className="text-5xl font-semibold text-foreground">{accruedCredits}</p>
-            <p className="text-sm text-muted-foreground mt-1">credits ready to claim</p>
+            <p className="text-5xl font-semibold text-foreground">{claimableCredits}</p>
+            <p className="text-sm text-muted-foreground mt-1">credits available to claim now</p>
           </div>
 
           <p className="text-xs text-muted-foreground text-center">
-            Accruing since {formattedStart} · Max accumulation: {maxUnclaimed} credits (3 days)
+            Daily allowance from your balance: {creditsPerDay} credits (UTC day). Claimed so far today:{' '}
+            {creditsClaimedToday}. Each claim takes your full remaining allowance (minimum 1 credit).
           </p>
 
           <button
@@ -614,7 +602,7 @@ export function TokenHolderSettings() {
             <Zap className="w-4 h-4" />
             {actionLoading
               ? 'Claiming — sign in your wallet…'
-              : `Claim ${accruedCredits} Credits`}
+              : `Claim ${claimableCredits} Credits`}
           </button>
         </div>
 
@@ -636,25 +624,41 @@ export function TokenHolderSettings() {
         </div>
 
         <p className="text-sm text-muted-foreground">
-          You've claimed recently. Credits are accruing at{' '}
-          <span className="font-medium text-foreground">{creditsPerDay}</span> per day.
-          {hoursUntilMeaningful > 0 && (
+          {creditsPerDay > 0 && creditsClaimedToday >= creditsPerDay ? (
             <>
-              {' '}
-              Next meaningful claim in approx.{' '}
-              <span className="font-medium text-foreground">{hoursUntilMeaningful}h</span>.
+              You&apos;ve claimed your full daily allowance ({creditsPerDay} credits). Limits reset at
+              midnight UTC
+              {resetsLabel ? (
+                <>
+                  {' '}
+                  (<span className="font-medium text-foreground">{resetsLabel}</span> your time).
+                </>
+              ) : (
+                '.'
+              )}
+            </>
+          ) : (
+            <>
+              No credits left to claim right now. Your balance earns up to{' '}
+              <span className="font-medium text-foreground">{creditsPerDay}</span> credits per UTC day.
+              {resetsLabel && (
+                <>
+                  {' '}
+                  Allowance refreshes at{' '}
+                  <span className="font-medium text-foreground">{resetsLabel}</span>.
+                </>
+              )}
             </>
           )}
         </p>
 
-        {/* Mini progress bar */}
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Accrued so far</span>
+            <span>Today&apos;s allowance used</span>
             <span>
-              {maxUnclaimed > 0
-                ? `${accruedPrecise.toFixed(2)} / ${maxUnclaimed} max`
-                : '0 / 0 max'}
+              {creditsPerDay > 0
+                ? `${creditsClaimedToday} / ${creditsPerDay}`
+                : '0 / 0'}
             </span>
           </div>
           <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
@@ -662,8 +666,8 @@ export function TokenHolderSettings() {
               className="h-full bg-foreground/60 rounded-full transition-all duration-300"
               style={{
                 width: `${
-                  maxUnclaimed > 0
-                    ? Math.min((accruedPrecise / maxUnclaimed) * 100, 100)
+                  creditsPerDay > 0
+                    ? Math.min((creditsClaimedToday / creditsPerDay) * 100, 100)
                     : 0
                 }%`,
               }}

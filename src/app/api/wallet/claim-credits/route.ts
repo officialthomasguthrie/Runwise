@@ -1,7 +1,6 @@
 /**
  * API Route: POST /api/wallet/claim-credits
- * Time-based linear credit accrual claim. Fully server-side, abuse-resistant, atomic.
- * Requires a fresh wallet signature on every claim.
+ * Grants up to the remainder of today's UTC daily allowance in one claim (signature required).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,16 +10,20 @@ import {
   verifyWalletSignature,
   buildClaimMessage,
 } from '@/lib/token-gating/verify-signature';
-import { calculateAccruedCredits } from '@/lib/token-gating/credit-engine';
+import {
+  getClaimableToday,
+  getCreditsPerDay,
+  getNextUtcMidnightIso,
+  getUtcDayBoundsIso,
+} from '@/lib/token-gating/credit-engine';
+import { sumCreditsClaimedUtcDay } from '@/lib/token-gating/sum-daily-claims';
 import { getRunwiseTokenBalance } from '@/lib/solana/token-balance';
 import { walletClaimCreditsRateLimit } from '@/lib/rate-limiter';
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
-const ONE_HOUR_MS = 60 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authenticate
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -36,7 +39,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Parse and validate body
     const body = await request.json().catch(() => ({}));
     const { signature, timestamp } = body as {
       signature?: string;
@@ -50,7 +52,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Timestamp freshness — server always determines "now"
     const now = new Date();
     const nowMs = now.getTime();
 
@@ -58,7 +59,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Claim signature expired' }, { status: 400 });
     }
 
-    // 4. Fetch active wallet connection
     const admin = createAdminClient();
     const { data: walletRow, error: walletFetchError } = await (admin
       .from('wallet_connections') as any)
@@ -78,7 +78,6 @@ export async function POST(request: NextRequest) {
 
     const walletAddress: string = walletRow.wallet_address;
 
-    // 5. Verify fresh claim signature
     const expectedMessage = buildClaimMessage(user.id, walletAddress, timestamp);
     const valid = verifyWalletSignature(walletAddress, expectedMessage, signature);
 
@@ -86,22 +85,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
-    // 6. Minimum claim interval: 1 hour between claims
-    if (walletRow.last_claim_at) {
-      const lastClaimMs = new Date(walletRow.last_claim_at).getTime();
-      if (nowMs - lastClaimMs < ONE_HOUR_MS) {
-        const nextClaimAt = new Date(lastClaimMs + ONE_HOUR_MS).toISOString();
-        return NextResponse.json(
-          { error: 'Claim too soon', nextClaimAt },
-          { status: 429 },
-        );
-      }
-    }
-
-    // 7. Live token balance from Solana RPC
     const liveBalance = await getRunwiseTokenBalance(walletAddress);
 
-    // 8. Update stored balance + verification timestamps
     const nowIso = now.toISOString();
     const { error: balanceUpdateError } = await (admin
       .from('wallet_connections') as any)
@@ -115,39 +100,43 @@ export async function POST(request: NextRequest) {
 
     if (balanceUpdateError) {
       console.error('[claim-credits] balance update error:', balanceUpdateError);
-      // Non-fatal — proceed with claim calculation
     }
 
-    // 9. Compute accrual start from freshly-read wallet row values
-    const accrualStartAt = walletRow.last_claim_at
-      ? new Date(walletRow.last_claim_at)
-      : new Date(walletRow.connected_at);
+    const creditsPerDay = getCreditsPerDay(liveBalance);
+    const { startIso } = getUtcDayBoundsIso(now);
 
-    // 10. Calculate accrued credits using live balance
-    const accrual = calculateAccruedCredits(liveBalance, accrualStartAt, now);
+    let claimedToday: number;
+    try {
+      claimedToday = await sumCreditsClaimedUtcDay(admin, user.id, now);
+    } catch (e) {
+      console.error('[claim-credits] sum claims error:', e);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 
-    if (accrual.accrued === 0) {
+    const claimable = getClaimableToday(creditsPerDay, claimedToday);
+
+    if (claimable < 1) {
       return NextResponse.json(
         {
-          error: 'No credits accrued yet',
-          creditsPerDay: accrual.creditsPerDay,
-          hoursElapsed: accrual.hoursElapsed,
+          error: 'No credits left to claim today',
+          creditsPerDay,
+          creditsClaimedToday: claimedToday,
+          dailyLimitResetsAt: getNextUtcMidnightIso(now),
         },
         { status: 400 },
       );
     }
 
-    // 11a. Insert claim record — if this fails we abort entirely
     const { error: claimInsertError } = await (admin
       .from('token_credit_claims') as any)
       .insert({
         user_id: user.id,
         wallet_address: walletAddress,
-        credits_granted: accrual.accrued,
+        credits_granted: claimable,
         tokens_held_at_claim: Number(liveBalance),
-        credits_per_day_at_claim: accrual.creditsPerDay,
-        accrual_start_at: accrualStartAt.toISOString(),
-        accrual_hours: accrual.hoursElapsed,
+        credits_per_day_at_claim: creditsPerDay,
+        accrual_start_at: startIso,
+        accrual_hours: 0,
         claimed_at: nowIso,
       });
 
@@ -156,7 +145,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
-    // 11b. Reset accrual clock
     const { error: claimAtUpdateError } = await (admin
       .from('wallet_connections') as any)
       .update({ last_claim_at: nowIso, updated_at: nowIso })
@@ -164,10 +152,8 @@ export async function POST(request: NextRequest) {
 
     if (claimAtUpdateError) {
       console.error('[claim-credits] last_claim_at update error:', claimAtUpdateError);
-      // Non-fatal — claim row is already inserted; the 1-hour guard will still protect
     }
 
-    // 11c. Add credits to user balance atomically
     const { data: userRow, error: userFetchError } = await (admin
       .from('users') as any)
       .select('credits_balance')
@@ -179,7 +165,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
-    const newBalance = (userRow.credits_balance ?? 0) + accrual.accrued;
+    const newBalance = (userRow.credits_balance ?? 0) + claimable;
 
     const { error: balCreditError } = await (admin
       .from('users') as any)
@@ -191,16 +177,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
-    // 12. Return success
-    const nextClaimAvailableAt = new Date(nowMs + ONE_HOUR_MS).toISOString();
+    const newClaimedToday = claimedToday + claimable;
 
     return NextResponse.json({
       success: true,
-      creditsGranted: accrual.accrued,
-      creditsPerDay: accrual.creditsPerDay,
-      hoursAccrued: accrual.hoursElapsed,
+      creditsGranted: claimable,
+      creditsPerDay,
+      creditsClaimedToday: newClaimedToday,
       newCreditsBalance: newBalance,
-      nextClaimAvailableAt,
+      dailyLimitResetsAt: getNextUtcMidnightIso(now),
     });
   } catch (error: any) {
     console.error('[claim-credits] unexpected error:', error);

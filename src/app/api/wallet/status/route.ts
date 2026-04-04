@@ -1,24 +1,23 @@
 /**
  * API Route: GET /api/wallet/status
- * Returns the current wallet connection state and accrued credits.
- * Uses stored token balance — no live RPC call.
+ * Returns wallet connection and today's token-credit allowance (UTC day).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import {
-  calculateAccruedCredits,
+  getClaimableToday,
   getCreditsPerDay,
-  getMaxUnclaimed,
   getMinimumTokenThresholdRaw,
+  getNextUtcMidnightIso,
 } from '@/lib/token-gating/credit-engine';
+import { sumCreditsClaimedUtcDay } from '@/lib/token-gating/sum-daily-claims';
 import { formatDisplayBalance } from '@/lib/solana/token-balance';
 import { walletStatusRateLimit } from '@/lib/rate-limiter';
 
 export async function GET(_request: NextRequest) {
   try {
-    // 1. Authenticate
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -34,7 +33,6 @@ export async function GET(_request: NextRequest) {
       );
     }
 
-    // 2. Fetch active wallet connection (stored data, no RPC)
     const admin = createAdminClient();
     const { data: row, error: fetchError } = await (admin
       .from('wallet_connections') as any)
@@ -52,25 +50,21 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ connected: false });
     }
 
-    // 3. Work with stored balance — convert to bigint for all calculations
     const rawBalance = BigInt(row.token_balance ?? 0);
-
-    // 6. Determine accrual start: last_claim_at if set, otherwise connected_at
-    const accrualStartAt = row.last_claim_at
-      ? new Date(row.last_claim_at)
-      : new Date(row.connected_at);
-
-    // 7. Calculate accrued credits
     const now = new Date();
-    const accrual = calculateAccruedCredits(rawBalance, accrualStartAt, now);
-
-    // Derived values
     const minThresholdRaw = getMinimumTokenThresholdRaw();
     const eligible = rawBalance >= minThresholdRaw;
     const creditsPerDay = getCreditsPerDay(rawBalance);
-    const maxUnclaimed = getMaxUnclaimed(creditsPerDay);
 
-    // 8. Return full status
+    let creditsClaimedToday = 0;
+    try {
+      creditsClaimedToday = await sumCreditsClaimedUtcDay(admin, user.id, now);
+    } catch {
+      return NextResponse.json({ error: 'Failed to load claim history' }, { status: 500 });
+    }
+
+    const claimableCredits = getClaimableToday(creditsPerDay, creditsClaimedToday);
+
     return NextResponse.json({
       connected: true,
       walletAddress: row.wallet_address,
@@ -78,11 +72,9 @@ export async function GET(_request: NextRequest) {
       tokenBalanceDisplay: formatDisplayBalance(rawBalance),
       eligible,
       creditsPerDay,
-      maxUnclaimed,
-      accruedCredits: accrual.accrued,
-      accruedCreditsPrecise: accrual.accruedPrecise,
-      accrualStartAt: accrualStartAt.toISOString(),
-      cappedAt: accrual.cappedAt,
+      creditsClaimedToday,
+      claimableCredits,
+      dailyLimitResetsAt: getNextUtcMidnightIso(now),
       balanceLastChecked: row.balance_last_checked ?? null,
       lastClaimAt: row.last_claim_at ?? null,
     });
