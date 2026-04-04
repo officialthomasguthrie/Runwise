@@ -42,7 +42,10 @@ export function calculateAccruedCredits(
   accrualStartAt: Date,
   now: Date,
 ): {
+  /** Whole credits claimable (floored). */
   accrued: number;
+  /** Continuous credits accrued for UI progress (same cap as accrued, not floored). */
+  accruedPrecise: number;
   creditsPerDay: number;
   hoursElapsed: number;
   daysElapsed: number;
@@ -58,6 +61,7 @@ export function calculateAccruedCredits(
   if (creditsPerDay === 0) {
     return {
       accrued: 0,
+      accruedPrecise: 0,
       creditsPerDay: 0,
       hoursElapsed,
       daysElapsed,
@@ -67,14 +71,15 @@ export function calculateAccruedCredits(
 
   const effectiveDays = Math.min(daysElapsed, maxAccrualDays);
   const rawAccrued = creditsPerDay * effectiveDays;
-  let accrued = Math.floor(rawAccrued);
   const maxCap = getMaxUnclaimed(creditsPerDay);
-  accrued = Math.min(accrued, maxCap);
+  const accruedPrecise = Math.min(rawAccrued, maxCap);
+  const accrued = Math.min(Math.floor(rawAccrued), maxCap);
 
   const cappedAt = daysElapsed >= maxAccrualDays ? 'max_accrual_days' : null;
 
   return {
     accrued,
+    accruedPrecise,
     creditsPerDay,
     hoursElapsed,
     daysElapsed,

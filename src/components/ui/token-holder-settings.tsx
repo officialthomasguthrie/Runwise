@@ -31,6 +31,8 @@ interface WalletStatus {
   creditsPerDay?: number;
   maxUnclaimed?: number;
   accruedCredits?: number;
+  /** Continuous accrual for progress UI (API may omit on old deploys). */
+  accruedCreditsPrecise?: number;
   accrualStartAt?: string;
   cappedAt?: string | null;
   lastClaimAt?: string | null;
@@ -529,6 +531,8 @@ export function TokenHolderSettings() {
   // ── STATE 4 & 5: Eligible ───────────────────────────────────────────────────
 
   const accruedCredits = status.accruedCredits ?? 0;
+  const accruedPrecise =
+    status.accruedCreditsPrecise ?? status.accruedCredits ?? 0;
   const creditsPerDay = status.creditsPerDay ?? 0;
   const maxUnclaimed = status.maxUnclaimed ?? 0;
   const accrualStart = status.accrualStartAt ? new Date(status.accrualStartAt) : null;
@@ -648,14 +652,20 @@ export function TokenHolderSettings() {
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Accrued so far</span>
             <span>
-              {accruedCredits} / {maxUnclaimed} max
+              {maxUnclaimed > 0
+                ? `${accruedPrecise.toFixed(2)} / ${maxUnclaimed} max`
+                : '0 / 0 max'}
             </span>
           </div>
           <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-foreground/60 rounded-full transition-all duration-300"
               style={{
-                width: `${maxUnclaimed > 0 ? Math.min((accruedCredits / maxUnclaimed) * 100, 100) : 0}%`,
+                width: `${
+                  maxUnclaimed > 0
+                    ? Math.min((accruedPrecise / maxUnclaimed) * 100, 100)
+                    : 0
+                }%`,
               }}
             />
           </div>

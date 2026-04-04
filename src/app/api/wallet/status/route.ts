@@ -80,6 +80,7 @@ export async function GET(_request: NextRequest) {
       creditsPerDay,
       maxUnclaimed,
       accruedCredits: accrual.accrued,
+      accruedCreditsPrecise: accrual.accruedPrecise,
       accrualStartAt: accrualStartAt.toISOString(),
       cappedAt: accrual.cappedAt,
       balanceLastChecked: row.balance_last_checked ?? null,
