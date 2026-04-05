@@ -11,15 +11,7 @@ import {
   normalizePhantomSignMessageResult,
   phantomPublicKeyToBase58,
 } from '@/lib/solana/phantom-injected';
-import {
-  AlertCircle,
-  Wallet,
-  Zap,
-  TrendingUp,
-  Clock,
-  CheckCircle2,
-  Info,
-} from 'lucide-react';
+import { AlertCircle, Wallet, CheckCircle2 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -71,9 +63,146 @@ function formatWalletError(err: unknown): string {
   return 'Could not connect wallet.';
 }
 
-// Shared card class, matching usage-settings.tsx exactly
-const CARD =
-  'rounded-lg backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]';
+/** Brandfetch Logo API — hotlinked per https://docs.brandfetch.com/logo-api/guidelines */
+const PHANTOM_SYMBOL_SRC =
+  'https://cdn.brandfetch.io/idf5VaJxyT/theme/dark/symbol.svg?c=1dxbfHSJFAPEGdCLU4o5B';
+
+/** Single panel style — one border, light blur, no stacked “glass” effects */
+const panel =
+  'rounded-lg border border-border bg-card/90 backdrop-blur-sm shadow-sm dark:bg-card/80';
+
+const panelSubtle = 'rounded-lg border border-border bg-muted/30 dark:bg-muted/20';
+
+const btnPrimary =
+  'inline-flex items-center justify-center gap-2 rounded-md bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40';
+
+const btnPrimaryWide =
+  'w-full inline-flex items-center justify-center gap-2 rounded-md bg-foreground px-4 py-3 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40';
+
+/** Gray liquid glass — frosted panel + specular edge, connect CTA only */
+const btnPhantomGlass =
+  'inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-300/70 bg-gradient-to-b from-zinc-100/90 via-zinc-200/55 to-zinc-300/45 px-4 py-2.5 text-sm font-medium text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-1px_0_rgba(0,0,0,0.04),0_4px_20px_-6px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-[box-shadow,background-color,border-color,transform] hover:border-zinc-400/80 hover:from-white/95 hover:via-zinc-200/65 hover:to-zinc-300/55 hover:shadow-[inset_0_1px_0_rgba(255,255,255,1),0_8px_28px_-6px_rgba(0,0,0,0.14)] active:scale-[0.99] dark:border-zinc-500/35 dark:from-zinc-800/55 dark:via-zinc-800/35 dark:to-zinc-950/50 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.35),0_4px_24px_-4px_rgba(0,0,0,0.5)] dark:hover:border-zinc-400/40 dark:hover:from-zinc-700/50 dark:hover:via-zinc-800/40 dark:hover:to-zinc-950/55 disabled:pointer-events-none disabled:opacity-40';
+
+function ProgressTrack({ value, max }: { value: number; max: number }) {
+  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+  return (
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+      <div
+        className="h-full rounded-full bg-foreground/70 transition-[width] duration-300 dark:bg-foreground/50"
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
+
+function formatShortDateTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/** Extra context shown whenever a wallet is linked (below main status panels). */
+function ConnectedWalletContext({ status }: { status: WalletStatus }) {
+  const checked = formatShortDateTime(status.balanceLastChecked);
+  const lastClaim = formatShortDateTime(status.lastClaimAt);
+
+  return (
+    <div className={`${panel} p-5 space-y-4`}>
+      <div>
+        <h4 className="text-sm font-medium text-foreground">UTC day &amp; claims</h4>
+        <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+          Your daily allowance is based on the UTC calendar day (midnight UTC), not your local date.
+          Each claim applies to whatever credits you still have left for that UTC day.
+        </p>
+      </div>
+      {(checked || lastClaim) && (
+        <dl className="grid gap-3 text-sm sm:grid-cols-2">
+          {checked && (
+            <div>
+              <dt className="text-muted-foreground">Balance last synced</dt>
+              <dd className="mt-0.5 font-medium text-foreground tabular-nums">{checked}</dd>
+              <dd className="mt-1 text-xs text-muted-foreground">
+                Updated when you connect or complete a claim.
+              </dd>
+            </div>
+          )}
+          {lastClaim && (
+            <div>
+              <dt className="text-muted-foreground">Last claim</dt>
+              <dd className="mt-0.5 font-medium text-foreground tabular-nums">{lastClaim}</dd>
+            </div>
+          )}
+        </dl>
+      )}
+      <p className="text-xs text-muted-foreground border-t border-border pt-3">
+        To use a different wallet, disconnect above, then connect again with Phantom.
+      </p>
+    </div>
+  );
+}
+
+function TokenTabDisconnectedHelp() {
+  return (
+    <div className="space-y-4">
+      <div className={`${panel} p-5 space-y-3`}>
+        <h4 className="text-sm font-medium text-foreground">How linking works</h4>
+        <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground leading-relaxed">
+          <li>
+            <span className="text-foreground">Connect Phantom</span> — approve the connection in the
+            extension.
+          </li>
+          <li>
+            <span className="text-foreground">Sign the message</span> — proves you control the wallet
+            and ties it to your Runwise login. The text includes your user id and a short timestamp.
+          </li>
+          <li>
+            <span className="text-foreground">We read $RUNWISE on-chain</span> — your SPL balance sets
+            how many credits you may earn per UTC day (after the 1M minimum).
+          </li>
+          <li>
+            <span className="text-foreground">Claim when you want</span> — credits are not auto-deposited;
+            open this tab and claim to add them to your Runwise balance.
+          </li>
+        </ol>
+      </div>
+
+      <div className={`${panel} p-5 space-y-2`}>
+        <h4 className="text-sm font-medium text-foreground">What signing does not do</h4>
+        <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed">
+          <li>
+            Connect and claim flows only ask for <span className="text-foreground">signatures</span>, not
+            token transfers. We never move $RUNWISE out of your wallet.
+          </li>
+          <li>
+            We store your linked address and a balance snapshot for allowance math. You can disconnect
+            anytime from this screen.
+          </li>
+        </ul>
+      </div>
+
+      <div className={`${panel} p-5 space-y-2`}>
+        <h4 className="text-sm font-medium text-foreground">If Phantom won&apos;t connect</h4>
+        <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed">
+          <li>Update Phantom to the latest version.</li>
+          <li>
+            Disable other Solana wallet extensions for this site — multiple injectors often conflict.
+          </li>
+          <li>
+            If the popup closes without connecting, wait a moment and press Connect again; we reset
+            the wallet session before each attempt.
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -342,19 +471,20 @@ export function TokenHolderSettings() {
   // ── Reusable sub-elements ───────────────────────────────────────────────────
 
   const ActionError = actionError ? (
-    <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive flex items-center gap-2">
-      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-      {actionError}
+    <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex gap-2.5">
+      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+      <span>{actionError}</span>
     </div>
   ) : null;
 
   const DisconnectLink = (
     <button
+      type="button"
       onClick={handleDisconnect}
       disabled={actionLoading}
-      className="text-xs text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2 disabled:opacity-50"
+      className="shrink-0 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-40"
     >
-      Disconnect wallet
+      Disconnect
     </button>
   );
 
@@ -362,36 +492,27 @@ export function TokenHolderSettings() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className={`${CARD} p-6 space-y-4`}>
-          <div className="space-y-2">
-            <div className="h-4 w-40 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
-            <div className="h-10 w-56 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
+      <div className="w-full min-w-0 space-y-6">
+        <div className={`${panel} p-6 space-y-4`}>
+          <div className="flex gap-4">
+            <div className="h-12 w-12 shrink-0 rounded-md bg-muted animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-40 bg-muted rounded animate-pulse" />
+              <div className="h-3 w-full max-w-sm bg-muted rounded animate-pulse" />
+            </div>
           </div>
-          <div className="h-4 w-full bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
-          <div className="h-4 w-3/4 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className={`${CARD} p-4 space-y-2`}>
-            <div className="h-4 w-28 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
-            <div className="h-8 w-20 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
-          </div>
-          <div className={`${CARD} p-4 space-y-2`}>
-            <div className="h-4 w-28 bg-gray-200 dark:bg-[#303030] rounded-md animate-pulse" />
-            <div className="h-8 w-20 bg-gray-300 dark:bg-[#303030] rounded-md animate-pulse" />
-          </div>
+          <div className="h-10 w-44 bg-muted rounded-md animate-pulse" />
         </div>
       </div>
     );
   }
 
-  // Fetch error
   if (fetchError) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {fetchError}
+      <div className="w-full min-w-0">
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex gap-2.5">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{fetchError}</span>
         </div>
       </div>
     );
@@ -400,83 +521,58 @@ export function TokenHolderSettings() {
   // ── STATE 2: No wallet connected ────────────────────────────────────────────
 
   if (!status?.connected) {
-    const examples = [
-      { tokens: '1,000,000', cpd: 8, max: 24 },
-      { tokens: '5,000,000', cpd: 41, max: 123 },
-      { tokens: '10,000,000', cpd: 83, max: 249 },
-      { tokens: '24,000,000+', cpd: 200, max: 600 },
-    ];
-
     return (
-      <div className="space-y-6">
-        {/* Header + connect card */}
-        <div className={`${CARD} p-6 space-y-4`}>
-          <div className="flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-muted-foreground" />
-            <h2 className="text-base font-semibold text-foreground">Connect Your Wallet</h2>
+      <div className="w-full min-w-0 space-y-6">
+        <div className={`${panel} p-6 sm:p-7 space-y-5`}>
+          <div className="flex gap-4">
+            <img
+              src={PHANTOM_SYMBOL_SRC}
+              alt=""
+              width={44}
+              height={44}
+              className="h-11 w-11 shrink-0 object-contain"
+              aria-hidden
+            />
+            <div className="min-w-0 space-y-2">
+              <h3 className="text-base font-semibold text-foreground">Connect Phantom</h3>
+              <p className="text-sm text-muted-foreground max-w-lg">
+                Sign a message to prove you control the wallet. We read your $RUNWISE balance and set
+                your daily credits from that.
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            $RUNWISE holders earn generation credits continuously based on their token balance.
-            Connect your wallet to start accruing.
-          </p>
 
-          {/* Formula explainer */}
-          <div className="rounded-lg bg-muted/50 px-4 py-3 space-y-1.5">
-            <p className="text-sm font-medium text-foreground flex items-center gap-2">
-              <Zap className="w-4 h-4 flex-shrink-0" />
-              Earning rate:{' '}
-              <code className="font-mono bg-muted px-1 rounded text-xs">
+          <div className={`${panelSubtle} p-4 space-y-2 text-sm text-muted-foreground`}>
+            <p>
+              <span className="font-medium text-foreground">Allowance:</span>{' '}
+              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
                 floor(tokens ÷ 120,000)
               </code>{' '}
-              credits/day, up to 200/day
-            </p>
-            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5 flex-shrink-0" />
-              Minimum: 1,000,000 $RUNWISE to earn credits
+              credits per UTC day, max 200. You need at least 1,000,000 $RUNWISE to earn any.
             </p>
           </div>
 
           <button
+            type="button"
             onClick={handleConnect}
             disabled={actionLoading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/80 transition-colors disabled:opacity-50"
+            className={btnPhantomGlass}
           >
-            <Wallet className="w-4 h-4" />
-            {actionLoading ? 'Connecting…' : 'Connect Phantom Wallet'}
+            <img
+              src={PHANTOM_SYMBOL_SRC}
+              alt=""
+              width={18}
+              height={18}
+              className="h-[18px] w-[18px] shrink-0 object-contain opacity-90"
+              aria-hidden
+            />
+            {actionLoading ? 'Opening wallet…' : 'Connect with Phantom'}
           </button>
         </div>
 
         {ActionError}
 
-        {/* Earning examples table */}
-        <div className={`${CARD} p-4 space-y-3`}>
-          <h3 className="text-sm font-semibold text-foreground">Earning Examples</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-muted-foreground text-xs border-b border-border/50">
-                  <th className="text-left pb-2 font-medium">Tokens Held</th>
-                  <th className="text-left pb-2 font-medium">Credits/day</th>
-                  <th className="text-left pb-2 font-medium">Max claimable</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/30">
-                {examples.map((row) => (
-                  <tr key={row.tokens}>
-                    <td className="py-2 font-mono text-xs text-foreground">{row.tokens}</td>
-                    <td className="py-2 text-foreground">
-                      <span className="font-medium">{row.cpd}</span>
-                      {row.cpd === 200 && (
-                        <span className="ml-1 text-xs text-muted-foreground">(max)</span>
-                      )}
-                    </td>
-                    <td className="py-2 text-muted-foreground">{row.max}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <TokenTabDisconnectedHelp />
       </div>
     );
   }
@@ -493,33 +589,37 @@ export function TokenHolderSettings() {
     const needed = Math.max(0, 1_000_000 - balanceNum);
 
     return (
-      <div className="space-y-6">
-        <div className={`${CARD} p-6 space-y-4`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground font-mono">{truncated}</span>
+      <div className="w-full min-w-0 space-y-6">
+        <div className={`${panel} p-6 sm:p-7 space-y-5`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 py-1 font-mono text-xs text-muted-foreground">
+              <Wallet className="h-3.5 w-3.5 shrink-0" />
+              {truncated}
             </div>
             {DisconnectLink}
           </div>
 
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Your balance</p>
-            <p className="text-3xl font-semibold text-foreground">
+            <p className="text-sm text-muted-foreground mb-1">Balance</p>
+            <p className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground tabular-nums">
               {status.tokenBalanceDisplay ?? '0'}
-              <span className="text-lg text-muted-foreground font-normal ml-2">$RUNWISE</span>
+              <span className="ml-2 text-lg font-normal text-muted-foreground">$RUNWISE</span>
             </p>
           </div>
 
-          <div className="rounded-lg bg-yellow-500/10 px-4 py-3 text-sm text-yellow-600 dark:text-yellow-500 space-y-1">
-            <p className="font-medium">
-              Need {needed.toLocaleString()} more $RUNWISE to start earning
-            </p>
-            <p className="text-xs opacity-80">
-              At 1,000,000 tokens you'd earn 8 credits/day
-            </p>
+          <div className="flex gap-3 rounded-md border border-amber-500/25 bg-amber-500/5 dark:bg-amber-500/10 px-4 py-3">
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
+            <div className="space-y-1 text-sm">
+              <p className="font-medium text-foreground">
+                Need {needed.toLocaleString()} more $RUNWISE for daily credits
+              </p>
+              <p className="text-muted-foreground">
+                Minimum 1M $RUNWISE (8+ credits/day once you cross the threshold).
+              </p>
+            </div>
           </div>
         </div>
+        <ConnectedWalletContext status={status} />
         {ActionError}
       </div>
     );
@@ -542,24 +642,27 @@ export function TokenHolderSettings() {
     : null;
 
   const EarningHeader = (
-    <div className={`${CARD} p-6 space-y-4`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Wallet className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground font-mono">{truncated}</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-foreground/10 px-2 py-0.5 text-xs font-medium text-foreground">
-            <Zap className="w-3 h-3" />
-            Earning {creditsPerDay} credits/day
-          </span>
+    <div className={`${panel} p-6 sm:p-7`}>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-4 min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 py-1 font-mono text-xs text-muted-foreground">
+              <Wallet className="h-3.5 w-3.5 shrink-0" />
+              {truncated}
+            </div>
+            <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-900 dark:text-emerald-200">
+              {creditsPerDay} credits / UTC day
+            </span>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Token balance</p>
+            <p className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground tabular-nums">
+              {status.tokenBalanceDisplay ?? '0'}
+              <span className="ml-2 text-lg font-normal text-muted-foreground">$RUNWISE</span>
+            </p>
+          </div>
         </div>
-        {DisconnectLink}
-      </div>
-      <div>
-        <p className="text-sm text-muted-foreground mb-1">Token balance</p>
-        <p className="text-2xl font-semibold text-foreground">
-          {status.tokenBalanceDisplay ?? '0'}
-          <span className="text-base text-muted-foreground font-normal ml-2">$RUNWISE</span>
-        </p>
+        <div className="flex lg:pt-0.5">{DisconnectLink}</div>
       </div>
     </div>
   );
@@ -568,44 +671,48 @@ export function TokenHolderSettings() {
 
   if (claimableCredits > 0) {
     return (
-      <div className="space-y-6">
+      <div className="w-full min-w-0 space-y-6">
         {EarningHeader}
 
-        <div className={`${CARD} p-6 space-y-4`}>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">Ready to Claim</h3>
+        <div className={`${panel} p-6 sm:p-7 space-y-5`}>
+          <div>
+            <h3 className="text-sm font-medium text-foreground">Claim credits</h3>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Approve the signature in Phantom to add credits to your account.
+            </p>
           </div>
 
           {claimSuccess !== null && (
-            <div className="rounded-lg bg-green-500/10 border border-green-500/30 px-4 py-3 text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              +{claimSuccess} credits added to your balance!
+            <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-200 flex gap-2.5">
+              <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+              <span className="font-medium">+{claimSuccess} credits added.</span>
             </div>
           )}
 
-          <div className="text-center py-2">
-            <p className="text-5xl font-semibold text-foreground">{claimableCredits}</p>
-            <p className="text-sm text-muted-foreground mt-1">credits available to claim now</p>
+          <div className={`${panelSubtle} px-5 py-6 text-center`}>
+            <p className="text-4xl sm:text-5xl font-semibold tracking-tight text-foreground tabular-nums">
+              {claimableCredits}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">credits ready to claim</p>
           </div>
 
-          <p className="text-xs text-muted-foreground text-center">
-            Daily allowance from your balance: {creditsPerDay} credits (UTC day). Claimed so far today:{' '}
-            {creditsClaimedToday}. Each claim takes your full remaining allowance (minimum 1 credit).
-          </p>
+          <div className={`${panelSubtle} px-4 py-3 text-sm text-muted-foreground space-y-1`}>
+            <p>
+              Today (UTC): allowance <span className="tabular-nums font-medium text-foreground">{creditsPerDay}</span>
+              , claimed{' '}
+              <span className="tabular-nums font-medium text-foreground">{creditsClaimedToday}</span>.
+            </p>
+            <p>One claim uses your remaining allowance for the day.</p>
+          </div>
 
-          <button
-            onClick={handleClaim}
-            disabled={actionLoading}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/80 transition-colors disabled:opacity-50"
-          >
-            <Zap className="w-4 h-4" />
+          <button type="button" onClick={handleClaim} disabled={actionLoading} className={btnPrimaryWide}>
             {actionLoading
-              ? 'Claiming — sign in your wallet…'
-              : `Claim ${claimableCredits} Credits`}
+              ? 'Waiting for signature…'
+              : `Claim ${claimableCredits} credit${claimableCredits === 1 ? '' : 's'}`}
           </button>
         </div>
 
+        <ConnectedWalletContext status={status} />
         {ActionError}
       </div>
     );
@@ -614,68 +721,56 @@ export function TokenHolderSettings() {
   // ── STATE 5: Recently claimed / no credits yet ──────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       {EarningHeader}
 
-      <div className={`${CARD} p-6 space-y-3`}>
-        <div className="flex items-center gap-2">
-          <Clock className="w-5 h-5 text-muted-foreground" />
-          <h3 className="text-sm font-semibold text-foreground">No Credits to Claim Yet</h3>
-        </div>
-
-        <p className="text-sm text-muted-foreground">
-          {creditsPerDay > 0 && creditsClaimedToday >= creditsPerDay ? (
-            <>
-              You&apos;ve claimed your full daily allowance ({creditsPerDay} credits). Limits reset at
-              midnight UTC
-              {resetsLabel ? (
+      <div className={`${panel} p-6 sm:p-7 space-y-5`}>
+        <div className="min-w-0 space-y-2">
+          <h3 className="text-sm font-medium text-foreground">No credits left to claim</h3>
+          <p className="text-sm text-muted-foreground">
+              {creditsPerDay > 0 && creditsClaimedToday >= creditsPerDay ? (
                 <>
-                  {' '}
-                  (<span className="font-medium text-foreground">{resetsLabel}</span> your time).
+                  You&apos;ve used your full daily allowance (
+                  <span className="font-medium text-foreground tabular-nums">{creditsPerDay}</span>{' '}
+                  credits). Next allowance after UTC midnight
+                  {resetsLabel ? (
+                    <>
+                      {' '}
+                      (<span className="font-medium text-foreground">{resetsLabel}</span> local).
+                    </>
+                  ) : (
+                    '.'
+                  )}
                 </>
               ) : (
-                '.'
-              )}
-            </>
-          ) : (
-            <>
-              No credits left to claim right now. Your balance earns up to{' '}
-              <span className="font-medium text-foreground">{creditsPerDay}</span> credits per UTC day.
-              {resetsLabel && (
                 <>
-                  {' '}
-                  Allowance refreshes at{' '}
-                  <span className="font-medium text-foreground">{resetsLabel}</span>.
+                  No remaining credits for this UTC day. Your tier allows up to{' '}
+                  <span className="font-medium text-foreground tabular-nums">{creditsPerDay}</span>{' '}
+                  credits/day.
+                  {resetsLabel && (
+                    <>
+                      {' '}
+                      Refreshes{' '}
+                      <span className="font-medium text-foreground">{resetsLabel}</span>.
+                    </>
+                  )}
                 </>
               )}
-            </>
-          )}
-        </p>
+            </p>
+        </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Today&apos;s allowance used</span>
-            <span>
-              {creditsPerDay > 0
-                ? `${creditsClaimedToday} / ${creditsPerDay}`
-                : '0 / 0'}
+            <span>Today&apos;s allowance</span>
+            <span className="tabular-nums text-foreground">
+              {creditsPerDay > 0 ? `${creditsClaimedToday} / ${creditsPerDay}` : '—'}
             </span>
           </div>
-          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-foreground/60 rounded-full transition-all duration-300"
-              style={{
-                width: `${
-                  creditsPerDay > 0
-                    ? Math.min((creditsClaimedToday / creditsPerDay) * 100, 100)
-                    : 0
-                }%`,
-              }}
-            />
-          </div>
+          <ProgressTrack value={creditsClaimedToday} max={creditsPerDay || 1} />
         </div>
       </div>
 
+      <ConnectedWalletContext status={status} />
       {ActionError}
     </div>
   );
