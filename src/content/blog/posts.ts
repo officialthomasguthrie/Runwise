@@ -4,7 +4,7 @@ export const blogPosts: BlogPost[] = [
   {
     slug: "stop-writing-automations-start-designing-systems",
     title: "Stop Writing Automations. Start Designing Systems.",
-    description: "Why linear Zapier-style workflows break under real operations, and how AI agents and systems thinking create durable automation.",
+    description: "Why linear, Zapier-style chains crack in production, and how AI agents plus systems thinking build automation that holds up.",
     author: "Thomas Guthrie",
     date: "2026-03-29",
     published: true,
