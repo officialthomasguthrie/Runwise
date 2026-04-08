@@ -27,7 +27,7 @@ import {
 import { getUserIntegrations } from '@/lib/integrations/service';
 import { createAdminClient } from '@/lib/supabase-admin';
 import type { AgentEmailSendingMode } from '@/lib/agents/types';
-import { checkCreditsAvailable } from '@/lib/credits/tracker';
+import { checkCreditsAvailableUpToCap } from '@/lib/credits/tracker';
 import { getGenerationCreditCap } from '@/lib/credits/calculator';
 import {
   blockIfFreeTierNeedsCredits,
@@ -112,13 +112,13 @@ export async function POST(request: NextRequest) {
 
     const shouldChargeCredits = shouldApplyChatCredits(creditState);
     if (shouldChargeCredits) {
-      const reserve = getGenerationCreditCap();
-      const creditCheck = await checkCreditsAvailable(user.id, reserve);
+      const perTurnCap = getGenerationCreditCap();
+      const creditCheck = await checkCreditsAvailableUpToCap(user.id, perTurnCap);
       if (!creditCheck.available) {
         return new Response(
           JSON.stringify({
             error: creditCheck.message || 'Insufficient credits',
-            credits: { required: reserve, available: creditCheck.balance },
+            credits: { perTurnCap, available: creditCheck.balance },
           }),
           { status: 402, headers: { 'Content-Type': 'application/json' } }
         );

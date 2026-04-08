@@ -298,6 +298,12 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
     setMessages((prev) => [...prev, msg]);
   }, []);
 
+  const stripThinkingAssistant = useCallback((prev: ChatMessage[]) => {
+    return prev.filter(
+      (m) => !(m.role === "assistant" && "content" in m && m.content === "Thinking...")
+    );
+  }, []);
+
   const appendAssistantText = useCallback((delta: string) => {
     setMessages((prev) => {
       const last = prev[prev.length - 1];
@@ -411,15 +417,24 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
               case "confirmation":
                 appendMessage({ id: genId(), role: "card", cardType: "confirmation" });
                 break;
-              case "error":
-                appendMessage({
-                  id: genId(),
-                  role: "card",
-                  cardType: "error_retry",
-                  message: "Something went wrong. Want to try again?",
-                  lastUserMessage: options?.lastUserMessage,
-                });
+              case "error": {
+                const rawMsg = event.message;
+                const errText =
+                  typeof rawMsg === "string" && rawMsg.trim()
+                    ? rawMsg.trim()
+                    : "Something went wrong. Want to try again?";
+                setMessages((prev) => [
+                  ...stripThinkingAssistant(prev),
+                  {
+                    id: genId(),
+                    role: "card",
+                    cardType: "error_retry",
+                    message: errText,
+                    lastUserMessage: options?.lastUserMessage,
+                  },
+                ]);
                 break;
+              }
             }
           } catch {
             /* ignore parse errors */
@@ -427,7 +442,7 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
         }
       }
     },
-    [appendAssistantText, finishAssistantText, appendMessage]
+    [appendAssistantText, finishAssistantText, appendMessage, stripThinkingAssistant]
   );
 
   const sendMessage = useCallback(
@@ -470,31 +485,41 @@ export function AgentChatBuilder({ userId, onComplete, onViewAgent, scrollTopOff
         });
 
         if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          appendMessage({
-            id: genId(),
-            role: "card",
-            cardType: "error_retry",
-            message: "Something went wrong. Want to try again?",
-            lastUserMessage: text,
-          });
+          const err = (await res.json().catch(() => ({}))) as { error?: string };
+          const detail =
+            typeof err.error === "string" && err.error.trim()
+              ? err.error
+              : "Something went wrong. Want to try again?";
+          setMessages((prev) => [
+            ...stripThinkingAssistant(prev),
+            {
+              id: genId(),
+              role: "card",
+              cardType: "error_retry",
+              message: detail,
+              lastUserMessage: text,
+            },
+          ]);
           return;
         }
 
         await readSSEChat(res, { ...options, lastUserMessage: text });
       } catch (e: any) {
-        appendMessage({
-          id: genId(),
-          role: "card",
-          cardType: "error_retry",
-          message: "Something went wrong. Want to try again?",
-          lastUserMessage: text,
-        });
+        setMessages((prev) => [
+          ...stripThinkingAssistant(prev),
+          {
+            id: genId(),
+            role: "card",
+            cardType: "error_retry",
+            message: "Something went wrong. Want to try again?",
+            lastUserMessage: text,
+          },
+        ]);
       } finally {
         setIsStreaming(false);
       }
     },
-    [messages, appendMessage, readSSEChat, agentId]
+    [messages, appendMessage, readSSEChat, agentId, stripThinkingAssistant]
   );
 
   const resumeAfterIntegrations = useCallback(async () => {

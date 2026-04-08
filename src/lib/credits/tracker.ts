@@ -119,6 +119,29 @@ export async function checkCreditsAvailable(
 }
 
 /**
+ * Pre-flight for metered turns: actual charge is capped by usage (see finalizeTokenMeteredCredits).
+ * Require only min(cap, currentBalance) so token-claimed balances (e.g. partial daily allowance) can still chat.
+ */
+export async function checkCreditsAvailableUpToCap(
+  userId: string,
+  cap: number
+): Promise<{ available: boolean; balance: number; message?: string }> {
+  const balance = await getCreditBalance(userId);
+  if (!balance) {
+    return { available: false, balance: 0, message: 'Unable to check credit balance' };
+  }
+  if (balance.balance <= 0) {
+    return {
+      available: false,
+      balance: balance.balance,
+      message: 'Insufficient credits. Add credits or upgrade to continue.',
+    };
+  }
+  const required = Math.min(cap, balance.balance);
+  return checkCreditsAvailable(userId, required);
+}
+
+/**
  * Deduct credits from user's balance
  */
 export async function deductCredits(

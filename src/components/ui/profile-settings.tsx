@@ -119,27 +119,18 @@ export function ProfileSettings() {
         const currentUser = freshUser || user;
         
         // Get user metadata
-        const firstName = currentUser.user_metadata?.first_name || "";
-        const lastName = currentUser.user_metadata?.last_name || "";
-        const avatarUrl = currentUser.user_metadata?.avatar_url || "";
-        
-        // Get additional profile data from a profiles table (if it exists)
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', currentUser.id)
-          .maybeSingle();
-
-        // Handle profile data safely
-        const profileData = profile as any || {};
+        const md = (currentUser.user_metadata ?? {}) as Record<string, unknown>;
+        const firstName = (md.first_name as string) || "";
+        const lastName = (md.last_name as string) || "";
+        const avatarUrl = (md.avatar_url as string) || "";
 
         setProfileData(prev => ({
           firstName: firstName || prev.firstName,
           lastName: lastName || prev.lastName,
           email: currentUser.email || prev.email,
-          phone: profileData?.phone || prev.phone,
-          location: profileData?.location || prev.location,
-          bio: profileData?.bio || prev.bio,
+          phone: (md.phone as string) || prev.phone,
+          location: (md.location as string) || prev.location,
+          bio: (md.bio as string) || prev.bio,
           // Only update avatarUrl if it's different to avoid unnecessary re-renders
           avatarUrl: avatarUrl || prev.avatarUrl,
           createdAt: currentUser.created_at || prev.createdAt,
@@ -245,28 +236,15 @@ export function ProfileSettings() {
         data: {
           first_name: profileData.firstName,
           last_name: profileData.lastName,
-          avatar_url: profileData.avatarUrl
-        }
+          avatar_url: profileData.avatarUrl,
+          phone: profileData.phone || null,
+          location: profileData.location || null,
+          bio: profileData.bio || null,
+        },
       });
 
       if (updateError) {
         throw updateError;
-      }
-
-      // Try to update profiles table (create if doesn't exist)
-      const { error: profileError } = await (supabase as any)
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          phone: profileData.phone,
-          location: profileData.location,
-          bio: profileData.bio,
-          updated_at: new Date().toISOString()
-        });
-
-      if (profileError) {
-        console.warn('Could not update profiles table:', profileError);
-        // Continue anyway as this might not exist yet
       }
 
       setSaveStatus('success');
