@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import type { CSSProperties } from "react";
+import { Loader2, CheckCircle2, XCircle, CornerDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BuildStage, BuildStageStatus } from "@/lib/agents/chat-pipeline";
 
@@ -18,8 +19,20 @@ const CANONICAL_STAGES: string[] = [
   "Deploying agent",
 ];
 
-function getInProgressLabel(label: string): string {
-  return label;
+/** Match workflow AI chat sidebar: shimmer on active step label */
+const shimmerLabelClass =
+  "text-sm whitespace-pre-wrap inline-block bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite]";
+
+const shimmerLabelStyle: CSSProperties = {
+  background:
+    "linear-gradient(90deg, hsl(var(--foreground)) 0%, hsl(var(--foreground) / 0.8) 25%, hsl(var(--foreground) / 0.4) 50%, hsl(var(--foreground) / 0.8) 75%, hsl(var(--foreground)) 100%)",
+  WebkitBackgroundClip: "text",
+  backgroundClip: "text",
+  WebkitTextFillColor: "transparent",
+};
+
+function normalizeDetail(detail: string): string {
+  return detail.replace(/^\s*→\s*/, "").trim();
 }
 
 export function BuildProgressCard({ stages }: BuildProgressCardProps) {
@@ -34,80 +47,66 @@ export function BuildProgressCard({ stages }: BuildProgressCardProps) {
   });
 
   return (
-    <div className="w-full max-w-[420px]">
-      <div
-        className={cn(
-          "rounded-xl border border-stone-200/60 dark:border-white/[0.06]",
-          "bg-stone-50/80 dark:bg-white/[0.02]",
-          "shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.2)]",
-          "overflow-hidden"
-        )}
-      >
-        <div className="px-4 py-3 border-b border-stone-200/50 dark:border-white/[0.05]">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/80">
-            Building agent
-          </p>
-        </div>
-        <div className="divide-y divide-stone-200/40 dark:divide-white/[0.04]">
-          {mergedStages.map((stage, i) => {
-            const isPending = stage.status === "pending";
-            const isInProgress = stage.status === "running";
-            const isCompleted = stage.status === "done";
-            const isFailed = stage.status === "error";
-            const inProgressLabel = getInProgressLabel(stage.label);
+    <div className="w-full max-w-[95%] bg-transparent text-foreground">
+      <div className="flex flex-col gap-2">
+        {mergedStages.map((stage, i) => {
+          const isPending = stage.status === "pending";
+          const isInProgress = stage.status === "running";
+          const isCompleted = stage.status === "done";
+          const isFailed = stage.status === "error";
+          const detailText = stage.detail ? normalizeDetail(stage.detail) : "";
 
-            return (
-              <div
-                key={`${stage.label}-${i}`}
-                className={cn(
-                  "flex items-start gap-3 px-4 py-2.5 transition-colors",
-                  isInProgress && "bg-stone-100/50 dark:bg-white/[0.03]"
+          return (
+            <div key={`${stage.label}-${i}`} className="min-w-0">
+              <div className="flex items-center gap-2">
+                {isPending && (
+                  <span
+                    className="h-3.5 w-3.5 shrink-0 rounded-full border border-muted-foreground/25"
+                    aria-hidden
+                  />
                 )}
-              >
-                <div className="flex-shrink-0 pt-0.5">
-                  {isPending && (
-                    <span className="block w-4 h-4 rounded-full border-2 border-muted-foreground/25" />
-                  )}
+                {isInProgress && (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-foreground" aria-hidden />
+                )}
+                {isCompleted && (
+                  <CheckCircle2
+                    className="h-3.5 w-3.5 shrink-0 text-green-500/70 dark:text-green-400/70"
+                    aria-hidden
+                  />
+                )}
+                {isFailed && <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" aria-hidden />}
+
+                <div className="min-w-0 flex-1">
                   {isInProgress && (
-                    <Loader2 className="h-4 w-4 text-foreground/90 animate-spin" />
-                  )}
-                  {isCompleted && (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400/90" />
-                  )}
-                  {isFailed && (
-                    <XCircle className="h-4 w-4 text-red-500" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  {isInProgress ? (
-                    <p className="text-sm font-medium text-foreground">
-                      {inProgressLabel}
-                    </p>
-                  ) : isCompleted ? (
-                    <>
-                      <p className="text-sm font-medium text-foreground/90">
-                        {stage.label}
-                      </p>
-                      {stage.detail && (
-                        <p className="mt-0.5 text-xs text-muted-foreground/80 leading-relaxed">
-                          → {stage.detail}
-                        </p>
-                      )}
-                    </>
-                  ) : isFailed ? (
-                    <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                      {inProgressLabel} — Failed
-                    </p>
-                  ) : isPending ? (
-                    <p className="text-sm text-muted-foreground/50">
+                    <p className={shimmerLabelClass} style={shimmerLabelStyle}>
                       {stage.label}
                     </p>
-                  ) : null}
+                  )}
+                  {isCompleted && (
+                    <p className="text-sm text-muted-foreground">{stage.label}</p>
+                  )}
+                  {isFailed && (
+                    <p className="text-sm text-red-600 dark:text-red-400">{stage.label} — Failed</p>
+                  )}
+                  {isPending && (
+                    <p className="text-sm text-muted-foreground/40">{stage.label}</p>
+                  )}
                 </div>
               </div>
-            );
-          })}
-        </div>
+
+              {isCompleted && detailText ? (
+                <div className="mt-0.5 flex items-start gap-1.5 pl-[22px]">
+                  <CornerDownRight
+                    className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground/45"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                  <span className="text-xs leading-snug text-muted-foreground/85">{detailText}</span>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
