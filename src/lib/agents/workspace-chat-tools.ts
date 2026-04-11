@@ -4,6 +4,13 @@
 
 import { createAdminClient } from '@/lib/supabase-admin';
 import { writeMemory, getAgentMemory, deleteMemory } from './memory';
+import { enableAgentBehaviours, disableAgentBehaviours } from './behaviour-manager';
+import {
+  planFromBehaviours,
+  buildIntegrationCheckListForPolling,
+} from './chat-pipeline';
+import { getUserIntegrations } from '@/lib/integrations/service';
+import { inngest } from '@/inngest/client';
 import type { AgentMemoryType } from './types';
 import type { ToolResult } from './tools';
 
@@ -134,6 +141,84 @@ export const WORKSPACE_CHAT_TOOLS = [
           short_description: { type: 'string', description: 'New short description' },
         },
         required: ['short_description'],
+      },
+    },
+  },
+  // ── Agent control tools ──────────────────────────────────────────────────────
+  {
+    type: 'function' as const,
+    function: {
+      name: 'workspace_pause_agent',
+      description:
+        'Pause or resume this agent. Call when the owner says "pause", "stop", "resume", "unpause", or "restart". ' +
+        'If current status is active it will be paused; if paused it will be resumed. ' +
+        'Returns new_status so you can confirm the change.',
+      parameters: {
+        type: 'object',
+        properties: {
+          reason: {
+            type: 'string',
+            description: 'Brief reason the owner gave for pausing/resuming (optional, for your reply)',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'workspace_run_agent',
+      description:
+        'Manually trigger an immediate agent run (fires an Inngest job). ' +
+        'Only works when the agent is active. Use when the owner says "run now", "go", "do it", "find leads", "execute", or asks you to perform a task right now. ' +
+        'Returns an event_id you can report back.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_hint: {
+            type: 'string',
+            description:
+              'One-sentence description of what the owner wants done on this run (stored in your reply only — the agent uses its own instructions at runtime)',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'workspace_update_goals_rules',
+      description:
+        'Add, replace, or remove goals and rules. ' +
+        'Goals are things the agent aims to achieve; rules are constraints on behaviour. ' +
+        'Call when the owner says things like "focus on founders", "aim for X", "never do Y", "add a goal", "remove rule", "update goals". ' +
+        'Provide the COMPLETE new list — existing items not included will be deleted.',
+      parameters: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            description: 'Full replacement list of goals and rules',
+            items: {
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  enum: ['goal', 'rule'],
+                  description: '"goal" for objectives, "rule" for constraints/restrictions',
+                },
+                label: {
+                  type: 'string',
+                  description: 'Clear single-sentence description of the goal or rule',
+                },
+              },
+              required: ['type', 'label'],
+            },
+          },
+        },
+        required: ['items'],
       },
     },
   },
@@ -283,6 +368,147 @@ export async function executeWorkspaceChatTool(
           .eq('user_id', ctx.userId);
         if (uErr) return { success: false, error: uErr.message };
         return { success: true, data: { ok: true } };
+      }
+
+      case 'workspace_pause_agent': {
+        // Read current status
+        const { data: agentRow, error: fetchErr } = await (admin as any)
+          .from('agents')
+          .select('id, status')
+          .eq('id', ctx.agentId)
+          .eq('user_id', ctx.userId)
+          .single();
+        if (fetchErr || !agentRow) return { success: false, error: 'Agent not found' };
+
+        const currentStatus: string = agentRow.status;
+        if (currentStatus !== 'active' && currentStatus !== 'paused') {
+          return {
+            success: false,
+            error: `Cannot pause/resume agent with status "${currentStatus}". Agent must be active or paused.`,
+          };
+        }
+
+        const newStatus = currentStatus === 'active' ? 'paused' : 'active';
+
+        // When resuming, verify required integrations are still connected
+        if (newStatus === 'active') {
+          const { data: behaviours } = await (admin as any)
+            .from('agent_behaviours')
+            .select('behaviour_type, trigger_type, config, description')
+            .eq('agent_id', ctx.agentId);
+          const plan = planFromBehaviours(behaviours ?? []);
+          const integrations = await getUserIntegrations(ctx.userId);
+          const connectedServices = integrations
+            .map((i: { service_name?: string }) => i.service_name)
+            .filter(Boolean) as string[];
+          const required = buildIntegrationCheckListForPolling(plan, connectedServices);
+          const disconnected = required.filter((i: { connected: boolean }) => !i.connected);
+          if (disconnected.length > 0) {
+            return {
+              success: false,
+              error: `Cannot resume: ${disconnected.map((d: { label: string }) => d.label).join(', ')} not connected.`,
+            };
+          }
+        }
+
+        const { error: updateErr } = await (admin as any)
+          .from('agents')
+          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq('id', ctx.agentId)
+          .eq('user_id', ctx.userId);
+        if (updateErr) return { success: false, error: updateErr.message };
+
+        if (newStatus === 'paused') {
+          await disableAgentBehaviours(ctx.agentId, ctx.userId);
+        } else {
+          await enableAgentBehaviours(ctx.agentId, ctx.userId);
+        }
+
+        return {
+          success: true,
+          data: { previous_status: currentStatus, new_status: newStatus },
+        };
+      }
+
+      case 'workspace_run_agent': {
+        const { data: agentRow, error: fetchErr } = await (admin as any)
+          .from('agents')
+          .select('id, status, name')
+          .eq('id', ctx.agentId)
+          .eq('user_id', ctx.userId)
+          .single();
+        if (fetchErr || !agentRow) return { success: false, error: 'Agent not found' };
+
+        if (agentRow.status !== 'active') {
+          return {
+            success: false,
+            error: `Agent must be active to run. Current status: "${agentRow.status}". Activate or resume it first.`,
+          };
+        }
+
+        let eventId: string | undefined;
+        try {
+          const sendResult = await inngest.send({
+            name: 'agent/run',
+            data: {
+              agentId: ctx.agentId,
+              userId: ctx.userId,
+              behaviourId: null,
+              triggerType: 'manual',
+              triggerData: { hint: String(params.task_hint ?? '').trim() || undefined },
+            },
+          });
+          eventId =
+            (sendResult as any)?.ids?.[0] ??
+            (sendResult as any)?.[0]?.ids?.[0] ??
+            (sendResult as any)?.[0] ??
+            undefined;
+        } catch (inngestErr: unknown) {
+          const msg = inngestErr instanceof Error ? inngestErr.message : String(inngestErr);
+          return { success: false, error: `Failed to trigger run: ${msg}` };
+        }
+
+        return {
+          success: true,
+          data: { triggered: true, event_id: eventId ?? null, agent_name: agentRow.name },
+        };
+      }
+
+      case 'workspace_update_goals_rules': {
+        const rawItems = Array.isArray(params.items) ? params.items : [];
+        const cleaned = rawItems
+          .filter(
+            (item: unknown) =>
+              item !== null &&
+              typeof item === 'object' &&
+              typeof (item as Record<string, unknown>).label === 'string' &&
+              ((item as Record<string, unknown>).label as string).trim()
+          )
+          .map((item: unknown, i: number) => {
+            const g = item as Record<string, unknown>;
+            return {
+              id: `gr-${Date.now()}-${i}`,
+              type: ['goal', 'rule'].includes(String(g.type)) ? (g.type as 'goal' | 'rule') : 'goal',
+              label: (g.label as string).trim(),
+            };
+          });
+
+        const { error: uErr } = await (admin as any)
+          .from('agents')
+          .update({ goals_rules: cleaned, updated_at: new Date().toISOString() })
+          .eq('id', ctx.agentId)
+          .eq('user_id', ctx.userId);
+        if (uErr) return { success: false, error: uErr.message };
+
+        return {
+          success: true,
+          data: {
+            count: cleaned.length,
+            goals: cleaned.filter((i: { type: string }) => i.type === 'goal').length,
+            rules: cleaned.filter((i: { type: string }) => i.type === 'rule').length,
+            items: cleaned,
+          },
+        };
       }
 
       default:
