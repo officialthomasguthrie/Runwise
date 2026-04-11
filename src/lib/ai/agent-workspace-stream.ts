@@ -1,5 +1,8 @@
 /**
- * Owner ↔ agent workspace chat: non-streaming tool loop, then SSE text deltas.
+ * Owner ↔ agent workspace chat: streaming tool loop, then true SSE token streaming.
+ *
+ * Tool-call rounds use non-streaming (need full response to reconstruct args).
+ * The final text turn uses stream:true so tokens reach the browser one-by-one.
  */
 
 import OpenAI from 'openai';
@@ -25,21 +28,12 @@ import {
 import type { AgentActivity, AgentBehaviour, AgentMemory } from '@/lib/agents/types';
 
 const MAX_TOOL_ROUNDS = 10;
-const CHUNK_CHARS = 40;
 
 function pickChatModel(agent: Agent): string {
   const m = (agent.model ?? '').trim();
   if (!m) return 'gpt-4o';
-  // Workspace chat needs tool calling; avoid obviously non-chat ids
   if (m.includes('embedding') || m.includes('moderation')) return 'gpt-4o';
   return m;
-}
-
-function streamPlainText(writer: SSEWriter, text: string) {
-  const s = text.trim() || "I couldn't generate a reply. Try again.";
-  for (let i = 0; i < s.length; i += CHUNK_CHARS) {
-    writer.text(s.slice(i, i + CHUNK_CHARS));
-  }
 }
 
 export async function runAgentWorkspaceChat(params: {
@@ -82,17 +76,12 @@ export async function runAgentWorkspaceChat(params: {
     capabilitiesBlock: capabilitiesLines,
   });
 
-  const history: ChatCompletionMessageParam[] = inputMessages.slice(-24).map((m) => ({
-    role: m.role,
-    content: m.content,
-  }));
-
-  const toolCtx: WorkspaceChatToolContext = { agentId: agent.id, userId };
-
   const apiMessages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
-    ...history,
+    ...inputMessages.slice(-24).map((m) => ({ role: m.role, content: m.content } as ChatCompletionMessageParam)),
   ];
+
+  const toolCtx: WorkspaceChatToolContext = { agentId: agent.id, userId };
 
   let rounds = 0;
 
@@ -100,40 +89,76 @@ export async function runAgentWorkspaceChat(params: {
     while (rounds < MAX_TOOL_ROUNDS) {
       rounds += 1;
 
-      const completion = await openai.chat.completions.create({
+      // ── Streaming call ──────────────────────────────────────────────────────
+      const stream = await openai.chat.completions.create({
         model,
         messages: apiMessages,
         tools: WORKSPACE_CHAT_TOOLS,
         tool_choice: 'auto',
         temperature: 0.45,
         max_tokens: 4096,
+        stream: true,
+        stream_options: { include_usage: true },
       });
 
-      usageSink?.addFromChatCompletion(completion);
+      // Accumulate tool-call deltas (indexed by delta.index)
+      const pendingToolCalls: Record<
+        number,
+        { id: string; name: string; arguments: string }
+      > = {};
+      let assistantContent = '';
 
-      const choice = completion.choices[0]?.message;
-      if (!choice) {
-        writer.text('No response from the model.');
+      for await (const chunk of stream) {
+        usageSink?.addFromStreamChunk(chunk);
+
+        const delta = chunk.choices[0]?.delta;
+        if (!delta) continue;
+
+        // Stream text tokens straight to the browser
+        if (delta.content) {
+          assistantContent += delta.content;
+          writer.text(delta.content);
+        }
+
+        // Accumulate tool-call fragments
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            if (!pendingToolCalls[idx]) {
+              pendingToolCalls[idx] = { id: '', name: '', arguments: '' };
+            }
+            if (tc.id) pendingToolCalls[idx].id = tc.id;
+            if (tc.function?.name) pendingToolCalls[idx].name += tc.function.name;
+            if (tc.function?.arguments) pendingToolCalls[idx].arguments += tc.function.arguments;
+          }
+        }
+      }
+
+      const toolCallsList = Object.values(pendingToolCalls).filter((t) => t.name);
+
+      // ── No tool calls → text already streamed; we're done ──────────────────
+      if (toolCallsList.length === 0) {
+        if (!assistantContent.trim()) {
+          writer.text("I couldn't generate a reply. Try again.");
+        }
         writer.textDone();
         writer.close();
         return;
       }
 
-      apiMessages.push(choice as ChatCompletionAssistantMessageParam);
+      // ── Tool calls present → add assistant turn + execute each tool ─────────
+      apiMessages.push({
+        role: 'assistant',
+        content: assistantContent || null,
+        tool_calls: toolCallsList.map((tc) => ({
+          id: tc.id,
+          type: 'function' as const,
+          function: { name: tc.name, arguments: tc.arguments },
+        })),
+      } as ChatCompletionAssistantMessageParam);
 
-      const toolCalls = choice.tool_calls;
-      if (!toolCalls?.length) {
-        streamPlainText(writer, choice.content ?? '');
-        writer.textDone();
-        writer.close();
-        return;
-      }
-
-      for (const tc of toolCalls) {
-        if (tc.type !== 'function') continue;
-        const name = tc.function.name;
-        const args = tc.function.arguments ?? '{}';
-        const result = await executeWorkspaceChatTool(name, args, toolCtx);
+      for (const tc of toolCallsList) {
+        const result = await executeWorkspaceChatTool(tc.name, tc.arguments, toolCtx);
         const toolMsg: ChatCompletionToolMessageParam = {
           role: 'tool',
           tool_call_id: tc.id,
@@ -143,6 +168,7 @@ export async function runAgentWorkspaceChat(params: {
         };
         apiMessages.push(toolMsg);
       }
+      // Loop → next round will stream the model's reply after seeing tool results
     }
 
     writer.text(
