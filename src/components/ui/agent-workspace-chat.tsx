@@ -85,26 +85,6 @@ export function AgentWorkspaceChat({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming]);
 
-  const appendAssistantText = useCallback((delta: string) => {
-    setMessages((prev) => {
-      const last = prev[prev.length - 1];
-      if (last?.role === "assistant") {
-        return [...prev.slice(0, -1), { ...last, content: last.content + delta }];
-      }
-      return [...prev, { id: genId(), role: "assistant", content: delta }];
-    });
-  }, []);
-
-  const finishAssistantText = useCallback(() => {
-    setMessages((prev) => {
-      const last = prev[prev.length - 1];
-      if (last?.role === "assistant") {
-        return [...prev];
-      }
-      return prev;
-    });
-  }, []);
-
   const saveAfterResponse = useCallback(
     async (updated: AgentChatMessage[]) => {
       if (!agentId || !userId) return;
@@ -118,9 +98,34 @@ export function AgentWorkspaceChat({
       if (!userId) return;
 
       const userMsg: AgentChatMessage = { id: genId(), role: "user", content: text };
+      // Add the user message + a "Thinking..." placeholder so the shimmer shows immediately
+      const thinkingId = genId();
+      const thinkingMsg: AgentChatMessage = { id: thinkingId, role: "assistant", content: "Thinking..." };
       const nextMessages = [...messages, userMsg];
-      setMessages(nextMessages);
+      setMessages([...nextMessages, thinkingMsg]);
       setIsStreaming(true);
+
+      // Track whether we've replaced the "Thinking..." placeholder yet
+      let replacedThinking = false;
+
+      const replaceOrAppend = (delta: string) => {
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === thinkingId);
+          if (!replacedThinking && idx >= 0) {
+            // Replace "Thinking..." with the first real chunk
+            const updated = [...prev];
+            updated[idx] = { ...prev[idx], content: delta };
+            return updated;
+          }
+          // Append to the last assistant message
+          const last = prev[prev.length - 1];
+          if (last?.role === "assistant") {
+            return [...prev.slice(0, -1), { ...last, content: last.content + delta }];
+          }
+          return [...prev, { id: genId(), role: "assistant", content: delta }];
+        });
+        replacedThinking = true;
+      };
 
       try {
         const res = await fetch(`/api/agents/${agentId}/chat`, {
@@ -134,9 +139,12 @@ export function AgentWorkspaceChat({
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           const errContent = err?.error ?? "Something went wrong. Please try again.";
-          const errMsg: AgentChatMessage = { id: genId(), role: "assistant", content: errContent };
+          // Replace the thinking placeholder with the error
           setMessages((prev) => {
-            const full = [...prev, errMsg];
+            const idx = prev.findIndex((m) => m.id === thinkingId);
+            const errMsg: AgentChatMessage = { id: genId(), role: "assistant", content: errContent };
+            const base = idx >= 0 ? prev.slice(0, idx) : prev;
+            const full = [...base, errMsg];
             saveAfterResponse(full);
             return full;
           });
@@ -152,8 +160,6 @@ export function AgentWorkspaceChat({
 
         const decoder = new TextDecoder();
         let buffer = "";
-        let accumulatedText = "";
-        let streamError: string | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -168,16 +174,13 @@ export function AgentWorkspaceChat({
               const event = JSON.parse(line.slice(6)) as { type: string; delta?: string; message?: string };
               switch (event.type) {
                 case "text_delta":
-                  accumulatedText += (event.delta as string) ?? "";
-                  appendAssistantText((event.delta as string) ?? "");
+                  replaceOrAppend((event.delta as string) ?? "");
                   break;
                 case "text_done":
-                  finishAssistantText();
+                  // Nothing extra needed — state is already correct
                   break;
                 case "error":
-                  streamError = event.message ?? "Something went wrong.";
-                  appendAssistantText(streamError);
-                  finishAssistantText();
+                  replaceOrAppend(event.message ?? "Something went wrong.");
                   break;
               }
             } catch {
@@ -186,24 +189,16 @@ export function AgentWorkspaceChat({
           }
         }
 
-        const assistantContent = streamError ?? (accumulatedText || "No response.");
-        const assistantMsg: AgentChatMessage = {
-          id: genId(),
-          role: "assistant",
-          content: assistantContent,
-        };
-        const fullConversation = [...nextMessages, assistantMsg];
-        setMessages(fullConversation);
-        saveAfterResponse(fullConversation);
+        // Save using the ref so we never cause an extra re-render
+        await saveAfterResponse(messagesRef.current);
       } catch (e) {
         console.error("[AgentWorkspaceChat] send error:", e);
-        const errMsg: AgentChatMessage = {
-          id: genId(),
-          role: "assistant",
-          content: "Could not send. Please try again.",
-        };
+        const errContent = "Could not send. Please try again.";
         setMessages((prev) => {
-          const full = [...prev, errMsg];
+          const idx = prev.findIndex((m) => m.id === thinkingId);
+          const errMsg: AgentChatMessage = { id: genId(), role: "assistant", content: errContent };
+          const base = idx >= 0 ? prev.slice(0, idx) : prev;
+          const full = [...base, errMsg];
           saveAfterResponse(full);
           return full;
         });
@@ -211,7 +206,7 @@ export function AgentWorkspaceChat({
         setIsStreaming(false);
       }
     },
-    [agentId, userId, messages, appendAssistantText, finishAssistantText, saveAfterResponse]
+    [agentId, userId, messages, saveAfterResponse]
   );
 
   if (!userId) return null;
