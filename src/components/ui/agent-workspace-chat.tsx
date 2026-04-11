@@ -105,26 +105,21 @@ export function AgentWorkspaceChat({
       setMessages([...nextMessages, thinkingMsg]);
       setIsStreaming(true);
 
-      // Track whether we've replaced the "Thinking..." placeholder yet
-      let replacedThinking = false;
-
-      const replaceOrAppend = (delta: string) => {
+      // All state checks happen inside the updater so React's deferred/batched
+      // execution sees the correct queued state — mirrors builder's appendAssistantText.
+      const appendDelta = (delta: string) => {
         setMessages((prev) => {
-          const idx = prev.findIndex((m) => m.id === thinkingId);
-          if (!replacedThinking && idx >= 0) {
-            // Replace "Thinking..." with the first real chunk
-            const updated = [...prev];
-            updated[idx] = { ...prev[idx], content: delta };
-            return updated;
-          }
-          // Append to the last assistant message
           const last = prev[prev.length - 1];
+          // Replace the "Thinking..." placeholder with the first real token
+          if (last?.role === "assistant" && last.content === "Thinking...") {
+            return [...prev.slice(0, -1), { ...last, content: delta }];
+          }
+          // Append subsequent tokens to the last assistant message
           if (last?.role === "assistant") {
             return [...prev.slice(0, -1), { ...last, content: last.content + delta }];
           }
           return [...prev, { id: genId(), role: "assistant", content: delta }];
         });
-        replacedThinking = true;
       };
 
       try {
@@ -174,13 +169,13 @@ export function AgentWorkspaceChat({
               const event = JSON.parse(line.slice(6)) as { type: string; delta?: string; message?: string };
               switch (event.type) {
                 case "text_delta":
-                  replaceOrAppend((event.delta as string) ?? "");
+                  appendDelta((event.delta as string) ?? "");
                   break;
                 case "text_done":
                   // Nothing extra needed — state is already correct
                   break;
                 case "error":
-                  replaceOrAppend(event.message ?? "Something went wrong.");
+                  appendDelta(event.message ?? "Something went wrong.");
                   break;
               }
             } catch {
