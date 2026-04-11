@@ -60,12 +60,10 @@ export function subscriptionTierToPlanId(subscriptionTier: string | null | undef
 
 /**
  * Whether the user can access the Agent Builder (create/edit agents).
- * Agent Builder is Pro-only: professional, enterprise tiers.
+ * Available on all plans (free, pro, enterprise).
  */
-export function canAccessAgentBuilder(subscriptionTier: string | null | undefined): boolean {
-  if (!subscriptionTier) return false;
-  const tier = subscriptionTier.toLowerCase();
-  return tier === 'pro' || tier === 'professional' || tier === 'enterprise' || tier === 'enterprises';
+export function canAccessAgentBuilder(_subscriptionTier: string | null | undefined): boolean {
+  return true;
 }
 
 
